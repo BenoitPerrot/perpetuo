@@ -159,7 +159,28 @@
 
     <dependency>
       <groupId>com.twitter.inject</groupId>
+      <artifactId>inject-app_${scala.version.short}</artifactId>
+      <type>test-jar</type>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>com.twitter.inject</groupId>
+      <artifactId>inject-core_${scala.version.short}</artifactId>
+      <type>test-jar</type>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>com.twitter.inject</groupId>
       <artifactId>inject-modules_${scala.version.short}</artifactId>
+      <type>test-jar</type>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>com.twitter.inject</groupId>
+      <artifactId>inject-server_${scala.version.short}</artifactId>
       <type>test-jar</type>
       <scope>test</scope>
     </dependency>
