@@ -1,4 +1,4 @@
-package com.criteo.perpetuo.app.dao
+package com.criteo.perpetuo.dao
 
 import slick.driver.JdbcProfile
 

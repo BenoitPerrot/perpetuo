@@ -1,4 +1,4 @@
-package com.criteo.perpetuo.app.dao
+package com.criteo.perpetuo.dao
 
 import slick.ast.{ColumnOption, TypedType}
 import slick.lifted.{AbstractTable, ForeignKeyQuery, Index, PrimaryKey}
@@ -29,13 +29,13 @@ trait TableBinder {
     (sourceColumns: P, targetTableQuery: TableQuery[TT])
     (targetColumns: TT => P)
     (implicit unpack: Shape[_ <: FlatShapeLevel, TT, U, _], unpackp: Shape[_ <: FlatShapeLevel, P, PU, _]): ForeignKeyQuery[TT, U] = {
-      val name = s"FK_${tableName}_${targetTableQuery.baseTableRow.tableName}_${columnNames.get(sourceColumns).get}"
+      val name = s"FK_${tableName}_${targetTableQuery.baseTableRow.tableName}_${columnNames(sourceColumns)}"
       foreignKey(name, sourceColumns, targetTableQuery)(targetColumns)
     }
 
     def index[C <: AnyRef](on: C, unique: Boolean = false)
                           (implicit shape: Shape[_ <: FlatShapeLevel, C, _, _]): Index = {
-      val name = s"IX_${tableName}_${columnNames.get(on).get}"
+      val name = s"IX_${tableName}_${columnNames(on)}"
       index(name, on, unique)
     }
   }
