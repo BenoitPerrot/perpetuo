@@ -21,7 +21,7 @@ trait TableBinder {
 
     def primaryKey[C](sourceColumns: C)
                      (implicit shape: Shape[_ <: FlatShapeLevel, C, _, _]): PrimaryKey = {
-      val name = s"PK_$tableName"
+      val name = s"pk_$tableName"
       primaryKey(name, sourceColumns)
     }
 
@@ -29,13 +29,13 @@ trait TableBinder {
     (sourceColumns: P, targetTableQuery: TableQuery[TT])
     (targetColumns: TT => P)
     (implicit unpack: Shape[_ <: FlatShapeLevel, TT, U, _], unpackp: Shape[_ <: FlatShapeLevel, P, PU, _]): ForeignKeyQuery[TT, U] = {
-      val name = s"FK_${tableName}_${targetTableQuery.baseTableRow.tableName}_${columnNames(sourceColumns)}"
+      val name = s"fk_${tableName}_${targetTableQuery.baseTableRow.tableName}_${columnNames(sourceColumns)}"
       foreignKey(name, sourceColumns, targetTableQuery)(targetColumns)
     }
 
     def index[C <: AnyRef](on: C, unique: Boolean = false)
                           (implicit shape: Shape[_ <: FlatShapeLevel, C, _, _]): Index = {
-      val name = s"IX_${tableName}_${columnNames(on)}"
+      val name = s"ix_${tableName}_${columnNames(on)}"
       index(name, on, unique)
     }
   }
