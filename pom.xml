@@ -22,6 +22,9 @@
 
     <slick.version>3.1.1</slick.version>
     <freeslick.version>3.1.1.1</freeslick.version>
+    <h2db.version>1.4.191</h2db.version>
+    <hikari.version>2.4.5</hikari.version>
+
     <twitter.server.version>1.20.0</twitter.server.version>
     <twitter.util.version>6.34.0</twitter.util.version>
     <finatra.version>2.1.6</finatra.version>
@@ -29,6 +32,11 @@
   </properties>
 
   <dependencies>
+
+    <dependency>
+      <groupId>com.criteo.sdk</groupId>
+      <artifactId>datasource-prm-java</artifactId>
+    </dependency>
 
     <dependency>
       <groupId>org.scala-lang</groupId>
@@ -50,6 +58,18 @@
       <groupId>org.suecarter</groupId>
       <artifactId>freeslick_${scala.version.short}</artifactId>
       <version>${freeslick.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>com.h2database</groupId>
+      <artifactId>h2</artifactId>
+      <version>${h2db.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>com.zaxxer</groupId>
+      <artifactId>HikariCP</artifactId>
+      <version>${hikari.version}</version>
     </dependency>
 
     <dependency>
