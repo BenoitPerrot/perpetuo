@@ -9,12 +9,12 @@ import slick.driver.JdbcDriver
 class SchemaSpec extends Test {
 
   class DatabaseBinder(override val profile: JdbcDriver)
-    extends DeploymentRequestBinder with DeploymentTraceBinder
+    extends DeploymentRequestBinder with DeploymentTraceBinder with ExecutionTraceBinder
       with ProfileProvider {
 
     import profile.api._
 
-    val schema: profile.DDL = deploymentRequestQuery.schema ++ deploymentTraceQuery.schema
+    val schema: profile.DDL = deploymentRequestQuery.schema ++ deploymentTraceQuery.schema ++ executionTraceQuery.schema
   }
 
   object dumper extends DatabaseBinder(MSSQLServerProfile)
