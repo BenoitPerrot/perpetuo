@@ -8,13 +8,21 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
 
+trait DeploymentIntent {
+  val productName: String
+  val version: String
+  val target: String
+  val reason: String // Not an `Option` because it's easier to consider that no comment <=> empty
+}
+
+
 case class DeploymentRequest(id: Option[Long],
                              productName: String,
                              version: String,
                              target: String,
-                             reason: String, // Optional, but it's easier to consider that no comment <=> empty comment
+                             reason: String,
                              creator: String,
-                             creationDate: java.sql.Timestamp)
+                             creationDate: java.sql.Timestamp) extends DeploymentIntent
 
 
 trait DeploymentRequestBinder extends TableBinder {

@@ -7,6 +7,11 @@ import com.twitter.finatra.http.routing.HttpRouter
 import com.twitter.finatra.logging.modules.Slf4jBridgeModule
 import com.typesafe.config.{Config, ConfigFactory}
 
+
+object CustomServerModules {
+  val jackson = CustomJacksonModule
+}
+
 /**
   * Main server.
   */
@@ -17,10 +22,13 @@ class Server extends HttpServer {
 
   val version = config.getString("version")
 
+  override protected def jacksonModule = CustomServerModules.jackson
+
   override def defaultFinatraHttpPort: String = s":${config.getInt("http.port")}"
 
   override def modules = Seq(
-    Slf4jBridgeModule
+    Slf4jBridgeModule,
+    new DbContextModule(config.getConfig("db").getConfig(config.getString("env")))
   )
 
   override def configureHttp(router: HttpRouter) {
@@ -33,6 +41,8 @@ class Server extends HttpServer {
     }
 
     router
+        .add[RestController]
+
       // Add controller for serving static assets as the last one / fallback one
       .add(new StaticAssetsController())
   }

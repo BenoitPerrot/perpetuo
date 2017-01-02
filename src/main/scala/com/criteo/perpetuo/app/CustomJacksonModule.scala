@@ -1,0 +1,26 @@
+package com.criteo.perpetuo.app
+
+import com.fasterxml.jackson.core.JsonGenerator
+import com.fasterxml.jackson.databind.SerializerProvider
+import com.fasterxml.jackson.databind.module.SimpleModule
+import com.fasterxml.jackson.databind.ser.std.StdSerializer
+import com.twitter.finatra.json.modules.FinatraJacksonModule
+import com.twitter.finatra.json.utils.CamelCasePropertyNamingStrategy
+
+
+object CustomJacksonModule extends FinatraJacksonModule {
+  override val additionalJacksonModules = Seq(
+    new SimpleModule {
+      addSerializer(TimestampSerializer)
+    }
+  )
+
+  override val propertyNamingStrategy = CamelCasePropertyNamingStrategy
+}
+
+
+object TimestampSerializer extends StdSerializer[java.sql.Timestamp](classOf[java.sql.Timestamp]) {
+  def serialize(timestamp: java.sql.Timestamp, jgen: JsonGenerator, provider: SerializerProvider) {
+    jgen.writeNumber(timestamp.getTime / 1000)
+  }
+}
