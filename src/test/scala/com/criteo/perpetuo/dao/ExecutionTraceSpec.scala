@@ -2,7 +2,7 @@ package com.criteo.perpetuo.dao
 
 import java.sql.Timestamp
 
-import com.criteo.perpetuo.dao.enums.{ExecutionState, Operation, TargetStatus}
+import com.criteo.perpetuo.dao.enums.{ExecutionState, Operation}
 import com.typesafe.config.{Config, ConfigFactory}
 import org.junit.runner.RunWith
 import org.scalatest.FunSuite
