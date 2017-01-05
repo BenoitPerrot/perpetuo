@@ -11,11 +11,22 @@ import com.twitter.finatra.json.utils.CamelCasePropertyNamingStrategy
 object CustomJacksonModule extends FinatraJacksonModule {
   override val additionalJacksonModules = Seq(
     new SimpleModule {
+      addSerializer(RawJsonSerializer)
       addSerializer(TimestampSerializer)
     }
   )
 
   override val propertyNamingStrategy = CamelCasePropertyNamingStrategy
+}
+
+
+case class RawJson(raw: String)
+
+
+object RawJsonSerializer extends StdSerializer[RawJson](classOf[RawJson]) {
+  def serialize(json: RawJson, jgen: JsonGenerator, provider: SerializerProvider) {
+    jgen.writeRawValue(json.raw)
+  }
 }
 
 

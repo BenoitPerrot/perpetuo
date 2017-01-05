@@ -4,11 +4,14 @@ import java.sql.Timestamp
 import javax.inject.Inject
 import javax.sql.DataSource
 
-import com.criteo.perpetuo.dao.{DeploymentIntent, DeploymentRequest, DeploymentRequestBinding}
+import com.criteo.perpetuo.dao.{DeploymentRequest, DeploymentRequestBinding}
+import com.twitter.finagle.http.Request
+import com.twitter.finatra.http.exceptions.BadRequestException
 import com.twitter.finatra.http.{Controller => BaseController}
 import com.twitter.finatra.request._
 import com.twitter.finatra.validation._
 import slick.driver.H2Driver
+import spray.json.{JsObject, JsString, _}
 
 import scala.concurrent.Await
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -18,12 +21,6 @@ import scala.util.Try
 
 @JsonIgnoreBody
 case class DeploymentRequestGet(@RouteParam @NotEmpty id: String)
-
-// this is not perfect but thanks to this case class, Finatra handles the input validation by itself
-case class DeploymentRequestPost(@NotEmpty productName: String,
-                                 @NotEmpty version: String,
-                                 @NotEmpty target: String,
-                                 reason: String = "") extends DeploymentIntent
 
 
 /**
@@ -50,14 +47,40 @@ class RestController @Inject()(val dataSource: DataSource,
 
   get("/api/deployment-requests/:id") {
     r: DeploymentRequestGet =>
-      Try(r.id.toLong).toOption.flatMap(id => Await.result(deploymentRequests.findDeploymentRequestById(db, id), 2.seconds))
-    // todo: remove "id" from output, as well as "reason" when it's empty?
+      Try(r.id.toLong).toOption.flatMap(id => Await.result(deploymentRequests.findDeploymentRequestById(db, id), 2.seconds)).map {
+        depReq => {
+          val cls = classOf[DeploymentRequest]
+          cls.getDeclaredFields.map(_.getName).flatMap(fieldName =>
+            (fieldName, cls.getDeclaredMethod(fieldName).invoke(depReq)) match {
+              case ("reason", "") => None
+              case ("target", json: String) => Some("target" -> RawJson(json))
+              case (name, value) => Some(name -> value)
+            }
+          ).toMap
+        }
+      }
   }
 
   post("/api/deployment-requests") {
-    r: DeploymentRequestPost => {
-      val req = DeploymentRequest(None, r.productName, r.version, r.target, r.reason, "anonymous", new Timestamp(System.currentTimeMillis))
-      Await.result(deploymentRequests.insert(db, req).map(response.created.json), 2.seconds)
+    r: Request => {
+      r.contentString.parseJson match {
+        case body: JsObject =>
+          val fields = body.fields
+
+          def readStr(key: String, default: Option[String] = None) = fields.get(key) match {
+            case Some(string: JsString) => string.value
+            case None => default.getOrElse(throw BadRequestException(s"Expected to find $key at request root"))
+            case unknown => throw BadRequestException(s"Expected a string as $key, got: $unknown")
+          }
+
+          val req = DeploymentRequest(None,
+            readStr("productName"), readStr("version"), fields("target").compactPrint, readStr("reason", Some("")),
+            "anonymous", new Timestamp(System.currentTimeMillis))
+          Await.result(deploymentRequests.insert(db, req).map(response.created.json), 2.seconds)
+
+        case unknown => throw BadRequestException("Expected a JSON object as request body, got: " + unknown)
+      }
     }
   }
+
 }
