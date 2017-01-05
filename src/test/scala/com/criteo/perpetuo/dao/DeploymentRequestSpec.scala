@@ -22,16 +22,14 @@ class DeploymentRequestSpec extends FunSuite with ScalaFutures
 
   implicit val defaultPatience = PatienceConfig(timeout = Span(2, Seconds), interval = Span(100, Millis))
 
-  val config: Config = ConfigFactory.load()
-  val dbModule = new TestingDbContextModule(config.getConfig("db").getConfig("embedded"))
+  private val config: Config = ConfigFactory.load()
+  private val dbModule = new TestingDbContextModule(config.getConfig("db").getConfig("embedded"))
 
   val profile: JdbcDriver = dbModule.driver
-
   import profile.api._
 
-  val db: profile.backend.DatabaseDef = Database.forDataSource(dbModule.dataSourceProvider)
-
-  val schemaCreation = DBIO.seq(
+  private val db = Database.forDataSource(dbModule.dataSourceProvider)
+  private val schemaCreation = DBIO.seq(
     deploymentRequestQuery.schema.create
   )
   Await.result(db.run(schemaCreation), 2.second)

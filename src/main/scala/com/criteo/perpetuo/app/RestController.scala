@@ -35,7 +35,7 @@ class RestController @Inject()(val dataSource: DataSource,
 
   import deploymentRequests.profile.api._
 
-  val db = Database.forDataSource(dataSource)
+  private val db = Database.forDataSource(dataSource)
 
   {
     // TODO: Remove once live

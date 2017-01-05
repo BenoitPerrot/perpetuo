@@ -20,7 +20,7 @@ trait ExecutionTraceBinder extends TableBinder {
 
   import profile.api._
 
-  implicit lazy val stateMapper = MappedColumnType.base[ExecutionState.Type, Short](
+  private implicit lazy val stateMapper = MappedColumnType.base[ExecutionState.Type, Short](
     es => es.id.toShort,
     short => ExecutionState(short.toInt)
   )

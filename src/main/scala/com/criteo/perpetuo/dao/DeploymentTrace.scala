@@ -21,11 +21,11 @@ trait DeploymentTraceBinder extends TableBinder {
 
   import profile.api._
 
-  implicit lazy val operationMapper = MappedColumnType.base[Operation.Type, Short](
+  private implicit lazy val operationMapper = MappedColumnType.base[Operation.Type, Short](
     op => op.id.toShort,
     short => Operation(short.toInt)
   )
-  implicit lazy val targetStatusMapper = MappedColumnType.base[TargetStatus.MapType, String](
+  private implicit lazy val targetStatusMapper = MappedColumnType.base[TargetStatus.MapType, String](
     obj => JsObject(obj map { case (k, v) => (k, JsNumber(v.id)) }).toString,
     str => str.parseJson.asJsObject.fields map { case (k, JsNumber(v)) => (k, TargetStatus(v.value.toInt)) }
   )
