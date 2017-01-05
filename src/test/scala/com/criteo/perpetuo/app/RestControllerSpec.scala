@@ -60,7 +60,7 @@ class RestControllerSpec extends FeatureTest {
 
   "The DeploymentRequest's POST entry-point" should {
 
-    "returns 201 when creating a DeploymentRequest" in {
+    "return 201 when creating a DeploymentRequest" in {
       requestDeployment("my product", "v21", "to everywhere", Some("my comment"))
     }
 
@@ -77,21 +77,21 @@ class RestControllerSpec extends FeatureTest {
 
   "The DeploymentRequest's GET entry-point" should {
 
-    "returns 404 when trying to access a non-existing DeploymentRequest" in {
+    "return 404 when trying to access a non-existing DeploymentRequest" in {
       server.httpGet(
         path = "/api/deployment-requests/4242",
         andExpect = NotFound
       )
     }
 
-    "returns 404 when trying to access a DeploymentRequest with a non-integral ID" in {
+    "return 404 when trying to access a DeploymentRequest with a non-integral ID" in {
       server.httpGet(
         path = "/api/deployment-requests/..",
         andExpect = NotFound
       )
     }
 
-    "returns 200 and a JSON with all necessary info when accessing an existing DeploymentRequest" in {
+    "return 200 and a JSON with all necessary info when accessing an existing DeploymentRequest" in {
       val values1 = server.httpGet(
         path = "/api/deployment-requests/1",
         andExpect = Ok
@@ -117,11 +117,11 @@ class RestControllerSpec extends FeatureTest {
       andExpect = Ok
     ).contentString.parseJson.asJsObject.fields
 
-    "returns 200 and a JSON without `reason` if none or an empty one was provided" in {
+    "return 200 and a JSON without `reason` if none or an empty one was provided" in {
       values3 should not contain key("reason")
     }
 
-    "returns 200 and a JSON with the same target expression as provided" in {
+    "return 200 and a JSON with the same target expression as provided" in {
       val target = values3("target")
       target shouldBe a[JsArray]
       target.asInstanceOf[JsArray].elements.map(
