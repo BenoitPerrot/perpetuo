@@ -45,6 +45,42 @@ class RestController @Inject()(val dataSource: DataSource,
     }
   }
 
+  private def missing(key: String) = throw BadRequestException(s"Expected to find `$key` at request root")
+
+  private def parseTargetExpression(target: JsValue) =
+    (target match {
+      case string: JsString => Seq((JsArray(), Seq(string)))
+      case arr: JsArray => arr.elements.map {
+        case string: JsString => (JsArray(), Seq(string))
+        case obj: JsObject => parseTargetTerm(obj)
+        case unknown => throw BadRequestException(s"Expected a JSON object or string in the target array, got: $unknown")
+      }
+      case obj: JsObject => Seq(parseTargetTerm(obj))
+      case unknown => throw BadRequestException(s"Expected `target` to be a JSON array or object, got: $unknown")
+    }).map {
+      case (tactics, selects) => (
+        tactics,
+        selects.map(_.value match {
+          case w if w.nonEmpty => w
+          case _ => throw BadRequestException("`select` doesn't accept empty JSON strings as values")
+        })
+      )
+    }
+
+  private def parseTargetTerm(target: JsObject): (JsValue, Seq[JsString]) =
+    (
+      target.fields.getOrElse("tactics", JsArray()),
+      target.fields.get("select").map {
+        case string: JsString => Seq(string)
+        case arr: JsArray if arr.elements.nonEmpty =>
+          arr.elements.map {
+            case string: JsString => string
+            case _ => throw BadRequestException("`select` must only contain JSON string values")
+          }
+        case _ => throw BadRequestException("`select` must be a non-empty JSON array")
+      }.getOrElse(throw BadRequestException("`target` must contain a field `select`"))
+    )
+
   get("/api/deployment-requests/:id") {
     r: DeploymentRequestGet =>
       Try(r.id.toLong).toOption.flatMap(id => Await.result(deploymentRequests.findDeploymentRequestById(db, id), 2.seconds)).map {
@@ -66,19 +102,22 @@ class RestController @Inject()(val dataSource: DataSource,
       r.contentString.parseJson match {
         case body: JsObject =>
           val fields = body.fields
-
-          def readStr(key: String, default: Option[String] = None) = fields.get(key) match {
+          def read(key: String) = fields.getOrElse(key, missing(key))
+          def readStr(key: String, default: Option[String] = None): String = fields.get(key) match {
             case Some(string: JsString) => string.value
-            case None => default.getOrElse(throw BadRequestException(s"Expected to find $key at request root"))
+            case None => default.getOrElse(missing(key))
             case unknown => throw BadRequestException(s"Expected a string as $key, got: $unknown")
           }
 
+          val target = read("target")
+          parseTargetExpression(target)
+
           val req = DeploymentRequest(None,
-            readStr("productName"), readStr("version"), fields("target").compactPrint, readStr("reason", Some("")),
+            readStr("productName"), readStr("version"), target.compactPrint, readStr("reason", Some("")),
             "anonymous", new Timestamp(System.currentTimeMillis))
           Await.result(deploymentRequests.insert(db, req).map(response.created.json), 2.seconds)
 
-        case unknown => throw BadRequestException("Expected a JSON object as request body, got: " + unknown)
+        case unknown => throw BadRequestException(s"Expected a JSON object as request body, got: $unknown")
       }
     }
   }
