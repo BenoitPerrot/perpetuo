@@ -58,9 +58,9 @@ class RestController @Inject()(val dataSource: DataSource,
       case obj: JsObject => Seq(parseTargetTerm(obj))
       case unknown => throw BadRequestException(s"Expected `target` to be a JSON array or object, got: $unknown")
     }).map {
-      case (tactics, selects) => (
+      case (tactics, select) => (
         tactics,
-        selects.map(_.value match {
+        select.map(_.value match {
           case w if w.nonEmpty => w
           case _ => throw BadRequestException("`select` doesn't accept empty JSON strings as values")
         })

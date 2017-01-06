@@ -2,7 +2,8 @@ package com.criteo.perpetuo.dao
 
 import javax.inject.{Inject, Singleton}
 
-import com.criteo.perpetuo.dao.enums.ExecutionState
+import com.criteo.perpetuo.dao.enums.ExecutionState.ExecutionState
+import com.criteo.perpetuo.dao.enums.{ExecutionState => ExecutionStateType}
 import slick.driver.JdbcProfile
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -12,7 +13,7 @@ import scala.concurrent.Future
 case class ExecutionTrace(id: Option[Long],
                           deploymentTraceId: Long,
                           guid: String, // Optional, but it's easier to consider that no guid <=> empty guid
-                          state: ExecutionState.Type)
+                          state: ExecutionState)
 
 
 trait ExecutionTraceBinder extends TableBinder {
@@ -20,9 +21,9 @@ trait ExecutionTraceBinder extends TableBinder {
 
   import profile.api._
 
-  private implicit lazy val stateMapper = MappedColumnType.base[ExecutionState.Type, Short](
+  private implicit lazy val stateMapper = MappedColumnType.base[ExecutionState, Short](
     es => es.id.toShort,
-    short => ExecutionState(short.toInt)
+    short => ExecutionStateType(short.toInt)
   )
 
   class ExecutionTraceTable(tag: Tag) extends Table[ExecutionTrace](tag, "execution_trace") {
@@ -33,7 +34,7 @@ trait ExecutionTraceBinder extends TableBinder {
     protected def fk = foreignKey(deploymentTraceId, deploymentTraceQuery)(_.id)
 
     def guid = column[String]("guid", O.SqlType("nvarchar(128)")) // should this be made unique?
-    def state = column[ExecutionState.Type]("state")
+    def state = column[ExecutionState]("state")
     protected def idx = index(state)
 
     def * = (id.?, deploymentTraceId, guid, state) <> (ExecutionTrace.tupled, ExecutionTrace.unapply)
@@ -46,7 +47,7 @@ trait ExecutionTraceBinder extends TableBinder {
   }
 
   def addToDeploymentTrace(db: Database, deploymentTraceId: Long): Future[Long] = {
-    val execTrace = ExecutionTrace(None, deploymentTraceId, "", ExecutionState.pending)
+    val execTrace = ExecutionTrace(None, deploymentTraceId, "", ExecutionStateType.pending)
     db.run((executionTraceQuery returning executionTraceQuery.map(_.id)) += execTrace)
   }
 

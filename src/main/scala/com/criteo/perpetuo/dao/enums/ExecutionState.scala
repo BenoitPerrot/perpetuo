@@ -2,7 +2,7 @@ package com.criteo.perpetuo.dao.enums
 
 
 object ExecutionState extends Enumeration {
-  type Type = Value
+  type ExecutionState = Value
 
   // these values must be stable, since they are persisted in the DB
   val pending = Value(1)

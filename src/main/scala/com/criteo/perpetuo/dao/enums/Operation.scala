@@ -2,7 +2,7 @@ package com.criteo.perpetuo.dao.enums
 
 
 object Operation extends Enumeration {
-  type Type = Value
+  type Operation = Value
 
   // these values must be stable, since they are persisted in the DB
   val deploy = Value(1)
