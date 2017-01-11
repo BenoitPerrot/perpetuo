@@ -13,19 +13,19 @@ CREATE INDEX "ix_deployment_request_product_name"
   ON "deployment_request" ("product_name")
 
 
-CREATE TABLE "deployment_trace" (
+CREATE TABLE "operation_trace" (
   "id"                    BIGINT        NOT NULL IDENTITY,
   "deployment_request_id" BIGINT        NOT NULL,
   "operation"             SMALLINT      NOT NULL,
   "target_status"         NVARCHAR(MAX) NOT NULL
 )
-ALTER TABLE "deployment_trace"
-  ADD CONSTRAINT "pk_deployment_trace" PRIMARY KEY ("id")
+ALTER TABLE "operation_trace"
+  ADD CONSTRAINT "pk_operation_trace" PRIMARY KEY ("id")
 
 
 CREATE TABLE "execution_trace" (
   "id"                  BIGINT        NOT NULL IDENTITY,
-  "deployment_trace_id" BIGINT        NOT NULL,
+  "operation_trace_id" BIGINT        NOT NULL,
   "guid"                NVARCHAR(128) NOT NULL,
   "state"               SMALLINT      NOT NULL
 )
@@ -35,11 +35,11 @@ CREATE INDEX "ix_execution_trace_state"
   ON "execution_trace" ("state")
 
 
-ALTER TABLE "deployment_trace"
-  ADD CONSTRAINT "fk_deployment_trace_deployment_request_id" FOREIGN KEY ("deployment_request_id") REFERENCES "deployment_request" ("id")
+ALTER TABLE "operation_trace"
+  ADD CONSTRAINT "fk_operation_trace_deployment_request_id" FOREIGN KEY ("deployment_request_id") REFERENCES "deployment_request" ("id")
   ON UPDATE NO ACTION
   ON DELETE NO ACTION
 ALTER TABLE "execution_trace"
-  ADD CONSTRAINT "fk_execution_trace_deployment_trace_id" FOREIGN KEY ("deployment_trace_id") REFERENCES "deployment_trace" ("id")
+  ADD CONSTRAINT "fk_execution_trace_operation_trace_id" FOREIGN KEY ("operation_trace_id") REFERENCES "operation_trace" ("id")
   ON UPDATE NO ACTION
   ON DELETE NO ACTION

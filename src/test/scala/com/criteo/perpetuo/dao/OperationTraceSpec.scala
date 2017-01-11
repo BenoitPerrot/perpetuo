@@ -17,8 +17,8 @@ import scala.concurrent.duration._
 
 
 @RunWith(classOf[JUnitRunner])
-class DeploymentTraceSpec extends FunSuite with ScalaFutures
-  with DeploymentTraceBinder
+class OperationTraceSpec extends FunSuite with ScalaFutures
+  with OperationTraceBinder
   with DeploymentRequestBinder
   with ProfileProvider {
 
@@ -33,7 +33,7 @@ class DeploymentTraceSpec extends FunSuite with ScalaFutures
   private val db = Database.forDataSource(dbModule.dataSourceProvider)
   private val schemaCreation = DBIO.seq(
     deploymentRequestQuery.schema.create,
-    deploymentTraceQuery.schema.create
+    operationTraceQuery.schema.create
   )
   Await.result(db.run(schemaCreation), 2.second)
 
@@ -45,16 +45,16 @@ class DeploymentTraceSpec extends FunSuite with ScalaFutures
     TargetStatus.values
   }
 
-  test("Deployment traces can be bound to deployment requests, and retrieved") {
+  test("Operation traces can be bound to deployment requests, and retrieved") {
     val request = DeploymentRequest(None, "perpetuo-app", "v42", "*", "No fear", "c.norris", new Timestamp(123456789))
 
     Await.result(for {
       requestId <- insert(db, request)
       deployId <- addToDeploymentRequest(db, requestId, Operation.deploy)
       revertId <- addToDeploymentRequest(db, requestId, Operation.revert)
-      traces <- db.run(deploymentTraceQuery.result)
-      deploy <- findDeploymentTraceById(db, deployId)
-      revert <- findDeploymentTraceById(db, revertId)
+      traces <- db.run(operationTraceQuery.result)
+      deploy <- findOperationTraceById(db, deployId)
+      revert <- findOperationTraceById(db, revertId)
     } yield {
       assert(deploy.isDefined && revert.isDefined)
       assert(traces == Seq(deploy.get, revert.get))
@@ -69,13 +69,13 @@ class DeploymentTraceSpec extends FunSuite with ScalaFutures
     }, 2.second)
   }
 
-  test("Deployment traces can serialize and de-serialize a target status") {
+  test("Operation traces can serialize and de-serialize a target status") {
     // using the same records already inserted in the DB during the test above
 
     Await.result(for {
-      traces <- db.run(deploymentTraceQuery.result)
+      traces <- db.run(operationTraceQuery.result)
       count <- update(db, traces.head.id.get, Map("abc" -> TargetStatus.serverFailure))
-      trace <- findDeploymentTraceById(db, traces.head.id.get)
+      trace <- findOperationTraceById(db, traces.head.id.get)
     } yield {
       assert(count == 1) // exactly one modified record
       assert(trace.get.targetStatus == Map("abc" -> TargetStatus.serverFailure))

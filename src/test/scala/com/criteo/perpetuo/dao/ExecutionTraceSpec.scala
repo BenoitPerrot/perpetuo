@@ -19,7 +19,7 @@ import scala.concurrent.duration._
 @RunWith(classOf[JUnitRunner])
 class ExecutionTraceSpec extends FunSuite with ScalaFutures
   with ExecutionTraceBinder
-  with DeploymentTraceBinder with DeploymentRequestBinder
+  with OperationTraceBinder with DeploymentRequestBinder
   with ProfileProvider {
 
   implicit val defaultPatience = PatienceConfig(timeout = Span(2, Seconds), interval = Span(100, Millis))
@@ -33,7 +33,7 @@ class ExecutionTraceSpec extends FunSuite with ScalaFutures
   private val db = Database.forDataSource(dbModule.dataSourceProvider)
   private val schemaCreation = DBIO.seq(
     deploymentRequestQuery.schema.create,
-    deploymentTraceQuery.schema.create,
+    operationTraceQuery.schema.create,
     executionTraceQuery.schema.create
   )
   Await.result(db.run(schemaCreation), 2.second)
@@ -42,20 +42,20 @@ class ExecutionTraceSpec extends FunSuite with ScalaFutures
     ExecutionState.values
   }
 
-  test("Execution traces can be bound to deployment traces, and retrieved") {
+  test("Execution traces can be bound to operation traces, and retrieved") {
     val request = DeploymentRequest(None, "perpetuo-app", "v42", "*", "No fear", "c.norris", new Timestamp(123456789))
 
     Await.result(for {
       requestId <- insert(db, request)
       deployId <- addToDeploymentRequest(db, requestId, Operation.deploy)
-      execId <- addToDeploymentTrace(db, deployId)
+      execId <- addToOperationTrace(db, deployId)
       execTraces <- db.run(executionTraceQuery.result)
       execTrace <- findExecutionTraceById(db, execId)
     } yield {
       assert(execTrace.isDefined)
       assert(execTraces == Seq(execTrace.get))
       assert(execTrace.get.id.get == execId)
-      assert(execTrace.get.deploymentTraceId == deployId)
+      assert(execTrace.get.operationTraceId == deployId)
       assert(execTrace.get.guid == "")
       assert(execTrace.get.state == ExecutionState.pending)
     }, 2.second)
