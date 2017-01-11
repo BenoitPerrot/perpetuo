@@ -31,7 +31,7 @@ trait TableBinder {
     (implicit unpack: Shape[_ <: FlatShapeLevel, TT, U, _], unpackp: Shape[_ <: FlatShapeLevel, P, PU, _]): ForeignKeyQuery[TT, U] = {
       val columnName = columnNames(sourceColumns)
       val targetTableName = targetTableQuery.baseTableRow.tableName
-      assert(columnName.startsWith(targetTableName))
+      assert(columnName.startsWith(targetTableName), s"Column $columnName must start with $targetTableName")
       val name = s"fk_${tableName}_$columnName"
       foreignKey(name, sourceColumns, targetTableQuery)(targetColumns)
     }
