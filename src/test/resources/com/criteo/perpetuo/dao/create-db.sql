@@ -24,10 +24,10 @@ ALTER TABLE "operation_trace"
 
 
 CREATE TABLE "execution_trace" (
-  "id"                 BIGINT     NOT NULL IDENTITY,
-  "operation_trace_id" BIGINT     NOT NULL,
-  "uuid"               NCHAR(128) NOT NULL,
-  "state"              SMALLINT   NOT NULL
+  "id"                 BIGINT   NOT NULL IDENTITY,
+  "operation_trace_id" BIGINT   NOT NULL,
+  "uuid"               NCHAR(128),
+  "state"              SMALLINT NOT NULL
 )
 ALTER TABLE "execution_trace"
   ADD CONSTRAINT "pk_execution_trace" PRIMARY KEY ("id")
