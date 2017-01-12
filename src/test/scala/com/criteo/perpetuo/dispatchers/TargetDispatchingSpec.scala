@@ -10,17 +10,17 @@ class TargetDispatchingSpec extends Test {
   val barInvoker = new DummyInvoker("Bar's invoker")
   val fooFooInvoker = new DummyInvoker("Foo-foo's invoker")
 
-  abstract class TestDispatcher(override val getParents: (String) => Iterable[String]) extends TargetDispatchingByPoset(
-    Map(
-      "foo-baz" -> fooInvoker,
-      "bar-baz" -> barInvoker,
-      "foo-foo-baz" -> fooFooInvoker
-    ),
-    getParents
+  object TestSuffixDispatcher extends TargetDispatchingByPoset(
+    new ExecutorsByPoset(
+      Map(
+        "foo-baz" -> fooInvoker,
+        "bar-baz" -> barInvoker,
+        "foo-foo-baz" -> fooFooInvoker
+      ),
+      // the only parent of "wxyz" is "xyz", and "" has no parent:
+      targetWord => Seq(targetWord.substring(1)).filter(_.nonEmpty)
+    )
   )
-
-  // the only parent of "wxyz" is "xyz", and "" has no parent:
-  object TestSuffixDispatcher extends TestDispatcher(targetWord => Seq(targetWord.substring(1)).filter(_.nonEmpty))
 
   implicit class PosetTest(private val select: Select) {
     def sentTo(that: ExecutorInvoker*): Unit =
@@ -131,11 +131,13 @@ class TargetDispatchingSpec extends Test {
 
 // bad dispatcher because toto is the parent of tutu, which is the parent of toto:
 object TestCyclicDispatcher extends TargetDispatchingByPoset(
-  Map("foo" -> new DummyInvoker("Foo's invoker")),
-  targetWord => Seq(
-    targetWord match {
-      case "toto" => "tutu"
-      case _ => "toto"
-    }
+  new ExecutorsByPoset(
+    Map("foo" -> new DummyInvoker("Foo's invoker")),
+    targetWord => Seq(
+      targetWord match {
+        case "toto" => "tutu"
+        case _ => "toto"
+      }
+    )
   )
 )
