@@ -17,7 +17,7 @@ class DummyInvoker(name: String) extends ExecutorInvoker with Logging {
   override def trigger(operation: Operation, tactics: Tactics, select: Select): Option[Future[String]] = {
     logger.info(s"Hi, I'm $name:")
     logger.info(s"- I will pretend to $operation to: ${select.mkString(", ")}")
-    logger.info(s"- Using tactics: ${tactics.prettyPrint}")
+    logger.info(s"- Using tactics:\n    ${tactics.map(_.prettyPrint).mkString("\n    ")}")
     None
   }
 }

@@ -1,10 +1,10 @@
 package com.criteo.perpetuo
 
-import spray.json.JsValue
+import spray.json.JsObject
 
 
 package object dispatchers {
-  type Tactics = JsValue
+  type Tactics = Seq[JsObject]
   type Select = Seq[String]
   type Target = Seq[(Tactics, Select)]
 }
