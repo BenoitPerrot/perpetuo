@@ -14,7 +14,7 @@ import scala.concurrent.Future
 case class OperationTrace(id: Option[Long],
                           deploymentRequestId: Long,
                           operation: Operation,
-                          targetStatus: TargetStatus.MapType)
+                          targetStatus: TargetStatus.MapType = Map())
 
 
 trait OperationTraceBinder extends TableBinder {
@@ -46,13 +46,9 @@ trait OperationTraceBinder extends TableBinder {
 
   val operationTraceQuery = TableQuery[OperationTraceTable]
 
-  def addTo(db: Database, request: DeploymentRequest, operation: Operation): Future[Long] = {
-    addToDeploymentRequest(db, request.id.get, operation)
-  }
-
   def addToDeploymentRequest(db: Database, requestId: Long, operation: Operation): Future[Long] = {
-    val trace = OperationTrace(None, requestId, operation, Map())
-    db.run((operationTraceQuery returning operationTraceQuery.map(_.id)) += trace)
+    val operationTrace = OperationTrace(None, requestId, operation)
+    db.run((operationTraceQuery returning operationTraceQuery.map(_.id)) += operationTrace)
   }
 
   def findOperationTraceById(db: Database, id: Long): Future[Option[OperationTrace]] = {

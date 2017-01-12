@@ -12,8 +12,8 @@ import scala.concurrent.Future
 
 case class ExecutionTrace(id: Option[Long],
                           operationTraceId: Long,
-                          guid: String, // Optional, but it's easier to consider that no guid <=> empty guid
-                          state: ExecutionState)
+                          guid: String = "",
+                          state: ExecutionState = ExecutionStateType.pending)
 
 
 trait ExecutionTraceBinder extends TableBinder {
@@ -42,13 +42,9 @@ trait ExecutionTraceBinder extends TableBinder {
 
   val executionTraceQuery = TableQuery[ExecutionTraceTable]
 
-  def addTo(db: Database, operationTrace: OperationTrace): Future[Long] = {
-    addToOperationTrace(db, operationTrace.id.get)
-  }
-
-  def addToOperationTrace(db: Database, operationTraceId: Long): Future[Long] = {
-    val execTrace = ExecutionTrace(None, operationTraceId, "", ExecutionStateType.pending)
-    db.run((executionTraceQuery returning executionTraceQuery.map(_.id)) += execTrace)
+  def addToOperationTrace(db: Database, traceId: Long, numberOfTraces: Int): Future[Seq[Long]] = {
+    val execTrace = ExecutionTrace(None, traceId)
+    db.run((executionTraceQuery returning executionTraceQuery.map(_.id)) ++= List.fill(numberOfTraces)(execTrace))
   }
 
   def findExecutionTraceById(db: Database, id: Long): Future[Option[ExecutionTrace]] = {
