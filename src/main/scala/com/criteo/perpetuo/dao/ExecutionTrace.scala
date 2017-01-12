@@ -52,6 +52,19 @@ trait ExecutionTraceBinder extends TableBinder {
   def findExecutionTraceById(db: Database, id: Long): Future[Option[ExecutionTrace]] = {
     db.run(executionTraceQuery.filter(_.id === id).result).map(_.headOption)
   }
+
+  case class updateExecutionTrace(db: Database, id: Long) {
+    def apply(uuid: String, state: ExecutionState): Future[Unit] =
+      run(_.map(r => (r.uuid, r.state)).update((Some(uuid), state)))
+    def apply(uuid: String): Future[Unit] =
+      run(_.map(_.uuid).update(Some(uuid)))
+    def apply(state: ExecutionState): Future[Unit] =
+      run(_.map(_.state).update(state))
+
+    private def run(query: Query[ExecutionTraceTable, ExecutionTrace, Seq] => DBIOAction[Int, NoStream, Effect.Write]): Future[Unit] =
+      db.run(query(executionTraceQuery.filter(_.id === id))).map(count => assert(count == 1))
+  }
+
 }
 
 
