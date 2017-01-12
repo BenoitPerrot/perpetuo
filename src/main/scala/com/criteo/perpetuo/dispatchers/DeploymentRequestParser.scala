@@ -72,7 +72,7 @@ object DeploymentRequestParser {
         case arr: JsArray if arr.elements.nonEmpty =>
           arr.elements.map {
             case string: JsString => string
-            case _ => throw BadRequestException("`select` must only contain JSON string values")
+            case unknown => throw BadRequestException(s"Expected a JSON string in the `$selectKey` array, got: $unknown")
           }
         case unknown => throw BadRequestException(s"Expected `$selectKey` to be a non-empty JSON string or array, got: $unknown")
       }.getOrElse(throw BadRequestException(s"`target` must contain a field `$selectKey`"))

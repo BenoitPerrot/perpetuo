@@ -70,7 +70,7 @@ class RestControllerSpec extends FeatureTest {
       requestDeployment("a", "b", 60.toJson, None, Some("JSON array or object"))
       requestDeployment("a", "b", Seq(42).toJson, None, Some("JSON object or string"))
       requestDeployment("a", "b", Seq(Map("select" -> 42)).toJson, None, Some("non-empty JSON string or array"))
-      requestDeployment("a", "b", Seq(Map("select" -> Seq(42))).toJson, None, Some("must only contain JSON string values"))
+      requestDeployment("a", "b", Seq(Map("select" -> Seq(42))).toJson, None, Some("a JSON string in"))
     }
 
   }
