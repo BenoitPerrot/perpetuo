@@ -34,7 +34,7 @@ trait DeploymentRequestBinder extends TableBinder {
 
     // The details
     def reason = column[String]("reason", O.SqlType("nvarchar(256)"))
-    def creator = column[String]("creator", O.SqlType("nvarchar(64)"))
+    def creator = column[String]("creator", O.SqlType("nchar(64)"))
     def creationDate = column[java.sql.Timestamp]("creation_date")
 
     def * = (id.?, productName, version, target, reason, creator, creationDate) <> (DeploymentRequest.tupled, DeploymentRequest.unapply)

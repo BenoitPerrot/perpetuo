@@ -33,9 +33,11 @@ trait ExecutionTraceBinder extends TableBinder {
     def operationTraceId = column[Long]("operation_trace_id")
     protected def fk = foreignKey(operationTraceId, operationTraceQuery)(_.id)
 
-    def uuid = column[String]("uuid", O.SqlType("nvarchar(128)")) // should this be made unique?
+    def uuid = column[String]("uuid", O.SqlType("nchar(128)"))
+    protected def uuidIdx = index(uuid, unique = true)
+
     def state = column[ExecutionState]("state")
-    protected def idx = index(state)
+    protected def stateIdx = index(state)
 
     def * = (id.?, operationTraceId, uuid, state) <> (ExecutionTrace.tupled, ExecutionTrace.unapply)
   }

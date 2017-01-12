@@ -4,7 +4,7 @@ CREATE TABLE "deployment_request" (
   "version"       NCHAR(64)     NOT NULL,
   "target"        NVARCHAR(MAX) NOT NULL,
   "reason"        NVARCHAR(256) NOT NULL,
-  "creator"       NVARCHAR(64)  NOT NULL,
+  "creator"       NCHAR(64)     NOT NULL,
   "creation_date" DATETIME      NOT NULL
 )
 ALTER TABLE "deployment_request"
@@ -24,15 +24,17 @@ ALTER TABLE "operation_trace"
 
 
 CREATE TABLE "execution_trace" (
-  "id"                  BIGINT        NOT NULL IDENTITY,
-  "operation_trace_id" BIGINT        NOT NULL,
-  "uuid"                NVARCHAR(128) NOT NULL,
-  "state"               SMALLINT      NOT NULL
+  "id"                 BIGINT     NOT NULL IDENTITY,
+  "operation_trace_id" BIGINT     NOT NULL,
+  "uuid"               NCHAR(128) NOT NULL,
+  "state"              SMALLINT   NOT NULL
 )
 ALTER TABLE "execution_trace"
   ADD CONSTRAINT "pk_execution_trace" PRIMARY KEY ("id")
 CREATE INDEX "ix_execution_trace_state"
   ON "execution_trace" ("state")
+CREATE UNIQUE INDEX "ix_execution_trace_uuid"
+  ON "execution_trace" ("uuid")
 
 
 ALTER TABLE "operation_trace"
