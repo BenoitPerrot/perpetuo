@@ -48,7 +48,7 @@ class RestController @Inject()(val dataSource: DataSource,
       Try(r.id.toLong).toOption.flatMap(id => Await.result(deploymentRequests.findDeploymentRequestById(db, id), 2.seconds)).map {
         depReq => {
           val cls = classOf[DeploymentRequest]
-          cls.getDeclaredFields.map(_.getName).flatMap(fieldName =>
+          cls.getDeclaredFields.filterNot(_.isSynthetic).map(_.getName).flatMap(fieldName =>
             (fieldName, cls.getDeclaredMethod(fieldName).invoke(depReq)) match {
               case ("reason", "") => None
               case ("target", json: String) => Some("target" -> RawJson(json))
