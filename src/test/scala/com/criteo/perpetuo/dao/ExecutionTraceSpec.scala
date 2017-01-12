@@ -31,12 +31,7 @@ class ExecutionTraceSpec extends FunSuite with ScalaFutures
   import profile.api._
 
   private val db = Database.forDataSource(dbModule.dataSourceProvider)
-  private val schemaCreation = DBIO.seq(
-    deploymentRequestQuery.schema.create,
-    operationTraceQuery.schema.create,
-    executionTraceQuery.schema.create
-  )
-  Await.result(db.run(schemaCreation), 2.second)
+  new Schema(profile).createTables(db)
 
   test("ExecutionState values are all different") {
     ExecutionState.values

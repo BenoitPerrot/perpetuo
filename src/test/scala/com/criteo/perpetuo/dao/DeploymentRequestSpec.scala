@@ -29,10 +29,7 @@ class DeploymentRequestSpec extends FunSuite with ScalaFutures
   import profile.api._
 
   private val db = Database.forDataSource(dbModule.dataSourceProvider)
-  private val schemaCreation = DBIO.seq(
-    deploymentRequestQuery.schema.create
-  )
-  Await.result(db.run(schemaCreation), 2.second)
+  new Schema(profile).createTables(db)
 
   test("Deployment requests can be inserted and retrieved") {
     val request = DeploymentRequest(None, "perpetuo-app", "v42", "*", "No fear", "c.norris", new Timestamp(123456789))

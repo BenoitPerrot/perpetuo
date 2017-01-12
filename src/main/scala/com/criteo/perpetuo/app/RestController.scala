@@ -3,7 +3,7 @@ package com.criteo.perpetuo.app
 import javax.inject.Inject
 import javax.sql.DataSource
 
-import com.criteo.perpetuo.dao.{DeploymentRequest, DeploymentRequestBinding}
+import com.criteo.perpetuo.dao.{DeploymentRequest, DeploymentRequestBinding, Schema}
 import com.criteo.perpetuo.dispatchers.DeploymentRequestParser.parse
 import com.twitter.finagle.http.Request
 import com.twitter.finatra.http.{Controller => BaseController}
@@ -32,15 +32,9 @@ class RestController @Inject()(val dataSource: DataSource,
 
   private val db = Database.forDataSource(dataSource)
 
-  {
-    // TODO: Remove once live
-    val isEmbedded = deploymentRequests.profile.isInstanceOf[H2Driver]
-    if (isEmbedded) {
-      val schemaCreation = DBIO.seq(
-        deploymentRequests.deploymentRequestQuery.schema.create
-      )
-      Await.result(db.run(schemaCreation), 2.second)
-    }
+  if (deploymentRequests.profile.isInstanceOf[H2Driver]) {
+    // running in development mode
+    new Schema(deploymentRequests.profile).createTables(db)
   }
 
   get("/api/deployment-requests/:id") {
