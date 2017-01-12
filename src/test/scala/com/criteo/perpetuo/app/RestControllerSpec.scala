@@ -48,7 +48,7 @@ class RestControllerSpec extends FeatureTest {
         ) ++ (if (reason.isDefined) Map("reason" -> JsString(reason.get)) else Map())
       ).compactPrint
     ).contentString
-    ans should include regex expectsMessage.getOrElse("""^\d+$""")
+    ans should include regex expectsMessage.getOrElse(""""id":\d+""")
   }
 
 

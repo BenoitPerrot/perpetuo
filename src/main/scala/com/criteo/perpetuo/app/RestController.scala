@@ -54,7 +54,9 @@ class RestController @Inject()(val dataSource: DataSource,
   }
 
   post("/api/deployment-requests") {
-    r: Request =>
-      Await.result(deploymentRequests.insert(db, parse(r.contentString)._1).map(response.created.json), 2.seconds)
+    r: Request => {
+      val id = Await.result(deploymentRequests.insert(db, parse(r.contentString)._1), 2.seconds)
+      response.created.json(Map("id" -> id))
+    }
   }
 }
