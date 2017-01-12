@@ -55,7 +55,7 @@ trait OperationTraceBinder extends TableBinder {
     db.run(operationTraceQuery.filter(_.id === id).result).map(_.headOption)
   }
 
-  def update(db: Database, id: Long, targetStatus: TargetStatus.MapType): Future[Unit] = {
+  def updateOperationTrace(db: Database, id: Long, targetStatus: TargetStatus.MapType): Future[Unit] = {
     db.run(operationTraceQuery.filter(_.id === id).map(_.targetStatus).update(targetStatus))
       .map(count => assert(count == 1))
   }

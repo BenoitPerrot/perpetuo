@@ -70,7 +70,7 @@ class OperationTraceSpec extends FunSuite with ScalaFutures
 
     Await.result(for {
       traceId <- db.run(operationTraceQuery.result).map(_.head.id.get)
-      _ <- update(db, traceId, Map("abc" -> TargetStatus.serverFailure))
+      _ <- updateOperationTrace(db, traceId, Map("abc" -> TargetStatus.serverFailure))
       trace <- findOperationTraceById(db, traceId)
     } yield {
       assert(trace.get.targetStatus == Map("abc" -> TargetStatus.serverFailure))
