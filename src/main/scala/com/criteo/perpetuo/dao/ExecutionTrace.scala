@@ -12,7 +12,7 @@ import scala.concurrent.Future
 
 case class ExecutionTrace(id: Option[Long],
                           operationTraceId: Long,
-                          guid: String = "",
+                          uuid: String = "",
                           state: ExecutionState = ExecutionStateType.pending)
 
 
@@ -33,11 +33,11 @@ trait ExecutionTraceBinder extends TableBinder {
     def operationTraceId = column[Long]("operation_trace_id")
     protected def fk = foreignKey(operationTraceId, operationTraceQuery)(_.id)
 
-    def guid = column[String]("guid", O.SqlType("nvarchar(128)")) // should this be made unique?
+    def uuid = column[String]("uuid", O.SqlType("nvarchar(128)")) // should this be made unique?
     def state = column[ExecutionState]("state")
     protected def idx = index(state)
 
-    def * = (id.?, operationTraceId, guid, state) <> (ExecutionTrace.tupled, ExecutionTrace.unapply)
+    def * = (id.?, operationTraceId, uuid, state) <> (ExecutionTrace.tupled, ExecutionTrace.unapply)
   }
 
   val executionTraceQuery = TableQuery[ExecutionTraceTable]
