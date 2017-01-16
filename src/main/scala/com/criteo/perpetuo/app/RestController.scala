@@ -13,7 +13,6 @@ import com.twitter.finatra.validation._
 import slick.driver.H2Driver
 
 import scala.concurrent.Await
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.util.Try
 
