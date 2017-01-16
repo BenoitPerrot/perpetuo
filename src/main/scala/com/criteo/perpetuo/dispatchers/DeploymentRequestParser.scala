@@ -30,33 +30,31 @@ object DeploymentRequestParser {
       case unknown => throw BadRequestException(s"Expected a JSON object as request body, got: $unknown")
     }
 
-  private val defaultTactics: Tactics = Seq(JsObject())
   private val tacticsKey = "tactics"
   private val selectKey = "select"
 
   private def missing(key: String) = throw BadRequestException(s"Expected to find `$key` at request root")
 
-  private def parseTargetExpression(target: JsValue): Target =
+  private def parseTargetExpression(target: JsValue): TargetExpr =
     (target match {
-      case string: JsString => Seq((defaultTactics, Seq(string)))
+      case string: JsString => Seq((None, Seq(string)))
       case arr: JsArray if arr.elements.nonEmpty => arr.elements.map {
-        case string: JsString => (defaultTactics, Seq(string))
+        case string: JsString => (None, Seq(string))
         case obj: JsObject => parseTargetTerm(obj)
         case unknown => throw BadRequestException(s"Expected a JSON object or string in the `target` array, got: $unknown")
       }
       case obj: JsObject => Seq(parseTargetTerm(obj))
       case unknown => throw BadRequestException(s"Expected `target` to be a non-empty JSON array or object, got: $unknown")
     }).map {
-      case (tactics, select) => (
-        tactics,
-        select.map(_.value match {
+      case (tactics, select) =>
+        val s = select.map(_.value match {
           case w if w.nonEmpty => w
           case _ => throw BadRequestException(s"`$selectKey` doesn't accept empty JSON strings as values")
         })
-      )
+        tactics.map(TargetTerm(_, s)).getOrElse(TargetTerm(select = s))
     }
 
-  private def parseTargetTerm(target: JsObject): (Tactics, Seq[JsString]) =
+  private def parseTargetTerm(target: JsObject): (Option[Tactics], Seq[JsString]) =
     (
       target.fields.get(tacticsKey).map {
         case arr: JsArray if arr.elements.nonEmpty => arr.elements.map {
@@ -65,7 +63,7 @@ object DeploymentRequestParser {
         }
         case obj: JsObject => Seq(obj)
         case unknown => throw BadRequestException(s"Expected `$tacticsKey` to be a non-empty JSON object or array, got: $unknown")
-      }.getOrElse(defaultTactics),
+      }.map(Some(_)).getOrElse(None),
 
       target.fields.get(selectKey).map {
         case string: JsString => Seq(string)
