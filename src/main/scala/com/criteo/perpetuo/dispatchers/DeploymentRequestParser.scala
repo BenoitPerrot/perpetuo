@@ -20,10 +20,10 @@ object DeploymentRequestParser {
         }
 
         val targetExpr = read("target")
-        val parsedTarget = parseTargetExpression(targetExpr)
         val record = DeploymentRequest(None,
           readStr("productName"), readStr("version"), targetExpr.compactPrint, readStr("reason", Some("")),
           "anonymous", new Timestamp(System.currentTimeMillis))
+        record.parsedTarget // validate the target
 
         record
 
@@ -35,7 +35,7 @@ object DeploymentRequestParser {
 
   private def missing(key: String) = throw BadRequestException(s"Expected to find `$key` at request root")
 
-  private def parseTargetExpression(target: JsValue): TargetExpr =
+  def parseTargetExpression(target: JsValue): TargetExpr =
     (target match {
       case string: JsString => Seq((None, Seq(string)))
       case arr: JsArray if arr.elements.nonEmpty => arr.elements.map {
