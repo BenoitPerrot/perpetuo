@@ -8,7 +8,7 @@ import spray.json.{JsArray, JsObject, JsString, JsValue, _}
 
 
 object DeploymentRequestParser {
-  def parse(jsonInput: String): (DeploymentRequest, Target) =
+  def parse(jsonInput: String): DeploymentRequest =
     jsonInput.parseJson match {
       case body: JsObject =>
         val fields = body.fields
@@ -25,7 +25,7 @@ object DeploymentRequestParser {
           readStr("productName"), readStr("version"), targetExpr.compactPrint, readStr("reason", Some("")),
           "anonymous", new Timestamp(System.currentTimeMillis))
 
-        (record, parsedTarget)
+        record
 
       case unknown => throw BadRequestException(s"Expected a JSON object as request body, got: $unknown")
     }
