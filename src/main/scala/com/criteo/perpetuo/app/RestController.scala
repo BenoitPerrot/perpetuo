@@ -1,5 +1,6 @@
 package com.criteo.perpetuo.app
 
+import java.lang.reflect.Modifier
 import javax.inject.Inject
 import javax.sql.DataSource
 
@@ -42,13 +43,18 @@ class RestController @Inject()(val dataSource: DataSource,
       Try(r.id.toLong).toOption.flatMap(id => Await.result(deploymentRequests.findDeploymentRequestById(db, id), 2.seconds)).map {
         depReq => {
           val cls = classOf[DeploymentRequest]
-          cls.getDeclaredFields.filterNot(_.isSynthetic).map(_.getName).flatMap(fieldName =>
-            (fieldName, cls.getDeclaredMethod(fieldName).invoke(depReq)) match {
-              case ("reason", "") => None
-              case ("target", json: String) => Some("target" -> RawJson(json))
-              case (name, value) => Some(name -> value)
-            }
-          ).toMap
+          cls.getDeclaredFields
+            .filterNot(_.isSynthetic)
+            .map(_.getName)
+            .map(cls.getDeclaredMethod(_))
+            .filterNot(method => Modifier.isPrivate(method.getModifiers))
+            .flatMap(method =>
+              (method.getName, method.invoke(depReq)) match {
+                case ("reason", "") => None
+                case ("target", json: String) => Some("target" -> RawJson(json))
+                case (name, value) => Some(name -> value)
+              }
+            ).toMap
         }
       }
   }
