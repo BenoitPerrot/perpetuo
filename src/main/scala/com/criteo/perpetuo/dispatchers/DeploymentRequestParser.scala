@@ -35,43 +35,45 @@ object DeploymentRequestParser {
 
   private def missing(key: String) = throw BadRequestException(s"Expected to find `$key` at request root")
 
-  def parseTargetExpression(target: JsValue): TargetExpr =
-    (target match {
-      case string: JsString => Seq((None, Seq(string)))
+  def parseTargetExpression(target: JsValue): TargetExpr = {
+    val whereTacticsIsOptional: Set[(Option[Tactics], Set[JsString])] = target match {
+      case string: JsString => Set((None, Set(string)))
       case arr: JsArray if arr.elements.nonEmpty => arr.elements.map {
-        case string: JsString => (None, Seq(string))
+        case string: JsString => (None, Set(string))
         case obj: JsObject => parseTargetTerm(obj)
         case unknown => throw BadRequestException(s"Expected a JSON object or string in the `target` array, got: $unknown")
-      }
-      case obj: JsObject => Seq(parseTargetTerm(obj))
+      }.toSet
+      case obj: JsObject => Set(parseTargetTerm(obj))
       case unknown => throw BadRequestException(s"Expected `target` to be a non-empty JSON array or object, got: $unknown")
-    }).map {
-      case (tactics, select) =>
-        val s = select.map(_.value match {
+    }
+    whereTacticsIsOptional.map {
+      case (tacticsOption, selectWithJsonValues) =>
+        val s = selectWithJsonValues.map(_.value match {
           case w if w.nonEmpty => w
           case _ => throw BadRequestException(s"`$selectKey` doesn't accept empty JSON strings as values")
         })
-        tactics.map(TargetTerm(_, s)).getOrElse(TargetTerm(select = s))
+        tacticsOption.map(TargetTerm(_, s)).getOrElse(TargetTerm(select = s))
     }
+  }
 
-  private def parseTargetTerm(target: JsObject): (Option[Tactics], Seq[JsString]) =
+  private def parseTargetTerm(target: JsObject): (Option[Tactics], Set[JsString]) =
     (
       target.fields.get(tacticsKey).map {
         case arr: JsArray if arr.elements.nonEmpty => arr.elements.map {
           case obj: JsObject => obj
           case unknown => throw BadRequestException(s"Expected a JSON object in the `$tacticsKey` array, got: $unknown")
-        }
-        case obj: JsObject => Seq(obj)
+        }.toSet
+        case obj: JsObject => Set(obj)
         case unknown => throw BadRequestException(s"Expected `$tacticsKey` to be a non-empty JSON object or array, got: $unknown")
       }.map(Some(_)).getOrElse(None),
 
       target.fields.get(selectKey).map {
-        case string: JsString => Seq(string)
+        case string: JsString => Set(string)
         case arr: JsArray if arr.elements.nonEmpty =>
           arr.elements.map {
             case string: JsString => string
             case unknown => throw BadRequestException(s"Expected a JSON string in the `$selectKey` array, got: $unknown")
-          }
+          }.toSet
         case unknown => throw BadRequestException(s"Expected `$selectKey` to be a non-empty JSON string or array, got: $unknown")
       }.getOrElse(throw BadRequestException(s"`target` must contain a field `$selectKey`"))
     )

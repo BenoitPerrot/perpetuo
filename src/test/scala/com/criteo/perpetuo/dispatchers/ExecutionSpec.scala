@@ -51,13 +51,13 @@ class ExecutionSpec extends Test with DeploymentRequestBinder with ProfileProvid
   }
 
   implicit class SimpleDispatchTest(private val select: Select) {
-    private val rawTarget = Seq(TargetTerm(select = select)).toJson.compactPrint
+    private val rawTarget = Set(TargetTerm(select = select)).toJson.compactPrint
     private val request = DeploymentRequest(None, "perpetuo-app", "v42", rawTarget, "No fear", "c.norris", new Timestamp(123456789))
 
     def dispatchedAs(that: Iterable[(ExecutorInvoker, Select)]): Unit = {
-      val expected = that.map { case (e, s) => (e, Seq(TargetTerm(select = s)).toJson) }
+      val expected = that.map { case (e, s) => (e, Set(TargetTerm(select = s)).toJson) }
 
-      val dispatched = execution.dispatch(TestSuffixDispatcher, Seq(TargetTerm(select = select))).map {
+      val dispatched = execution.dispatch(TestSuffixDispatcher, Set(TargetTerm(select = select))).map {
         case (exec, repr) => (exec, repr.parseJson)
       }
       dispatched should contain theSameElementsAs expected
@@ -90,30 +90,30 @@ class ExecutionSpec extends Test with DeploymentRequestBinder with ProfileProvid
   "A complex execution" should {
 
     "call the right executor when available for each exact target word" in {
-      Seq("foo-baz", "foo-foo-baz", "bar-baz") dispatchedAs Seq(
-        (fooInvoker, Seq("foo-baz")),
-        (fooFooInvoker, Seq("foo-foo-baz")),
-        (barInvoker, Seq("bar-baz"))
+      Set("foo-baz", "foo-foo-baz", "bar-baz") dispatchedAs Map(
+        fooInvoker -> Set("foo-baz"),
+        fooFooInvoker -> Set("foo-foo-baz"),
+        barInvoker -> Set("bar-baz")
       )
     }
 
     "call the root set of pretty much all executors for all unknown targets" in {
-      Seq("abc", "def") dispatchedAs Seq(
-        (fooInvoker, Seq("abc", "def")),
-        (barInvoker, Seq("abc", "def"))
+      Set("abc", "def") dispatchedAs Map(
+        fooInvoker -> Set("abc", "def"),
+        barInvoker -> Set("abc", "def")
       )
     }
 
     "call the same executor in one shot when applicable" in {
-      Seq("o-baz", "oo-baz") dispatchedAs Seq(
-        (fooInvoker, Seq("oo-baz", "o-baz"))
+      Set("o-baz", "oo-baz") dispatchedAs Map(
+        fooInvoker -> Set("oo-baz", "o-baz")
       )
     }
 
     "gather target words on executors when possible and still distribute unknown target words" in {
-      Seq("o-baz", "-baz", "oo-baz") dispatchedAs Seq(
-        (fooInvoker, Seq("oo-baz", "-baz", "o-baz")),
-        (barInvoker, Seq("-baz"))
+      Set("o-baz", "-baz", "oo-baz") dispatchedAs Map(
+        fooInvoker -> Set("oo-baz", "-baz", "o-baz"),
+        barInvoker -> Set("-baz")
       )
     }
 

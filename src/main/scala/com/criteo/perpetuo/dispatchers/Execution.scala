@@ -74,18 +74,17 @@ class Execution @Inject()(val executionTraces: ExecutionTraceBinding) extends Lo
   }
 
   def dispatch(dispatcher: TargetDispatching, target: TargetExpr): Iterable[(ExecutorInvoker, String)] = {
-    def groupOn1[A, B](it: Iterable[(A, B)]): Iterable[(A, Iterable[B])] =
-      it.groupBy(_._1).map { case (k, v) => (k, v.map(_._2)) }
-
-    def groupOn2[A, B](it: Iterable[(A, B)]): Iterable[(B, Iterable[A])] =
-      it.groupBy(_._2).map { case (k, v) => (k, v.map(_._1)) }
+    def groupOn1[A, B](it: Iterable[(A, B)]): Iterable[(A, Set[B])] =
+      it.groupBy(_._1).map { case (k, v) => (k, v.map(_._2).toSet) }
+    def groupOn2[A, B](it: Iterable[(A, B)]): Iterable[(B, Set[A])] =
+      it.groupBy(_._2).map { case (k, v) => (k, v.map(_._1).toSet) }
 
     val targetExpanded = for {
       TargetTerm(tactics, select) <- target
       selectWord <- select
     } yield (tactics, selectWord)
 
-    val allExpanded = groupOn2(targetExpanded.toSet) // make couples unique, then group by "select word"
+    val allExpanded = groupOn2(targetExpanded)
       // just to infer the executors to call for each "select word", only once per unique word
       .flatMap { case (selectWord, groupedTactics) =>
       for {
@@ -99,8 +98,8 @@ class Execution @Inject()(val executionTraces: ExecutionTraceBinding) extends Lo
     groupOn1(allExpanded).map { case (executor, execGroup) =>
       // and by "the rest":
       val alternatives: Seq[TargetExpr] = Seq(
-        groupOn2(groupOn1(execGroup)).map(TargetTerm.tupled), // either first by "select word" then grouping these words by common "tactics"
-        groupOn2(groupOn2(execGroup)).map(_.swap).map(TargetTerm.tupled) // or first by tactic then grouping the tactics by common "select"
+        groupOn2(groupOn1(execGroup)).map(TargetTerm.tupled).toSet, // either first by "select word" then grouping these words by common "tactics"
+        groupOn2(groupOn2(execGroup)).map(_.swap).map(TargetTerm.tupled).toSet // or first by tactic then grouping the tactics by common "select"
       )
       // create the JSON rendering for both alternatives
       val Seq(expr1, expr2) = alternatives.map(_.toJson.compactPrint)
