@@ -4,109 +4,74 @@ import com.criteo.perpetuo.executors.{DummyInvoker, ExecutorInvoker}
 import com.twitter.inject.Test
 
 
-class TargetDispatchingSpec extends Test {
-
+object TestSuffixDispatcher extends {
   val fooInvoker = new DummyInvoker("Foo's invoker")
   val barInvoker = new DummyInvoker("Bar's invoker")
   val fooFooInvoker = new DummyInvoker("Foo-foo's invoker")
-
-  object TestSuffixDispatcher extends TargetDispatchingByPoset(
-    new ExecutorsByPoset(
-      Map(
-        "foo-baz" -> fooInvoker,
-        "bar-baz" -> barInvoker,
-        "foo-foo-baz" -> fooFooInvoker
-      ),
-      // the only parent of "wxyz" is "xyz", and "" has no parent:
-      targetWord => Seq(targetWord.substring(1)).filter(_.nonEmpty)
-    )
+} with TargetDispatchingByPoset(
+  new ExecutorsByPoset(
+    Map(
+      "foo-baz" -> fooInvoker,
+      "bar-baz" -> barInvoker,
+      "foo-foo-baz" -> fooFooInvoker
+    ),
+    // the only parent of "wxyz" is "xyz", and "" has no parent:
+    targetWord => Seq(targetWord.substring(1)).filter(_.nonEmpty)
   )
+)
 
-  implicit class PosetTest(private val select: Select) {
+
+class TargetDispatchingSpec extends Test {
+
+  import TestSuffixDispatcher._
+
+  implicit class PosetTest(private val select: String) {
     def sentTo(that: ExecutorInvoker*): Unit =
-      sentTo(that.map(x => (x, select)))
-
-    def sentTo(that: Iterable[(ExecutorInvoker, Select)]): Unit =
-      TestSuffixDispatcher.dispatch(select).toSeq should contain theSameElementsAs that
+      TestSuffixDispatcher.assign(select) should contain theSameElementsAs that
   }
 
 
-  "Dispatching to a single executor" should {
+  "Assigning to a single executor" should {
 
-    "always call the only executor in one shot" in {
-      SingleTargetDispatcher(fooInvoker).dispatch(Seq("foo-baz")).toSeq shouldEqual
-        Seq((fooInvoker, Seq("foo-baz")))
-      SingleTargetDispatcher(fooInvoker).dispatch(Seq("foo-baz", "baz-bar", "bar-tender")).toSeq shouldEqual
-        Seq((fooInvoker, Seq("foo-baz", "baz-bar", "bar-tender")))
+    "always call the only executor" in {
+      SingleTargetDispatcher(fooInvoker).assign("foo-baz") shouldEqual Set(fooInvoker)
+      SingleTargetDispatcher(fooInvoker).assign("bar-tender") shouldEqual Set(fooInvoker)
     }
 
   }
 
 
-  "Dispatching a single target by POSet" should {
+  "Assigning a target by POSet" should {
 
     "call the right executor when available for the exact target" in {
-      Seq("foo-baz") sentTo fooInvoker
+      "foo-baz" sentTo fooInvoker
     }
 
     "call the root set of pretty much all executors for unknown targets" in {
-      Seq("abc") sentTo(fooInvoker, barInvoker)
+      "abc" sentTo(fooInvoker, barInvoker)
     }
 
     "call the child executor" in {
-      Seq("oo-baz") sentTo fooInvoker
+      "oo-baz" sentTo fooInvoker
     }
 
     "call a descendant executor" in {
-      Seq("o-baz") sentTo fooInvoker
+      "o-baz" sentTo fooInvoker
     }
 
     "call all representative descendant executors" in {
-      Seq("-baz") sentTo(fooInvoker, barInvoker)
-      Seq("az") sentTo(fooInvoker, barInvoker)
+      "-baz" sentTo(fooInvoker, barInvoker)
+      "az" sentTo(fooInvoker, barInvoker)
     }
 
     "call the closest ascendant executor" in {
-      Seq("little-foo-foo-baz") sentTo fooFooInvoker
-      Seq("?foo-baz") sentTo fooInvoker
+      "little-foo-foo-baz" sentTo fooFooInvoker
+      "?foo-baz" sentTo fooInvoker
     }
 
     "call the closest related executor" in {
-      Seq("-foo-baz") sentTo fooFooInvoker
-      Seq("toto-foo-baz") sentTo fooFooInvoker
-    }
-
-  }
-
-
-  "Dispatching multiple target words to multiple executors" should {
-
-    "call the right executor when available for each exact target word" in {
-      Seq("foo-baz", "foo-foo-baz", "bar-baz") sentTo Seq(
-        (fooInvoker, Seq("foo-baz")),
-        (fooFooInvoker, Seq("foo-foo-baz")),
-        (barInvoker, Seq("bar-baz"))
-      )
-    }
-
-    "call the root set of pretty much all executors for all unknown targets" in {
-      Seq("abc", "def") sentTo Seq(
-        (fooInvoker, Seq("abc", "def")),
-        (barInvoker, Seq("abc", "def"))
-      )
-    }
-
-    "call the same executor in one shot when applicable" in {
-      Seq("o-baz", "oo-baz") sentTo Seq(
-        (fooInvoker, Seq("o-baz", "oo-baz"))
-      )
-    }
-
-    "gather target words on executors when possible and still distribute unknown target words" in {
-      Seq("o-baz", "-baz", "oo-baz") sentTo Seq(
-        (fooInvoker, Seq("o-baz", "-baz", "oo-baz")),
-        (barInvoker, Seq("-baz"))
-      )
+      "-foo-baz" sentTo fooFooInvoker
+      "toto-foo-baz" sentTo fooFooInvoker
     }
 
   }

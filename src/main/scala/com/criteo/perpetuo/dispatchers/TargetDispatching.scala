@@ -7,7 +7,7 @@ trait TargetDispatching {
   /**
     * the abstract method to define in subclasses: the dispatcher
     */
-  def dispatch(select: Select): Iterator[(ExecutorInvoker, Select)]
+  def assign(selectWord: String): Set[ExecutorInvoker]
 }
 
 

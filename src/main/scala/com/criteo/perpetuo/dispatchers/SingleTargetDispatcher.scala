@@ -4,8 +4,7 @@ import com.criteo.perpetuo.executors.{DummyInvoker, ExecutorInvoker}
 
 
 case class SingleTargetDispatcher(executorInvoker: ExecutorInvoker) extends TargetDispatching {
-  override def dispatch(select: Select): Iterator[(ExecutorInvoker, Select)] =
-    Iterator((executorInvoker, select))
+  override def assign(selectWord: String): Set[ExecutorInvoker] = Set(executorInvoker)
 }
 
 

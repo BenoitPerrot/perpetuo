@@ -6,6 +6,7 @@ import com.criteo.perpetuo.dao._
 import com.criteo.perpetuo.dao.enums.Operation.Operation
 import com.criteo.perpetuo.executors.ExecutorInvoker
 import com.twitter.inject.Logging
+import spray.json._
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
@@ -15,6 +16,7 @@ import scala.concurrent.Future
 class Execution @Inject()(val executionTraces: ExecutionTraceBinding) extends Logging {
 
   import executionTraces.profile.api._
+  import spray.json.DefaultJsonProtocol._
 
 
   def trigger(db: Database, invocations: Seq[(ExecutorInvoker, Select)],
@@ -55,5 +57,41 @@ class Execution @Inject()(val executionTraces: ExecutionTraceBinding) extends Lo
           )
       }
     )
+  }
+
+  def dispatch(dispatcher: TargetDispatching, target: TargetExpr): Iterable[(ExecutorInvoker, String)] = {
+    def groupOn1[A, B](it: Iterable[(A, B)]): Iterable[(A, Iterable[B])] =
+      it.groupBy(_._1).map { case (k, v) => (k, v.map(_._2)) }
+
+    def groupOn2[A, B](it: Iterable[(A, B)]): Iterable[(B, Iterable[A])] =
+      it.groupBy(_._2).map { case (k, v) => (k, v.map(_._1)) }
+
+    val targetExpanded = for {
+      TargetTerm(tactics, select) <- target
+      selectWord <- select
+    } yield (tactics, selectWord)
+
+    val allExpanded = groupOn2(targetExpanded.toSet) // make couples unique, then group by "select word"
+      // just to infer the executors to call for each "select word", only once per unique word
+      .flatMap { case (selectWord, groupedTactics) =>
+      for {
+        executor <- dispatcher.assign(selectWord)
+        tactics <- groupedTactics
+        tactic <- tactics
+      } yield (executor, (selectWord, tactic))
+    }
+
+    // then group by executor
+    groupOn1(allExpanded).map { case (executor, execGroup) =>
+      // and by "the rest":
+      val alternatives: Seq[TargetExpr] = Seq(
+        groupOn2(groupOn1(execGroup)).map(TargetTerm.tupled), // either first by "select word" then grouping these words by common "tactics"
+        groupOn2(groupOn2(execGroup)).map(_.swap).map(TargetTerm.tupled) // or first by tactic then grouping the tactics by common "select"
+      )
+      // create the JSON rendering for both alternatives
+      val Seq(expr1, expr2) = alternatives.map(_.toJson.compactPrint)
+      // finally return the shortest target expression for the executor
+      (executor, if (expr1.length < expr2.length) expr1 else expr2)
+    }
   }
 }
