@@ -41,7 +41,7 @@ class Server extends HttpServer {
     }
 
     router
-        .add[RestController]
+      .add[RestController]
 
       // Add controller for serving static assets as the last one / fallback one
       .add(new StaticAssetsController())
