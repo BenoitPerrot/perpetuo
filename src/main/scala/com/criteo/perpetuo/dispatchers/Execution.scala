@@ -73,9 +73,16 @@ class Execution @Inject()(val executionTraces: ExecutionTraceBinding) extends Lo
     )
   }
 
-  def dispatch(dispatcher: TargetDispatching, target: TargetExpr): Iterable[(ExecutorInvoker, String)] = {
+  def dispatch(dispatcher: TargetDispatching, target: TargetExpr): Iterable[(ExecutorInvoker, String)] =
+    dispatchAlternatives(dispatcher, target).map {
+      // return the shortest target expression for the executor
+      case (executor, expressions) => (executor, expressions.min(cmp = Ordering.by[String, Int](_.length)))
+    }
+
+  def dispatchAlternatives(dispatcher: TargetDispatching, target: TargetExpr): Iterable[(ExecutorInvoker, Set[String])] = {
     def groupOn1[A, B](it: Iterable[(A, B)]): Iterable[(A, Set[B])] =
       it.groupBy(_._1).map { case (k, v) => (k, v.map(_._2).toSet) }
+
     def groupOn2[A, B](it: Iterable[(A, B)]): Iterable[(B, Set[A])] =
       it.groupBy(_._2).map { case (k, v) => (k, v.map(_._1).toSet) }
 
@@ -97,14 +104,12 @@ class Execution @Inject()(val executionTraces: ExecutionTraceBinding) extends Lo
     // then group by executor
     groupOn1(allExpanded).map { case (executor, execGroup) =>
       // and by "the rest":
-      val alternatives: Seq[TargetExpr] = Seq(
-        groupOn2(groupOn1(execGroup)).map(TargetTerm.tupled).toSet, // either first by "select word" then grouping these words by common "tactics"
-        groupOn2(groupOn2(execGroup)).map(_.swap).map(TargetTerm.tupled).toSet // or first by tactic then grouping the tactics by common "select"
+      val alternatives = Seq(
+        groupOn2(groupOn1(execGroup)).map(TargetTerm.tupled), // either first by "select word" then grouping these words by common "tactics"
+        groupOn2(groupOn2(execGroup)).map(_.swap).map(TargetTerm.tupled) // or first by tactic then grouping the tactics by common "select"
       )
-      // create the JSON rendering for both alternatives
-      val Seq(expr1, expr2) = alternatives.map(_.toJson.compactPrint)
-      // finally return the shortest target expression for the executor
-      (executor, if (expr1.length < expr2.length) expr1 else expr2)
+      // create the JSON rendering for both alternatives and return them both
+      (executor, alternatives.map(_.toJson.compactPrint).toSet)
     }
   }
 

@@ -9,7 +9,7 @@ import com.twitter.inject.Test
 import com.typesafe.config.{Config, ConfigFactory}
 import slick.driver.JdbcDriver
 import spray.json.DefaultJsonProtocol._
-import spray.json._
+import spray.json.{JsObject, _}
 
 import scala.collection.immutable.Stream
 import scala.concurrent.duration._
@@ -189,6 +189,38 @@ class ExecutionSpec extends Test with DeploymentRequestBinder with ProfileProvid
               )
             ),
             Set("foo-foo-baz")
+          )
+        )
+      )
+    }
+
+    "be dispatched as short target expressions" in {
+      val Alternatives = Set
+      execution.dispatchAlternatives(TestSuffixDispatcher, Set(
+        TargetTerm(Set(JsObject("ratio" -> JsNumber(0.05), "foo" -> JsString("bar"))), Set("-baz")),
+        TargetTerm(Set(JsObject("ratio" -> JsNumber(0.05))), Set("o-baz")),
+        TargetTerm(Set(JsObject("ratio" -> JsNumber(0.05))), Set("oo-baz")),
+        TargetTerm(Set(JsObject("ratio" -> JsNumber(0.05))), Set("foo-baz")),
+        TargetTerm(select = Set("o-baz"))
+      )).map {
+        case (executor, representations) =>
+          (executor, representations.map(repr => DeploymentRequestParser.parseTargetExpression(repr.parseJson)))
+      } should contain theSameElementsAs Map(
+        fooInvoker -> Alternatives(
+          Set(
+            TargetTerm(Set(JsObject("ratio" -> JsNumber(0.05), "foo" -> JsString("bar"))), Set("-baz")),
+            TargetTerm(Set(JsObject("ratio" -> JsNumber(0.05))), Set("o-baz" /*DIFF*/ , "oo-baz", "foo-baz")),
+            TargetTerm(select = Set("o-baz"))
+          ),
+          Set(
+            TargetTerm(Set(JsObject("ratio" -> JsNumber(0.05), "foo" -> JsString("bar"))), Set("-baz")),
+            TargetTerm(Set(JsObject("ratio" -> JsNumber(0.05))), Set("oo-baz", "foo-baz")),
+            TargetTerm(Set(JsObject("ratio" -> JsNumber(0.05)) /*DIFF*/ , JsObject()), Set("o-baz"))
+          )
+        ),
+        barInvoker -> Alternatives( // there is only one possible representation for such a simple expression
+          Set(
+            TargetTerm(Set(JsObject("ratio" -> JsNumber(0.05), "foo" -> JsString("bar"))), Set("-baz"))
           )
         )
       )
