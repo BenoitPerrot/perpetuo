@@ -4,6 +4,7 @@ import java.sql.Timestamp
 
 import com.criteo.perpetuo.dao._
 import com.criteo.perpetuo.dao.enums.Operation.Operation
+import com.criteo.perpetuo.dispatchers.DeploymentRequestParser._
 import com.criteo.perpetuo.executors.{DummyInvoker, ExecutorInvoker}
 import com.twitter.inject.Test
 import com.typesafe.config.{Config, ConfigFactory}
@@ -61,7 +62,7 @@ class ExecutionSpec extends Test with DeploymentRequestBinder with ProfileProvid
     private val request = DeploymentRequest(None, "perpetuo-app", "v42", rawTarget, "No fear", "c.norris", new Timestamp(123456789))
 
     private def parse(it: Iterable[(ExecutorInvoker, String)]): Iterable[(ExecutorInvoker, TargetExpr)] =
-      it.map { case (exec, raw) => (exec, DeploymentRequestParser.parseTargetExpression(raw.parseJson)) }
+      it.map { case (exec, raw) => (exec, parseTargetExpression(raw.parseJson)) }
 
     def dispatchedAs(that: Iterable[(ExecutorInvoker, TargetExpr)]): Unit = {
       parse(execution.dispatch(TestSuffixDispatcher, target)) should contain theSameElementsAs that
@@ -204,7 +205,7 @@ class ExecutionSpec extends Test with DeploymentRequestBinder with ProfileProvid
         TargetTerm(select = Set("o-baz"))
       )).map {
         case (executor, representations) =>
-          (executor, representations.map(repr => DeploymentRequestParser.parseTargetExpression(repr.parseJson)))
+          (executor, representations.map(repr => parseTargetExpression(repr.parseJson)))
       } should contain theSameElementsAs Map(
         fooInvoker -> Alternatives(
           Set(
