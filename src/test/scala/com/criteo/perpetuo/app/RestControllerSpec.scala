@@ -67,8 +67,11 @@ class RestControllerSpec extends FeatureTest {
     }
 
     "properly reject bad targets" in {
+      requestDeployment("a", "b", JsArray(), None, Some("non-empty JSON array or object"))
+      requestDeployment("a", "b", JsObject(), None, Some("must contain a field `select`"))
       requestDeployment("a", "b", 60.toJson, None, Some("JSON array or object"))
       requestDeployment("a", "b", Seq(42).toJson, None, Some("JSON object or string"))
+      requestDeployment("a", "b", Seq(JsObject()).toJson, None, Some("must contain a field `select`"))
       requestDeployment("a", "b", Seq(Map("select" -> 42)).toJson, None, Some("non-empty JSON string or array"))
       requestDeployment("a", "b", Seq(Map("select" -> Seq(42))).toJson, None, Some("a JSON string in"))
     }
