@@ -3,7 +3,6 @@ package com.criteo.perpetuo.dispatchers
 import java.sql.Timestamp
 
 import com.criteo.perpetuo.dao._
-import com.criteo.perpetuo.dao.enums.Operation
 import com.criteo.perpetuo.dao.enums.Operation.Operation
 import com.criteo.perpetuo.executors.{DummyInvoker, ExecutorInvoker}
 import com.twitter.inject.Test
@@ -31,7 +30,12 @@ class ExecutionSpec extends Test with DeploymentRequestBinder with ProfileProvid
   new Schema(profile).createTables(db)
 
   private val dummyCounter = Stream.from(1).toIterator
-  private val execution = new Execution(new ExecutionTraceBinding(dbModule.driver))
+  private var execLogs: List[(ExecutorInvoker, String)] = Nil
+  private val execution = new Execution(new ExecutionTraceBinding(dbModule.driver)) {
+    override protected def logExecution(msg: String, executor: ExecutorInvoker, rawTarget: String): Unit = {
+      execLogs = (executor, rawTarget) :: execLogs
+    }
+  }
 
   object DummyInvokerWithUuid extends DummyInvoker("DummyWithUUID") {
     override def trigger(operation: Operation, executionId: Long, productName: String, version: String, rawTarget: String, initiator: String): Option[Future[String]] = {
@@ -40,16 +44,15 @@ class ExecutionSpec extends Test with DeploymentRequestBinder with ProfileProvid
     }
   }
 
-  private val req = DeploymentRequest(None, "perpetuo-app", "v42", "*", "No fear", "c.norris", new Timestamp(123456789))
-  private lazy val request = req.copy(id = Some(Await.result(insert(db, req), 2.seconds)))
+  private val req = DeploymentRequest(None, "perpetuo-app", "v42", """"*"""", "No fear", "c.norris", new Timestamp(123456789))
 
   private def messagesGeneratedBy(dispatcher: TargetDispatching) = {
-    val invocations = dispatcher.assign("foo").toSeq.map((_, "rawFoo"))
-    Await.result(execution.trigger(db, invocations, Operation.deploy, request, Seq(JsObject())), 2.seconds)
+    Await.result(execution.startTransaction(db, dispatcher, req)._2, 2.seconds)
   }
 
   implicit class SimpleDispatchTest(private val select: Select) {
     private val rawTarget = Seq(TargetTerm(select = select)).toJson.compactPrint
+    private val request = DeploymentRequest(None, "perpetuo-app", "v42", rawTarget, "No fear", "c.norris", new Timestamp(123456789))
 
     def dispatchedAs(that: Iterable[(ExecutorInvoker, Select)]): Unit = {
       val expected = that.map { case (e, s) => (e, Seq(TargetTerm(select = s)).toJson) }
@@ -58,6 +61,11 @@ class ExecutionSpec extends Test with DeploymentRequestBinder with ProfileProvid
         case (exec, repr) => (exec, repr.parseJson)
       }
       dispatched should contain theSameElementsAs expected
+
+      execLogs = Nil
+      val messages = Await.result(execution.startTransaction(db, TestSuffixDispatcher, request)._2, 2.seconds)
+      messages.length shouldEqual expected.size
+      execLogs should contain theSameElementsAs expected.map { case (exec, json) => (exec, json.compactPrint) }
     }
   }
 

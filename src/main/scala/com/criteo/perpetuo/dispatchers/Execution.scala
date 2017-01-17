@@ -3,6 +3,7 @@ package com.criteo.perpetuo.dispatchers
 import javax.inject.{Inject, Singleton}
 
 import com.criteo.perpetuo.dao._
+import com.criteo.perpetuo.dao.enums.Operation
 import com.criteo.perpetuo.dao.enums.Operation.Operation
 import com.criteo.perpetuo.executors.ExecutorInvoker
 import com.twitter.inject.Logging
@@ -19,10 +20,23 @@ class Execution @Inject()(val executionTraces: ExecutionTraceBinding) extends Lo
   import spray.json.DefaultJsonProtocol._
 
 
-  def trigger(db: Database, invocations: Seq[(ExecutorInvoker, String)],
-              operation: Operation, deploymentRequest: DeploymentRequest,
-              tactics: Tactics): Future[Seq[String]] = {
-    // first, log the operation intent in the DB
+  def startTransaction(db: Database, dispatcher: TargetDispatching, deploymentRequest: DeploymentRequest): (Future[Long], Future[Seq[String]]) = {
+    require(deploymentRequest.id.isEmpty)
+
+    // first, log the user's general intent
+    val id = executionTraces.insert(db, deploymentRequest)
+
+    // return futures on the ID and on the operation start messages
+    (id, id.flatMap(depReqId => startOperation(db, dispatcher, deploymentRequest.copyWithId(depReqId), Operation.deploy)))
+  }
+
+  def startOperation(db: Database, dispatcher: TargetDispatching, deploymentRequest: DeploymentRequest, operation: Operation): Future[Seq[String]] = {
+    require(deploymentRequest.id.isDefined)
+
+    // infer dispatching
+    val invocations = dispatch(dispatcher, deploymentRequest.parsedTarget).toSeq
+
+    // log the operation intent in the DB
     executionTraces.addToDeploymentRequest(db, deploymentRequest.id.get, operation).flatMap(
       // create as many traces, all at the same time
       executionTraces.addToOperationTrace(db, _, invocations.length).map {
@@ -51,7 +65,7 @@ class Execution @Inject()(val executionTraces: ExecutionTraceBinding) extends Lo
             (identifier: String) => {
               // log and return the success message
               val msg = s"Triggered job $identifier for execution #$execId"
-              logger.debug(msg)
+              logExecution(msg, executor, rawTarget)
               msg
             }
           )
@@ -93,5 +107,9 @@ class Execution @Inject()(val executionTraces: ExecutionTraceBinding) extends Lo
       // finally return the shortest target expression for the executor
       (executor, if (expr1.length < expr2.length) expr1 else expr2)
     }
+  }
+
+  protected def logExecution(msg: String, executor: ExecutorInvoker, rawTarget: String): Unit = {
+    logger.debug(s"$msg: $executor <- $rawTarget")
   }
 }

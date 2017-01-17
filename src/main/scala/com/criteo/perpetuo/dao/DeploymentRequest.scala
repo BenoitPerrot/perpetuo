@@ -18,13 +18,20 @@ case class DeploymentRequest(id: Option[Long],
                              creator: String,
                              creationDate: java.sql.Timestamp) {
 
-  // laziness of parsedTarget is handled by hand, to be able to duplicate the instance
+  // laziness of parsedTarget is handled by hand, to be able to duplicate the instance (see `setId`)
   // and still benefit from an already parsed target without forcing it
   private var parsedTargetCache: Option[TargetExpr] = None
   def parsedTarget: TargetExpr = parsedTargetCache.getOrElse {
     val parsed = DeploymentRequestParser.parseTargetExpression(target.parseJson)
     parsedTargetCache = Some(parsed)
     parsed
+  }
+
+  def copyWithId(actualId: Long): DeploymentRequest = {
+    require(id.isEmpty)
+    val clone = copy(id = Some(actualId))
+    clone.parsedTargetCache = parsedTargetCache
+    clone
   }
 }
 
