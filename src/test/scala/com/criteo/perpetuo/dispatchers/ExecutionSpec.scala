@@ -51,21 +51,25 @@ class ExecutionSpec extends Test with DeploymentRequestBinder with ProfileProvid
   }
 
   implicit class SimpleDispatchTest(private val select: Select) {
-    private val rawTarget = Set(TargetTerm(select = select)).toJson.compactPrint
+    def dispatchedAs(that: Iterable[(ExecutorInvoker, Select)]): Unit = {
+      Set(TargetTerm(select = select)) dispatchedAs that.map { case (e, s) => (e, Set(TargetTerm(select = s))) }
+    }
+  }
+
+  implicit class ComplexDispatchTest(private val target: TargetExpr) {
+    private val rawTarget = target.toJson.compactPrint
     private val request = DeploymentRequest(None, "perpetuo-app", "v42", rawTarget, "No fear", "c.norris", new Timestamp(123456789))
 
-    def dispatchedAs(that: Iterable[(ExecutorInvoker, Select)]): Unit = {
-      val expected = that.map { case (e, s) => (e, Set(TargetTerm(select = s)).toJson) }
+    private def parse(it: Iterable[(ExecutorInvoker, String)]): Iterable[(ExecutorInvoker, TargetExpr)] =
+      it.map { case (exec, raw) => (exec, DeploymentRequestParser.parseTargetExpression(raw.parseJson)) }
 
-      val dispatched = execution.dispatch(TestSuffixDispatcher, Set(TargetTerm(select = select))).map {
-        case (exec, repr) => (exec, repr.parseJson)
-      }
-      dispatched should contain theSameElementsAs expected
+    def dispatchedAs(that: Iterable[(ExecutorInvoker, TargetExpr)]): Unit = {
+      parse(execution.dispatch(TestSuffixDispatcher, target)) should contain theSameElementsAs that
 
       execLogs = Nil
       val messages = Await.result(execution.startTransaction(db, TestSuffixDispatcher, request)._2, 2.seconds)
-      messages.length shouldEqual expected.size
-      execLogs should contain theSameElementsAs expected.map { case (exec, json) => (exec, json.compactPrint) }
+      messages.length shouldEqual that.size
+      parse(execLogs) should contain theSameElementsAs that
     }
   }
 
@@ -114,6 +118,79 @@ class ExecutionSpec extends Test with DeploymentRequestBinder with ProfileProvid
       Set("o-baz", "-baz", "oo-baz") dispatchedAs Map(
         fooInvoker -> Set("oo-baz", "-baz", "o-baz"),
         barInvoker -> Set("-baz")
+      )
+    }
+
+  }
+
+
+  "A complex target expression" should {
+
+    "be appropriately dispatched among impacted executors" in {
+      Set(
+        TargetTerm(select = Set("o-baz", "-baz", "oo-baz")),
+        TargetTerm(
+          Set(
+            JsObject(
+              "ratio" -> JsNumber(0.05),
+              "awesome" -> JsTrue
+            ),
+            JsObject(
+              "tag" -> JsString("canary"),
+              "ratio" -> JsNumber(0.05)
+            )
+          ),
+          Set("bar-baz", "-baz", "foo-foo-baz")
+        )
+      ) dispatchedAs Map(
+        fooInvoker -> Set(
+          TargetTerm(select = Set("o-baz", "oo-baz")),
+          TargetTerm(
+            Set(
+              JsObject(),
+              JsObject(
+                "ratio" -> JsNumber(0.05),
+                "awesome" -> JsTrue
+              ),
+              JsObject(
+                "tag" -> JsString("canary"),
+                "ratio" -> JsNumber(0.05)
+              )
+            ),
+            Set("-baz")
+          )
+        ),
+        barInvoker -> Set(
+          TargetTerm(select = Set("-baz")),
+          TargetTerm(
+            Set(
+              JsObject(
+                "ratio" -> JsNumber(0.05),
+                "awesome" -> JsTrue
+              ),
+              JsObject(
+                "tag" -> JsString("canary"),
+                "ratio" -> JsNumber(0.05)
+              )
+            ),
+            Set("bar-baz", "-baz")
+          )
+        ),
+        fooFooInvoker -> Set(
+          TargetTerm(
+            Set(
+              JsObject(
+                "ratio" -> JsNumber(0.05),
+                "awesome" -> JsTrue
+              ),
+              JsObject(
+                "tag" -> JsString("canary"),
+                "ratio" -> JsNumber(0.05)
+              )
+            ),
+            Set("foo-foo-baz")
+          )
+        )
       )
     }
 
