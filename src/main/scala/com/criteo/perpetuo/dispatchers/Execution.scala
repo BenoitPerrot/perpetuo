@@ -92,7 +92,7 @@ class Execution @Inject()(val executionTraces: ExecutionTraceBinding) extends Lo
     } yield (tactics, selectWord)
 
     val allExpanded = groupOn2(targetExpanded)
-      // just to infer the executors to call for each "select word", only once per unique word
+      // just to infer only once per unique select word the executors to call
       .flatMap { case (selectWord, groupedTactics) =>
       for {
         executor <- dispatcher.assign(selectWord)
