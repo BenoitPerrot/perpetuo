@@ -228,4 +228,30 @@ class ExecutionSpec extends Test with DeploymentRequestBinder with ProfileProvid
     }
 
   }
+
+
+  "Target dispatching" should {
+    "deduplicate targets and regenerate them (per executor) in a concise way" in {
+      val targetWithDuplicates: TargetExpr = Set(
+        TargetTerm(Set(JsObject("foo" -> JsString("bar"), "bar" -> JsString("baz"))), Set("abc", "def")),
+        TargetTerm(Set(JsObject("foo" -> JsString("bar"), "bar" -> JsString("baz"))), Set("abc", "def")),
+        TargetTerm(Set(JsObject("foo" -> JsString("bar"), "bar" -> JsString("baz"))), Set("abc")),
+        TargetTerm(Set(JsObject("foo" -> JsString("bar"), "bar" -> JsString("baz"))), Set("def")),
+        TargetTerm(Set(JsObject("foo" -> JsString("bar"), "bar" -> JsString("baz"))), Set("ghi")),
+        TargetTerm(Set(JsObject("foo" -> JsString("bar2"))), Set("ghi")),
+        TargetTerm(Set(JsObject("foo2" -> JsString("bar"))), Set("ghi"))
+      )
+      val dispatchedTargets = execution
+        .dispatch(DummyTargetDispatcher, targetWithDuplicates)
+        .map(_._2)
+        .map(_.parseJson)
+        .map(parseTargetExpression)
+      dispatchedTargets should contain theSameElementsAs Seq(
+        Set(
+          TargetTerm(Set(JsObject("foo" -> JsString("bar"), "bar" -> JsString("baz"))), Set("abc", "def", "ghi")),
+          TargetTerm(Set(JsObject("foo" -> JsString("bar2")), JsObject("foo2" -> JsString("bar"))), Set("ghi"))
+        )
+      )
+    }
+  }
 }
