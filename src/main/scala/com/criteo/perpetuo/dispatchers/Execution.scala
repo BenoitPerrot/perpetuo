@@ -19,7 +19,7 @@ class Execution @Inject()(val executionTraces: ExecutionTraceBinding) extends Lo
   import spray.json.DefaultJsonProtocol._
 
 
-  def trigger(db: Database, invocations: Seq[(ExecutorInvoker, Select)],
+  def trigger(db: Database, invocations: Seq[(ExecutorInvoker, String)],
               operation: Operation, deploymentRequest: DeploymentRequest,
               tactics: Tactics): Future[Seq[String]] = {
     // first, log the operation intent in the DB
@@ -33,14 +33,14 @@ class Execution @Inject()(val executionTraces: ExecutionTraceBinding) extends Lo
     ).flatMap(
       // and only then, for each execution to do:
       Future.traverse(_) {
-        case ((executor, dispatchedSelect), execId) =>
+        case ((executor, rawTarget), execId) =>
           // log the execution
           logger.debug(s"Triggering $operation job for execution #$execId of ${deploymentRequest.productName} v. ${deploymentRequest.version})")
           // trigger the execution
           executor.trigger(
             operation, execId,
             deploymentRequest.productName, deploymentRequest.version,
-            tactics, dispatchedSelect,
+            rawTarget,
             deploymentRequest.creator
           ).map(
             // if that answers a UUID, update the trace with it

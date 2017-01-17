@@ -34,8 +34,8 @@ class ExecutionSpec extends Test with DeploymentRequestBinder with ProfileProvid
   private val execution = new Execution(new ExecutionTraceBinding(dbModule.driver))
 
   object DummyInvokerWithUuid extends DummyInvoker("DummyWithUUID") {
-    override def trigger(operation: Operation, executionId: Long, productName: String, version: String, tactics: Tactics, select: Select, initiator: String): Option[Future[String]] = {
-      assert(super.trigger(operation, executionId, productName, version, tactics, select, initiator).isEmpty)
+    override def trigger(operation: Operation, executionId: Long, productName: String, version: String, rawTarget: String, initiator: String): Option[Future[String]] = {
+      assert(super.trigger(operation, executionId, productName, version, rawTarget, initiator).isEmpty)
       Some(Future.successful(s"#${dummyCounter.next}"))
     }
   }
@@ -44,7 +44,7 @@ class ExecutionSpec extends Test with DeploymentRequestBinder with ProfileProvid
   private lazy val request = req.copy(id = Some(Await.result(insert(db, req), 2.seconds)))
 
   private def messagesGeneratedBy(dispatcher: TargetDispatching) = {
-    val invocations = dispatcher.assign("abc").toSeq.map((_, Seq("abc")))
+    val invocations = dispatcher.assign("foo").toSeq.map((_, "rawFoo"))
     Await.result(execution.trigger(db, invocations, Operation.deploy, request, Seq(JsObject())), 2.seconds)
   }
 
