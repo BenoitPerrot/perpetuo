@@ -12,6 +12,7 @@ import slick.driver.JdbcDriver
 import spray.json.DefaultJsonProtocol._
 import spray.json.{JsObject, _}
 
+import scala.collection.concurrent.{TrieMap, Map => ConcurrentMap}
 import scala.collection.immutable.Stream
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}
@@ -31,10 +32,10 @@ class ExecutionSpec extends Test with DeploymentRequestBinder with ProfileProvid
   new Schema(profile).createTables(db)
 
   private val dummyCounter = Stream.from(1).toIterator
-  private var execLogs: List[(ExecutorInvoker, String)] = Nil
+  private val execLogs: ConcurrentMap[ExecutorInvoker, String] = new TrieMap()
   private val execution = new Execution(new ExecutionTraceBinding(dbModule.driver)) {
     override protected def logExecution(identifier: String, execId: Long, executor: ExecutorInvoker, rawTarget: String): Unit = {
-      execLogs = (executor, rawTarget) :: execLogs
+      execLogs.put(executor, rawTarget).map(prev => fail(s"Logs say the executor has $rawTarget to do, but it already has $prev to do!"))
     }
   }
 
@@ -67,7 +68,7 @@ class ExecutionSpec extends Test with DeploymentRequestBinder with ProfileProvid
     def dispatchedAs(that: Iterable[(ExecutorInvoker, TargetExpr)]): Unit = {
       parse(execution.dispatch(TestSuffixDispatcher, target)) should contain theSameElementsAs that
 
-      execLogs = Nil
+      execLogs.clear()
       val messages = Await.result(execution.startTransaction(db, TestSuffixDispatcher, request)._2, 2.seconds)
       messages.length shouldEqual that.size
       parse(execLogs) should contain theSameElementsAs that
