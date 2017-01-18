@@ -11,6 +11,7 @@ import com.twitter.finagle.http.Request
 import com.twitter.finatra.http.exceptions.BadRequestException
 import com.twitter.finatra.http.{Controller => BaseController}
 import com.twitter.finatra.request._
+import com.twitter.finatra.utils.FuturePools
 import com.twitter.finatra.validation._
 import slick.driver.H2Driver
 import spray.json.JsonParser.ParsingException
@@ -34,6 +35,7 @@ class RestController @Inject()(val dataSource: DataSource,
 
   import deploymentRequests.profile.api._
 
+  private val futurePool = FuturePools.unboundedPool("RequestFuturePool")
   private val db = Database.forDataSource(dataSource)
 
   if (deploymentRequests.profile.isInstanceOf[H2Driver]) {
@@ -43,21 +45,22 @@ class RestController @Inject()(val dataSource: DataSource,
 
   get("/api/deployment-requests/:id") {
     r: DeploymentRequestGet =>
-      Try(r.id.toLong).toOption.flatMap(id => Await.result(deploymentRequests.findDeploymentRequestById(db, id), 2.seconds)).map {
-        depReq => {
-          val cls = classOf[DeploymentRequest]
-          cls.getDeclaredFields
-            .filterNot(_.isSynthetic)
-            .map(_.getName)
-            .map(cls.getDeclaredMethod(_))
-            .filterNot(method => Modifier.isPrivate(method.getModifiers))
-            .flatMap(method =>
-              (method.getName, method.invoke(depReq)) match {
-                case ("reason", "") => None
-                case ("target", json: String) => Some("target" -> RawJson(json))
-                case (name, value) => Some(name -> value)
-              }
-            ).toMap
+      futurePool {
+        Try(r.id.toLong).toOption.flatMap(id => Await.result(deploymentRequests.findDeploymentRequestById(db, id), 2.seconds)).map {
+          depReq =>
+            val cls = classOf[DeploymentRequest]
+            cls.getDeclaredFields
+              .filterNot(_.isSynthetic)
+              .map(_.getName)
+              .map(cls.getDeclaredMethod(_))
+              .filterNot(method => Modifier.isPrivate(method.getModifiers))
+              .flatMap(method =>
+                (method.getName, method.invoke(depReq)) match {
+                  case ("reason", "") => None
+                  case ("target", json: String) => Some("target" -> RawJson(json))
+                  case (name, value) => Some(name -> value)
+                }
+              ).toMap
         }
       }
   }
@@ -71,12 +74,14 @@ class RestController @Inject()(val dataSource: DataSource,
         case e: ParsingException => throw new BadRequestException(e.getMessage)
       }
 
-      // trigger the execution
-      val (futureId, _) = execution.startTransaction(db, TargetDispatching.fromConfig, deploymentRequest)
+      futurePool {
+        // trigger the execution
+        val (futureId, _) = execution.startTransaction(db, TargetDispatching.fromConfig, deploymentRequest)
 
-      // return the ID
-      val id = Await.result(futureId, 2.seconds)
-      response.created.json(Map("id" -> id))
+        // return the ID
+        val id = Await.result(futureId, 2.seconds)
+        response.created.json(Map("id" -> id))
+      }
   }
 
 }
