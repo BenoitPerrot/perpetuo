@@ -20,17 +20,17 @@ class Execution @Inject()(val executionTraces: ExecutionTraceBinding) extends Lo
   import spray.json.DefaultJsonProtocol._
 
 
-  def startTransaction(db: Database, dispatcher: TargetDispatching, deploymentRequest: DeploymentRequest): (Future[Long], Future[Seq[String]]) = {
+  def startTransaction(db: Database, dispatcher: TargetDispatching, deploymentRequest: DeploymentRequest): (Future[Long], Future[Unit]) = {
     require(deploymentRequest.id.isEmpty)
 
     // first, log the user's general intent
     val id = executionTraces.insert(db, deploymentRequest)
 
-    // return futures on the ID and on the operation start messages
-    (id, id.flatMap(depReqId => startOperation(db, dispatcher, deploymentRequest.copyWithId(depReqId), Operation.deploy)))
+    // return futures on the ID and on the operation start
+    (id, id.map(deploymentRequest.copyWithId).flatMap(startOperation(db, dispatcher, _, Operation.deploy)))
   }
 
-  def startOperation(db: Database, dispatcher: TargetDispatching, deploymentRequest: DeploymentRequest, operation: Operation): Future[Seq[String]] = {
+  def startOperation(db: Database, dispatcher: TargetDispatching, deploymentRequest: DeploymentRequest, operation: Operation): Future[Unit] = {
     require(deploymentRequest.id.isDefined)
 
     // infer dispatching
@@ -61,15 +61,8 @@ class Execution @Inject()(val executionTraces: ExecutionTraceBinding) extends Lo
             _.flatMap(uuid => executionTraces.updateExecutionTrace(db, execId)(uuid).map(_ => s"`$uuid`"))
           ).getOrElse(
             Future.successful("with unknown ID")
-          ).map(
-            (identifier: String) => {
-              // log and return the success message
-              val msg = s"Triggered job $identifier for execution #$execId"
-              logExecution(identifier, execId, executor, rawTarget)
-              msg
-            }
-          )
-      }
+          ).map(logExecution(_, execId, executor, rawTarget))
+      }.map(_ => Unit)
     )
   }
 
