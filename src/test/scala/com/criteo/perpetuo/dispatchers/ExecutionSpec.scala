@@ -14,6 +14,7 @@ import spray.json.{JsObject, _}
 
 import scala.collection.concurrent.{TrieMap, Map => ConcurrentMap}
 import scala.collection.immutable.Stream
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}
 
@@ -46,10 +47,20 @@ class ExecutionSpec extends Test with DeploymentRequestBinder with ProfileProvid
     }
   }
 
-  private val req = DeploymentRequest(None, "perpetuo-app", "v42", """"*"""", "No fear", "c.norris", new Timestamp(123456789))
+  private def getExecutions(dispatcher: TargetDispatching): Seq[(Long, Option[String])] = {
+    val req = DeploymentRequest(None, "perpetuo-app", "v42", """"*"""", "No fear", "c.norris", new Timestamp(123456789))
 
-  private def messagesGeneratedBy(dispatcher: TargetDispatching) = {
-    Await.result(execution.startTransaction(db, dispatcher, req)._2, 2.seconds)
+    val (id, asyncStart) = execution.startTransaction(db, dispatcher, req)
+    Await.ready(asyncStart, 2.seconds)
+    assert(id.isCompleted)
+
+    Await.result(
+      id.flatMap(execution.executionTraces.findExecutionTracesByDeploymentRequest(db, _)),
+      2.seconds
+    ).map(exec => {
+      assert(exec.id.isDefined)
+      (exec.id.get, exec.uuid)
+    })
   }
 
   implicit class SimpleDispatchTest(private val select: Select) {
@@ -69,24 +80,22 @@ class ExecutionSpec extends Test with DeploymentRequestBinder with ProfileProvid
       parse(execution.dispatch(TestSuffixDispatcher, target)) should contain theSameElementsAs that
 
       execLogs.clear()
-      val messages = Await.result(execution.startTransaction(db, TestSuffixDispatcher, request)._2, 2.seconds)
-      messages.length shouldEqual that.size
+      Await.result(execution.startTransaction(db, TestSuffixDispatcher, request)._2, 2.seconds)
       parse(execLogs) should contain theSameElementsAs that
     }
   }
 
 
   "A trivial execution" should {
-
     "trigger a job with no ID when there is no UUID provided" in {
-      messagesGeneratedBy(DummyTargetDispatcher) shouldEqual Seq(
-        "Triggered job with unknown ID for execution #1"
+      getExecutions(DummyTargetDispatcher) shouldEqual Seq(
+        (1, None)
       )
     }
 
     "trigger a job with an ID when a UUID is provided as a Future" in {
-      messagesGeneratedBy(SingleTargetDispatcher(DummyInvokerWithUuid)) shouldEqual Seq(
-        "Triggered job `#1` for execution #2"
+      getExecutions(SingleTargetDispatcher(DummyInvokerWithUuid)) shouldEqual Seq(
+        (2, Some("#1"))
       )
     }
 
