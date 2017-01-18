@@ -35,6 +35,11 @@
 
     <dependency>
       <groupId>com.criteo.sdk</groupId>
+      <artifactId>sdk-discovery</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>com.criteo.sdk</groupId>
       <artifactId>datasource-prm-java</artifactId>
     </dependency>
 
