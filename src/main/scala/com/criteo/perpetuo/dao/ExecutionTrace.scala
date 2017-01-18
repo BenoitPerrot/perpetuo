@@ -53,6 +53,17 @@ trait ExecutionTraceBinder extends TableBinder {
     db.run(executionTraceQuery.filter(_.id === id).result).map(_.headOption)
   }
 
+  def findExecutionTracesByOperationTrace(db: Database, operationTraceId: Long): Future[Seq[ExecutionTrace]] = {
+    db.run(executionTraceQuery.filter(_.operationTraceId === operationTraceId).result)
+  }
+
+  def findExecutionTracesByDeploymentRequest(db: Database, deploymentRequestId: Long): Future[Seq[ExecutionTrace]] = {
+    val query = for {
+      (exec, op) <- executionTraceQuery join operationTraceQuery on (_.operationTraceId === _.id) if op.deploymentRequestId === deploymentRequestId
+    } yield exec
+    db.run(query.result)
+  }
+
   case class updateExecutionTrace(db: Database, id: Long) {
     def apply(uuid: String, state: ExecutionState): Future[Unit] =
       run(_.map(r => (r.uuid, r.state)).update((Some(uuid), state)))
