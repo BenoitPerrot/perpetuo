@@ -6,11 +6,14 @@ import javax.sql.DataSource
 
 import com.criteo.perpetuo.dao.{DeploymentRequest, DeploymentRequestBinding, Schema}
 import com.criteo.perpetuo.dispatchers.DeploymentRequestParser.parse
+import com.criteo.perpetuo.dispatchers.{Execution, TargetDispatching}
 import com.twitter.finagle.http.Request
+import com.twitter.finatra.http.exceptions.BadRequestException
 import com.twitter.finatra.http.{Controller => BaseController}
 import com.twitter.finatra.request._
 import com.twitter.finatra.validation._
 import slick.driver.H2Driver
+import spray.json.JsonParser.ParsingException
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
@@ -25,6 +28,7 @@ case class DeploymentRequestGet(@RouteParam @NotEmpty id: String)
   * Controller that handles deployment requests as a REST API.
   */
 class RestController @Inject()(val dataSource: DataSource,
+                               val execution: Execution,
                                val deploymentRequests: DeploymentRequestBinding)
   extends BaseController {
 
@@ -59,9 +63,20 @@ class RestController @Inject()(val dataSource: DataSource,
   }
 
   post("/api/deployment-requests") {
-    r: Request => {
-      val id = Await.result(deploymentRequests.insert(db, parse(r.contentString)), 2.seconds)
+    r: Request =>
+      // parse the request
+      val deploymentRequest = try {
+        parse(r.contentString)
+      } catch {
+        case e: ParsingException => throw new BadRequestException(e.getMessage)
+      }
+
+      // trigger the execution
+      val (futureId, _) = execution.startTransaction(db, TargetDispatching.fromConfig, deploymentRequest)
+
+      // return the ID
+      val id = Await.result(futureId, 2.seconds)
       response.created.json(Map("id" -> id))
-    }
   }
+
 }

@@ -1,6 +1,7 @@
 package com.criteo.perpetuo.dispatchers
 
 import com.criteo.perpetuo.executors.ExecutorInvoker
+import com.typesafe.config.ConfigFactory
 
 
 trait TargetDispatching {
@@ -12,6 +13,8 @@ trait TargetDispatching {
 
 
 object TargetDispatching {
+  private val config = ConfigFactory.load()
+  lazy val fromConfig: TargetDispatching = fromName(config.getConfig("targetDispatcher").getString(config.getString("env")))
   def fromName(objectName: String): TargetDispatching = {
     val cls = Class.forName(objectName + "$")
     cls.getField("MODULE$").get(cls).asInstanceOf[TargetDispatching]
