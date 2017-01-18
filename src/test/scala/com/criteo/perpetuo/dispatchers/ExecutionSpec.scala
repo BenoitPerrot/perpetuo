@@ -33,7 +33,7 @@ class ExecutionSpec extends Test with DeploymentRequestBinder with ProfileProvid
   private val dummyCounter = Stream.from(1).toIterator
   private var execLogs: List[(ExecutorInvoker, String)] = Nil
   private val execution = new Execution(new ExecutionTraceBinding(dbModule.driver)) {
-    override protected def logExecution(msg: String, executor: ExecutorInvoker, rawTarget: String): Unit = {
+    override protected def logExecution(identifier: String, execId: Long, executor: ExecutorInvoker, rawTarget: String): Unit = {
       execLogs = (executor, rawTarget) :: execLogs
     }
   }

@@ -65,7 +65,7 @@ class Execution @Inject()(val executionTraces: ExecutionTraceBinding) extends Lo
             (identifier: String) => {
               // log and return the success message
               val msg = s"Triggered job $identifier for execution #$execId"
-              logExecution(msg, executor, rawTarget)
+              logExecution(identifier, execId, executor, rawTarget)
               msg
             }
           )
@@ -112,7 +112,7 @@ class Execution @Inject()(val executionTraces: ExecutionTraceBinding) extends Lo
     }
   }
 
-  protected def logExecution(msg: String, executor: ExecutorInvoker, rawTarget: String): Unit = {
-    logger.debug(s"$msg: $executor <- $rawTarget")
+  protected def logExecution(identifier: String, execId: Long, executor: ExecutorInvoker, rawTarget: String): Unit = {
+    logger.debug(s"Triggered job $identifier for execution #$execId: $executor <- $rawTarget")
   }
 }
