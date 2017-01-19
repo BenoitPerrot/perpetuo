@@ -24,7 +24,7 @@ class RestControllerSpec extends FeatureTest {
     override protected def jacksonModule = CustomServerModules.jackson
 
     override def modules = Seq(
-      new DbContextModule(config.getConfig("db").getConfig("embedded"))
+      new DbContextModule(config.getConfig("db").getConfig("test"))
     )
 
     override def configureHttp(router: HttpRouter) {

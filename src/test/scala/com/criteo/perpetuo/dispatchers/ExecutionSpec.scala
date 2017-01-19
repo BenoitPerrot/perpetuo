@@ -22,7 +22,7 @@ import scala.concurrent.{Await, Future}
 class ExecutionSpec extends Test with DeploymentRequestBinder with ProfileProvider {
 
   private val config: Config = ConfigFactory.load()
-  private val dbModule = new TestingDbContextModule(config.getConfig("db").getConfig("embedded"))
+  private val dbModule = new TestingDbContextModule(config.getConfig("db").getConfig("test"))
 
   val profile: JdbcDriver = dbModule.driver
 

@@ -23,7 +23,7 @@ class DeploymentRequestSpec extends FunSuite with ScalaFutures
   implicit val defaultPatience = PatienceConfig(timeout = Span(2, Seconds), interval = Span(100, Millis))
 
   private val config: Config = ConfigFactory.load()
-  private val dbModule = new TestingDbContextModule(config.getConfig("db").getConfig("embedded"))
+  private val dbModule = new TestingDbContextModule(config.getConfig("db").getConfig("test"))
 
   val profile: JdbcDriver = dbModule.driver
   import profile.api._
