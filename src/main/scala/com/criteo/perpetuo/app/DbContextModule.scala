@@ -2,7 +2,7 @@ package com.criteo.perpetuo.app
 
 import javax.sql.DataSource
 
-import com.criteo.datasource.DataSourceFactoryBuilder
+import com.criteo.datasource.{DataSourceFactory, DataSourceFactoryBuilder}
 import com.criteo.ds.prm.{DataSourceProxymitySpecifier, DatasourceIntent}
 import com.criteo.perpetuo.dao.drivers.UrlBuilders._
 import com.criteo.perpetuo.dao.drivers.{DriverByName, InMemory}
@@ -49,9 +49,8 @@ class DbContextModule(dbConfig: Config) extends TwitterModule {
 
   private def getDataSourceViaPrm(username: String, password: String): DataSource = {
     DataSourceFactoryBuilder.createFactoryAutoDetect()
-      .withApplicationName("AngryBoards")
-      .buildUsingSQLUser(username, password)
-      .getDataSourceForDatabase(Resource.AngryBoards_Db, DatasourceIntent.ReadWrite, DataSourceProxymitySpecifier.DataCenterOnly)
+      .buildUsingKerberosAuthentication()
+      .getDataSourceForDatabase(Resource.Deployment_DB, DatasourceIntent.ReadWrite, DataSourceProxymitySpecifier.GlobalAllowed)
   }
 
   private def getInMemoryDataSource(username: String, password: String): DataSource = {
