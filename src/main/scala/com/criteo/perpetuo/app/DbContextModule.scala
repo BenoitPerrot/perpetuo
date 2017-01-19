@@ -23,11 +23,11 @@ class DbContextModule(dbConfig: Config) extends TwitterModule {
 
   private lazy val dataSource = {
     if (driverName == "net.sourceforge.jtds.jdbc.Driver") {
-      getDataSourceViaPrm()
+      obtainDataSourceFromPrm()
     } else {
       val username = dbConfig.getString("username")
       val password = Try(dbConfig.getString("password")).getOrElse("")
-      getInMemoryDataSource(username, password)
+      createInMemoryDataSource(username, password)
     }
   }
 
@@ -46,13 +46,13 @@ class DbContextModule(dbConfig: Config) extends TwitterModule {
     dataSourceProvider
   }
 
-  private def getDataSourceViaPrm(): DataSource = {
+  private def obtainDataSourceFromPrm(): DataSource = {
     DataSourceFactoryBuilder.createFactoryAutoDetect()
       .buildUsingKerberosAuthentication()
       .getDataSourceForDatabase(Resource.Deployment_DB, DatasourceIntent.ReadWrite, DataSourceProxymitySpecifier.GlobalAllowed)
   }
 
-  private def getInMemoryDataSource(username: String, password: String): DataSource = {
+  private def createInMemoryDataSource(username: String, password: String): DataSource = {
     val dbName = dbConfig.getString("name")
     val schemaName = dbConfig.getString("schema")
     val jdbcUrl = driver.buildUrl(InMemory(), dbName, schemaName)
