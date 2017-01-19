@@ -20,17 +20,17 @@ class Execution @Inject()(val executionTraces: ExecutionTraceBinding) extends Lo
   import spray.json.DefaultJsonProtocol._
 
 
-  def startTransaction(db: Database, dispatcher: TargetDispatching, deploymentRequest: DeploymentRequest): (Future[Long], Future[Unit]) = {
+  def startTransaction(db: Database, dispatcher: TargetDispatching, deploymentRequest: DeploymentRequest): (Future[Long], Future[Int]) = {
     require(deploymentRequest.id.isEmpty)
 
     // first, log the user's general intent
     val id = executionTraces.insert(db, deploymentRequest)
 
-    // return futures on the ID and on the operation start
+    // return futures on the ID and on the number of job runs triggered
     (id, id.map(deploymentRequest.copyWithId).flatMap(startOperation(db, dispatcher, _, Operation.deploy)))
   }
 
-  def startOperation(db: Database, dispatcher: TargetDispatching, deploymentRequest: DeploymentRequest, operation: Operation): Future[Unit] = {
+  def startOperation(db: Database, dispatcher: TargetDispatching, deploymentRequest: DeploymentRequest, operation: Operation): Future[Int] = {
     require(deploymentRequest.id.isDefined)
 
     // infer dispatching
@@ -62,7 +62,7 @@ class Execution @Inject()(val executionTraces: ExecutionTraceBinding) extends Lo
           ).getOrElse(
             Future.successful("with unknown ID")
           ).map(logExecution(_, execId, executor, rawTarget))
-      }.map(_ => Unit)
+      }.map(_.length)
     )
   }
 
