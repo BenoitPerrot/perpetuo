@@ -17,6 +17,7 @@ import slick.driver.H2Driver
 import spray.json.JsonParser.ParsingException
 
 import scala.concurrent.Await
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.util.Try
 
@@ -76,7 +77,9 @@ class RestController @Inject()(val dataSource: DataSource,
 
       futurePool {
         // trigger the execution
-        val (futureId, _) = execution.startTransaction(db, TargetDispatching.fromConfig, deploymentRequest)
+        val (futureId, asyncStart) = execution.startTransaction(db, TargetDispatching.fromConfig, deploymentRequest)
+
+        asyncStart.onFailure({ case e => logger.error("Transaction failed to start: " + e.getMessage + "\n" + e.getStackTrace.mkString("\n")) })
 
         // return the ID
         val id = Await.result(futureId, 2.seconds)
