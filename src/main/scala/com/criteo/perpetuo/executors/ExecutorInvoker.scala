@@ -3,11 +3,35 @@ package com.criteo.perpetuo.executors
 import com.criteo.perpetuo.dao.enums.Operation.Operation
 import com.twitter.inject.Logging
 
+import scala.collection.mutable
 import scala.concurrent.Future
 
 
 abstract class ExecutorInvoker {
+  ExecutorInvoker.registeredInvokers += this
+
   def trigger(operation: Operation, executionId: Long, productName: String, version: String, rawTarget: String, initiator: String): Option[Future[String]]
+
+  def getExecutionDetailsUrlIfApplicable(uuid: String): Option[String] = None
+}
+
+
+object ExecutorInvoker {
+  protected val registeredInvokers: mutable.Set[ExecutorInvoker] = mutable.Set()
+
+  def getExecutionDetailsUrl(uuid: String): String = {
+    if (uuid.contains("://"))
+      uuid
+    else {
+      val urls = ExecutorInvoker.registeredInvokers.flatMap(_.getExecutionDetailsUrlIfApplicable(uuid))
+      if (urls.size != 1)
+        throw new Exception(
+          if (urls.isEmpty) s"Could not interpret UUID `$uuid`"
+          else s"Multiple interpretations for `$uuid`: ${urls.mkString(", ")}"
+        )
+      urls.head
+    }
+  }
 }
 
 
