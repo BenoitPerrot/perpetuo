@@ -2,8 +2,8 @@ package com.criteo.perpetuo.dao
 
 import javax.inject.{Inject, Singleton}
 
+import com.criteo.perpetuo.app.DbContext
 import com.criteo.perpetuo.dispatchers.{DeploymentRequestParser, TargetExpr}
-import slick.driver.JdbcProfile
 import spray.json._
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -37,9 +37,9 @@ case class DeploymentRequest(id: Option[Long],
 
 
 trait DeploymentRequestBinder extends TableBinder {
-  this: ProfileProvider =>
+  this: DbContextProvider =>
 
-  import profile.api._
+  import dbContext.driver.api._
 
   class DeploymentRequestTable(tag: Tag) extends Table[DeploymentRequest](tag, "deployment_request") {
     def id = column[Long]("id", O.AutoInc)
@@ -61,16 +61,16 @@ trait DeploymentRequestBinder extends TableBinder {
 
   val deploymentRequestQuery = TableQuery[DeploymentRequestTable]
 
-  def insert(db: Database, d: DeploymentRequest): Future[Long] = {
-    db.run((deploymentRequestQuery returning deploymentRequestQuery.map(_.id)) += d)
+  def insert(d: DeploymentRequest): Future[Long] = {
+    dbContext.db.run((deploymentRequestQuery returning deploymentRequestQuery.map(_.id)) += d)
   }
 
-  def findDeploymentRequestById(db: Database, id: Long): Future[Option[DeploymentRequest]] = {
-    db.run(deploymentRequestQuery.filter(_.id === id).result).map(_.headOption)
+  def findDeploymentRequestById(id: Long): Future[Option[DeploymentRequest]] = {
+    dbContext.db.run(deploymentRequestQuery.filter(_.id === id).result).map(_.headOption)
   }
 }
 
 
 @Singleton
-class DeploymentRequestBinding @Inject()(val profile: JdbcProfile) extends DeploymentRequestBinder
-  with ProfileProvider
+class DeploymentRequestBinding @Inject()(val dbContext: DbContext) extends DeploymentRequestBinder
+  with DbContextProvider

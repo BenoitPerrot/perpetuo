@@ -2,7 +2,6 @@ package com.criteo.perpetuo.app
 
 import java.lang.reflect.Modifier
 import javax.inject.Inject
-import javax.sql.DataSource
 
 import com.criteo.perpetuo.dao.{DeploymentRequest, DeploymentRequestBinding, Schema}
 import com.criteo.perpetuo.dispatchers.DeploymentRequestParser.parse
@@ -29,25 +28,22 @@ case class DeploymentRequestGet(@RouteParam @NotEmpty id: String)
 /**
   * Controller that handles deployment requests as a REST API.
   */
-class RestController @Inject()(val dataSource: DataSource,
-                               val execution: Execution,
-                               val deploymentRequests: DeploymentRequestBinding)
+class RestController @Inject()(val execution: Execution,
+                               val deploymentRequests: DeploymentRequestBinding,
+                               val dbContext: DbContext)
   extends BaseController {
 
-  import deploymentRequests.profile.api._
-
   private val futurePool = FuturePools.unboundedPool("RequestFuturePool")
-  private val db = Database.forDataSource(dataSource)
 
-  if (deploymentRequests.profile.isInstanceOf[H2Driver]) {
+  if (dbContext.driver.isInstanceOf[H2Driver]) {
     // running in development mode
-    new Schema(deploymentRequests.profile).createTables(db)
+    new Schema(dbContext).createTables()
   }
 
   get("/api/deployment-requests/:id") {
     r: DeploymentRequestGet =>
       futurePool {
-        Try(r.id.toLong).toOption.flatMap(id => Await.result(deploymentRequests.findDeploymentRequestById(db, id), 2.seconds)).map {
+        Try(r.id.toLong).toOption.flatMap(id => Await.result(deploymentRequests.findDeploymentRequestById(id), 2.seconds)).map {
           depReq =>
             val cls = classOf[DeploymentRequest]
             cls.getDeclaredFields
@@ -77,7 +73,7 @@ class RestController @Inject()(val dataSource: DataSource,
 
       futurePool {
         // trigger the execution
-        val (futureId, asyncStart) = execution.startTransaction(db, TargetDispatching.fromConfig, deploymentRequest)
+        val (futureId, asyncStart) = execution.startTransaction(TargetDispatching.fromConfig, deploymentRequest)
 
         asyncStart.onFailure({ case e => logger.error("Transaction failed to start: " + e.getMessage + "\n" + e.getStackTrace.mkString("\n")) })
 

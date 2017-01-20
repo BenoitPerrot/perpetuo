@@ -2,6 +2,7 @@ package com.criteo.perpetuo.dao
 
 import java.sql.Timestamp
 
+import com.criteo.perpetuo.app.DbContext
 import com.criteo.perpetuo.dao.enums.{Operation, TargetStatus}
 import com.typesafe.config.{Config, ConfigFactory}
 import org.junit.runner.RunWith
@@ -9,7 +10,6 @@ import org.scalatest.FunSuite
 import org.scalatest.concurrent._
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.time.{Millis, Seconds, Span}
-import slick.driver.JdbcDriver
 
 import scala.concurrent.Await
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -20,18 +20,17 @@ import scala.concurrent.duration._
 class OperationTraceSpec extends FunSuite with ScalaFutures
   with OperationTraceBinder
   with DeploymentRequestBinder
-  with ProfileProvider {
+  with DbContextProvider {
 
   implicit val defaultPatience = PatienceConfig(timeout = Span(2, Seconds), interval = Span(100, Millis))
 
   private val config: Config = ConfigFactory.load()
   private val dbModule = new TestingDbContextModule(config.getConfig("db").getConfig("test"))
 
-  val profile: JdbcDriver = dbModule.driver
-  import profile.api._
+  val dbContext: DbContext = dbModule.providesDbContext
+  import dbContext.driver.api._
 
-  private val db = Database.forDataSource(dbModule.dataSourceProvider)
-  new Schema(profile).createTables(db)
+  new Schema(dbContext).createTables()
 
   test("Operation types are bound to different integral values") {
     Operation.values
@@ -45,12 +44,12 @@ class OperationTraceSpec extends FunSuite with ScalaFutures
     val request = DeploymentRequest(None, "perpetuo-app", "v42", "*", "No fear", "c.norris", new Timestamp(123456789))
 
     Await.result(for {
-      requestId <- insert(db, request)
-      deployId <- addToDeploymentRequest(db, requestId, Operation.deploy)
-      revertId <- addToDeploymentRequest(db, requestId, Operation.revert)
-      traces <- db.run(operationTraceQuery.result)
-      deploy <- findOperationTraceById(db, deployId)
-      revert <- findOperationTraceById(db, revertId)
+      requestId <- insert(request)
+      deployId <- addToDeploymentRequest(requestId, Operation.deploy)
+      revertId <- addToDeploymentRequest(requestId, Operation.revert)
+      traces <- dbContext.db.run(operationTraceQuery.result)
+      deploy <- findOperationTraceById(deployId)
+      revert <- findOperationTraceById(revertId)
     } yield {
       assert(deploy.isDefined && revert.isDefined)
       assert(traces == Seq(deploy.get, revert.get))
@@ -69,9 +68,9 @@ class OperationTraceSpec extends FunSuite with ScalaFutures
     // using the same records already inserted in the DB during the test above
 
     Await.result(for {
-      traceId <- db.run(operationTraceQuery.result).map(_.head.id.get)
-      _ <- updateOperationTrace(db, traceId, Map("abc" -> TargetStatus.serverFailure))
-      trace <- findOperationTraceById(db, traceId)
+      traceId <- dbContext.db.run(operationTraceQuery.result).map(_.head.id.get)
+      _ <- updateOperationTrace(traceId, Map("abc" -> TargetStatus.serverFailure))
+      trace <- findOperationTraceById(traceId)
     } yield {
       assert(trace.get.targetStatus == Map("abc" -> TargetStatus.serverFailure))
     }, 2.seconds)

@@ -6,11 +6,11 @@ import slick.lifted.{AbstractTable, ForeignKeyQuery, Index, PrimaryKey}
 import scala.collection.mutable
 
 trait TableBinder {
-  this: ProfileProvider =>
+  this: DbContextProvider =>
 
-  import profile.api._
+  import dbContext.driver.api._
 
-  abstract class Table[T](tag: Tag, name: String) extends profile.api.Table[T](tag, name) {
+  abstract class Table[T](tag: Tag, name: String) extends dbContext.driver.api.Table[T](tag, name) {
     val columnNames = mutable.HashMap[AnyRef, String]()
 
     override def column[C](n: String, options: ColumnOption[C]*)(implicit tt: TypedType[C]): Rep[C] = {

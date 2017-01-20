@@ -2,13 +2,13 @@ package com.criteo.perpetuo.dispatchers
 
 import java.sql.Timestamp
 
+import com.criteo.perpetuo.app.DbContext
 import com.criteo.perpetuo.dao._
 import com.criteo.perpetuo.dao.enums.Operation.Operation
 import com.criteo.perpetuo.dispatchers.DeploymentRequestParser._
 import com.criteo.perpetuo.executors.{DummyInvoker, ExecutorInvoker}
 import com.twitter.inject.Test
 import com.typesafe.config.{Config, ConfigFactory}
-import slick.driver.JdbcDriver
 import spray.json.DefaultJsonProtocol._
 import spray.json.{JsObject, _}
 
@@ -19,22 +19,20 @@ import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}
 
 
-class ExecutionSpec extends Test with DeploymentRequestBinder with ProfileProvider {
+class ExecutionSpec extends Test {
 
   private val config: Config = ConfigFactory.load()
   private val dbModule = new TestingDbContextModule(config.getConfig("db").getConfig("test"))
 
-  val profile: JdbcDriver = dbModule.driver
+  val dbContext: DbContext = dbModule.providesDbContext
+
+  new Schema(dbContext).createTables()
 
   import TestSuffixDispatcher._
-  import profile.api._
-
-  private val db = Database.forDataSource(dbModule.dataSourceProvider)
-  new Schema(profile).createTables(db)
 
   private val dummyCounter = Stream.from(1).toIterator
   private val execLogs: ConcurrentMap[ExecutorInvoker, String] = new TrieMap()
-  private val execution = new Execution(new ExecutionTraceBinding(dbModule.driver)) {
+  private val execution = new Execution(new ExecutionTraceBinding(dbContext)) {
     override protected def logExecution(identifier: String, execId: Long, executor: ExecutorInvoker, rawTarget: String): Unit = {
       execLogs.put(executor, rawTarget).map(prev => fail(s"Logs say the executor has $rawTarget to do, but it already has $prev to do!"))
     }
@@ -50,12 +48,12 @@ class ExecutionSpec extends Test with DeploymentRequestBinder with ProfileProvid
   private def getExecutions(dispatcher: TargetDispatching): Seq[(Long, Option[String])] = {
     val req = DeploymentRequest(None, "perpetuo-app", "v42", """"*"""", "No fear", "c.norris", new Timestamp(123456789))
 
-    val (id, asyncStart) = execution.startTransaction(db, dispatcher, req)
+    val (id, asyncStart) = execution.startTransaction(dispatcher, req)
     Await.ready(asyncStart, 2.seconds)
     assert(id.isCompleted)
 
     Await.result(
-      id.flatMap(execution.executionTraces.findExecutionTracesByDeploymentRequest(db, _)),
+      id.flatMap(execution.executionTraces.findExecutionTracesByDeploymentRequest),
       2.seconds
     ).map(exec => {
       assert(exec.id.isDefined)
@@ -80,7 +78,7 @@ class ExecutionSpec extends Test with DeploymentRequestBinder with ProfileProvid
       parse(execution.dispatch(TestSuffixDispatcher, target)) should contain theSameElementsAs that
 
       execLogs.clear()
-      Await.result(execution.startTransaction(db, TestSuffixDispatcher, request)._2, 2.seconds)
+      Await.result(execution.startTransaction(TestSuffixDispatcher, request)._2, 2.seconds)
       parse(execLogs) should contain theSameElementsAs that
     }
   }

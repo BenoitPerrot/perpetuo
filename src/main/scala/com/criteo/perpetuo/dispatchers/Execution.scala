@@ -16,30 +16,29 @@ import scala.concurrent.Future
 @Singleton
 class Execution @Inject()(val executionTraces: ExecutionTraceBinding) extends Logging {
 
-  import executionTraces.profile.api._
   import spray.json.DefaultJsonProtocol._
 
 
-  def startTransaction(db: Database, dispatcher: TargetDispatching, deploymentRequest: DeploymentRequest): (Future[Long], Future[Int]) = {
+  def startTransaction(dispatcher: TargetDispatching, deploymentRequest: DeploymentRequest): (Future[Long], Future[Int]) = {
     require(deploymentRequest.id.isEmpty)
 
     // first, log the user's general intent
-    val id = executionTraces.insert(db, deploymentRequest)
+    val id = executionTraces.insert(deploymentRequest)
 
     // return futures on the ID and on the number of job runs triggered
-    (id, id.map(deploymentRequest.copyWithId).flatMap(startOperation(db, dispatcher, _, Operation.deploy)))
+    (id, id.map(deploymentRequest.copyWithId).flatMap(startOperation(dispatcher, _, Operation.deploy)))
   }
 
-  def startOperation(db: Database, dispatcher: TargetDispatching, deploymentRequest: DeploymentRequest, operation: Operation): Future[Int] = {
+  def startOperation(dispatcher: TargetDispatching, deploymentRequest: DeploymentRequest, operation: Operation): Future[Int] = {
     require(deploymentRequest.id.isDefined)
 
     // infer dispatching
     val invocations = dispatch(dispatcher, deploymentRequest.parsedTarget).toSeq
 
     // log the operation intent in the DB
-    executionTraces.addToDeploymentRequest(db, deploymentRequest.id.get, operation).flatMap(
+    executionTraces.addToDeploymentRequest(deploymentRequest.id.get, operation).flatMap(
       // create as many traces, all at the same time
-      executionTraces.addToOperationTrace(db, _, invocations.length).map {
+      executionTraces.addToOperationTrace(_, invocations.length).map {
         execIds =>
           assert(execIds.length == invocations.length)
           invocations.zip(execIds)
@@ -58,7 +57,7 @@ class Execution @Inject()(val executionTraces: ExecutionTraceBinding) extends Lo
             deploymentRequest.creator
           ).map(
             // if that answers a UUID, update the trace with it
-            _.flatMap(uuid => executionTraces.updateExecutionTrace(db, execId)(uuid).map(_ => s"`$uuid`"))
+            _.flatMap(uuid => executionTraces.updateExecutionTrace(execId)(uuid).map(_ => s"`$uuid`"))
           ).getOrElse(
             Future.successful("with unknown ID")
           ).map(logExecution(_, execId, executor, rawTarget))

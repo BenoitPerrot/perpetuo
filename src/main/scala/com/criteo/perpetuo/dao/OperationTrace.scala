@@ -2,9 +2,9 @@ package com.criteo.perpetuo.dao
 
 import javax.inject.{Inject, Singleton}
 
+import com.criteo.perpetuo.app.DbContext
 import com.criteo.perpetuo.dao.enums.Operation.Operation
 import com.criteo.perpetuo.dao.enums.{TargetStatus, Operation => OperationType}
-import slick.driver.JdbcProfile
 import spray.json.{JsNumber, JsObject, _}
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -18,9 +18,9 @@ case class OperationTrace(id: Option[Long],
 
 
 trait OperationTraceBinder extends TableBinder {
-  this: DeploymentRequestBinder with ProfileProvider =>
+  this: DeploymentRequestBinder with DbContextProvider =>
 
-  import profile.api._
+  import dbContext.driver.api._
 
   private implicit lazy val operationMapper = MappedColumnType.base[Operation, Short](
     op => op.id.toShort,
@@ -46,26 +46,26 @@ trait OperationTraceBinder extends TableBinder {
 
   val operationTraceQuery = TableQuery[OperationTraceTable]
 
-  def addToDeploymentRequest(db: Database, requestId: Long, operation: Operation): Future[Long] = {
+  def addToDeploymentRequest(requestId: Long, operation: Operation): Future[Long] = {
     val operationTrace = OperationTrace(None, requestId, operation)
-    db.run((operationTraceQuery returning operationTraceQuery.map(_.id)) += operationTrace)
+    dbContext.db.run((operationTraceQuery returning operationTraceQuery.map(_.id)) += operationTrace)
   }
 
-  def findOperationTraceById(db: Database, id: Long): Future[Option[OperationTrace]] = {
-    db.run(operationTraceQuery.filter(_.id === id).result).map(_.headOption)
+  def findOperationTraceById(id: Long): Future[Option[OperationTrace]] = {
+    dbContext.db.run(operationTraceQuery.filter(_.id === id).result).map(_.headOption)
   }
 
-  def findOperationTracesByDeploymentRequest(db: Database, deploymentRequestId: Long): Future[Seq[OperationTrace]] = {
-    db.run(operationTraceQuery.filter(_.deploymentRequestId === deploymentRequestId).result)
+  def findOperationTracesByDeploymentRequest(deploymentRequestId: Long): Future[Seq[OperationTrace]] = {
+    dbContext.db.run(operationTraceQuery.filter(_.deploymentRequestId === deploymentRequestId).result)
   }
 
-  def updateOperationTrace(db: Database, id: Long, targetStatus: TargetStatus.MapType): Future[Unit] = {
-    db.run(operationTraceQuery.filter(_.id === id).map(_.targetStatus).update(targetStatus))
+  def updateOperationTrace(id: Long, targetStatus: TargetStatus.MapType): Future[Unit] = {
+    dbContext.db.run(operationTraceQuery.filter(_.id === id).map(_.targetStatus).update(targetStatus))
       .map(count => assert(count == 1))
   }
 }
 
 
 @Singleton
-class OperationTraceBinding @Inject()(val profile: JdbcProfile) extends OperationTraceBinder
-  with DeploymentRequestBinder with ProfileProvider
+class OperationTraceBinding @Inject()(val dbContext: DbContext) extends OperationTraceBinder
+  with DeploymentRequestBinder with DbContextProvider

@@ -1,6 +1,7 @@
 package com.criteo.perpetuo.dao
 
 import com.criteo.perpetuo.TestUtils._
+import com.criteo.perpetuo.app.DbContext
 import com.twitter.inject.Test
 import freeslick.MSSQLServerProfile
 import slick.driver.JdbcDriver
@@ -8,13 +9,15 @@ import slick.driver.JdbcDriver
 
 class SchemaSpec extends Test {
 
-  class DatabaseBinder(override val profile: JdbcDriver)
+  class DatabaseBinder(val driver: JdbcDriver)
     extends DeploymentRequestBinder with OperationTraceBinder with ExecutionTraceBinder
-      with ProfileProvider {
+      with DbContextProvider {
 
-    import profile.api._
+    override val dbContext: DbContext = new DbContext(driver, null)
 
-    val schema: profile.DDL = deploymentRequestQuery.schema ++ operationTraceQuery.schema ++ executionTraceQuery.schema
+    import driver.api._
+
+    val schema: driver.DDL = deploymentRequestQuery.schema ++ operationTraceQuery.schema ++ executionTraceQuery.schema
   }
 
   object dumper extends DatabaseBinder(MSSQLServerProfile)

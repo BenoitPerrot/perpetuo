@@ -1,23 +1,23 @@
 package com.criteo.perpetuo.dao
 
-import slick.driver.JdbcProfile
+import com.criteo.perpetuo.app.DbContext
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
 
 
-class Schema(val profile: JdbcProfile)
+class Schema(val dbContext: DbContext)
   extends ExecutionTraceBinder with OperationTraceBinder with DeploymentRequestBinder
-    with ProfileProvider {
+    with DbContextProvider {
 
-  import profile.api._
+  import dbContext.driver.api._
 
-  def createTables(db: Database): Unit = {
+  def createTables(): Unit = {
     val schema = DBIO.seq(
       deploymentRequestQuery.schema.create,
       operationTraceQuery.schema.create,
       executionTraceQuery.schema.create
     )
-    Await.result(db.run(schema), 2.seconds)
+    Await.result(dbContext.db.run(schema), 2.seconds)
   }
 }

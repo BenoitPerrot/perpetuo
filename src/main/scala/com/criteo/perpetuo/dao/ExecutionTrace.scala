@@ -2,9 +2,9 @@ package com.criteo.perpetuo.dao
 
 import javax.inject.{Inject, Singleton}
 
+import com.criteo.perpetuo.app.DbContext
 import com.criteo.perpetuo.dao.enums.ExecutionState.ExecutionState
 import com.criteo.perpetuo.dao.enums.{ExecutionState => ExecutionStateType}
-import slick.driver.JdbcProfile
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
@@ -17,9 +17,9 @@ case class ExecutionTrace(id: Option[Long],
 
 
 trait ExecutionTraceBinder extends TableBinder {
-  this: OperationTraceBinder with ProfileProvider =>
+  this: OperationTraceBinder with DbContextProvider =>
 
-  import profile.api._
+  import dbContext.driver.api._
 
   private implicit lazy val stateMapper = MappedColumnType.base[ExecutionState, Short](
     es => es.id.toShort,
@@ -44,27 +44,27 @@ trait ExecutionTraceBinder extends TableBinder {
 
   val executionTraceQuery = TableQuery[ExecutionTraceTable]
 
-  def addToOperationTrace(db: Database, traceId: Long, numberOfTraces: Int): Future[Seq[Long]] = {
+  def addToOperationTrace(traceId: Long, numberOfTraces: Int): Future[Seq[Long]] = {
     val execTrace = ExecutionTrace(None, traceId)
-    db.run((executionTraceQuery returning executionTraceQuery.map(_.id)) ++= List.fill(numberOfTraces)(execTrace))
+    dbContext.db.run((executionTraceQuery returning executionTraceQuery.map(_.id)) ++= List.fill(numberOfTraces)(execTrace))
   }
 
-  def findExecutionTraceById(db: Database, id: Long): Future[Option[ExecutionTrace]] = {
-    db.run(executionTraceQuery.filter(_.id === id).result).map(_.headOption)
+  def findExecutionTraceById(id: Long): Future[Option[ExecutionTrace]] = {
+    dbContext.db.run(executionTraceQuery.filter(_.id === id).result).map(_.headOption)
   }
 
-  def findExecutionTracesByOperationTrace(db: Database, operationTraceId: Long): Future[Seq[ExecutionTrace]] = {
-    db.run(executionTraceQuery.filter(_.operationTraceId === operationTraceId).result)
+  def findExecutionTracesByOperationTrace(operationTraceId: Long): Future[Seq[ExecutionTrace]] = {
+    dbContext.db.run(executionTraceQuery.filter(_.operationTraceId === operationTraceId).result)
   }
 
-  def findExecutionTracesByDeploymentRequest(db: Database, deploymentRequestId: Long): Future[Seq[ExecutionTrace]] = {
+  def findExecutionTracesByDeploymentRequest(deploymentRequestId: Long): Future[Seq[ExecutionTrace]] = {
     val query = for {
       (exec, op) <- executionTraceQuery join operationTraceQuery on (_.operationTraceId === _.id) if op.deploymentRequestId === deploymentRequestId
     } yield exec
-    db.run(query.result)
+    dbContext.db.run(query.result)
   }
 
-  case class updateExecutionTrace(db: Database, id: Long) {
+  case class updateExecutionTrace(id: Long) {
     def apply(uuid: String, state: ExecutionState): Future[Unit] =
       run(_.map(r => (r.uuid, r.state)).update((Some(uuid), state)))
     def apply(uuid: String): Future[Unit] =
@@ -73,12 +73,12 @@ trait ExecutionTraceBinder extends TableBinder {
       run(_.map(_.state).update(state))
 
     private def run(query: Query[ExecutionTraceTable, ExecutionTrace, Seq] => DBIOAction[Int, NoStream, Effect.Write]): Future[Unit] =
-      db.run(query(executionTraceQuery.filter(_.id === id))).map(count => assert(count == 1))
+      dbContext.db.run(query(executionTraceQuery.filter(_.id === id))).map(count => assert(count == 1))
   }
 
 }
 
 
 @Singleton
-class ExecutionTraceBinding @Inject()(val profile: JdbcProfile) extends ExecutionTraceBinder
-  with OperationTraceBinder with DeploymentRequestBinder with ProfileProvider
+class ExecutionTraceBinding @Inject()(val dbContext: DbContext) extends ExecutionTraceBinder
+  with OperationTraceBinder with DeploymentRequestBinder with DbContextProvider

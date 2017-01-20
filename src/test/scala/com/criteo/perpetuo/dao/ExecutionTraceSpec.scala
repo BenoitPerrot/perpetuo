@@ -2,6 +2,7 @@ package com.criteo.perpetuo.dao
 
 import java.sql.Timestamp
 
+import com.criteo.perpetuo.app.DbContext
 import com.criteo.perpetuo.dao.enums.{ExecutionState, Operation}
 import com.typesafe.config.{Config, ConfigFactory}
 import org.junit.runner.RunWith
@@ -9,7 +10,6 @@ import org.scalatest.FunSuite
 import org.scalatest.concurrent._
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.time.{Millis, Seconds, Span}
-import slick.driver.JdbcDriver
 
 import scala.concurrent.Await
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -20,18 +20,17 @@ import scala.concurrent.duration._
 class ExecutionTraceSpec extends FunSuite with ScalaFutures
   with ExecutionTraceBinder
   with OperationTraceBinder with DeploymentRequestBinder
-  with ProfileProvider {
+  with DbContextProvider {
 
   implicit val defaultPatience = PatienceConfig(timeout = Span(2, Seconds), interval = Span(100, Millis))
 
   private val config: Config = ConfigFactory.load()
   private val dbModule = new TestingDbContextModule(config.getConfig("db").getConfig("test"))
 
-  val profile: JdbcDriver = dbModule.driver
-  import profile.api._
+  val dbContext: DbContext = dbModule.providesDbContext
+  import dbContext.driver.api._
 
-  private val db = Database.forDataSource(dbModule.dataSourceProvider)
-  new Schema(profile).createTables(db)
+  new Schema(dbContext).createTables()
 
   test("ExecutionState values are all different") {
     ExecutionState.values
@@ -41,11 +40,11 @@ class ExecutionTraceSpec extends FunSuite with ScalaFutures
     val request = DeploymentRequest(None, "perpetuo-app", "v42", "*", "No fear", "c.norris", new Timestamp(123456789))
 
     Await.result(for {
-      requestId <- insert(db, request)
-      deployId <- addToDeploymentRequest(db, requestId, Operation.deploy)
-      execIds <- addToOperationTrace(db, deployId, 1)
-      execTraces <- db.run(executionTraceQuery.result)
-      execTrace <- findExecutionTraceById(db, execIds.head)
+      requestId <- insert(request)
+      deployId <- addToDeploymentRequest(requestId, Operation.deploy)
+      execIds <- addToOperationTrace(deployId, 1)
+      execTraces <- dbContext.db.run(executionTraceQuery.result)
+      execTrace <- findExecutionTraceById(execIds.head)
     } yield {
       assert(execTrace.isDefined)
       assert(execTraces == Seq(execTrace.get))
