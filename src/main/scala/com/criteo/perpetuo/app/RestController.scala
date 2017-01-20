@@ -28,22 +28,20 @@ case class DeploymentRequestGet(@RouteParam @NotEmpty id: String)
 /**
   * Controller that handles deployment requests as a REST API.
   */
-class RestController @Inject()(val execution: Execution,
-                               val dbBinding: DbBinding,
-                               val dbContext: DbContext)
+class RestController @Inject()(val execution: Execution)
   extends BaseController {
 
   private val futurePool = FuturePools.unboundedPool("RequestFuturePool")
 
-  if (dbContext.driver.isInstanceOf[H2Driver]) {
+  if (execution.dbBinding.dbContext.driver.isInstanceOf[H2Driver]) {
     // running in development mode
-    new Schema(dbContext).createTables()
+    new Schema(execution.dbBinding.dbContext).createTables()
   }
 
   get("/api/deployment-requests/:id") {
     r: DeploymentRequestGet =>
       futurePool {
-        Try(r.id.toLong).toOption.flatMap(id => Await.result(dbBinding.findDeploymentRequestById(id), 2.seconds)).map {
+        Try(r.id.toLong).toOption.flatMap(id => Await.result(execution.dbBinding.findDeploymentRequestById(id), 2.seconds)).map {
           depReq =>
             val cls = classOf[DeploymentRequest]
             cls.getDeclaredFields
