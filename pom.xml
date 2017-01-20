@@ -306,6 +306,9 @@
                         <Main-Class>${main.class}</Main-Class>
                       </manifestEntries>
                     </transformer>
+                    <transformer implementation="org.apache.maven.plugins.shade.resource.AppendingTransformer">
+                      <resource>reference.conf</resource>
+                    </transformer>
                   </transformers>
                 </configuration>
               </execution>
