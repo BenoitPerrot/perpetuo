@@ -64,18 +64,15 @@ trait ExecutionTraceBinder extends TableBinder {
     dbContext.db.run(query.result)
   }
 
-  case class updateExecutionTrace(id: Long) {
-    def apply(uuid: String, state: ExecutionState): Future[Unit] =
-      run(_.map(r => (r.uuid, r.state)).update((Some(uuid), state)))
-    def apply(uuid: String): Future[Unit] =
-      run(_.map(_.uuid).update(Some(uuid)))
-    def apply(state: ExecutionState): Future[Unit] =
-      run(_.map(_.state).update(state))
+  def updateExecutionTrace(id: Long, uuid: String, state: ExecutionState): Future[Unit] =
+    runUpdate(id, _.map(r => (r.uuid, r.state)).update((Some(uuid), state)))
+  def updateExecutionTrace(id: Long, uuid: String): Future[Unit] =
+    runUpdate(id, _.map(_.uuid).update(Some(uuid)))
+  def updateExecutionTrace(id: Long, state: ExecutionState): Future[Unit] =
+    runUpdate(id, _.map(_.state).update(state))
 
-    private def run(query: Query[ExecutionTraceTable, ExecutionTrace, Seq] => DBIOAction[Int, NoStream, Effect.Write]): Future[Unit] =
-      dbContext.db.run(query(executionTraceQuery.filter(_.id === id))).map(count => assert(count == 1))
-  }
-
+  private def runUpdate(id: Long, query: Query[ExecutionTraceTable, ExecutionTrace, Seq] => DBIOAction[Int, NoStream, Effect.Write]): Future[Unit] =
+    dbContext.db.run(query(executionTraceQuery.filter(_.id === id))).map(count => assert(count == 1))
 }
 
 

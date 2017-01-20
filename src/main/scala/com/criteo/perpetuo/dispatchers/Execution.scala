@@ -57,7 +57,7 @@ class Execution @Inject()(val executionTraces: ExecutionTraceBinding) extends Lo
             deploymentRequest.creator
           ).map(
             // if that answers a UUID, update the trace with it
-            _.flatMap(uuid => executionTraces.updateExecutionTrace(execId)(uuid).map(_ => s"`$uuid`"))
+            _.flatMap(uuid => executionTraces.updateExecutionTrace(execId, uuid).map(_ => s"`$uuid`"))
           ).getOrElse(
             Future.successful("with unknown ID")
           ).map(logExecution(_, execId, executor, rawTarget))
