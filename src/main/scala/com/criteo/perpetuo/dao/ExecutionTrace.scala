@@ -1,8 +1,5 @@
 package com.criteo.perpetuo.dao
 
-import javax.inject.{Inject, Singleton}
-
-import com.criteo.perpetuo.app.DbContext
 import com.criteo.perpetuo.dao.enums.ExecutionState.ExecutionState
 import com.criteo.perpetuo.dao.enums.{ExecutionState => ExecutionStateType}
 
@@ -74,8 +71,3 @@ trait ExecutionTraceBinder extends TableBinder {
   private def runUpdate(id: Long, query: Query[ExecutionTraceTable, ExecutionTrace, Seq] => DBIOAction[Int, NoStream, Effect.Write]): Future[Unit] =
     dbContext.db.run(query(executionTraceQuery.filter(_.id === id))).map(count => assert(count == 1))
 }
-
-
-@Singleton
-class ExecutionTraceBinding @Inject()(val dbContext: DbContext) extends ExecutionTraceBinder
-  with OperationTraceBinder with DeploymentRequestBinder with DbContextProvider

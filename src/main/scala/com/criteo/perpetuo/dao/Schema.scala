@@ -1,5 +1,7 @@
 package com.criteo.perpetuo.dao
 
+import javax.inject.{Inject, Singleton}
+
 import com.criteo.perpetuo.app.DbContext
 
 import scala.concurrent.Await
@@ -21,3 +23,9 @@ class Schema(val dbContext: DbContext)
     Await.result(dbContext.db.run(schema), 2.seconds)
   }
 }
+
+
+@Singleton
+class DbBinding @Inject()(val dbContext: DbContext)
+  extends ExecutionTraceBinder with OperationTraceBinder with DeploymentRequestBinder
+    with DbContextProvider

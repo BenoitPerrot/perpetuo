@@ -14,7 +14,7 @@ import scala.concurrent.Future
 
 
 @Singleton
-class Execution @Inject()(val dbBinding: ExecutionTraceBinding) extends Logging {
+class Execution @Inject()(val dbBinding: DbBinding) extends Logging {
 
   import spray.json.DefaultJsonProtocol._
 

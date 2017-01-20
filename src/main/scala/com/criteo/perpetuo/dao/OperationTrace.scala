@@ -1,8 +1,5 @@
 package com.criteo.perpetuo.dao
 
-import javax.inject.{Inject, Singleton}
-
-import com.criteo.perpetuo.app.DbContext
 import com.criteo.perpetuo.dao.enums.Operation.Operation
 import com.criteo.perpetuo.dao.enums.{TargetStatus, Operation => OperationType}
 import spray.json.{JsNumber, JsObject, _}
@@ -64,8 +61,3 @@ trait OperationTraceBinder extends TableBinder {
       .map(count => assert(count == 1))
   }
 }
-
-
-@Singleton
-class OperationTraceBinding @Inject()(val dbContext: DbContext) extends OperationTraceBinder
-  with DeploymentRequestBinder with DbContextProvider

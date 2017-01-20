@@ -1,8 +1,5 @@
 package com.criteo.perpetuo.dao
 
-import javax.inject.{Inject, Singleton}
-
-import com.criteo.perpetuo.app.DbContext
 import com.criteo.perpetuo.dispatchers.{DeploymentRequestParser, TargetExpr}
 import spray.json._
 
@@ -69,8 +66,3 @@ trait DeploymentRequestBinder extends TableBinder {
     dbContext.db.run(deploymentRequestQuery.filter(_.id === id).result).map(_.headOption)
   }
 }
-
-
-@Singleton
-class DeploymentRequestBinding @Inject()(val dbContext: DbContext) extends DeploymentRequestBinder
-  with DbContextProvider

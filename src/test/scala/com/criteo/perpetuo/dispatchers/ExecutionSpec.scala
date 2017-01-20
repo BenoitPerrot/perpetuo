@@ -32,7 +32,7 @@ class ExecutionSpec extends Test {
 
   private val dummyCounter = Stream.from(1).toIterator
   private val execLogs: ConcurrentMap[ExecutorInvoker, String] = new TrieMap()
-  private val execution = new Execution(new ExecutionTraceBinding(dbContext)) {
+  private val execution = new Execution(new DbBinding(dbContext)) {
     override protected def logExecution(identifier: String, execId: Long, executor: ExecutorInvoker, rawTarget: String): Unit = {
       execLogs.put(executor, rawTarget).map(prev => fail(s"Logs say the executor has $rawTarget to do, but it already has $prev to do!"))
     }

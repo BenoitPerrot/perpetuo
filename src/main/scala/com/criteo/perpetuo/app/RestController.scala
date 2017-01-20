@@ -3,7 +3,7 @@ package com.criteo.perpetuo.app
 import java.lang.reflect.Modifier
 import javax.inject.Inject
 
-import com.criteo.perpetuo.dao.{DeploymentRequest, DeploymentRequestBinding, Schema}
+import com.criteo.perpetuo.dao.{DbBinding, DeploymentRequest, Schema}
 import com.criteo.perpetuo.dispatchers.DeploymentRequestParser.parse
 import com.criteo.perpetuo.dispatchers.{Execution, TargetDispatching}
 import com.twitter.finagle.http.Request
@@ -29,7 +29,7 @@ case class DeploymentRequestGet(@RouteParam @NotEmpty id: String)
   * Controller that handles deployment requests as a REST API.
   */
 class RestController @Inject()(val execution: Execution,
-                               val dbBinding: DeploymentRequestBinding,
+                               val dbBinding: DbBinding,
                                val dbContext: DbContext)
   extends BaseController {
 
