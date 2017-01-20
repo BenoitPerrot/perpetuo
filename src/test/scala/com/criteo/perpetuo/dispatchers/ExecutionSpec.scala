@@ -53,7 +53,7 @@ class ExecutionSpec extends Test {
     assert(id.isCompleted)
 
     Await.result(
-      id.flatMap(execution.executionTraces.findExecutionTracesByDeploymentRequest),
+      id.flatMap(execution.dbBinding.findExecutionTracesByDeploymentRequest),
       2.seconds
     ).map(exec => {
       assert(exec.id.isDefined)

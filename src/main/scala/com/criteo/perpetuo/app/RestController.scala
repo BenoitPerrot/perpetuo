@@ -29,7 +29,7 @@ case class DeploymentRequestGet(@RouteParam @NotEmpty id: String)
   * Controller that handles deployment requests as a REST API.
   */
 class RestController @Inject()(val execution: Execution,
-                               val deploymentRequests: DeploymentRequestBinding,
+                               val dbBinding: DeploymentRequestBinding,
                                val dbContext: DbContext)
   extends BaseController {
 
@@ -43,7 +43,7 @@ class RestController @Inject()(val execution: Execution,
   get("/api/deployment-requests/:id") {
     r: DeploymentRequestGet =>
       futurePool {
-        Try(r.id.toLong).toOption.flatMap(id => Await.result(deploymentRequests.findDeploymentRequestById(id), 2.seconds)).map {
+        Try(r.id.toLong).toOption.flatMap(id => Await.result(dbBinding.findDeploymentRequestById(id), 2.seconds)).map {
           depReq =>
             val cls = classOf[DeploymentRequest]
             cls.getDeclaredFields

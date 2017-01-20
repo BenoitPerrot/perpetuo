@@ -14,7 +14,7 @@ import scala.concurrent.Future
 
 
 @Singleton
-class Execution @Inject()(val executionTraces: ExecutionTraceBinding) extends Logging {
+class Execution @Inject()(val dbBinding: ExecutionTraceBinding) extends Logging {
 
   import spray.json.DefaultJsonProtocol._
 
@@ -23,7 +23,7 @@ class Execution @Inject()(val executionTraces: ExecutionTraceBinding) extends Lo
     require(deploymentRequest.id.isEmpty)
 
     // first, log the user's general intent
-    val id = executionTraces.insert(deploymentRequest)
+    val id = dbBinding.insert(deploymentRequest)
 
     // return futures on the ID and on the number of job runs triggered
     (id, id.map(deploymentRequest.copyWithId).flatMap(startOperation(dispatcher, _, Operation.deploy)))
@@ -36,9 +36,9 @@ class Execution @Inject()(val executionTraces: ExecutionTraceBinding) extends Lo
     val invocations = dispatch(dispatcher, deploymentRequest.parsedTarget).toSeq
 
     // log the operation intent in the DB
-    executionTraces.addToDeploymentRequest(deploymentRequest.id.get, operation).flatMap(
+    dbBinding.addToDeploymentRequest(deploymentRequest.id.get, operation).flatMap(
       // create as many traces, all at the same time
-      executionTraces.addToOperationTrace(_, invocations.length).map {
+      dbBinding.addToOperationTrace(_, invocations.length).map {
         execIds =>
           assert(execIds.length == invocations.length)
           invocations.zip(execIds)
@@ -57,7 +57,7 @@ class Execution @Inject()(val executionTraces: ExecutionTraceBinding) extends Lo
             deploymentRequest.creator
           ).map(
             // if that answers a UUID, update the trace with it
-            _.flatMap(uuid => executionTraces.updateExecutionTrace(execId, uuid).map(_ => s"`$uuid`"))
+            _.flatMap(uuid => dbBinding.updateExecutionTrace(execId, uuid).map(_ => s"`$uuid`"))
           ).getOrElse(
             Future.successful("with unknown ID")
           ).map(logExecution(_, execId, executor, rawTarget))
