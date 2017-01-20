@@ -22,6 +22,7 @@ class SchemaSpec extends Test {
 
   object dumper extends DatabaseBinder(MSSQLServerProfile)
 
+
   def toWords(string: String): List[String] = {
     """"[^"]*"|\w+|[^"\w]+""".r.findAllIn(string.trim).toList.map {
       case quotedName if quotedName.startsWith("\"") => quotedName
@@ -32,6 +33,7 @@ class SchemaSpec extends Test {
 
   def asSql(text: String): String = toWords(text).mkString
   def asSql(statements: Iterator[String]): String = asSql(statements.mkString(" "))
+
 
   "Self-test" should {
     "split in upper case words and remove extra white spaces" in {
@@ -64,13 +66,11 @@ class SchemaSpec extends Test {
 
   "Schema" should {
     "have correct create statements" in {
-      asSql(new DatabaseBinder(MSSQLServerProfile).schema.createStatements) shouldEqual
-        asSql(getResourceAsString("create-db.sql"))
+      asSql(dumper.schema.createStatements) shouldEqual asSql(getResourceAsString("create-db.sql"))
     }
 
     "have correct drop statements" in {
-      asSql(new DatabaseBinder(MSSQLServerProfile).schema.dropStatements) shouldEqual
-        asSql(getResourceAsString("drop-db.sql"))
+      asSql(dumper.schema.dropStatements) shouldEqual asSql(getResourceAsString("drop-db.sql"))
     }
   }
 }
