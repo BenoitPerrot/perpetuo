@@ -68,7 +68,7 @@ class Execution @Inject()(val dbBinding: DbBinding) extends Logging {
   def dispatch(dispatcher: TargetDispatching, target: TargetExpr): Iterable[(ExecutorInvoker, String)] =
     dispatchAlternatives(dispatcher, target).map {
       // return the shortest target expression for the executor
-      case (executor, expressions) => (executor, expressions.min(cmp = Ordering.by[String, Int](_.length)))
+      case (executor, expressions) => (executor, expressions.minBy(_.length))
     }
 
   def dispatchAlternatives(dispatcher: TargetDispatching, target: TargetExpr): Iterable[(ExecutorInvoker, Set[String])] = {
