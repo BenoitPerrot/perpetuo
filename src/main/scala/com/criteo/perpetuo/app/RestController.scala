@@ -3,7 +3,7 @@ package com.criteo.perpetuo.app
 import java.lang.reflect.Modifier
 import javax.inject.Inject
 
-import com.criteo.perpetuo.dao.{DbBinding, DeploymentRequest, Schema}
+import com.criteo.perpetuo.dao.DeploymentRequest
 import com.criteo.perpetuo.dispatchers.DeploymentRequestParser.parse
 import com.criteo.perpetuo.dispatchers.{Execution, TargetDispatching}
 import com.twitter.finagle.http.Request
@@ -12,7 +12,6 @@ import com.twitter.finatra.http.{Controller => BaseController}
 import com.twitter.finatra.request._
 import com.twitter.finatra.utils.FuturePools
 import com.twitter.finatra.validation._
-import slick.driver.H2Driver
 import spray.json.JsonParser.ParsingException
 
 import scala.concurrent.Await
@@ -32,11 +31,6 @@ class RestController @Inject()(val execution: Execution)
   extends BaseController {
 
   private val futurePool = FuturePools.unboundedPool("RequestFuturePool")
-
-  if (execution.dbBinding.dbContext.driver.isInstanceOf[H2Driver]) {
-    // running in development mode
-    new Schema(execution.dbBinding.dbContext).createTables()
-  }
 
   get("/api/deployment-requests/:id") {
     r: DeploymentRequestGet =>

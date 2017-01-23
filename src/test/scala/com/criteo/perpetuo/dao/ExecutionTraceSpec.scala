@@ -30,8 +30,6 @@ class ExecutionTraceSpec extends FunSuite with ScalaFutures
   val dbContext: DbContext = dbModule.providesDbContext
   import dbContext.driver.api._
 
-  new Schema(dbContext).createTables()
-
   test("ExecutionState values are all different") {
     ExecutionState.values
   }

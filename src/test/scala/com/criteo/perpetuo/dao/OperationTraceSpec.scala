@@ -30,8 +30,6 @@ class OperationTraceSpec extends FunSuite with ScalaFutures
   val dbContext: DbContext = dbModule.providesDbContext
   import dbContext.driver.api._
 
-  new Schema(dbContext).createTables()
-
   test("Operation types are bound to different integral values") {
     Operation.values
   }

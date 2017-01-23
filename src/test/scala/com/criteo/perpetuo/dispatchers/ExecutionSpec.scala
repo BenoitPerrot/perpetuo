@@ -26,8 +26,6 @@ class ExecutionSpec extends Test {
 
   val dbContext: DbContext = dbModule.providesDbContext
 
-  new Schema(dbContext).createTables()
-
   import TestSuffixDispatcher._
 
   private val dummyCounter = Stream.from(1).toIterator

@@ -28,8 +28,6 @@ class DeploymentRequestSpec extends FunSuite with ScalaFutures
   val dbContext: DbContext = dbModule.providesDbContext
   import dbContext.driver.api._
 
-  new Schema(dbContext).createTables()
-
   test("Deployment requests can be inserted and retrieved") {
     val request = DeploymentRequest(None, "perpetuo-app", "v42", "*", "No fear", "c.norris", new Timestamp(123456789))
 

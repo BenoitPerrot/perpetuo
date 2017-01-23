@@ -4,6 +4,7 @@ import javax.sql.DataSource
 
 import com.criteo.datasource.DataSourceFactoryBuilder
 import com.criteo.ds.prm.{DataSourceProxymitySpecifier, DatasourceIntent}
+import com.criteo.perpetuo.dao.Schema
 import com.criteo.perpetuo.dao.drivers.UrlBuilders._
 import com.criteo.perpetuo.dao.drivers.{DriverByName, InMemory}
 import com.criteo.sdk.discovery.prmdb.Resource
@@ -42,7 +43,15 @@ class DbContextModule(dbConfig: Config) extends TwitterModule {
 
   @Singleton
   @Provides
-  def providesDbContext: DbContext = new DbContext(driver, dataSourceProvider)
+  def providesDbContext: DbContext = {
+    val dbContext = new DbContext(driver, dataSourceProvider)
+    if (driverName == "org.h2.Driver") {
+      // running in development mode
+      // TODO: find a direct way to know this, instead of checking the name of the driver
+      new Schema(dbContext).createTables()
+    }
+    dbContext
+  }
 
   private def obtainDataSourceFromPrm(): DataSource = {
     DataSourceFactoryBuilder.createFactoryAutoDetect()
