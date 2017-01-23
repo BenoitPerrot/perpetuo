@@ -111,10 +111,8 @@ class ExecutionSpec extends Test with TestDb with Eventually {
     }
 
     "call the root set of pretty much all executors for all unknown targets" in {
-      Set("abc", "def") dispatchedAs Map(
-        fooInvoker -> Set("abc", "def"),
-        barInvoker -> Set("abc", "def")
-      )
+      val thrown = the[Exception] thrownBy execution.dispatch(TestSuffixDispatcher, Set(TargetTerm(select = Set("abc", "def"))))
+      thrown.getMessage should endWith("is not covered by executors; can't operate.")
     }
 
     "call the same executor in one shot when applicable" in {

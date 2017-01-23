@@ -47,19 +47,15 @@ class TargetDispatchingSpec extends Test {
       "foo-baz" sentTo fooInvoker
     }
 
-    "call the root set of pretty much all executors for unknown targets" in {
-      "abc" sentTo(fooInvoker, barInvoker)
-    }
-
-    "call the child executor" in {
+    "call the child executor when there's no executor above" in {
       "oo-baz" sentTo fooInvoker
     }
 
-    "call a descendant executor" in {
+    "call a descendant executor when there's no executor above" in {
       "o-baz" sentTo fooInvoker
     }
 
-    "call all representative descendant executors" in {
+    "call all representative/partitioning descendant executors" in {
       "-baz" sentTo(fooInvoker, barInvoker)
       "az" sentTo(fooInvoker, barInvoker)
     }
@@ -69,9 +65,23 @@ class TargetDispatchingSpec extends Test {
       "?foo-baz" sentTo fooInvoker
     }
 
-    "call the closest related executor" in {
-      "-foo-baz" sentTo fooFooInvoker
-      "toto-foo-baz" sentTo fooFooInvoker
+    "call the closest ascendant executor" when {
+      "there also is a descendant executor" in {
+        // the descendant (foo-foo-baz) is considered as a specialization of the ascendant (foo-baz),
+        // but there might be other unknown branches under foo-baz
+        "-foo-baz" sentTo fooInvoker
+        "o-foo-baz" sentTo fooInvoker
+      }
+      "there is a non-applicable descendant executor to that ascendant" in {
+        "toto-foo-baz" sentTo fooInvoker
+      }
+    }
+
+    "throw an exception" when {
+      "the target is not covered at all" in {
+        val thrown = the[Exception] thrownBy TestSuffixDispatcher.assign("abc")
+        thrown.getMessage shouldEqual "abc is not covered by executors; can't operate."
+      }
     }
 
   }
