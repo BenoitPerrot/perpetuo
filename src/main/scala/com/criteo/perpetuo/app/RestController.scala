@@ -1,9 +1,7 @@
 package com.criteo.perpetuo.app
 
-import java.lang.reflect.Modifier
 import javax.inject.Inject
 
-import com.criteo.perpetuo.dao.DeploymentRequest
 import com.criteo.perpetuo.dispatchers.DeploymentRequestParser.parse
 import com.criteo.perpetuo.dispatchers.{Execution, TargetDispatching}
 import com.twitter.finagle.http.Request
@@ -35,22 +33,7 @@ class RestController @Inject()(val execution: Execution)
   get("/api/deployment-requests/:id") {
     r: DeploymentRequestGet =>
       futurePool {
-        Try(r.id.toLong).toOption.flatMap(id => Await.result(execution.dbBinding.findDeploymentRequestById(id), 2.seconds)).map {
-          depReq =>
-            val cls = classOf[DeploymentRequest]
-            cls.getDeclaredFields
-              .filterNot(_.isSynthetic)
-              .map(_.getName)
-              .map(cls.getDeclaredMethod(_))
-              .filterNot(method => Modifier.isPrivate(method.getModifiers))
-              .flatMap(method =>
-                (method.getName, method.invoke(depReq)) match {
-                  case ("reason", "") => None
-                  case ("target", json: String) => Some("target" -> RawJson(json))
-                  case (name, value) => Some(name -> value)
-                }
-              ).toMap
-        }
+        Try(r.id.toLong).toOption.flatMap(id => Await.result(execution.dbBinding.findDeploymentRequestById(id), 2.seconds)).map(_.toJsonReadyMap)
       }
   }
 

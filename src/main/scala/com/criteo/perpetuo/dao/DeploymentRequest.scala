@@ -1,5 +1,8 @@
 package com.criteo.perpetuo.dao
 
+import java.lang.reflect.Modifier
+
+import com.criteo.perpetuo.app.RawJson
 import com.criteo.perpetuo.dispatchers.{DeploymentRequestParser, TargetExpr}
 import spray.json._
 
@@ -30,8 +33,23 @@ case class DeploymentRequest(id: Option[Long],
     clone.parsedTargetCache = parsedTargetCache
     clone
   }
-}
 
+  def toJsonReadyMap: Map[String, AnyRef] = {
+    val cls = classOf[DeploymentRequest]
+    cls.getDeclaredFields
+      .filterNot(_.isSynthetic)
+      .map(_.getName)
+      .map(cls.getDeclaredMethod(_))
+      .filterNot(method => Modifier.isPrivate(method.getModifiers))
+      .flatMap(method =>
+        (method.getName, method.invoke(this)) match {
+          case ("reason", "") => None
+          case ("target", json: String) => Some("target" -> RawJson(json))
+          case (name, value) => Some(name -> value)
+        }
+      ).toMap
+  }
+}
 
 trait DeploymentRequestBinder extends TableBinder {
   this: DbContextProvider =>
