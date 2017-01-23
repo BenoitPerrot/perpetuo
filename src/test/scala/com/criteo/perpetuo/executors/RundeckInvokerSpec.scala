@@ -32,7 +32,7 @@ class RundeckInvokerSpec extends Test {
       "guy next door"
     )
     uuid shouldBe defined
-    Await.result(uuid.get, 100.milliseconds)
+    Await.result(uuid.get, 1.second)
   }
 
   "Rundeck's API" should {
