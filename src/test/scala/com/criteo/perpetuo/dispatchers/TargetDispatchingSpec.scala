@@ -16,7 +16,7 @@ object TestSuffixDispatcher extends {
       "foo-foo-baz" -> fooFooInvoker
     ),
     // the only parent of "wxyz" is "xyz", and "" has no parent:
-    targetWord => Seq(targetWord.substring(1)).filter(_.nonEmpty)
+    selectWord => Seq(selectWord.substring(1)).filter(_.nonEmpty)
   )
 )
 
@@ -108,8 +108,8 @@ class TargetDispatchingSpec extends Test {
 object TestCyclicDispatcher extends TargetDispatchingByPoset(
   new ExecutorsByPoset(
     Map("foo" -> new DummyInvoker("Foo's invoker")),
-    targetWord => Seq(
-      targetWord match {
+    selectWord => Seq(
+      selectWord match {
         case "toto" => "tutu"
         case _ => "toto"
       }
