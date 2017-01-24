@@ -43,9 +43,8 @@ class DbContextModule(val dbConfig: AppConfig) extends TwitterModule {
   @Provides
   def providesDbContext: DbContext = {
     val dbContext = new DbContext(driver, dataSourceProvider)
-    if (driverName == "org.h2.Driver") {
+    if (dbConfig.get[Boolean]("ephemeral")) {
       // running in development mode
-      // TODO: find a direct way to know this, instead of checking the name of the driver
       new Schema(dbContext).createTables()
     }
     dbContext
