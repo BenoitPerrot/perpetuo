@@ -10,7 +10,6 @@ import com.criteo.perpetuo.dao.drivers.{DriverByName, InMemory}
 import com.criteo.sdk.discovery.prmdb.Resource
 import com.google.inject.{Provides, Singleton}
 import com.twitter.inject.TwitterModule
-import com.typesafe.config.Config
 import com.zaxxer.hikari.{HikariConfig, HikariDataSource}
 import slick.driver.JdbcDriver
 
@@ -23,17 +22,16 @@ class DbContext(val driver: JdbcDriver, dataSource: DataSource) {
 }
 
 
-class DbContextModule(dbConfig: Config) extends TwitterModule {
-
-  val driverName: String = dbConfig.getString("driver")
+class DbContextModule(val dbConfig: AppConfig) extends TwitterModule {
+  val driverName: String = dbConfig.get("driver")
   val driver: JdbcDriver = DriverByName.get(driverName)
 
   private lazy val dataSource = {
     if (driverName == "net.sourceforge.jtds.jdbc.Driver") {
       obtainDataSourceFromPrm()
     } else {
-      val username = dbConfig.getString("username")
-      val password = Try(dbConfig.getString("password")).getOrElse("")
+      val username = dbConfig.get[String]("username")
+      val password = Try(dbConfig.get[String]("password")).getOrElse("")
       createInMemoryDataSource(username, password)
     }
   }
@@ -60,14 +58,14 @@ class DbContextModule(dbConfig: Config) extends TwitterModule {
   }
 
   private def createInMemoryDataSource(username: String, password: String): DataSource = {
-    val dbName = dbConfig.getString("name")
-    val schemaName = dbConfig.getString("schema")
+    val dbName = dbConfig.get[String]("name")
+    val schemaName = dbConfig.get[String]("schema")
     val jdbcUrl = driver.buildUrl(InMemory(), dbName, schemaName)
 
-    val maxPoolSize = Try(dbConfig.getString("poolMaxSize").toInt).getOrElse(10)
-    val minimumIdle = Try(dbConfig.getString("poolMinSize").toInt).getOrElse(maxPoolSize)
-    val idleTimeout = Try(dbConfig.getString("idleTimeout").toInt).getOrElse(600000)
-    val connectionTimeout = Try(dbConfig.getString("connectionTimeout").toInt).getOrElse(30000)
+    val maxPoolSize = Try(dbConfig.get[String]("poolMaxSize").toInt).getOrElse(10)
+    val minimumIdle = Try(dbConfig.get[String]("poolMinSize").toInt).getOrElse(maxPoolSize)
+    val idleTimeout = Try(dbConfig.get[String]("idleTimeout").toInt).getOrElse(600000)
+    val connectionTimeout = Try(dbConfig.get[String]("connectionTimeout").toInt).getOrElse(30000)
 
     logger.info(jdbcUrl)
     new HikariDataSource(new HikariConfig() {

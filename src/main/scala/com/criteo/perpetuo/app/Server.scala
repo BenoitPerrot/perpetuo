@@ -5,7 +5,6 @@ import com.twitter.finatra.http.HttpServer
 import com.twitter.finatra.http.filters.{CommonFilters, LoggingMDCFilter, TraceIdMDCFilter}
 import com.twitter.finatra.http.routing.HttpRouter
 import com.twitter.finatra.logging.modules.Slf4jBridgeModule
-import com.typesafe.config.{Config, ConfigFactory}
 
 
 object CustomServerModules {
@@ -17,22 +16,19 @@ object CustomServerModules {
   */
 class Server extends HttpServer {
 
-  // Load default application.conf file
-  val config: Config = ConfigFactory.load()
-
-  val version = config.getString("version")
+  val version = AppConfig.get[String]("version")
 
   override protected def jacksonModule = CustomServerModules.jackson
 
-  override def defaultFinatraHttpPort: String = s":${config.getInt("http.port")}"
+  override def defaultFinatraHttpPort: String = s":${AppConfig.get[Int]("http.port")}"
 
   override def modules = Seq(
     Slf4jBridgeModule,
-    new DbContextModule(config.getConfig("db").getConfig(config.getString("env")))
+    new DbContextModule(AppConfig.db)
   )
 
   override def configureHttp(router: HttpRouter) {
-    if (config.getBoolean("logging")) {
+    if (AppConfig.get[Boolean]("logging")) {
       // Activate "Mapped Diagnostic Context" and access and stats logging
       router
         .filter[LoggingMDCFilter[Request, Response]]

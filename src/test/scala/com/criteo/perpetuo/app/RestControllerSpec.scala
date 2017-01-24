@@ -7,7 +7,6 @@ import com.twitter.finatra.http.filters.{CommonFilters, LoggingMDCFilter, TraceI
 import com.twitter.finatra.http.routing.HttpRouter
 import com.twitter.finatra.http.test.EmbeddedHttpServer
 import com.twitter.inject.server.FeatureTest
-import com.typesafe.config.{Config, ConfigFactory}
 import spray.json.DefaultJsonProtocol._
 import spray.json.{JsArray, JsString, _}
 
@@ -19,12 +18,10 @@ class RestControllerSpec extends FeatureTest {
 
   val server = new EmbeddedHttpServer(new HttpServer {
 
-    val config: Config = ConfigFactory.load()
-
     override protected def jacksonModule = CustomServerModules.jackson
 
     override def modules = Seq(
-      new DbContextModule(config.getConfig("db").getConfig("test"))
+      new DbContextModule(AppConfig.withEnv("test").db)
     )
 
     override def configureHttp(router: HttpRouter) {

@@ -1,20 +1,19 @@
 package com.criteo.perpetuo.dispatchers
 
-import com.criteo.perpetuo.executors.{DummyInvoker, ExecutorInvoker, RundeckInvoker}
-import com.typesafe.config.{Config, ConfigFactory}
+import com.criteo.perpetuo.app.AppConfig
+import com.criteo.perpetuo.executors.{DummyInvoker, RundeckInvoker}
 
 
 object CriteoTargetDispatcher extends {
 
   private val ALL = "*" // could be "toto" actually, it has no impact at all until we have multiple executors :)
-  private val config: Config = ConfigFactory.load()
 
 } with TargetDispatchingByPoset(
   new ExecutorsByPoset(
 
     // todo: Rundeck is not yet registered in Consul, so we hard-code all the hostnames for now.
     // todo: for now, we only have one active node per environment...
-    executorMap = config.getString("env") match {
+    executorMap = AppConfig.env match {
       case "test" => Map(
         ALL -> new DummyInvoker("test invoker")
       )

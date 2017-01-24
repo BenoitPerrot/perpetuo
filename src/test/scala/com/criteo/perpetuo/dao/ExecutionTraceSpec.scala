@@ -2,9 +2,8 @@ package com.criteo.perpetuo.dao
 
 import java.sql.Timestamp
 
-import com.criteo.perpetuo.app.DbContext
+import com.criteo.perpetuo.app.{AppConfig, DbContext}
 import com.criteo.perpetuo.dao.enums.{ExecutionState, Operation}
-import com.typesafe.config.{Config, ConfigFactory}
 import org.junit.runner.RunWith
 import org.scalatest.FunSuite
 import org.scalatest.concurrent._
@@ -24,9 +23,7 @@ class ExecutionTraceSpec extends FunSuite with ScalaFutures
 
   implicit val defaultPatience = PatienceConfig(timeout = Span(2, Seconds), interval = Span(100, Millis))
 
-  private val config: Config = ConfigFactory.load()
-  private val dbModule = new TestingDbContextModule(config.getConfig("db").getConfig("test"))
-
+  private val dbModule = new TestingDbContextModule(AppConfig.withEnv("test").db)
   val dbContext: DbContext = dbModule.providesDbContext
   import dbContext.driver.api._
 

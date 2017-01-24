@@ -7,7 +7,6 @@ import com.twitter.finatra.http.filters.{CommonFilters, LoggingMDCFilter, TraceI
 import com.twitter.finatra.http.routing.HttpRouter
 import com.twitter.finatra.http.test.EmbeddedHttpServer
 import com.twitter.inject.server.FeatureTest
-import com.typesafe.config.{Config, ConfigFactory}
 
 
 /**
@@ -16,8 +15,6 @@ import com.typesafe.config.{Config, ConfigFactory}
 class StaticAssetsControllerSpec extends FeatureTest {
 
   val server = new EmbeddedHttpServer(new HttpServer {
-
-    val config: Config = ConfigFactory.load()
 
     override def configureHttp(router: HttpRouter) {
       router
