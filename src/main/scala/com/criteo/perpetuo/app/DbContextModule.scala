@@ -61,10 +61,10 @@ class DbContextModule(val dbConfig: AppConfig) extends TwitterModule {
     val schemaName = dbConfig.get[String]("schema")
     val jdbcUrl = driver.buildUrl(InMemory(), dbName, schemaName)
 
-    val maxPoolSize = Try(dbConfig.get[String]("poolMaxSize").toInt).getOrElse(10)
-    val minimumIdle = Try(dbConfig.get[String]("poolMinSize").toInt).getOrElse(maxPoolSize)
-    val idleTimeout = Try(dbConfig.get[String]("idleTimeout").toInt).getOrElse(600000)
-    val connectionTimeout = Try(dbConfig.get[String]("connectionTimeout").toInt).getOrElse(30000)
+    val maxPoolSize = Try(dbConfig.get[Int]("poolMaxSize")).getOrElse(10)
+    val minimumIdle = Try(dbConfig.get[Int]("poolMinSize")).getOrElse(maxPoolSize)
+    val idleTimeout = Try(dbConfig.get[Int]("idleTimeout")).getOrElse(600000)
+    val connectionTimeout = Try(dbConfig.get[Int]("connectionTimeout")).getOrElse(30000)
 
     logger.info(jdbcUrl)
     new HikariDataSource(new HikariConfig() {
