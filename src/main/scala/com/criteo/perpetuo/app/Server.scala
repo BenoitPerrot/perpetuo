@@ -16,7 +16,7 @@ object CustomServerModules {
   */
 class Server extends HttpServer {
 
-  val version = AppConfig.get[String]("version")
+  val version: String = AppConfig.get("version")
 
   override protected def jacksonModule = CustomServerModules.jackson
 
