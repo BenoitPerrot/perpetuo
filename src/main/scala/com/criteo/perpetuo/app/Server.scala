@@ -28,7 +28,7 @@ class Server extends HttpServer {
   )
 
   override def configureHttp(router: HttpRouter) {
-    if (AppConfig.get[Boolean]("logging")) {
+    if (AppConfig.get("logging")) {
       // Activate "Mapped Diagnostic Context" and access and stats logging
       router
         .filter[LoggingMDCFilter[Request, Response]]

@@ -43,7 +43,7 @@ class DbContextModule(val dbConfig: AppConfig) extends TwitterModule {
   @Provides
   def providesDbContext: DbContext = {
     val dbContext = new DbContext(driver, dataSourceProvider)
-    if (dbConfig.get[Boolean]("ephemeral")) {
+    if (dbConfig.get("ephemeral")) {
       // running in development mode
       new Schema(dbContext).createTables()
     }

@@ -13,7 +13,7 @@ trait TargetDispatching {
 
 
 object TargetDispatching {
-  lazy val fromConfig: TargetDispatching = fromName(AppConfig.get[String]("targetDispatcher"))
+  lazy val fromConfig: TargetDispatching = fromName(AppConfig.get("targetDispatcher"))
   def fromName(objectName: String): TargetDispatching = {
     val cls = Class.forName(objectName + "$")
     cls.getField("MODULE$").get(cls).asInstanceOf[TargetDispatching]

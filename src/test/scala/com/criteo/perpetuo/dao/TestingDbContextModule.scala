@@ -11,7 +11,7 @@ import org.h2.jdbcx.JdbcConnectionPool
 class TestingDbContextModule(dbConfig: AppConfig) extends DbContextModule(dbConfig) {
   lazy val dataSource: JdbcConnectionPool = {
     val dbID = UUID.randomUUID().toString.replace("-", "")
-    JdbcConnectionPool.create(FixedH2Driver.buildUrl(InMemory(), s"${dbConfig.get[String]("name")}_$dbID", dbConfig.get[String]("schema")), "sa", "")
+    JdbcConnectionPool.create(FixedH2Driver.buildUrl(InMemory(), s"${dbConfig.get("name")}_$dbID", dbConfig.get("schema")), "sa", "")
   }
 
   override def dataSourceProvider: JdbcConnectionPool = dataSource
