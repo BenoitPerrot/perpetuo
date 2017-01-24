@@ -2,7 +2,7 @@ package com.criteo.perpetuo.dao
 
 import java.sql.Timestamp
 
-import com.criteo.perpetuo.app.{AppConfig, DbContext}
+import com.criteo.perpetuo.TestDb
 import org.junit.runner.RunWith
 import org.scalatest.FunSuite
 import org.scalatest.concurrent._
@@ -17,12 +17,10 @@ import scala.concurrent.duration._
 @RunWith(classOf[JUnitRunner])
 class DeploymentRequestSpec extends FunSuite with ScalaFutures
   with DeploymentRequestBinder
-  with DbContextProvider {
+  with TestDb {
 
   implicit val defaultPatience = PatienceConfig(timeout = Span(2, Seconds), interval = Span(100, Millis))
 
-  private val dbModule = new TestingDbContextModule(AppConfig.withEnv("test").db)
-  val dbContext: DbContext = dbModule.providesDbContext
   import dbContext.driver.api._
 
   test("Deployment requests can be inserted and retrieved") {

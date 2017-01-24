@@ -2,7 +2,7 @@ package com.criteo.perpetuo.dispatchers
 
 import java.sql.Timestamp
 
-import com.criteo.perpetuo.app.{AppConfig, DbContext}
+import com.criteo.perpetuo.TestDb
 import com.criteo.perpetuo.dao._
 import com.criteo.perpetuo.dao.enums.Operation.Operation
 import com.criteo.perpetuo.dispatchers.DeploymentRequestParser._
@@ -18,11 +18,7 @@ import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}
 
 
-class ExecutionSpec extends Test {
-
-  private val dbModule = new TestingDbContextModule(AppConfig.withEnv("test").db)
-  val dbContext: DbContext = dbModule.providesDbContext
-
+class ExecutionSpec extends Test with TestDb {
   import TestSuffixDispatcher._
 
   private val dummyCounter = Stream.from(1).toIterator

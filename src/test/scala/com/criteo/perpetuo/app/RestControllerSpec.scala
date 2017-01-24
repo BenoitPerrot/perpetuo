@@ -1,5 +1,6 @@
 package com.criteo.perpetuo.app
 
+import com.criteo.perpetuo.TestDb
 import com.twitter.finagle.http.Status.{BadRequest, Created, NotFound, Ok}
 import com.twitter.finagle.http.{Request, Response}
 import com.twitter.finatra.http.HttpServer
@@ -14,14 +15,14 @@ import spray.json.{JsArray, JsString, _}
 /**
   * An integration test for [[RestController]].
   */
-class RestControllerSpec extends FeatureTest {
+class RestControllerSpec extends FeatureTest with TestDb {
 
   val server = new EmbeddedHttpServer(new HttpServer {
 
     override protected def jacksonModule = CustomServerModules.jackson
 
     override def modules = Seq(
-      new DbContextModule(AppConfig.withEnv("test").db)
+      dbTestModule
     )
 
     override def configureHttp(router: HttpRouter) {

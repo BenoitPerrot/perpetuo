@@ -2,7 +2,7 @@ package com.criteo.perpetuo.dao
 
 import java.sql.Timestamp
 
-import com.criteo.perpetuo.app.{AppConfig, DbContext}
+import com.criteo.perpetuo.TestDb
 import com.criteo.perpetuo.dao.enums.{ExecutionState, Operation}
 import org.junit.runner.RunWith
 import org.scalatest.FunSuite
@@ -19,12 +19,10 @@ import scala.concurrent.duration._
 class ExecutionTraceSpec extends FunSuite with ScalaFutures
   with ExecutionTraceBinder
   with OperationTraceBinder with DeploymentRequestBinder
-  with DbContextProvider {
+  with TestDb {
 
   implicit val defaultPatience = PatienceConfig(timeout = Span(2, Seconds), interval = Span(100, Millis))
 
-  private val dbModule = new TestingDbContextModule(AppConfig.withEnv("test").db)
-  val dbContext: DbContext = dbModule.providesDbContext
   import dbContext.driver.api._
 
   test("ExecutionState values are all different") {
