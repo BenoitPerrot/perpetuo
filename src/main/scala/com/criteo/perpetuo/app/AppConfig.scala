@@ -1,6 +1,6 @@
 package com.criteo.perpetuo.app
 
-import com.typesafe.config.{Config, ConfigFactory, ConfigObject, ConfigValueFactory}
+import com.typesafe.config.{Config, ConfigFactory, ConfigObject}
 
 
 abstract class BaseAppConfig {
@@ -28,25 +28,12 @@ class AppConfig(override protected val config: Config,
 
 
 abstract class RootAppConfig extends BaseAppConfig {
-  protected val unresolvedConfig: Config
-
-  override protected lazy val config: Config = unresolvedConfig.resolve
-
-  override lazy val env: String = config.getString(envPath)
-  private val envPath = "env"
+  override lazy val env: String = config.getString("env")
 
   lazy val db: AppConfig = under("db")
-
-  def withEnv(overriddenEnv: String) = new LoadedRootAppConfig(
-    // replace the environment in the unresolved configuration in order to impact all dependant values
-    unresolvedConfig.withValue(envPath, ConfigValueFactory.fromAnyRef(overriddenEnv))
-  )
 }
 
 
-class LoadedRootAppConfig(override protected val unresolvedConfig: Config) extends RootAppConfig
-
-
 object AppConfig extends RootAppConfig {
-  override protected lazy val unresolvedConfig: Config = ConfigFactory.parseResources("com/criteo/perpetuo/application.conf")
+  override protected lazy val config: Config = ConfigFactory.load("com/criteo/perpetuo/application.conf")
 }
