@@ -20,7 +20,7 @@ class Schema(val dbContext: DbContext)
       operationTraceQuery.schema.create,
       executionTraceQuery.schema.create
     )
-    Await.result(dbContext.db.run(schema), 2.seconds)
+    Await.ready(dbContext.db.run(schema), 2.seconds)
   }
 }
 
