@@ -15,6 +15,6 @@ object TestUtils {
 
 
 trait TestDb extends DbContextProvider {
-  lazy val dbTestModule = new TestingDbContextModule(AppConfig.withEnv("test").db)
+  lazy val dbTestModule = new TestingDbContextModule(AppConfig.db)
   lazy val dbContext: DbContext = dbTestModule.providesDbContext
 }
