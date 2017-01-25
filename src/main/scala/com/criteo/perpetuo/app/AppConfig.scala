@@ -1,7 +1,5 @@
 package com.criteo.perpetuo.app
 
-import java.io.File
-
 import com.typesafe.config.{Config, ConfigFactory, ConfigObject, ConfigValueFactory}
 
 
@@ -50,7 +48,5 @@ class LoadedRootAppConfig(override protected val unresolvedConfig: Config) exten
 
 
 object AppConfig extends RootAppConfig {
-  override protected lazy val unresolvedConfig: Config = ConfigFactory.parseFile(
-    new File(Thread.currentThread.getContextClassLoader.getResource("application.conf").getFile)
-  )
+  override protected lazy val unresolvedConfig: Config = ConfigFactory.parseResources("application.conf")
 }
