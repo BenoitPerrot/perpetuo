@@ -8,17 +8,21 @@ import com.criteo.perpetuo.dao.enums.Operation.Operation
 import com.criteo.perpetuo.dispatchers.DeploymentRequestParser._
 import com.criteo.perpetuo.executors.{DummyInvoker, ExecutorInvoker}
 import com.twitter.inject.Test
+import org.scalatest.concurrent.Eventually
+import org.scalatest.time.{Millis, Seconds, Span}
 import spray.json.DefaultJsonProtocol._
 import spray.json.{JsObject, _}
 
 import scala.collection.concurrent.{TrieMap, Map => ConcurrentMap}
 import scala.collection.immutable.Stream
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.duration._
-import scala.concurrent.{Await, Future}
+import scala.concurrent.Future
 
 
-class ExecutionSpec extends Test with TestDb {
+class ExecutionSpec extends Test with TestDb with Eventually {
+
+  implicit val defaultPatience = PatienceConfig(timeout = Span(1, Seconds), interval = Span(100, Millis))
+
   import TestSuffixDispatcher._
 
   private val dummyCounter = Stream.from(1).toIterator
@@ -36,20 +40,22 @@ class ExecutionSpec extends Test with TestDb {
     }
   }
 
-  private def getExecutions(dispatcher: TargetDispatching): Seq[(Long, Option[String])] = {
+  private def getExecutions(dispatcher: TargetDispatching): Future[Seq[(Long, Option[String])]] = {
     val req = DeploymentRequest(None, "perpetuo-app", "v42", """"*"""", "No fear", "c.norris", new Timestamp(123456789))
 
     val (id, asyncStart) = execution.startTransaction(dispatcher, req)
-    Await.ready(asyncStart, 2.seconds)
-    assert(id.isCompleted)
+    asyncStart.flatMap { count =>
+      assert(id.isCompleted) // if `asyncStart` has successfully completed, `id` must have completed
 
-    Await.result(
-      id.flatMap(execution.dbBinding.findExecutionTracesByDeploymentRequest),
-      2.seconds
-    ).map(exec => {
-      assert(exec.id.isDefined)
-      (exec.id.get, exec.uuid)
-    })
+      id.flatMap(execution.dbBinding.findExecutionTracesByDeploymentRequest).map { traces =>
+        val executions = traces.map(trace => {
+          assert(trace.id.isDefined)
+          (trace.id.get, trace.uuid)
+        })
+        executions.length shouldEqual count
+        executions
+      }
+    }
   }
 
   implicit class SimpleDispatchTest(private val select: Select) {
@@ -69,23 +75,26 @@ class ExecutionSpec extends Test with TestDb {
       parse(execution.dispatch(TestSuffixDispatcher, target)) should contain theSameElementsAs that
 
       execLogs.clear()
-      Await.result(execution.startTransaction(TestSuffixDispatcher, request)._2, 2.seconds)
-      parse(execLogs) should contain theSameElementsAs that
+      eventually {
+        execution.startTransaction(TestSuffixDispatcher, request)._2.foreach(_ =>
+          parse(execLogs) should contain theSameElementsAs that
+        )
+      }
     }
   }
 
 
   "A trivial execution" should {
     "trigger a job with no ID when there is no UUID provided" in {
-      getExecutions(DummyTargetDispatcher) shouldEqual Seq(
-        (1, None)
-      )
+      eventually {
+        getExecutions(DummyTargetDispatcher).map(_ shouldEqual Seq((1, None)))
+      }
     }
 
     "trigger a job with an ID when a UUID is provided as a Future" in {
-      getExecutions(SingleTargetDispatcher(DummyInvokerWithUuid)) shouldEqual Seq(
-        (2, Some("#1"))
-      )
+      eventually {
+        getExecutions(SingleTargetDispatcher(DummyInvokerWithUuid)).map(_ shouldEqual Seq((2, Some("#1"))))
+      }
     }
 
   }
@@ -218,7 +227,7 @@ class ExecutionSpec extends Test with TestDb {
             TargetTerm(Set(JsObject("ratio" -> JsNumber(0.05)) /*DIFF*/ , JsObject()), Set("o-baz"))
           )
         ),
-        barInvoker -> Alternatives( // there is only one possible representation for such a simple expression
+        barInvoker -> Alternatives(// there is only one possible representation for such a simple expression
           Set(
             TargetTerm(Set(JsObject("ratio" -> JsNumber(0.05), "foo" -> JsString("bar"))), Set("-baz"))
           )
