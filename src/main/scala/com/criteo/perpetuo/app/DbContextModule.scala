@@ -17,7 +17,9 @@ import scala.util.Try
 
 
 class DbContext(val driver: JdbcDriver, dataSource: DataSource) {
+
   import driver.api._
+
   lazy val db: driver.backend.DatabaseDef = Database.forDataSource(dataSource)
 }
 
@@ -43,10 +45,8 @@ class DbContextModule(val dbConfig: AppConfig) extends TwitterModule {
   @Provides
   def providesDbContext: DbContext = {
     val dbContext = new DbContext(driver, dataSourceProvider)
-    if (dbConfig.get("ephemeral")) {
-      // running in development mode
+    if (dbConfig.get("ephemeral"))
       new Schema(dbContext).createTables()
-    }
     dbContext
   }
 
