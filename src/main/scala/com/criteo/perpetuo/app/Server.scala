@@ -16,8 +16,6 @@ object CustomServerModules {
   */
 class Server extends HttpServer {
 
-  val version: String = AppConfig.get("version")
-
   override protected def jacksonModule = CustomServerModules.jackson
 
   override def defaultFinatraHttpPort: String = s":${AppConfig.get[Int]("http.port")}"
