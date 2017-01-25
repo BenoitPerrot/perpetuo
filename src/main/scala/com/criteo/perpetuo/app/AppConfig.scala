@@ -48,5 +48,5 @@ class LoadedRootAppConfig(override protected val unresolvedConfig: Config) exten
 
 
 object AppConfig extends RootAppConfig {
-  override protected lazy val unresolvedConfig: Config = ConfigFactory.parseResources("application.conf")
+  override protected lazy val unresolvedConfig: Config = ConfigFactory.parseResources("com/criteo/perpetuo/application.conf")
 }
