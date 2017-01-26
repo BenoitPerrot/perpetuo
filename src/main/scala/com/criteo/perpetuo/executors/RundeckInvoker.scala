@@ -2,7 +2,7 @@ package com.criteo.perpetuo.executors
 
 import java.net.InetSocketAddress
 
-import com.criteo.perpetuo.dao.enums.Operation.Operation
+import com.criteo.perpetuo.model.Operation.Operation
 import com.twitter.conversions.time._
 import com.twitter.finagle.builder.ClientBuilder
 import com.twitter.finagle.http.{Fields, _}

@@ -2,7 +2,7 @@ package com.criteo.perpetuo.app
 
 import javax.inject.Inject
 
-import com.criteo.perpetuo.dispatchers.DeploymentRequestParser.parse
+import com.criteo.perpetuo.model.DeploymentRequestParser.parse
 import com.criteo.perpetuo.dispatchers.{Execution, TargetDispatching}
 import com.twitter.finagle.http.Request
 import com.twitter.finatra.http.exceptions.BadRequestException

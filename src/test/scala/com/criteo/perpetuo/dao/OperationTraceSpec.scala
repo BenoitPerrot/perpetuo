@@ -3,7 +3,7 @@ package com.criteo.perpetuo.dao
 import java.sql.Timestamp
 
 import com.criteo.perpetuo.TestDb
-import com.criteo.perpetuo.dao.enums.{Operation, TargetStatus}
+import com.criteo.perpetuo.model.{DeploymentRequest, Operation, TargetStatus}
 import org.junit.runner.RunWith
 import org.scalatest.FunSuite
 import org.scalatest.concurrent._

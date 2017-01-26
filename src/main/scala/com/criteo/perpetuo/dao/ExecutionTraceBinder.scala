@@ -1,17 +1,10 @@
 package com.criteo.perpetuo.dao
 
-import com.criteo.perpetuo.dao.enums.ExecutionState.ExecutionState
-import com.criteo.perpetuo.dao.enums.{ExecutionState => ExecutionStateType}
+import com.criteo.perpetuo.model.ExecutionState.ExecutionState
+import com.criteo.perpetuo.model.{ExecutionState, ExecutionTrace}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
-
-
-case class ExecutionTrace(id: Option[Long],
-                          operationTraceId: Long,
-                          uuid: Option[String] = None,
-                          state: ExecutionState = ExecutionStateType.pending)
-
 
 trait ExecutionTraceBinder extends TableBinder {
   this: OperationTraceBinder with DbContextProvider =>
@@ -20,7 +13,7 @@ trait ExecutionTraceBinder extends TableBinder {
 
   private implicit lazy val stateMapper = MappedColumnType.base[ExecutionState, Short](
     es => es.id.toShort,
-    short => ExecutionStateType(short.toInt)
+    short => ExecutionState(short.toInt)
   )
 
   class ExecutionTraceTable(tag: Tag) extends Table[ExecutionTrace](tag, "execution_trace") {

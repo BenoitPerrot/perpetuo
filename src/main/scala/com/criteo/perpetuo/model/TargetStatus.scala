@@ -1,5 +1,4 @@
-package com.criteo.perpetuo.dao.enums
-
+package com.criteo.perpetuo.model
 
 object TargetStatus extends Enumeration {
   type MapType = Map[String, Value]

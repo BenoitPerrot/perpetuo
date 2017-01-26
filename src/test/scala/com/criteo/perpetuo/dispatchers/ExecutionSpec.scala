@@ -4,9 +4,10 @@ import java.sql.Timestamp
 
 import com.criteo.perpetuo.TestDb
 import com.criteo.perpetuo.dao._
-import com.criteo.perpetuo.dao.enums.Operation.Operation
-import com.criteo.perpetuo.dispatchers.DeploymentRequestParser._
+import com.criteo.perpetuo.model.Operation.Operation
+import com.criteo.perpetuo.model.DeploymentRequestParser._
 import com.criteo.perpetuo.executors.{DummyInvoker, ExecutorInvoker}
+import com.criteo.perpetuo.model.DeploymentRequest
 import com.twitter.inject.Test
 import spray.json.DefaultJsonProtocol._
 import spray.json.{JsObject, _}

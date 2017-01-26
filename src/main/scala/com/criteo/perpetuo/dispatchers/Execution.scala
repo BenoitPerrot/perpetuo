@@ -3,9 +3,9 @@ package com.criteo.perpetuo.dispatchers
 import javax.inject.{Inject, Singleton}
 
 import com.criteo.perpetuo.dao._
-import com.criteo.perpetuo.dao.enums.Operation
-import com.criteo.perpetuo.dao.enums.Operation.Operation
 import com.criteo.perpetuo.executors.ExecutorInvoker
+import com.criteo.perpetuo.model.Operation.Operation
+import com.criteo.perpetuo.model.{DeploymentRequest, Operation}
 import com.twitter.inject.Logging
 import spray.json._
 

@@ -1,5 +1,4 @@
-package com.criteo.perpetuo.dao.enums
-
+package com.criteo.perpetuo.model
 
 object ExecutionState extends Enumeration {
   type ExecutionState = Value

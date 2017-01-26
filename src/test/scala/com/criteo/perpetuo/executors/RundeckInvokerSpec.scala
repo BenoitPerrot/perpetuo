@@ -1,6 +1,6 @@
 package com.criteo.perpetuo.executors
 
-import com.criteo.perpetuo.dao.enums.Operation
+import com.criteo.perpetuo.model.Operation
 import com.twitter.finagle.http.{Request, Response, Status}
 import com.twitter.inject.Test
 import com.twitter.util.Future

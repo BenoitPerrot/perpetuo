@@ -1,8 +1,8 @@
-package com.criteo.perpetuo.dispatchers
+package com.criteo.perpetuo.model
 
 import java.sql.Timestamp
 
-import com.criteo.perpetuo.dao.DeploymentRequest
+import com.criteo.perpetuo.dispatchers.{TargetTerm, TargetExpr, Tactics}
 import com.twitter.finatra.http.exceptions.BadRequestException
 import spray.json.{JsArray, JsObject, JsString, JsValue, _}
 

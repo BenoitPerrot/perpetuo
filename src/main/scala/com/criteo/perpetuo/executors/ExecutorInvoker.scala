@@ -1,6 +1,6 @@
 package com.criteo.perpetuo.executors
 
-import com.criteo.perpetuo.dao.enums.Operation.Operation
+import com.criteo.perpetuo.model.Operation.Operation
 import com.twitter.inject.Logging
 
 import scala.collection.mutable

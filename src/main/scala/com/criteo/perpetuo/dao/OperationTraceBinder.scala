@@ -1,18 +1,11 @@
 package com.criteo.perpetuo.dao
 
-import com.criteo.perpetuo.dao.enums.Operation.Operation
-import com.criteo.perpetuo.dao.enums.{TargetStatus, Operation => OperationType}
+import com.criteo.perpetuo.model.Operation.Operation
+import com.criteo.perpetuo.model.{Operation, OperationTrace, TargetStatus}
 import spray.json.{JsNumber, JsObject, _}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
-
-
-case class OperationTrace(id: Option[Long],
-                          deploymentRequestId: Long,
-                          operation: Operation,
-                          targetStatus: TargetStatus.MapType = Map())
-
 
 trait OperationTraceBinder extends TableBinder {
   this: DeploymentRequestBinder with DbContextProvider =>
@@ -21,7 +14,7 @@ trait OperationTraceBinder extends TableBinder {
 
   private implicit lazy val operationMapper = MappedColumnType.base[Operation, Short](
     op => op.id.toShort,
-    short => OperationType(short.toInt)
+    short => Operation(short.toInt)
   )
   private implicit lazy val targetStatusMapper = MappedColumnType.base[TargetStatus.MapType, String](
     obj => JsObject(obj map { case (k, v) => (k, JsNumber(v.id)) }).toString,
