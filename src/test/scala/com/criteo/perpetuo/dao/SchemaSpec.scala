@@ -9,19 +9,7 @@ import slick.driver.JdbcDriver
 
 class SchemaSpec extends Test {
 
-  class DatabaseBinder(val driver: JdbcDriver)
-    extends DeploymentRequestBinder with OperationTraceBinder with ExecutionTraceBinder
-      with DbContextProvider {
-
-    override val dbContext: DbContext = new DbContext(driver, null)
-
-    import driver.api._
-
-    val schema: driver.DDL = deploymentRequestQuery.schema ++ operationTraceQuery.schema ++ executionTraceQuery.schema
-  }
-
-  object dumper extends DatabaseBinder(MSSQLServerProfile)
-
+  val schema = new Schema(new DbContext(MSSQLServerProfile, null))
 
   def toWords(string: String): List[String] = {
     """"[^"]*"|\w+|[^"\w]+""".r.findAllIn(string.trim).toList.map {
@@ -66,11 +54,11 @@ class SchemaSpec extends Test {
 
   "Schema" should {
     "have correct create statements" in {
-      asSql(dumper.schema.createStatements) shouldEqual asSql(getResourceAsString("create-db.sql"))
+      asSql(schema.all.createStatements) shouldEqual asSql(getResourceAsString("create-db.sql"))
     }
 
     "have correct drop statements" in {
-      asSql(dumper.schema.dropStatements) shouldEqual asSql(getResourceAsString("drop-db.sql"))
+      asSql(schema.all.dropStatements) shouldEqual asSql(getResourceAsString("drop-db.sql"))
     }
   }
 }

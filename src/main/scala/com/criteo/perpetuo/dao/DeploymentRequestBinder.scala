@@ -1,12 +1,12 @@
 package com.criteo.perpetuo.dao
 
-import com.criteo.perpetuo.model.DeploymentRequest
+import com.criteo.perpetuo.model.{DeploymentRequest, Product}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
 trait DeploymentRequestBinder extends TableBinder {
-  this: DbContextProvider =>
+  this: ProductBinder with DbContextProvider =>
 
   import dbContext.driver.api._
 
@@ -15,8 +15,8 @@ trait DeploymentRequestBinder extends TableBinder {
     protected def pk = primaryKey(id)
 
     // The intent
-    def productName = column[String]("product_name", O.SqlType("nchar(64)"))
-    protected def idx = index(productName)
+    def productId = column[Int]("product_id")
+    protected def fk = foreignKey(productId, productQuery)(_.id)
     def version = column[String]("version", O.SqlType("nchar(64)"))
     def target = column[String]("target", O.SqlType("nvarchar(max)"))
 
@@ -25,7 +25,7 @@ trait DeploymentRequestBinder extends TableBinder {
     def creator = column[String]("creator", O.SqlType("nchar(64)"))
     def creationDate = column[java.sql.Timestamp]("creation_date")
 
-    def * = (id.?, productName, version, target, reason, creator, creationDate) <> (DeploymentRequest.tupled, DeploymentRequest.unapply)
+    def * = (id.?, productId, version, target, reason, creator, creationDate) <> (DeploymentRequest.tupled, DeploymentRequest.unapply)
   }
 
   val deploymentRequestQuery = TableQuery[DeploymentRequestTable]
@@ -36,5 +36,9 @@ trait DeploymentRequestBinder extends TableBinder {
 
   def findDeploymentRequestById(id: Long): Future[Option[DeploymentRequest]] = {
     dbContext.db.run(deploymentRequestQuery.filter(_.id === id).result).map(_.headOption)
+  }
+
+  def findDeploymentRequestByIdAndProduct(id: Long): Future[Option[(DeploymentRequest, Product)]] = {
+    dbContext.db.run((deploymentRequestQuery join productQuery on (_.productId === _.id) filter (_._1.id === id)).result).map(_.headOption)
   }
 }

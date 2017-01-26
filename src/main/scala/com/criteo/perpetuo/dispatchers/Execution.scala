@@ -32,37 +32,41 @@ class Execution @Inject()(val dbBinding: DbBinding) extends Logging {
   def startOperation(dispatcher: TargetDispatcher, deploymentRequest: DeploymentRequest, operation: Operation): Future[Int] = {
     require(deploymentRequest.id.isDefined)
 
-    // infer dispatching
-    val invocations = dispatch(dispatcher, deploymentRequest.parsedTarget).toSeq
+    // TODO: actual data model required
+    dbBinding.findProductById(deploymentRequest.productId).map(_.get).flatMap { product =>
 
-    // log the operation intent in the DB
-    dbBinding.addToDeploymentRequest(deploymentRequest.id.get, operation).flatMap(
-      // create as many traces, all at the same time
-      dbBinding.addToOperationTrace(_, invocations.length).map {
-        execIds =>
-          assert(execIds.length == invocations.length)
-          invocations.zip(execIds)
-      }
-    ).flatMap(
-      // and only then, for each execution to do:
-      Future.traverse(_) {
-        case ((executor, rawTarget), execId) =>
-          // log the execution
-          logger.debug(s"Triggering $operation job for execution #$execId of ${deploymentRequest.productName} v. ${deploymentRequest.version})")
-          // trigger the execution
-          executor.trigger(
-            operation, execId,
-            deploymentRequest.productName, deploymentRequest.version,
-            rawTarget,
-            deploymentRequest.creator
-          ).map(
-            // if that answers a UUID, update the trace with it
-            _.flatMap(uuid => dbBinding.updateExecutionTrace(execId, uuid).map(_ => s"`$uuid`"))
-          ).getOrElse(
-            Future.successful("with unknown ID")
-          ).map(logExecution(_, execId, executor, rawTarget))
-      }.map(_.length)
-    )
+      // infer dispatching
+      val invocations = dispatch(dispatcher, deploymentRequest.parsedTarget).toSeq
+
+      // log the operation intent in the DB
+      dbBinding.addToDeploymentRequest(deploymentRequest.id.get, operation).flatMap(
+        // create as many traces, all at the same time
+        dbBinding.addToOperationTrace(_, invocations.length).map {
+          execIds =>
+            assert(execIds.length == invocations.length)
+            invocations.zip(execIds)
+        }
+      ).flatMap(
+        // and only then, for each execution to do:
+        Future.traverse(_) {
+          case ((executor, rawTarget), execId) =>
+            // log the execution
+            logger.debug(s"Triggering $operation job for execution #$execId of ${deploymentRequest.productId} v. ${deploymentRequest.version})")
+            // trigger the execution
+            executor.trigger(
+              operation, execId,
+              product.name, deploymentRequest.version,
+              rawTarget,
+              deploymentRequest.creator
+            ).map(
+              // if that answers a UUID, update the trace with it
+              _.flatMap(uuid => dbBinding.updateExecutionTrace(execId, uuid).map(_ => s"`$uuid`"))
+            ).getOrElse(
+              Future.successful("with unknown ID")
+            ).map(logExecution(_, execId, executor, rawTarget))
+        }.map(_.length)
+      )
+    }
   }
 
   def dispatch(dispatcher: TargetDispatcher, target: TargetExpr): Iterable[(ExecutorInvoker, String)] =

@@ -7,7 +7,7 @@ import com.criteo.perpetuo.dispatchers.TargetExpr
 import spray.json._
 
 case class DeploymentRequest(id: Option[Long],
-                             productName: String,
+                             productId: Int,
                              version: String,
                              target: String,
                              reason: String, // Not an `Option` because it's easier to consider that no comment <=> empty
@@ -30,7 +30,8 @@ case class DeploymentRequest(id: Option[Long],
     clone
   }
 
-  def toJsonReadyMap: Map[String, AnyRef] = {
+  // TODO: Dedicated, actual data model is required
+  def toJsonReadyMap(product: Product): Map[String, AnyRef] = {
     val cls = classOf[DeploymentRequest]
     cls.getDeclaredFields
       .filterNot(_.isSynthetic)
@@ -40,6 +41,7 @@ case class DeploymentRequest(id: Option[Long],
       .flatMap(method =>
         (method.getName, method.invoke(this)) match {
           case ("reason", "") => None
+          case ("productId", _) => Some("productName" -> product.name)
           case ("target", json: String) => Some("target" -> RawJson(json))
           case (name, value) => Some(name -> value)
         }

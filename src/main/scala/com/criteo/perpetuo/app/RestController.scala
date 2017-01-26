@@ -4,6 +4,7 @@ import javax.inject.Inject
 
 import com.criteo.perpetuo.model.DeploymentRequestParser.parse
 import com.criteo.perpetuo.dispatchers.{Execution, TargetDispatcher}
+import com.criteo.perpetuo.model.{DeploymentRequest, Product}
 import com.twitter.finagle.http.Request
 import com.twitter.finatra.http.exceptions.BadRequestException
 import com.twitter.finatra.http.{Controller => BaseController}
@@ -12,7 +13,7 @@ import com.twitter.finatra.utils.FuturePools
 import com.twitter.finatra.validation._
 import spray.json.JsonParser.ParsingException
 
-import scala.concurrent.Await
+import scala.concurrent.{Await, Future}
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.util.Try
@@ -30,31 +31,38 @@ class RestController @Inject()(val execution: Execution)
 
   private val futurePool = FuturePools.unboundedPool("RequestFuturePool")
 
+  private def findDeploymentRequestAndProduct(id: String): Future[Option[(DeploymentRequest, Product)]] = {
+    Try(id.toLong).toOption
+      .map(id => execution.dbBinding.findDeploymentRequestByIdAndProduct(id))
+      .getOrElse(Future(None))
+  }
+
   get("/api/deployment-requests/:id") {
     r: DeploymentRequestGet =>
       futurePool {
-        Try(r.id.toLong).toOption.flatMap(id => Await.result(execution.dbBinding.findDeploymentRequestById(id), 2.seconds)).map(_.toJsonReadyMap)
+        Await.result(findDeploymentRequestAndProduct(r.id), 2.seconds).map(x => x._1.toJsonReadyMap(x._2))
       }
   }
 
   post("/api/deployment-requests") {
     r: Request =>
-      // parse the request
-      val deploymentRequest = try {
-        parse(r.contentString)
-      } catch {
-        case e: ParsingException => throw new BadRequestException(e.getMessage)
-      }
-
       futurePool {
-        // trigger the execution
-        val (futureId, asyncStart) = execution.startTransaction(TargetDispatcher.fromConfig, deploymentRequest)
-
-        asyncStart.onFailure({ case e => logger.error("Transaction failed to start: " + e.getMessage + "\n" + e.getStackTrace.mkString("\n")) })
-
-        // return the ID
-        val id = Await.result(futureId, 2.seconds)
-        response.created.json(Map("id" -> id))
+        Await.result(
+          parse(r.contentString, productName => { execution.dbBinding.findProductByName(productName).map {
+            _.getOrElse { throw new BadRequestException(s"Product $productName could not be found") }
+          } })
+            .recover {
+              case e: ParsingException => throw new BadRequestException(e.getMessage)
+            }
+            .flatMap { deploymentRequest =>
+              val (futureId, asyncStart) = execution.startTransaction(TargetDispatcher.fromConfig, deploymentRequest)
+              asyncStart.onFailure({ case e => logger.error("Transaction failed to start: " + e.getMessage + "\n" + e.getStackTrace.mkString("\n")) })
+              futureId
+            }
+            .map { id =>
+              response.created.json(Map("id" -> id))
+            },
+          2.seconds)
       }
   }
 

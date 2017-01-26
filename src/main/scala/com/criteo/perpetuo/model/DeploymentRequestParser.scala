@@ -6,9 +6,12 @@ import com.criteo.perpetuo.dispatchers.{TargetTerm, TargetExpr, Tactics}
 import com.twitter.finatra.http.exceptions.BadRequestException
 import spray.json.{JsArray, JsObject, JsString, JsValue, _}
 
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.Future
+
 
 object DeploymentRequestParser {
-  def parse(jsonInput: String): DeploymentRequest =
+  def parse(jsonInput: String, productRetriever: (String) => Future[Product]): Future[DeploymentRequest] =
     jsonInput.parseJson match {
       case body: JsObject =>
         val fields = body.fields
@@ -20,12 +23,14 @@ object DeploymentRequestParser {
         }
 
         val targetExpr = read("target")
-        val record = DeploymentRequest(None,
-          readStr("productName"), readStr("version"), targetExpr.compactPrint, readStr("reason", Some("")),
-          "anonymous", new Timestamp(System.currentTimeMillis))
-        record.parsedTarget // validate the target
 
-        record
+        productRetriever(readStr("productName")).map { product =>
+          val record = DeploymentRequest(None,
+            product.id.get, readStr("version"), targetExpr.compactPrint, readStr("reason", Some("")),
+            "anonymous", new Timestamp(System.currentTimeMillis))
+          record.parsedTarget // validate the target
+          record
+        }
 
       case unknown => throw BadRequestException(s"Expected a JSON object as request body, got: $unknown")
     }

@@ -9,23 +9,20 @@ import scala.concurrent.duration._
 
 
 class Schema(val dbContext: DbContext)
-  extends ExecutionTraceBinder with OperationTraceBinder with DeploymentRequestBinder
+  extends ExecutionTraceBinder with OperationTraceBinder with DeploymentRequestBinder with ProductBinder
     with DbContextProvider {
 
   import dbContext.driver.api._
 
+  val all = productQuery.schema ++ deploymentRequestQuery.schema ++ operationTraceQuery.schema ++ executionTraceQuery.schema
+
   def createTables(): Unit = {
-    val schema = DBIO.seq(
-      deploymentRequestQuery.schema.create,
-      operationTraceQuery.schema.create,
-      executionTraceQuery.schema.create
-    )
-    Await.result(dbContext.db.run(schema), 2.seconds)
+    Await.result(dbContext.db.run(all.create), 2.seconds)
   }
 }
 
 
 @Singleton
 class DbBinding @Inject()(val dbContext: DbContext)
-  extends ExecutionTraceBinder with OperationTraceBinder with DeploymentRequestBinder
+  extends ExecutionTraceBinder with OperationTraceBinder with DeploymentRequestBinder with ProductBinder
     with DbContextProvider

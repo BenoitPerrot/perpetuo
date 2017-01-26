@@ -1,6 +1,15 @@
+CREATE TABLE "product" (
+  "id"   INTEGER    NOT NULL IDENTITY,
+  "name" NCHAR(128) NOT NULL
+)
+ALTER TABLE "product"
+  ADD CONSTRAINT "pk_product" PRIMARY KEY("id")
+CREATE UNIQUE INDEX "ix_product_name"
+  ON "product"("name")
+
 CREATE TABLE "deployment_request" (
   "id"            BIGINT        NOT NULL IDENTITY,
-  "product_name"  NCHAR(64)     NOT NULL,
+  "product_id"    INTEGER       NOT NULL,
   "version"       NCHAR(64)     NOT NULL,
   "target"        NVARCHAR(MAX) NOT NULL,
   "reason"        NVARCHAR(256) NOT NULL,
@@ -9,9 +18,6 @@ CREATE TABLE "deployment_request" (
 )
 ALTER TABLE "deployment_request"
   ADD CONSTRAINT "pk_deployment_request" PRIMARY KEY ("id")
-CREATE INDEX "ix_deployment_request_product_name"
-  ON "deployment_request" ("product_name")
-
 
 CREATE TABLE "operation_trace" (
   "id"                    BIGINT        NOT NULL IDENTITY,
@@ -37,6 +43,10 @@ CREATE UNIQUE INDEX "ix_execution_trace_uuid"
   ON "execution_trace" ("uuid")
 
 
+ALTER TABLE "deployment_request"
+  ADD CONSTRAINT "fk_deployment_request_product_id" FOREIGN KEY("product_id") REFERENCES "product"("id")
+  ON UPDATE NO ACTION
+  ON DELETE NO ACTION
 ALTER TABLE "operation_trace"
   ADD CONSTRAINT "fk_operation_trace_deployment_request_id" FOREIGN KEY ("deployment_request_id") REFERENCES "deployment_request" ("id")
   ON UPDATE NO ACTION

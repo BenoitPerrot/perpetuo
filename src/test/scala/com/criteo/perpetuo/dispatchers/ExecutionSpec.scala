@@ -7,7 +7,7 @@ import com.criteo.perpetuo.dao._
 import com.criteo.perpetuo.model.Operation.Operation
 import com.criteo.perpetuo.model.DeploymentRequestParser._
 import com.criteo.perpetuo.executors.{DummyInvoker, ExecutorInvoker}
-import com.criteo.perpetuo.model.DeploymentRequest
+import com.criteo.perpetuo.model.{DeploymentRequest, Product}
 import com.twitter.inject.Test
 import spray.json.DefaultJsonProtocol._
 import spray.json.{JsObject, _}
@@ -38,8 +38,11 @@ class ExecutionSpec extends Test with TestDb {
     }
   }
 
+  val product = Product(None, "perpetuo-app")
+  val p = Await.result(execution.dbBinding.insert(product), 1.second)
+
   private def getExecutions(dispatcher: TargetDispatcher): Future[Seq[(Long, Option[String])]] = {
-    val req = DeploymentRequest(None, "perpetuo-app", "v42", """"*"""", "No fear", "c.norris", new Timestamp(123456789))
+    val req = DeploymentRequest(None, p, "v42", """"*"""", "No fear", "c.norris", new Timestamp(123456789))
 
     val (id, asyncStart) = execution.startTransaction(dispatcher, req)
     asyncStart.flatMap { count =>
@@ -64,7 +67,7 @@ class ExecutionSpec extends Test with TestDb {
 
   implicit class ComplexDispatchTest(private val target: TargetExpr) {
     private val rawTarget = target.toJson.compactPrint
-    private val request = DeploymentRequest(None, "perpetuo-app", "v42", rawTarget, "No fear", "c.norris", new Timestamp(123456789))
+    private val request = DeploymentRequest(None, p, "v42", rawTarget, "No fear", "c.norris", new Timestamp(123456789))
 
     private def parse(it: Iterable[(ExecutorInvoker, String)]): Iterable[(ExecutorInvoker, TargetExpr)] =
       it.map { case (exec, raw) => (exec, parseTargetExpression(raw.parseJson)) }

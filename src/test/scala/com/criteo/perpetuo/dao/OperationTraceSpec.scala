@@ -3,7 +3,7 @@ package com.criteo.perpetuo.dao
 import java.sql.Timestamp
 
 import com.criteo.perpetuo.TestDb
-import com.criteo.perpetuo.model.{DeploymentRequest, Operation, TargetStatus}
+import com.criteo.perpetuo.model.{DeploymentRequest, Operation, Product, TargetStatus}
 import org.junit.runner.RunWith
 import org.scalatest.FunSuite
 import org.scalatest.concurrent._
@@ -17,7 +17,7 @@ import scala.concurrent.duration._
 @RunWith(classOf[JUnitRunner])
 class OperationTraceSpec extends FunSuite with ScalaFutures
   with OperationTraceBinder
-  with DeploymentRequestBinder
+  with DeploymentRequestBinder with ProductBinder
   with TestDb {
 
   import dbContext.driver.api._
@@ -31,11 +31,10 @@ class OperationTraceSpec extends FunSuite with ScalaFutures
   }
 
   test("Operation traces can be bound to deployment requests, and retrieved") {
-    val request = DeploymentRequest(None, "perpetuo-app", "v42", "*", "No fear", "c.norris", new Timestamp(123456789))
-
     Await.result(
       for {
-        requestId <- insert(request)
+        productId <- insert(Product(None, "perpetuo-app"))
+        requestId <- insert(DeploymentRequest(None, productId, "v42", "*", "No fear", "c.norris", new Timestamp(123456789)))
         deployId <- addToDeploymentRequest(requestId, Operation.deploy)
         revertId <- addToDeploymentRequest(requestId, Operation.revert)
         traces <- dbContext.db.run(operationTraceQuery.result)
