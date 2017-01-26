@@ -4,7 +4,7 @@ import com.criteo.perpetuo.app.AppConfig
 import com.criteo.perpetuo.executors.ExecutorInvoker
 
 
-trait TargetDispatching {
+trait TargetDispatcher {
   /**
     * the abstract method to define in subclasses: the dispatcher
     */
@@ -12,10 +12,10 @@ trait TargetDispatching {
 }
 
 
-object TargetDispatching {
-  lazy val fromConfig: TargetDispatching = fromName(AppConfig.get("targetDispatcher"))
-  def fromName(objectName: String): TargetDispatching = {
+object TargetDispatcher {
+  lazy val fromConfig: TargetDispatcher = fromName(AppConfig.get("targetDispatcher"))
+  def fromName(objectName: String): TargetDispatcher = {
     val cls = Class.forName(objectName + "$")
-    cls.getField("MODULE$").get(cls).asInstanceOf[TargetDispatching]
+    cls.getField("MODULE$").get(cls).asInstanceOf[TargetDispatcher]
   }
 }

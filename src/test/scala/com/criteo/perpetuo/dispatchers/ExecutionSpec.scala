@@ -38,7 +38,7 @@ class ExecutionSpec extends Test with TestDb {
     }
   }
 
-  private def getExecutions(dispatcher: TargetDispatching): Future[Seq[(Long, Option[String])]] = {
+  private def getExecutions(dispatcher: TargetDispatcher): Future[Seq[(Long, Option[String])]] = {
     val req = DeploymentRequest(None, "perpetuo-app", "v42", """"*"""", "No fear", "c.norris", new Timestamp(123456789))
 
     val (id, asyncStart) = execution.startTransaction(dispatcher, req)

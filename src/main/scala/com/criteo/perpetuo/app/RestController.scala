@@ -3,7 +3,7 @@ package com.criteo.perpetuo.app
 import javax.inject.Inject
 
 import com.criteo.perpetuo.model.DeploymentRequestParser.parse
-import com.criteo.perpetuo.dispatchers.{Execution, TargetDispatching}
+import com.criteo.perpetuo.dispatchers.{Execution, TargetDispatcher}
 import com.twitter.finagle.http.Request
 import com.twitter.finatra.http.exceptions.BadRequestException
 import com.twitter.finatra.http.{Controller => BaseController}
@@ -48,7 +48,7 @@ class RestController @Inject()(val execution: Execution)
 
       futurePool {
         // trigger the execution
-        val (futureId, asyncStart) = execution.startTransaction(TargetDispatching.fromConfig, deploymentRequest)
+        val (futureId, asyncStart) = execution.startTransaction(TargetDispatcher.fromConfig, deploymentRequest)
 
         asyncStart.onFailure({ case e => logger.error("Transaction failed to start: " + e.getMessage + "\n" + e.getStackTrace.mkString("\n")) })
 

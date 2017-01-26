@@ -8,7 +8,7 @@ object TestSuffixDispatcher extends {
   val fooInvoker = new DummyInvoker("Foo's invoker")
   val barInvoker = new DummyInvoker("Bar's invoker")
   val fooFooInvoker = new DummyInvoker("Foo-foo's invoker")
-} with TargetDispatchingByPoset(
+} with TargetDispatcherByPoset(
   new ExecutorsByPoset(
     Map(
       "foo-baz" -> fooInvoker,
@@ -21,7 +21,7 @@ object TestSuffixDispatcher extends {
 )
 
 
-class TargetDispatchingSpec extends Test {
+class TargetDispatcherSpec extends Test {
 
   import TestSuffixDispatcher._
 
@@ -89,12 +89,12 @@ class TargetDispatchingSpec extends Test {
 
   "Loading a dispatcher by name" should {
     "be possible" in {
-      TargetDispatching.fromName("com.criteo.perpetuo.dispatchers.DummyTargetDispatcher")
+      TargetDispatcher.fromName("com.criteo.perpetuo.dispatchers.DummyTargetDispatcher")
     }
 
     "fail when the upper POSet doesn't have a strict order" in {
       val exc = intercept[AssertionError] {
-        TargetDispatching.fromName("com.criteo.perpetuo.dispatchers.TestCyclicDispatcher")
+        TargetDispatcher.fromName("com.criteo.perpetuo.dispatchers.TestCyclicDispatcher")
       }
       exc.getMessage should (include("there is a cycle in") and include("toto") and include("tutu"))
     }
@@ -105,7 +105,7 @@ class TargetDispatchingSpec extends Test {
 
 
 // bad dispatcher because toto is the parent of tutu, which is the parent of toto:
-object TestCyclicDispatcher extends TargetDispatchingByPoset(
+object TestCyclicDispatcher extends TargetDispatcherByPoset(
   new ExecutorsByPoset(
     Map("foo" -> new DummyInvoker("Foo's invoker")),
     selectWord => Seq(

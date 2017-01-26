@@ -19,7 +19,7 @@ class Execution @Inject()(val dbBinding: DbBinding) extends Logging {
   import spray.json.DefaultJsonProtocol._
 
 
-  def startTransaction(dispatcher: TargetDispatching, deploymentRequest: DeploymentRequest): (Future[Long], Future[Int]) = {
+  def startTransaction(dispatcher: TargetDispatcher, deploymentRequest: DeploymentRequest): (Future[Long], Future[Int]) = {
     require(deploymentRequest.id.isEmpty)
 
     // first, log the user's general intent
@@ -29,7 +29,7 @@ class Execution @Inject()(val dbBinding: DbBinding) extends Logging {
     (id, id.map(deploymentRequest.copyWithId).flatMap(startOperation(dispatcher, _, Operation.deploy)))
   }
 
-  def startOperation(dispatcher: TargetDispatching, deploymentRequest: DeploymentRequest, operation: Operation): Future[Int] = {
+  def startOperation(dispatcher: TargetDispatcher, deploymentRequest: DeploymentRequest, operation: Operation): Future[Int] = {
     require(deploymentRequest.id.isDefined)
 
     // infer dispatching
@@ -65,13 +65,13 @@ class Execution @Inject()(val dbBinding: DbBinding) extends Logging {
     )
   }
 
-  def dispatch(dispatcher: TargetDispatching, target: TargetExpr): Iterable[(ExecutorInvoker, String)] =
+  def dispatch(dispatcher: TargetDispatcher, target: TargetExpr): Iterable[(ExecutorInvoker, String)] =
     dispatchAlternatives(dispatcher, target).map {
       // return the shortest target expression for the executor
       case (executor, expressions) => (executor, expressions.minBy(_.length))
     }
 
-  def dispatchAlternatives(dispatcher: TargetDispatching, target: TargetExpr): Iterable[(ExecutorInvoker, Set[String])] = {
+  def dispatchAlternatives(dispatcher: TargetDispatcher, target: TargetExpr): Iterable[(ExecutorInvoker, Set[String])] = {
     def groupOn1[A, B](it: Iterable[(A, B)]): Iterable[(A, Set[B])] =
       it.groupBy(_._1).map { case (k, v) => (k, v.map(_._2).toSet) }
 

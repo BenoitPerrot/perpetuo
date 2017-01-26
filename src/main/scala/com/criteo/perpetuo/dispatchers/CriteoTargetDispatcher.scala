@@ -8,7 +8,7 @@ object CriteoTargetDispatcher extends {
 
   private val ALL = "*" // could be "toto" actually, it has no impact at all until we have multiple executors :)
 
-} with TargetDispatchingByPoset(
+} with TargetDispatcherByPoset(
   new ExecutorsByPoset(
 
     // todo: Rundeck is not yet registered in Consul, so we hard-code all the hostnames for now.

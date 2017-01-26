@@ -3,7 +3,7 @@ package com.criteo.perpetuo.dispatchers
 import com.criteo.perpetuo.executors.{DummyInvoker, ExecutorInvoker}
 
 
-case class SingleTargetDispatcher(executorInvoker: ExecutorInvoker) extends TargetDispatching {
+case class SingleTargetDispatcher(executorInvoker: ExecutorInvoker) extends TargetDispatcher {
   override def assign(selectWord: String): Set[ExecutorInvoker] = Set(executorInvoker)
 }
 
