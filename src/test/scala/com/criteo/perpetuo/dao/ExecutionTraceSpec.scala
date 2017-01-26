@@ -8,19 +8,17 @@ import org.junit.runner.RunWith
 import org.scalatest.FunSuite
 import org.scalatest.concurrent._
 import org.scalatest.junit.JUnitRunner
-import org.scalatest.time.{Millis, Seconds, Span}
 
+import scala.concurrent.Await
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.duration._
 
 
 @RunWith(classOf[JUnitRunner])
 class ExecutionTraceSpec extends FunSuite with ScalaFutures
   with ExecutionTraceBinder
   with OperationTraceBinder with DeploymentRequestBinder
-  with TestDb
-  with Eventually {
-
-  implicit val defaultPatience = PatienceConfig(timeout = Span(1, Seconds), interval = Span(100, Millis))
+  with TestDb {
 
   import dbContext.driver.api._
 
@@ -31,7 +29,7 @@ class ExecutionTraceSpec extends FunSuite with ScalaFutures
   test("Execution traces can be bound to operation traces, and retrieved") {
     val request = DeploymentRequest(None, "perpetuo-app", "v42", "*", "No fear", "c.norris", new Timestamp(123456789))
 
-    eventually {
+    Await.result(
       for {
         requestId <- insert(request)
         deployId <- addToDeploymentRequest(requestId, Operation.deploy)
@@ -45,7 +43,8 @@ class ExecutionTraceSpec extends FunSuite with ScalaFutures
         assert(execTrace.get.operationTraceId == deployId)
         assert(execTrace.get.uuid.isEmpty)
         assert(execTrace.get.state == ExecutionState.pending)
-      }
-    }
+      },
+      1.second
+    )
   }
 }

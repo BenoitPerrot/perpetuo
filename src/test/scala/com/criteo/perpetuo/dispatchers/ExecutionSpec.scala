@@ -8,20 +8,17 @@ import com.criteo.perpetuo.dao.enums.Operation.Operation
 import com.criteo.perpetuo.dispatchers.DeploymentRequestParser._
 import com.criteo.perpetuo.executors.{DummyInvoker, ExecutorInvoker}
 import com.twitter.inject.Test
-import org.scalatest.concurrent.Eventually
-import org.scalatest.time.{Millis, Seconds, Span}
 import spray.json.DefaultJsonProtocol._
 import spray.json.{JsObject, _}
 
 import scala.collection.concurrent.{TrieMap, Map => ConcurrentMap}
 import scala.collection.immutable.Stream
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.Future
+import scala.concurrent.duration._
+import scala.concurrent.{Await, Future}
 
 
-class ExecutionSpec extends Test with TestDb with Eventually {
-
-  implicit val defaultPatience = PatienceConfig(timeout = Span(1, Seconds), interval = Span(100, Millis))
+class ExecutionSpec extends Test with TestDb {
 
   import TestSuffixDispatcher._
 
@@ -75,26 +72,29 @@ class ExecutionSpec extends Test with TestDb with Eventually {
       parse(execution.dispatch(TestSuffixDispatcher, target)) should contain theSameElementsAs that
 
       execLogs.clear()
-      eventually {
-        execution.startTransaction(TestSuffixDispatcher, request)._2.foreach(_ =>
+      Await.result(
+        execution.startTransaction(TestSuffixDispatcher, request)._2.map(_ =>
           parse(execLogs) should contain theSameElementsAs that
-        )
-      }
+        ),
+        1.second
+      )
     }
   }
 
 
   "A trivial execution" should {
     "trigger a job with no ID when there is no UUID provided" in {
-      eventually {
-        getExecutions(DummyTargetDispatcher).map(_ shouldEqual Seq((1, None)))
-      }
+      Await.result(
+        getExecutions(DummyTargetDispatcher).map(_ shouldEqual Seq((1, None))),
+        1.second
+      )
     }
 
     "trigger a job with an ID when a UUID is provided as a Future" in {
-      eventually {
-        getExecutions(SingleTargetDispatcher(DummyInvokerWithUuid)).map(_ shouldEqual Seq((2, Some("#1"))))
-      }
+      Await.result(
+        getExecutions(SingleTargetDispatcher(DummyInvokerWithUuid)).map(_ shouldEqual Seq((2, Some("#1")))),
+        1.second
+      )
     }
 
   }

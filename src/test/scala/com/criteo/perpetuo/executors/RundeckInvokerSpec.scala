@@ -4,15 +4,13 @@ import com.criteo.perpetuo.dao.enums.Operation
 import com.twitter.finagle.http.{Request, Response, Status}
 import com.twitter.inject.Test
 import com.twitter.util.Future
-import org.scalatest.concurrent.Eventually
-import org.scalatest.time.{Millis, Seconds, Span}
 
+import scala.concurrent.Await
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.duration._
 
 
-class RundeckInvokerSpec extends Test with Eventually {
-
-  implicit val defaultPatience = PatienceConfig(timeout = Span(1, Seconds), interval = Span(100, Millis))
+class RundeckInvokerSpec extends Test {
 
   private def testWhenResponseIs(statusCode: Int, content: String) = {
     object RundeckInvokerMock extends RundeckInvoker("HOST", 4242) {
@@ -41,35 +39,39 @@ class RundeckInvokerSpec extends Test with Eventually {
   "Rundeck's API" should {
     "be followed" when {
       "everything goes well" in {
-        eventually {
+        Await.result(
           testWhenResponseIs(200, """{"id": 123, "permalink": "http://rundeck/job/123/show"}""").map(
             _ shouldEqual "http://rundeck/job/123/show"
-          )
-        }
+          ),
+          1.second
+        )
       }
 
       "a connection problem occurs" in {
-        eventually {
-          testWhenResponseIs(403, "<html>gibberish</html>").map(ans =>
-            (the[Exception] thrownBy ans).getMessage shouldEqual "Rundeck answered: Forbidden"
-          )
-        }
+        Await.result(
+          testWhenResponseIs(403, "<html>gibberish</html>").recover {
+            case err: Exception => err.getMessage shouldEqual "Rundeck answered: Forbidden"
+          },
+          1.second
+        )
       }
 
       "an internal server error occurs" in {
-        eventually {
-          testWhenResponseIs(500, "<html><p>Intelligible error</p></html>").map(ans =>
-            (the[Exception] thrownBy ans).getMessage should endWith("Internal Server Error: Intelligible error")
-          )
-        }
+        Await.result(
+          testWhenResponseIs(500, "<html><p>Intelligible error</p></html>").recover {
+            case err: Exception => err.getMessage should endWith("Internal Server Error: Intelligible error")
+          },
+          1.second
+        )
       }
 
       "the request cannot be satisfied" in {
-        eventually {
-          testWhenResponseIs(400, """{"error": true, "message": "Intelligible error"}""").map(ans =>
-            (the[Exception] thrownBy ans).getMessage should endWith("""Bad Request: "Intelligible error"""")
-          )
-        }
+        Await.result(
+          testWhenResponseIs(400, """{"error": true, "message": "Intelligible error"}""").recover {
+            case err: Exception => err.getMessage should endWith("""Bad Request: "Intelligible error"""")
+          },
+          1.second
+        )
       }
     }
   }

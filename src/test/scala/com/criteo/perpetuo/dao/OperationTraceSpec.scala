@@ -8,19 +8,17 @@ import org.junit.runner.RunWith
 import org.scalatest.FunSuite
 import org.scalatest.concurrent._
 import org.scalatest.junit.JUnitRunner
-import org.scalatest.time.{Millis, Seconds, Span}
 
+import scala.concurrent.Await
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.duration._
 
 
 @RunWith(classOf[JUnitRunner])
 class OperationTraceSpec extends FunSuite with ScalaFutures
   with OperationTraceBinder
   with DeploymentRequestBinder
-  with TestDb
-  with Eventually {
-
-  implicit val defaultPatience = PatienceConfig(timeout = Span(1, Seconds), interval = Span(100, Millis))
+  with TestDb {
 
   import dbContext.driver.api._
 
@@ -35,7 +33,7 @@ class OperationTraceSpec extends FunSuite with ScalaFutures
   test("Operation traces can be bound to deployment requests, and retrieved") {
     val request = DeploymentRequest(None, "perpetuo-app", "v42", "*", "No fear", "c.norris", new Timestamp(123456789))
 
-    eventually {
+    Await.result(
       for {
         requestId <- insert(request)
         deployId <- addToDeploymentRequest(requestId, Operation.deploy)
@@ -54,21 +52,23 @@ class OperationTraceSpec extends FunSuite with ScalaFutures
         assert(deploy.get.operation != revert.get.operation) // different operation types
         assert(deploy.get.targetStatus == revert.get.targetStatus) // same target status
         assert(deploy.get.targetStatus == Map()) // same empty target status
-      }
-    }
+      },
+      1.second
+    )
   }
 
   test("Operation traces can serialize and de-serialize a target status") {
     // using the same records already inserted in the DB during the test above
 
-    eventually {
+    Await.result(
       for {
         traceId <- dbContext.db.run(operationTraceQuery.result).map(_.head.id.get)
         _ <- updateOperationTrace(traceId, Map("abc" -> TargetStatus.serverFailure))
         trace <- findOperationTraceById(traceId)
       } yield {
         assert(trace.get.targetStatus == Map("abc" -> TargetStatus.serverFailure))
-      }
-    }
+      },
+      1.second
+    )
   }
 }
