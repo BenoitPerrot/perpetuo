@@ -1,17 +1,17 @@
-package com.criteo.perpetuo.dao
+package com.criteo.perpetuo.model
 
 import java.sql.Timestamp
 
 import com.criteo.perpetuo.TestDb
-import com.criteo.perpetuo.model.{DeploymentRequest, Product}
+import com.criteo.perpetuo.dao.{DeploymentRequestBinder, ProductBinder}
 import org.junit.runner.RunWith
 import org.scalatest.FunSuite
 import org.scalatest.concurrent._
 import org.scalatest.junit.JUnitRunner
 
 import scala.concurrent.Await
-import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.duration._
 
 @RunWith(classOf[JUnitRunner])
 class DeploymentRequestSpec extends FunSuite with ScalaFutures

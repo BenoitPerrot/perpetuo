@@ -1,9 +1,9 @@
-package com.criteo.perpetuo.dao
+package com.criteo.perpetuo.model
 
 import java.sql.Timestamp
 
 import com.criteo.perpetuo.TestDb
-import com.criteo.perpetuo.model.{DeploymentRequest, Operation, Product, TargetStatus}
+import com.criteo.perpetuo.dao.{DeploymentRequestBinder, OperationTraceBinder, ProductBinder}
 import org.junit.runner.RunWith
 import org.scalatest.FunSuite
 import org.scalatest.concurrent._
