@@ -2,8 +2,8 @@ package com.criteo.perpetuo.app
 
 import javax.inject.Inject
 
-import com.criteo.perpetuo.model.DeploymentRequestParser.parse
 import com.criteo.perpetuo.dispatchers.{Execution, TargetDispatcher}
+import com.criteo.perpetuo.model.DeploymentRequestParser.parse
 import com.criteo.perpetuo.model.{DeploymentRequest, Product}
 import com.twitter.finagle.http.Request
 import com.twitter.finatra.http.exceptions.BadRequestException
@@ -13,9 +13,9 @@ import com.twitter.finatra.utils.FuturePools
 import com.twitter.finatra.validation._
 import spray.json.JsonParser.ParsingException
 
-import scala.concurrent.{Await, Future}
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
+import scala.concurrent.{Await, Future}
 import scala.util.Try
 
 
