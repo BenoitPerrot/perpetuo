@@ -23,13 +23,13 @@ trait ExecutionTraceBinder extends TableBinder {
     def operationTraceId = column[Long]("operation_trace_id")
     protected def fk = foreignKey(operationTraceId, operationTraceQuery)(_.id)
 
-    def uuid = column[Option[String]]("uuid", O.SqlType("nchar(128)"))
-    protected def uuidIdx = index(uuid, unique = true)
+    def logHref = column[Option[String]]("log_href", O.SqlType("nchar(128)"))
+    protected def logHrefIdx = index(logHref, unique = true)
 
     def state = column[ExecutionState]("state")
     protected def stateIdx = index(state)
 
-    def * = (id.?, operationTraceId, uuid, state) <> (ExecutionTrace.tupled, ExecutionTrace.unapply)
+    def * = (id.?, operationTraceId, logHref, state) <> (ExecutionTrace.tupled, ExecutionTrace.unapply)
   }
 
   val executionTraceQuery = TableQuery[ExecutionTraceTable]
@@ -55,9 +55,9 @@ trait ExecutionTraceBinder extends TableBinder {
   }
 
   def updateExecutionTrace(id: Long, uuid: String, state: ExecutionState): Future[Unit] =
-    runUpdate(id, _.map(r => (r.uuid, r.state)).update((Some(uuid), state)))
+    runUpdate(id, _.map(r => (r.logHref, r.state)).update((Some(uuid), state)))
   def updateExecutionTrace(id: Long, uuid: String): Future[Unit] =
-    runUpdate(id, _.map(_.uuid).update(Some(uuid)))
+    runUpdate(id, _.map(_.logHref).update(Some(uuid)))
   def updateExecutionTrace(id: Long, state: ExecutionState): Future[Unit] =
     runUpdate(id, _.map(_.state).update(state))
 

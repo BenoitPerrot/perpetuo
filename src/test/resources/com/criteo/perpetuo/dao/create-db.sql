@@ -32,15 +32,15 @@ ALTER TABLE "operation_trace"
 CREATE TABLE "execution_trace" (
   "id"                 BIGINT   NOT NULL IDENTITY,
   "operation_trace_id" BIGINT   NOT NULL,
-  "uuid"               NCHAR(128),
+  "log_href"           NCHAR(128),
   "state"              SMALLINT NOT NULL
 )
 ALTER TABLE "execution_trace"
   ADD CONSTRAINT "pk_execution_trace" PRIMARY KEY ("id")
+CREATE UNIQUE INDEX "ix_execution_trace_log_href"
+  ON "execution_trace" ("log_href")
 CREATE INDEX "ix_execution_trace_state"
   ON "execution_trace" ("state")
-CREATE UNIQUE INDEX "ix_execution_trace_uuid"
-  ON "execution_trace" ("uuid")
 
 
 ALTER TABLE "deployment_request"
