@@ -19,7 +19,7 @@ object UrlBuilders {
     // SQL Server can run multiple so-called "named instances" (i.e. different server instances, running on different TCP ports) on the same machine.
     // When using Microsoft tools, selecting one of these instances is made by using "<host_name>\<instance_name>" instead of the usual "<host_name>".
     // With jTDS you will have to split the two and use the instance name as a property.
-    val regex = "^((?:(?:[0-9]{1,3}\\.){3}[0-9]{1,3})|(?:[^\\\\]+))(?:\\\\(.*))*" r
+    val regex = "^((?:(?:[0-9]{1,3}\\.){3}[0-9]{1,3})|(?:[^\\\\]+))(?:\\\\(.*))*".r
 
     val (hostName, instanceName) = location.host match {
       case regex(_hostName, null) => (_hostName.trim, null)

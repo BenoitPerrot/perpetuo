@@ -7,6 +7,7 @@ ALTER TABLE "product"
 CREATE UNIQUE INDEX "ix_product_name"
   ON "product"("name")
 
+
 CREATE TABLE "deployment_request" (
   "id"            BIGINT        NOT NULL IDENTITY,
   "product_id"    INTEGER       NOT NULL,
@@ -18,6 +19,7 @@ CREATE TABLE "deployment_request" (
 )
 ALTER TABLE "deployment_request"
   ADD CONSTRAINT "pk_deployment_request" PRIMARY KEY ("id")
+
 
 CREATE TABLE "operation_trace" (
   "id"                    BIGINT        NOT NULL IDENTITY,
