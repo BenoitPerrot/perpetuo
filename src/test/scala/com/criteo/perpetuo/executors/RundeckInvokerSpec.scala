@@ -13,9 +13,7 @@ import scala.concurrent.duration._
 class RundeckInvokerSpec extends Test {
 
   private def testWhenResponseIs(statusCode: Int, content: String) = {
-    object RundeckInvokerMock extends RundeckInvoker("HOST", 4242) {
-      override lazy protected val authToken: String = "fake"
-
+    object RundeckInvokerMock extends RundeckInvoker("host-example", 4242, "rundeck") {
       override protected val client: (Request) => Future[Response] = request => {
         request.uri shouldEqual s"/api/$apiVersion/job/deploy/executions?authtoken=$authToken"
         request.contentString shouldEqual """{"argString":"-executionId 42 -productName \"MyBeautifulProject\" -version \"the last version\" -rawTarget \"{\\\"abc\\\": [\\\"def\\\", 42], \\\"ghi\\\": 51.3}\""}"""

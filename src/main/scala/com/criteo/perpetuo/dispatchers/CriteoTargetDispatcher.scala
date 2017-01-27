@@ -18,10 +18,10 @@ object CriteoTargetDispatcher extends {
         ALL -> new DummyInvoker("test invoker")
       )
       case "local" => Map(
-        ALL -> new RundeckInvoker("localhost", 4440)
+        ALL -> new RundeckInvoker("localhost", 4440, "rundeck")
       )
       case env => Map(
-        ALL -> new RundeckInvoker(s"rundeck.central.criteo.$env", 443)
+        ALL -> new RundeckInvoker(s"rundeck.central.criteo.$env", 443, "rundeck")
       )
     },
 

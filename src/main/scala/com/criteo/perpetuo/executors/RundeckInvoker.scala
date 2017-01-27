@@ -2,6 +2,7 @@ package com.criteo.perpetuo.executors
 
 import java.net.InetSocketAddress
 
+import com.criteo.perpetuo.app.AppConfig
 import com.criteo.perpetuo.model.Operation.Operation
 import com.twitter.conversions.time._
 import com.twitter.finagle.builder.ClientBuilder
@@ -9,7 +10,6 @@ import com.twitter.finagle.http.{Fields, _}
 import com.twitter.finagle.service.{Backoff, RetryPolicy}
 import com.twitter.inject.Logging
 import com.twitter.util.{Await, Future => TwitterFuture}
-import com.typesafe.config.ConfigFactory
 import spray.json.DefaultJsonProtocol._
 import spray.json._
 
@@ -19,12 +19,13 @@ import scala.util.Try
 import scala.util.matching.Regex
 
 
-class RundeckInvoker(val host: String, val port: Int, val forceSsl: Boolean = false) extends ExecutorInvoker with Logging {
-  private val config = ConfigFactory.load()
-
+class RundeckInvoker(val host: String,
+                     val port: Int,
+                     val name: String,
+                     val forceSsl: Boolean = false) extends ExecutorInvoker with Logging {
   // how Rundeck is currently configured
   protected val apiVersion = 16
-  lazy protected val authToken: String = config.getString("rundeckAuthToken")
+  protected val authToken: String = AppConfig.under("tokens").get(name)
   protected def jobName(operation: Operation): String = operation.toString
 
   // Rundeck's API
@@ -47,7 +48,7 @@ class RundeckInvoker(val host: String, val port: Int, val forceSsl: Boolean = fa
     .build()
 
 
-  override def toString: String = host
+  override def toString: String = name
 
   override def trigger(operation: Operation, executionId: Long, productName: String, version: String, rawTarget: String, initiator: String): Some[ScalaFuture[String]] = {
     // before version 18 of Rundeck, we can't pass options in a structured way
