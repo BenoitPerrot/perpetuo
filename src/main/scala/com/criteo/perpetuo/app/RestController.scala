@@ -30,6 +30,7 @@ class RestController @Inject()(val execution: Execution)
   extends BaseController {
 
   private val futurePool = FuturePools.unboundedPool("RequestFuturePool")
+  private val dispatcher = TargetDispatcher.fromConfig
 
   private def findDeploymentRequestAndProduct(id: String): Future[Option[(DeploymentRequest, Product)]] = {
     Try(id.toLong).toOption
@@ -55,7 +56,7 @@ class RestController @Inject()(val execution: Execution)
               case e: ParsingException => throw new BadRequestException(e.getMessage)
             }
             .flatMap { deploymentRequest =>
-              val (futureId, asyncStart) = execution.startTransaction(TargetDispatcher.fromConfig, deploymentRequest)
+              val (futureId, asyncStart) = execution.startTransaction(dispatcher, deploymentRequest)
               asyncStart.onFailure({ case e => logger.error("Transaction failed to start: " + e.getMessage + "\n" + e.getStackTrace.mkString("\n")) })
               futureId
             }
