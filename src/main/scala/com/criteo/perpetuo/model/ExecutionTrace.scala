@@ -4,5 +4,5 @@ import ExecutionState.ExecutionState
 
 case class ExecutionTrace(id: Option[Long],
                           operationTraceId: Long,
-                          uuid: Option[String] = None,
+                          logHref: Option[String] = None,
                           state: ExecutionState = ExecutionState.pending)

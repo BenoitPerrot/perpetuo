@@ -59,10 +59,10 @@ class Execution @Inject()(val dbBinding: DbBinding) extends Logging {
               rawTarget,
               deploymentRequest.creator
             ).map(
-              // if that answers a UUID, update the trace with it
-              _.flatMap(uuid => dbBinding.updateExecutionTrace(execId, uuid).map(_ => s"`$uuid`"))
+              // if that answers a log href, update the trace with it
+              _.flatMap(logHref => dbBinding.updateExecutionTrace(execId, logHref).map(_ => s"`$logHref`"))
             ).getOrElse(
-              Future.successful("with unknown ID")
+              Future.successful("with unknown log href")
             ).map(logExecution(_, execId, executor, rawTarget))
         }.map(_.length)
       )

@@ -54,10 +54,10 @@ trait ExecutionTraceBinder extends TableBinder {
     dbContext.db.run(query.result)
   }
 
-  def updateExecutionTrace(id: Long, uuid: String, state: ExecutionState): Future[Unit] =
-    runUpdate(id, _.map(r => (r.logHref, r.state)).update((Some(uuid), state)))
-  def updateExecutionTrace(id: Long, uuid: String): Future[Unit] =
-    runUpdate(id, _.map(_.logHref).update(Some(uuid)))
+  def updateExecutionTrace(id: Long, logHref: String, state: ExecutionState): Future[Unit] =
+    runUpdate(id, _.map(r => (r.logHref, r.state)).update((Some(logHref), state)))
+  def updateExecutionTrace(id: Long, logHref: String): Future[Unit] =
+    runUpdate(id, _.map(_.logHref).update(Some(logHref)))
   def updateExecutionTrace(id: Long, state: ExecutionState): Future[Unit] =
     runUpdate(id, _.map(_.state).update(state))
 

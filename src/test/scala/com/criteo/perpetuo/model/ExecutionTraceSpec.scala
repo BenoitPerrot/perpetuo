@@ -40,7 +40,7 @@ class ExecutionTraceSpec extends FunSuite with ScalaFutures
         assert(execTraces == Seq(execTrace.get))
         assert(execTrace.get.id.get == execIds.head)
         assert(execTrace.get.operationTraceId == deployId)
-        assert(execTrace.get.uuid.isEmpty)
+        assert(execTrace.get.logHref.isEmpty)
         assert(execTrace.get.state == ExecutionState.pending)
       },
       1.second

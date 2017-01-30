@@ -31,7 +31,7 @@ class ExecutionSpec extends Test with TestDb {
     }
   }
 
-  object DummyInvokerWithUuid extends DummyInvoker("DummyWithUUID") {
+  object DummyInvokerWithLogHref extends DummyInvoker("DummyWithLogHref") {
     override def trigger(operation: Operation, executionId: Long, productName: String, version: String, rawTarget: String, initiator: String): Option[Future[String]] = {
       assert(super.trigger(operation, executionId, productName, version, rawTarget, initiator).isEmpty)
       Some(Future.successful(s"#${dummyCounter.next}"))
@@ -51,7 +51,7 @@ class ExecutionSpec extends Test with TestDb {
       id.flatMap(execution.dbBinding.findExecutionTracesByDeploymentRequest).map { traces =>
         val executions = traces.map(trace => {
           assert(trace.id.isDefined)
-          (trace.id.get, trace.uuid)
+          (trace.id.get, trace.logHref)
         })
         executions.length shouldEqual count
         executions
@@ -87,16 +87,16 @@ class ExecutionSpec extends Test with TestDb {
 
 
   "A trivial execution" should {
-    "trigger a job with no ID when there is no UUID provided" in {
+    "trigger a job with no log href when there is no log href provided" in {
       Await.result(
         getExecutions(DummyTargetDispatcher).map(_ shouldEqual Seq((1, None))),
         1.second
       )
     }
 
-    "trigger a job with an ID when a UUID is provided as a Future" in {
+    "trigger a job with a log href when a log href is provided as a Future" in {
       Await.result(
-        getExecutions(SingleTargetDispatcher(DummyInvokerWithUuid)).map(_ shouldEqual Seq((2, Some("#1")))),
+        getExecutions(SingleTargetDispatcher(DummyInvokerWithLogHref)).map(_ shouldEqual Seq((2, Some("#1")))),
         1.second
       )
     }

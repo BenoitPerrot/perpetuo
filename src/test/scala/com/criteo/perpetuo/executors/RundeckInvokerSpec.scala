@@ -22,7 +22,7 @@ class RundeckInvokerSpec extends Test {
         Future.value(resp)
       }
     }
-    val uuid = RundeckInvokerMock.trigger(
+    val logHref = RundeckInvokerMock.trigger(
       Operation.deploy,
       42,
       "MyBeautifulProject",
@@ -30,8 +30,8 @@ class RundeckInvokerSpec extends Test {
       """{"abc": ["def", 42], "ghi": 51.3}""",
       "guy next door"
     )
-    uuid shouldBe defined
-    uuid.get
+    logHref shouldBe defined
+    logHref.get
   }
 
   "Rundeck's API" should {

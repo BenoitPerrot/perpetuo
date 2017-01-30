@@ -12,22 +12,22 @@ abstract class ExecutorInvoker {
 
   def trigger(operation: Operation, executionId: Long, productName: String, version: String, rawTarget: String, initiator: String): Option[Future[String]]
 
-  def getExecutionDetailsUrlIfApplicable(uuid: String): Option[String] = None
+  def getExecutionDetailsUrlIfApplicable(logHref: String): Option[String] = None
 }
 
 
 object ExecutorInvoker {
   protected val registeredInvokers: mutable.Set[ExecutorInvoker] = mutable.Set()
 
-  def getExecutionDetailsUrl(uuid: String): String = {
-    if (uuid.contains("://"))
-      uuid
+  def getExecutionDetailsUrl(logHref: String): String = {
+    if (logHref.contains("://"))
+      logHref
     else {
-      val urls = ExecutorInvoker.registeredInvokers.flatMap(_.getExecutionDetailsUrlIfApplicable(uuid))
+      val urls = ExecutorInvoker.registeredInvokers.flatMap(_.getExecutionDetailsUrlIfApplicable(logHref))
       if (urls.size != 1)
         throw new Exception(
-          if (urls.isEmpty) s"Could not interpret UUID `$uuid`"
-          else s"Multiple interpretations for `$uuid`: ${urls.mkString(", ")}"
+          if (urls.isEmpty) s"Could not interpret log href `$logHref`"
+          else s"Multiple interpretations for `$logHref`: ${urls.mkString(", ")}"
         )
       urls.head
     }

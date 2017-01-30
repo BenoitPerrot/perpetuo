@@ -67,7 +67,7 @@ class RundeckInvoker(val host: String,
     )
     req.write(body)
 
-    // trigger the job and return a future to the execution's UUID
+    // trigger the job and return a future to the execution's log href
     Some(ScalaFuture {
       // convert a twitter Future to a scala one
       val response = Await.result(client(req), totalTimeout + 1.second)
@@ -75,7 +75,7 @@ class RundeckInvoker(val host: String,
       val content = response.contentString
       response.status match {
         case Status.Successful(_) =>
-          // return the permalink to this job run as the execution's UUID
+          // return the permalink to this job run as the execution's log href
           logger.warn(content)
           content.parseJson.asJsObject.fields("permalink").asInstanceOf[JsString].value
         case s =>
