@@ -10,7 +10,7 @@ case class DeploymentRequest(id: Option[Long],
                              productId: Int,
                              version: String,
                              target: String,
-                             reason: String, // Not an `Option` because it's easier to consider that no comment <=> empty
+                             comment: String, // Not an `Option` because it's easier to consider that no comment <=> empty
                              creator: String,
                              creationDate: java.sql.Timestamp) {
 
@@ -40,7 +40,7 @@ case class DeploymentRequest(id: Option[Long],
       .filterNot(method => Modifier.isPrivate(method.getModifiers))
       .flatMap(method =>
         (method.getName, method.invoke(this)) match {
-          case ("reason", "") => None
+          case ("comment", "") => None
           case ("productId", _) => Some("productName" -> product.name)
           case ("target", json: String) => Some("target" -> RawJson(json))
           case (name, value) => Some(name -> value)

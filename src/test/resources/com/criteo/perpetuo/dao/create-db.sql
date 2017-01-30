@@ -13,7 +13,7 @@ CREATE TABLE "deployment_request" (
   "product_id"    INTEGER       NOT NULL,
   "version"       NCHAR(64)     NOT NULL,
   "target"        NVARCHAR(MAX) NOT NULL,
-  "reason"        NVARCHAR(256) NOT NULL,
+  "comment"       NVARCHAR(256) NOT NULL,
   "creator"       NCHAR(64)     NOT NULL,
   "creation_date" DATETIME      NOT NULL
 )

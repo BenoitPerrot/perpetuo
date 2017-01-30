@@ -21,11 +21,11 @@ trait DeploymentRequestBinder extends TableBinder {
     def target = column[String]("target", O.SqlType("nvarchar(max)"))
 
     // The details
-    def reason = column[String]("reason", O.SqlType("nvarchar(256)"))
+    def comment = column[String]("comment", O.SqlType("nvarchar(256)"))
     def creator = column[String]("creator", O.SqlType("nchar(64)"))
     def creationDate = column[java.sql.Timestamp]("creation_date")
 
-    def * = (id.?, productId, version, target, reason, creator, creationDate) <> (DeploymentRequest.tupled, DeploymentRequest.unapply)
+    def * = (id.?, productId, version, target, comment, creator, creationDate) <> (DeploymentRequest.tupled, DeploymentRequest.unapply)
   }
 
   val deploymentRequestQuery = TableQuery[DeploymentRequestTable]

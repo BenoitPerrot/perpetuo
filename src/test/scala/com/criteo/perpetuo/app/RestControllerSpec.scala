@@ -42,7 +42,7 @@ class RestControllerSpec extends FeatureTest with TestDb {
     }
   })
 
-  private def requestDeployment(productName: String, version: String, target: JsValue, reason: Option[String], expectsMessage: Option[String] = None) = {
+  private def requestDeployment(productName: String, version: String, target: JsValue, comment: Option[String], expectsMessage: Option[String] = None) = {
     val ans = server.httpPost(
       path = "/api/deployment-requests",
       andExpect = if (expectsMessage.isDefined) BadRequest else Created,
@@ -51,7 +51,7 @@ class RestControllerSpec extends FeatureTest with TestDb {
           "productName" -> JsString(productName),
           "version" -> JsString(version),
           "target" -> target
-        ) ++ (if (reason.isDefined) Map("reason" -> JsString(reason.get)) else Map())
+        ) ++ (if (comment.isDefined) Map("comment" -> JsString(comment.get)) else Map())
       ).compactPrint
     ).contentString
     ans should include regex expectsMessage.getOrElse(""""id":\d+""")
@@ -126,7 +126,7 @@ class RestControllerSpec extends FeatureTest with TestDb {
         "productName" -> JsString(productName),
         "version" -> JsString("v2097"),
         "target" -> JsString("to everywhere"),
-        "reason" -> JsString("hello world"),
+        "comment" -> JsString("hello world"),
         "creator" -> JsString("anonymous"),
         "creationDate" -> JsNumber(creationDate)
       )
@@ -137,8 +137,8 @@ class RestControllerSpec extends FeatureTest with TestDb {
       andExpect = Ok
     ).contentString.parseJson.asJsObject.fields
 
-    "return 200 and a JSON without `reason` if none or an empty one was provided" in {
-      values3 should not contain key("reason")
+    "return 200 and a JSON without `comment` if none or an empty one was provided" in {
+      values3 should not contain key("comment")
     }
 
     "return 200 and a JSON with the same target expression as provided" in {

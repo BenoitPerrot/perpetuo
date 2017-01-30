@@ -26,7 +26,7 @@ object DeploymentRequestParser {
 
         productRetriever(readStr("productName")).map { product =>
           val record = DeploymentRequest(None,
-            product.id.get, readStr("version"), targetExpr.compactPrint, readStr("reason", Some("")),
+            product.id.get, readStr("version"), targetExpr.compactPrint, readStr("comment", Some("")),
             "anonymous", new Timestamp(System.currentTimeMillis))
           record.parsedTarget // validate the target
           record
