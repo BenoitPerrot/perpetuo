@@ -1,7 +1,6 @@
 package com.criteo.perpetuo.app
 
 import com.criteo.perpetuo.TestDb
-import com.criteo.perpetuo.dao.{DbBinding, ProductBinder}
 import com.criteo.perpetuo.model.Product
 import com.twitter.finagle.http.Status.{BadRequest, Created, NotFound, Ok}
 import com.twitter.finagle.http.{Request, Response}
@@ -9,6 +8,7 @@ import com.twitter.finatra.http.HttpServer
 import com.twitter.finatra.http.filters.{CommonFilters, LoggingMDCFilter, TraceIdMDCFilter}
 import com.twitter.finatra.http.routing.HttpRouter
 import com.twitter.finatra.http.test.EmbeddedHttpServer
+import com.twitter.finatra.json.modules.FinatraJacksonModule
 import com.twitter.inject.server.FeatureTest
 import spray.json.DefaultJsonProtocol._
 import spray.json.{JsArray, JsString, _}
@@ -26,7 +26,7 @@ class RestControllerSpec extends FeatureTest with TestDb {
 
   val server = new EmbeddedHttpServer(new HttpServer {
 
-    override protected def jacksonModule = CustomServerModules.jackson
+    override protected def jacksonModule: FinatraJacksonModule = CustomServerModules.jackson
 
     override def modules = Seq(
       dbTestModule

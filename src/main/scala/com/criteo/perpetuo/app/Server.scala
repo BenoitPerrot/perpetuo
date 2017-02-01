@@ -4,6 +4,7 @@ import com.twitter.finagle.http.{Request, Response}
 import com.twitter.finatra.http.HttpServer
 import com.twitter.finatra.http.filters.{CommonFilters, LoggingMDCFilter, TraceIdMDCFilter}
 import com.twitter.finatra.http.routing.HttpRouter
+import com.twitter.finatra.json.modules.FinatraJacksonModule
 import com.twitter.finatra.logging.modules.Slf4jBridgeModule
 
 
@@ -16,7 +17,7 @@ object CustomServerModules {
   */
 class Server extends HttpServer {
 
-  override protected def jacksonModule = CustomServerModules.jackson
+  override protected def jacksonModule: FinatraJacksonModule = CustomServerModules.jackson
 
   override def defaultFinatraHttpPort: String = s":${AppConfig.get[Int]("http.port")}"
 
