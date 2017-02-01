@@ -47,17 +47,23 @@ class RestControllerSpec extends FeatureTest with TestDb {
     expectsMessage.foreach(msg => ans shouldEqual JsObject("errors" -> JsArray(JsString(msg))).compactPrint)
   }
 
-  private def requestDeployment(productName: String, version: String, target: JsValue, comment: Option[String], expectsMessage: Option[String] = None) = {
-    val ans = server.httpPost(
-      path = "/api/deployment-requests",
-      andExpect = if (expectsMessage.isDefined) BadRequest else Created,
-      postBody = JsObject(
+  private def requestDeployment(productName: String, version: String, target: JsValue, comment: Option[String], expectsMessage: Option[String] = None): JsObject =
+    requestDeployment(
+      JsObject(
         Map(
           "productName" -> JsString(productName),
           "version" -> JsString(version),
           "target" -> target
         ) ++ (if (comment.isDefined) Map("comment" -> JsString(comment.get)) else Map())
-      ).compactPrint
+      ).compactPrint,
+      expectsMessage
+    )
+
+  private def requestDeployment(body: String, expectsMessage: Option[String]): JsObject = {
+    val ans = server.httpPost(
+      path = "/api/deployment-requests",
+      andExpect = if (expectsMessage.isDefined) BadRequest else Created,
+      postBody = body
     ).contentString
     ans should include regex expectsMessage.getOrElse(""""id":\d+""")
     ans.parseJson.asJsObject
@@ -89,6 +95,12 @@ class RestControllerSpec extends FeatureTest with TestDb {
     "return 201 when creating a DeploymentRequest" in {
       requestDeployment("my product", "v21", "to everywhere".toJson, Some("my comment"))
       requestDeployment("my other product", "buggy", "nowhere".toJson, None)
+    }
+
+    "properly reject bad input" in {
+      requestDeployment("{", Some("Unexpected end-of-input at input"))
+      requestDeployment("""{"productName": "abc"}""", Some("Expected to find `target`"))
+      requestDeployment("""{"productName": "abc", "target": "*", "version": "2"}""", Some("Product `abc` could not be found"))
     }
 
     "handle a complex target expression" in {

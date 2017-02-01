@@ -73,21 +73,28 @@ class RestController @Inject()(val execution: Execution)
     r: Request =>
       futurePool {
         Await.result(
-          parse(r.contentString, productName => { execution.dbBinding.findProductByName(productName).map {
-            _.getOrElse { throw new BadRequestException(s"Product $productName could not be found") }
-          } })
-            .recover {
-              case e: ParsingException => throw new BadRequestException(e.getMessage)
+          {
+            val futureDepReq = try {
+              parse(r.contentString, productName =>
+                execution.dbBinding.findProductByName(productName).map(
+                  _.getOrElse { throw BadRequestException(s"Product `$productName` could not be found") }
+                )
+              )
             }
-            .flatMap { deploymentRequest =>
-              val (futureId, asyncStart) = execution.startTransaction(dispatcher, deploymentRequest)
-              asyncStart.onFailure({ case e => logger.error("Transaction failed to start: " + e.getMessage + "\n" + e.getStackTrace.mkString("\n")) })
-              futureId
+            catch {
+              case e: ParsingException => throw BadRequestException(e.getMessage)
             }
-            .map { id =>
-              response.created.json(Map("id" -> id))
-            },
-          2.seconds)
+
+            futureDepReq
+              .flatMap { deploymentRequest =>
+                val (futureId, asyncStart) = execution.startTransaction(dispatcher, deploymentRequest)
+                asyncStart.onFailure({ case e => logger.error("Transaction failed to start: " + e.getMessage + "\n" + e.getStackTrace.mkString("\n")) })
+                futureId
+              }
+              .map { id => response.created.json(Map("id" -> id)) }
+          },
+          2.seconds
+        )
       }
   }
 
