@@ -26,6 +26,10 @@ trait ProductBinder extends TableBinder {
     dbContext.db.run((productQuery returning productQuery.map(_.id)) += p)
   }
 
+  def getProducts: Future[Seq[Product]] = {
+    dbContext.db.run(productQuery.result)
+  }
+
   def findProductById(id: Int): Future[Option[Product]] = {
     dbContext.db.run(productQuery.filter(_.id === id).result).map(_.headOption)
   }

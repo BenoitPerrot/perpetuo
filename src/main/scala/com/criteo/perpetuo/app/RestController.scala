@@ -1,5 +1,6 @@
 package com.criteo.perpetuo.app
 
+import java.sql.SQLException
 import javax.inject.Inject
 
 import com.criteo.perpetuo.dispatchers.{Execution, TargetDispatcher}
@@ -23,6 +24,9 @@ import scala.util.Try
 case class DeploymentRequestGet(@RouteParam @NotEmpty id: String)
 
 
+case class ProductPost(@NotEmpty name: String)
+
+
 /**
   * Controller that handles deployment requests as a REST API.
   */
@@ -36,6 +40,25 @@ class RestController @Inject()(val execution: Execution)
     Try(id.toLong).toOption
       .map(id => execution.dbBinding.findDeploymentRequestByIdAndProduct(id))
       .getOrElse(Future(None))
+  }
+
+  get("/api/products") {
+    _: Request =>
+      futurePool {
+        Await.result(execution.dbBinding.getProducts, 2.seconds).map(_.name)
+      }
+  }
+
+  post("/api/products") {
+    r: ProductPost =>
+      futurePool {
+        Await.result(execution.dbBinding.insert(Product(None, r.name)).recover {
+          // todo: check the error when with SQL Server
+          case e: SQLException if e.getMessage.startsWith("Unique index") =>
+            throw BadRequestException(s"Name `${r.name}` is already used")
+        }, 2.seconds)
+        response.created.nothing
+      }
   }
 
   get("/api/deployment-requests/:id") {

@@ -1,7 +1,6 @@
 package com.criteo.perpetuo.app
 
 import com.criteo.perpetuo.TestDb
-import com.criteo.perpetuo.model.Product
 import com.twitter.finagle.http.Status.{BadRequest, Created, NotFound, Ok}
 import com.twitter.finagle.http.{Request, Response}
 import com.twitter.finatra.http.HttpServer
@@ -12,9 +11,6 @@ import com.twitter.finatra.json.modules.FinatraJacksonModule
 import com.twitter.inject.server.FeatureTest
 import spray.json.DefaultJsonProtocol._
 import spray.json.{JsArray, JsString, _}
-
-import scala.concurrent.Await
-import scala.concurrent.duration._
 
 
 /**
@@ -42,6 +38,15 @@ class RestControllerSpec extends FeatureTest with TestDb {
     }
   })
 
+  private def product(name: String, expectsMessage: Option[String] = None) = {
+    val ans = server.httpPost(
+      path = s"/api/products",
+      andExpect = if (expectsMessage.isDefined) BadRequest else Created,
+      postBody = JsObject("name" -> JsString(name)).compactPrint
+    ).contentString
+    expectsMessage.foreach(msg => ans shouldEqual JsObject("errors" -> JsArray(JsString(msg))).compactPrint)
+  }
+
   private def requestDeployment(productName: String, version: String, target: JsValue, comment: Option[String], expectsMessage: Option[String] = None) = {
     val ans = server.httpPost(
       path = "/api/deployment-requests",
@@ -58,34 +63,49 @@ class RestControllerSpec extends FeatureTest with TestDb {
     ans.parseJson.asJsObject
   }
 
-  def insertProduct(name: String): String = {
-    Await.result(controller.execution.dbBinding.insert(Product(None, name)), 1.second)
-    name
+  "The Product's entry-points" should {
+
+    "return 201 when creating a Product" in {
+      product("my product")
+      product("my other product")
+    }
+
+    "properly reject already used names" in {
+      product("my product", Some("Name `my product` is already used"))
+    }
+
+    "return the list of all known product names" in {
+      val products = server.httpGet(
+        path = "/api/products",
+        andExpect = Ok
+      ).contentString.parseJson.asInstanceOf[JsArray].elements.map(_.asInstanceOf[JsString].value)
+      products should contain theSameElementsAs Seq("my product", "my other product")
+    }
+
   }
 
   "The DeploymentRequest's POST entry-point" should {
 
     "return 201 when creating a DeploymentRequest" in {
-      requestDeployment(insertProduct("my product"), "v21", "to everywhere".toJson, Some("my comment"))
-      requestDeployment(insertProduct("my other product"), "buggy", "nowhere".toJson, None)
+      requestDeployment("my product", "v21", "to everywhere".toJson, Some("my comment"))
+      requestDeployment("my other product", "buggy", "nowhere".toJson, None)
     }
 
-    "can handle a complex target expression" in {
-      requestDeployment(insertProduct("my 3rd product"), "42", Seq("here", "and", "there").toJson, Some(""))
-      requestDeployment(insertProduct("my 4th product"), "42", Map("select" -> "here").toJson, Some(""))
-      requestDeployment(insertProduct("my 5th product"), "42", Map("select" -> Seq("here", "and", "there")).toJson, Some(""))
-      requestDeployment(insertProduct("my 6th product"), "42", Seq(Map("select" -> Seq("here", "and", "there"))).toJson, Some(""))
+    "handle a complex target expression" in {
+      requestDeployment("my product", "42", Seq("here", "and", "there").toJson, Some(""))
+      requestDeployment("my product", "42", Map("select" -> "here").toJson, Some(""))
+      requestDeployment("my product", "42", Map("select" -> Seq("here", "and", "there")).toJson, Some(""))
+      requestDeployment("my product", "42", Seq(Map("select" -> Seq("here", "and", "there"))).toJson, Some(""))
     }
 
     "properly reject bad targets" in {
-      val productName = insertProduct("a")
-      requestDeployment(productName, "b", JsArray(), None, Some("non-empty JSON array or object"))
-      requestDeployment(productName, "b", JsObject(), None, Some("must contain a field `select`"))
-      requestDeployment(productName, "b", 60.toJson, None, Some("JSON array or object"))
-      requestDeployment(productName, "b", Seq(42).toJson, None, Some("JSON object or string"))
-      requestDeployment(productName, "b", Seq(JsObject()).toJson, None, Some("must contain a field `select`"))
-      requestDeployment(productName, "b", Seq(Map("select" -> 42)).toJson, None, Some("non-empty JSON string or array"))
-      requestDeployment(productName, "b", Seq(Map("select" -> Seq(42))).toJson, None, Some("a JSON string in"))
+      requestDeployment("my product", "b", JsArray(), None, Some("non-empty JSON array or object"))
+      requestDeployment("my product", "b", JsObject(), None, Some("must contain a field `select`"))
+      requestDeployment("my product", "b", 60.toJson, None, Some("JSON array or object"))
+      requestDeployment("my product", "b", Seq(42).toJson, None, Some("JSON object or string"))
+      requestDeployment("my product", "b", Seq(JsObject()).toJson, None, Some("must contain a field `select`"))
+      requestDeployment("my product", "b", Seq(Map("select" -> 42)).toJson, None, Some("non-empty JSON string or array"))
+      requestDeployment("my product", "b", Seq(Map("select" -> Seq(42))).toJson, None, Some("a JSON string in"))
     }
 
   }
@@ -108,8 +128,7 @@ class RestControllerSpec extends FeatureTest with TestDb {
     }
 
     "return 200 and a JSON with all necessary info when accessing an existing DeploymentRequest" in {
-      val productName = insertProduct("some product")
-      val o = requestDeployment(productName, "v2097", "to everywhere".toJson, Some("hello world"))
+      val o = requestDeployment("my product", "v2097", "to everywhere".toJson, Some("hello world"))
       val i = o.fields("id").asInstanceOf[JsNumber].value.toInt
 
       val values1 = server.httpGet(
@@ -123,7 +142,7 @@ class RestControllerSpec extends FeatureTest with TestDb {
 
       values1 shouldEqual Map(
         "id" -> JsNumber(i),
-        "productName" -> JsString(productName),
+        "productName" -> JsString("my product"),
         "version" -> JsString("v2097"),
         "target" -> JsString("to everywhere"),
         "comment" -> JsString("hello world"),
