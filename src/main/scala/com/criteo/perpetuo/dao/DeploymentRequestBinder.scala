@@ -1,6 +1,6 @@
 package com.criteo.perpetuo.dao
 
-import com.criteo.perpetuo.model.{DeploymentRequest, Product}
+import com.criteo.perpetuo.model.{DeploymentRequest, DeploymentRequestAndProduct}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
@@ -38,7 +38,8 @@ trait DeploymentRequestBinder extends TableBinder {
     dbContext.db.run(deploymentRequestQuery.filter(_.id === id).result).map(_.headOption)
   }
 
-  def findDeploymentRequestByIdAndProduct(id: Long): Future[Option[(DeploymentRequest, Product)]] = {
-    dbContext.db.run((deploymentRequestQuery join productQuery on (_.productId === _.id) filter (_._1.id === id)).result).map(_.headOption)
+  def findDeploymentRequestByIdAndProduct(id: Long): Future[Option[DeploymentRequestAndProduct]] = {
+    dbContext.db.run((deploymentRequestQuery join productQuery on (_.productId === _.id) filter (_._1.id === id)).result)
+      .map(_.headOption.map { case (req, prod) => new DeploymentRequestAndProduct(req, prod) })
   }
 }

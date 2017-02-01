@@ -5,7 +5,8 @@ import javax.inject.Inject
 
 import com.criteo.perpetuo.dispatchers.{Execution, TargetDispatcher}
 import com.criteo.perpetuo.model.DeploymentRequestParser.parse
-import com.criteo.perpetuo.model.{DeploymentRequest, Product}
+import com.criteo.perpetuo.model.DeploymentRequestAndProduct
+import com.criteo.perpetuo.model.Product
 import com.twitter.finagle.http.Request
 import com.twitter.finatra.http.exceptions.BadRequestException
 import com.twitter.finatra.http.{Controller => BaseController}
@@ -36,7 +37,7 @@ class RestController @Inject()(val execution: Execution)
   private val futurePool = FuturePools.unboundedPool("RequestFuturePool")
   private val dispatcher = TargetDispatcher.fromConfig
 
-  private def findDeploymentRequestAndProduct(id: String): Future[Option[(DeploymentRequest, Product)]] = {
+  private def findDeploymentRequestAndProduct(id: String): Future[Option[DeploymentRequestAndProduct]] = {
     Try(id.toLong).toOption
       .map(id => execution.dbBinding.findDeploymentRequestByIdAndProduct(id))
       .getOrElse(Future(None))
@@ -64,7 +65,7 @@ class RestController @Inject()(val execution: Execution)
   get("/api/deployment-requests/:id") {
     r: DeploymentRequestGet =>
       futurePool {
-        Await.result(findDeploymentRequestAndProduct(r.id), 2.seconds).map(x => x._1.toJsonReadyMap(x._2))
+        Await.result(findDeploymentRequestAndProduct(r.id), 2.seconds).map(_.toJsonReadyMap)
       }
   }
 
