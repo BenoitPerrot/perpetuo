@@ -25,7 +25,7 @@ object CriteoTargetDispatcher extends {
       )
     },
 
-    getParents = (_) => Seq.empty
+    getParents = (_) => Seq(ALL)
 
   )
 )
