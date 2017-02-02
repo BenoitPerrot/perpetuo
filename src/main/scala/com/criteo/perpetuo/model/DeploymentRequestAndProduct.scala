@@ -4,9 +4,9 @@ import java.lang.reflect.Modifier
 
 import com.criteo.perpetuo.app.RawJson
 
-class DeploymentRequestAndProduct(deploymentRequest: DeploymentRequest, val product: Product) {
 
-  val id: Some[Long] = Some(deploymentRequest.id.get)
+class DeploymentRequestAndProduct(deploymentRequest: DeploymentRequest, val product: Product) {
+  val id: Long = deploymentRequest.id.get
   val version: String = deploymentRequest.version
   val target: String = deploymentRequest.target
   val comment: String = deploymentRequest.comment
