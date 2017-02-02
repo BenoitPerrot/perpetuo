@@ -1,6 +1,9 @@
 package com.criteo.perpetuo.app
 
+import java.sql.Timestamp
+
 import com.criteo.perpetuo.TestDb
+import com.criteo.perpetuo.model.DeploymentRequest
 import com.twitter.finagle.http.Status.{BadRequest, Created, NotFound, Ok}
 import com.twitter.finagle.http.{Request, Response}
 import com.twitter.finatra.http.HttpServer
@@ -11,6 +14,9 @@ import com.twitter.finatra.json.modules.FinatraJacksonModule
 import com.twitter.inject.server.FeatureTest
 import spray.json.DefaultJsonProtocol._
 import spray.json.{JsArray, JsString, _}
+
+import scala.concurrent.Await
+import scala.concurrent.duration._
 
 
 /**
@@ -181,6 +187,40 @@ class RestControllerSpec extends FeatureTest with TestDb {
           el.asInstanceOf[JsString].value
         }
       ) shouldEqual Vector("here", "and", "there")
+    }
+
+  }
+
+  "The ExecutionTrace's entry-points" should {
+
+    "return 404 when trying to access a non-existing DeploymentRequest" in {
+      server.httpGet(
+        path = "/api/execution-traces/by-deployment-request/4242",
+        andExpect = NotFound
+      )
+    }
+
+    "not fail when the existing DeploymentRequest doesn't have execution traces yet" in {
+      val newReq = DeploymentRequest(None, 1, "v", "t", "c", "c", new Timestamp(System.currentTimeMillis))
+      val depReqId = Await.result(controller.execution.dbBinding.insert(newReq), 1.second)
+      val traces = server.httpGet(
+        path = s"/api/execution-traces/by-deployment-request/$depReqId",
+        andExpect = Ok
+      ).contentString.parseJson.asInstanceOf[JsArray].elements
+      traces shouldBe empty
+    }
+
+    "return a list of executions when trying to access an existing DeploymentRequest" in {
+      val traces = server.httpGet(
+        path = "/api/execution-traces/by-deployment-request/1",
+        andExpect = Ok
+      ).contentString.parseJson.asInstanceOf[JsArray].elements
+      traces.length shouldEqual 1
+      traces.head.asJsObject.fields shouldEqual Map(
+        "id" -> JsNumber(1),
+        "logHref" -> JsNull,
+        "state" -> JsString("pending")
+      )
     }
 
   }

@@ -96,4 +96,26 @@ class RestController @Inject()(val execution: Execution)
       }
   }
 
+  get("/api/execution-traces/by-deployment-request/:id")(
+    withLongId(id =>
+      execution.dbBinding.findExecutionTracesByDeploymentRequest(id).flatMap { traces =>
+        if (traces.isEmpty)
+          // if there is a deployment request with that ID, return the empty list, otherwise a 404
+          execution.dbBinding.findDeploymentRequestById(id).map(_.map(_ => traces))
+        else
+          Future.successful(
+            Some(
+              traces.map(trace =>
+                Map(
+                  "id" -> trace.id.get,
+                  "logHref" -> trace.logHref,
+                  "state" -> trace.state.toString
+                )
+              )
+            )
+          )
+      }
+    )
+  )
+
 }
