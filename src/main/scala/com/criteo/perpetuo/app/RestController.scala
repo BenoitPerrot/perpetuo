@@ -5,7 +5,6 @@ import javax.inject.Inject
 
 import com.criteo.perpetuo.dispatchers.{Execution, TargetDispatcher}
 import com.criteo.perpetuo.model.DeploymentRequestParser.parse
-import com.criteo.perpetuo.model.DeploymentRequestAndProduct
 import com.criteo.perpetuo.model.Product
 import com.twitter.finagle.http.Request
 import com.twitter.finatra.http.exceptions.BadRequestException
@@ -22,10 +21,10 @@ import scala.util.Try
 
 
 @JsonIgnoreBody
-case class DeploymentRequestGet(@RouteParam @NotEmpty id: String)
+private case class GetWithId(@RouteParam @NotEmpty id: String)
 
 
-case class ProductPost(@NotEmpty name: String)
+private case class ProductPost(@NotEmpty name: String)
 
 
 /**
@@ -37,11 +36,11 @@ class RestController @Inject()(val execution: Execution)
   private val futurePool = FuturePools.unboundedPool("RequestFuturePool")
   private val dispatcher = TargetDispatcher.fromConfig
 
-  private def findDeploymentRequestAndProduct(id: String): Future[Option[DeploymentRequestAndProduct]] = {
-    Try(id.toLong).toOption
-      .map(id => execution.dbBinding.findDeploymentRequestByIdAndProduct(id))
-      .getOrElse(Future(None))
-  }
+  private def withLongId[T](view: Long => Future[Option[T]]): GetWithId => com.twitter.util.Future[Option[T]] =
+    request => futurePool {
+      Try(request.id.toLong).toOption.map(view).flatMap(Await.result(_, 2.seconds))
+    }
+
 
   get("/api/products") {
     _: Request =>
@@ -62,12 +61,11 @@ class RestController @Inject()(val execution: Execution)
       }
   }
 
-  get("/api/deployment-requests/:id") {
-    r: DeploymentRequestGet =>
-      futurePool {
-        Await.result(findDeploymentRequestAndProduct(r.id), 2.seconds).map(_.toJsonReadyMap)
-      }
-  }
+  get("/api/deployment-requests/:id")(
+    withLongId(
+      execution.dbBinding.findDeploymentRequestByIdAndProduct(_).map(_.map(_.toJsonReadyMap))
+    )
+  )
 
   post("/api/deployment-requests") {
     r: Request =>
