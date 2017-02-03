@@ -2,8 +2,6 @@ package com.criteo.perpetuo.dao
 
 import javax.inject.{Inject, Singleton}
 
-import com.criteo.perpetuo.app.DbContext
-
 import scala.concurrent.Await
 import scala.concurrent.duration._
 

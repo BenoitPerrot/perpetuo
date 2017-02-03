@@ -4,7 +4,7 @@ import javax.sql.DataSource
 
 import com.criteo.datasource.DataSourceFactoryBuilder
 import com.criteo.ds.prm.{DataSourceProxymitySpecifier, DatasourceIntent}
-import com.criteo.perpetuo.dao.Schema
+import com.criteo.perpetuo.dao.{DbContext, Schema}
 import com.criteo.perpetuo.dao.drivers.UrlBuilders._
 import com.criteo.perpetuo.dao.drivers.{DriverByName, InMemory}
 import com.criteo.sdk.discovery.prmdb.Resource
@@ -14,15 +14,6 @@ import com.zaxxer.hikari.{HikariConfig, HikariDataSource}
 import slick.driver.JdbcDriver
 
 import scala.util.Try
-
-
-class DbContext(val driver: JdbcDriver, dataSource: DataSource) {
-
-  import driver.api._
-
-  lazy val db: driver.backend.DatabaseDef = Database.forDataSource(dataSource)
-}
-
 
 class DbContextModule(val dbConfig: AppConfig) extends TwitterModule {
   val driverName: String = dbConfig.get("driver")

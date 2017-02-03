@@ -1,7 +1,6 @@
 package com.criteo.perpetuo.dao
 
 import com.criteo.perpetuo.TestUtils._
-import com.criteo.perpetuo.app.DbContext
 import com.twitter.inject.Test
 import freeslick.MSSQLServerProfile
 import slick.driver.JdbcDriver
