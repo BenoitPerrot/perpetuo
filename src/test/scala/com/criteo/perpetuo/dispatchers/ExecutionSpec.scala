@@ -4,10 +4,10 @@ import java.sql.Timestamp
 
 import com.criteo.perpetuo.TestDb
 import com.criteo.perpetuo.dao._
-import com.criteo.perpetuo.model.Operation.Operation
-import com.criteo.perpetuo.model.DeploymentRequestParser._
 import com.criteo.perpetuo.executors.{DummyInvoker, ExecutorInvoker}
-import com.criteo.perpetuo.model.{DeploymentRequest, Product}
+import com.criteo.perpetuo.model.DeploymentRequestParser._
+import com.criteo.perpetuo.model.Operation.Operation
+import com.criteo.perpetuo.model.{DeploymentRequestAttrs, Product}
 import com.twitter.inject.Test
 import spray.json.DefaultJsonProtocol._
 import spray.json.{JsObject, _}
@@ -38,17 +38,16 @@ class ExecutionSpec extends Test with TestDb {
     }
   }
 
-  val product = Product(None, "perpetuo-app")
-  val p = Await.result(execution.dbBinding.insert(product), 1.second)
+  private val product: Product = Await.result(execution.dbBinding.insert("perpetuo-app"), 1.second)
 
   private def getExecutions(dispatcher: TargetDispatcher): Future[Seq[(Long, Option[String])]] = {
-    val req = DeploymentRequest(None, p, "v42", """"*"""", "No fear", "c.norris", new Timestamp(123456789))
+    val req = new DeploymentRequestAttrs(product.name, "v42", """"*"""", "No fear", "c.norris", new Timestamp(123456789))
 
-    val (id, asyncStart) = execution.startTransaction(dispatcher, req)
+    val (depReq, asyncStart) = execution.startTransaction(dispatcher, req)
     asyncStart.flatMap { count =>
-      assert(id.isCompleted) // if `asyncStart` has successfully completed, `id` must have completed
+      assert(depReq.isCompleted) // if `asyncStart` has successfully completed, `depReq` must have completed
 
-      id.flatMap(execution.dbBinding.findExecutionTracesByDeploymentRequest).map { traces =>
+      depReq.map(_.id).flatMap(execution.dbBinding.findExecutionTracesByDeploymentRequest).map { traces =>
         val executions = traces.map(trace => {
           assert(trace.id.isDefined)
           (trace.id.get, trace.logHref)
@@ -67,7 +66,7 @@ class ExecutionSpec extends Test with TestDb {
 
   implicit class ComplexDispatchTest(private val target: TargetExpr) {
     private val rawTarget = target.toJson.compactPrint
-    private val request = DeploymentRequest(None, p, "v42", rawTarget, "No fear", "c.norris", new Timestamp(123456789))
+    private val request = new DeploymentRequestAttrs(product.name, "v42", rawTarget, "No fear", "c.norris", new Timestamp(123456789))
 
     private def parse(it: Iterable[(ExecutorInvoker, String)]): Iterable[(ExecutorInvoker, TargetExpr)] =
       it.map { case (exec, raw) => (exec, parseTargetExpression(raw.parseJson)) }

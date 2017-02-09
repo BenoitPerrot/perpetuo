@@ -33,10 +33,10 @@ class OperationTraceSpec extends FunSuite with ScalaFutures
   test("Operation traces can be bound to deployment requests, and retrieved") {
     Await.result(
       for {
-        productId <- insert(Product(None, "perpetuo-app"))
-        requestId <- insert(DeploymentRequest(None, productId, "v42", "*", "No fear", "c.norris", new Timestamp(123456789)))
-        deployId <- addToDeploymentRequest(requestId, Operation.deploy)
-        revertId <- addToDeploymentRequest(requestId, Operation.revert)
+        product <- insert("perpetuo-app")
+        request <- insert(new DeploymentRequestAttrs(product.name, "v42", "*", "No fear", "c.norris", new Timestamp(123456789)))
+        deployId <- addToDeploymentRequest(request.id, Operation.deploy)
+        revertId <- addToDeploymentRequest(request.id, Operation.revert)
         traces <- dbContext.db.run(operationTraceQuery.result)
         deploy <- findOperationTraceById(deployId)
         revert <- findOperationTraceById(revertId)
@@ -45,7 +45,7 @@ class OperationTraceSpec extends FunSuite with ScalaFutures
         assert(traces == Seq(deploy.get, revert.get))
         assert(deploy.get.id.get != revert.get.id.get) // different primary keys
         assert(deploy.get.deploymentRequestId == revert.get.deploymentRequestId) // same foreign key
-        assert(deploy.get.deploymentRequestId == requestId) // pointing to the same DeploymentRequest
+        assert(deploy.get.deploymentRequestId == request.id) // pointing to the same DeploymentRequest
         assert(deploy.get.operation == Operation.deploy) // right operation type
         assert(revert.get.operation == Operation.revert) // right operation type
         assert(deploy.get.operation != revert.get.operation) // different operation types

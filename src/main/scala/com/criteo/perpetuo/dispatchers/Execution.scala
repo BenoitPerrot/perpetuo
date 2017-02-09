@@ -5,7 +5,7 @@ import javax.inject.{Inject, Singleton}
 import com.criteo.perpetuo.dao._
 import com.criteo.perpetuo.executors.ExecutorInvoker
 import com.criteo.perpetuo.model.Operation.Operation
-import com.criteo.perpetuo.model.{DeploymentRequest, Operation}
+import com.criteo.perpetuo.model.{DeploymentRequest, DeploymentRequestAttrs, Operation}
 import com.twitter.inject.Logging
 import spray.json._
 
@@ -18,55 +18,46 @@ class Execution @Inject()(val dbBinding: DbBinding) extends Logging {
 
   import spray.json.DefaultJsonProtocol._
 
-
-  def startTransaction(dispatcher: TargetDispatcher, deploymentRequest: DeploymentRequest): (Future[Long], Future[Int]) = {
-    require(deploymentRequest.id.isEmpty)
-
+  def startTransaction(dispatcher: TargetDispatcher, attrs: DeploymentRequestAttrs): (Future[DeploymentRequest], Future[Int]) = {
     // first, log the user's general intent
-    val id = dbBinding.insert(deploymentRequest)
+    val deploymentRequest = dbBinding.insert(attrs)
 
-    // return futures on the ID and on the number of job runs triggered
-    (id, id.map(deploymentRequest.copyWithId).flatMap(startOperation(dispatcher, _, Operation.deploy)))
+    // return futures on the deployment request and on the number of job runs triggered
+    (deploymentRequest, deploymentRequest.flatMap(startOperation(dispatcher, _, Operation.deploy)))
   }
 
   def startOperation(dispatcher: TargetDispatcher, deploymentRequest: DeploymentRequest, operation: Operation): Future[Int] = {
-    require(deploymentRequest.id.isDefined)
+    // infer dispatching
+    val invocations = dispatch(dispatcher, deploymentRequest.parsedTarget).toSeq
 
-    // TODO: actual data model required
-    dbBinding.findProductById(deploymentRequest.productId).map(_.get).flatMap { product =>
-
-      // infer dispatching
-      val invocations = dispatch(dispatcher, deploymentRequest.parsedTarget).toSeq
-
-      // log the operation intent in the DB
-      dbBinding.addToDeploymentRequest(deploymentRequest.id.get, operation).flatMap(
-        // create as many traces, all at the same time
-        dbBinding.addToOperationTrace(_, invocations.length).map {
-          execIds =>
-            assert(execIds.length == invocations.length)
-            invocations.zip(execIds)
-        }
-      ).flatMap(
-        // and only then, for each execution to do:
-        Future.traverse(_) {
-          case ((executor, rawTarget), execId) =>
-            // log the execution
-            logger.debug(s"Triggering $operation job for execution #$execId of ${deploymentRequest.productId} v. ${deploymentRequest.version})")
-            // trigger the execution
-            executor.trigger(
-              operation, execId,
-              product.name, deploymentRequest.version,
-              rawTarget,
-              deploymentRequest.creator
-            ).map(
-              // if that answers a log href, update the trace with it
-              _.flatMap(logHref => dbBinding.updateExecutionTrace(execId, logHref).map(_ => s"`$logHref`"))
-            ).getOrElse(
-              Future.successful("with unknown log href")
-            ).map(logExecution(_, execId, executor, rawTarget))
-        }.map(_.length)
-      )
-    }
+    // log the operation intent in the DB
+    dbBinding.addToDeploymentRequest(deploymentRequest.id, operation).flatMap(
+      // create as many traces, all at the same time
+      dbBinding.addToOperationTrace(_, invocations.length).map {
+        execIds =>
+          assert(execIds.length == invocations.length)
+          invocations.zip(execIds)
+      }
+    ).flatMap(
+      // and only then, for each execution to do:
+      Future.traverse(_) {
+        case ((executor, rawTarget), execId) =>
+          // log the execution
+          logger.debug(s"Triggering $operation job for execution #$execId of ${deploymentRequest.product.id} v. ${deploymentRequest.version})")
+          // trigger the execution
+          executor.trigger(
+            operation, execId,
+            deploymentRequest.product.name, deploymentRequest.version,
+            rawTarget,
+            deploymentRequest.creator
+          ).map(
+            // if that answers a log href, update the trace with it
+            _.flatMap(logHref => dbBinding.updateExecutionTrace(execId, logHref).map(_ => s"`$logHref`"))
+          ).getOrElse(
+            Future.successful("with unknown log href")
+          ).map(logExecution(_, execId, executor, rawTarget))
+      }.map(_.length)
+    )
   }
 
   def dispatch(dispatcher: TargetDispatcher, target: TargetExpr): Iterable[(ExecutorInvoker, String)] =

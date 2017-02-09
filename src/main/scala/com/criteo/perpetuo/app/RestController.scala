@@ -3,9 +3,9 @@ package com.criteo.perpetuo.app
 import java.sql.SQLException
 import javax.inject.Inject
 
+import com.criteo.perpetuo.dao.UnknownProduct
 import com.criteo.perpetuo.dispatchers.{Execution, TargetDispatcher}
 import com.criteo.perpetuo.model.DeploymentRequestParser.parse
-import com.criteo.perpetuo.model.Product
 import com.twitter.finagle.http.Request
 import com.twitter.finatra.http.exceptions.BadRequestException
 import com.twitter.finatra.http.{Controller => BaseController}
@@ -45,14 +45,14 @@ class RestController @Inject()(val execution: Execution)
   get("/api/products") {
     _: Request =>
       futurePool {
-        Await.result(execution.dbBinding.getProducts, 2.seconds).map(_.name)
+        Await.result(execution.dbBinding.getProductNames, 2.seconds)
       }
   }
 
   post("/api/products") {
     r: ProductPost =>
       futurePool {
-        Await.result(execution.dbBinding.insert(Product(None, r.name)).recover {
+        Await.result(execution.dbBinding.insert(r.name).recover {
           case e: SQLException if e.getMessage.contains("nique index") =>
             // there is no specific exception type if the name is already used but the error message starts with
             // * if H2: Unique index or primary key violation: "ix_product_name ON PUBLIC.""product""(""name"") VALUES ('my product', 1)"
@@ -65,7 +65,7 @@ class RestController @Inject()(val execution: Execution)
 
   get("/api/deployment-requests/:id")(
     withLongId(
-      execution.dbBinding.findDeploymentRequestByIdAndProduct(_).map(_.map(_.toJsonReadyMap))
+      execution.dbBinding.findDeploymentRequestByIdWithProduct(_).map(_.map(_.toJsonReadyMap))
     )
   )
 
@@ -74,24 +74,18 @@ class RestController @Inject()(val execution: Execution)
       futurePool {
         Await.result(
           {
-            val futureDepReq = try {
-              parse(r.contentString, productName =>
-                execution.dbBinding.findProductByName(productName).map(
-                  _.getOrElse { throw BadRequestException(s"Product `$productName` could not be found") }
-                )
-              )
+            val attrs = try {
+              parse(r.contentString)
             }
             catch {
               case e: ParsingException => throw BadRequestException(e.getMessage)
             }
 
+            val (futureDepReq, asyncStart) = execution.startTransaction(dispatcher, attrs)
+            asyncStart.onFailure { case e => logger.error("Transaction failed to start: " + e.getMessage + "\n" + e.getStackTrace.mkString("\n")) }
             futureDepReq
-              .flatMap { deploymentRequest =>
-                val (futureId, asyncStart) = execution.startTransaction(dispatcher, deploymentRequest)
-                asyncStart.onFailure({ case e => logger.error("Transaction failed to start: " + e.getMessage + "\n" + e.getStackTrace.mkString("\n")) })
-                futureId
-              }
-              .map { id => response.created.json(Map("id" -> id)) }
+              .recover { case e: UnknownProduct => throw BadRequestException(s"Product `${e.productName}` could not be found") }
+              .map { depReq => response.created.json(Map("id" -> depReq.id)) }
           },
           2.seconds
         )
@@ -101,9 +95,10 @@ class RestController @Inject()(val execution: Execution)
   get("/api/execution-traces/by-deployment-request/:id")(
     withLongId(id =>
       execution.dbBinding.findExecutionTracesByDeploymentRequest(id).flatMap { traces =>
-        if (traces.isEmpty)
+        if (traces.isEmpty) {
           // if there is a deployment request with that ID, return the empty list, otherwise a 404
-          execution.dbBinding.findDeploymentRequestById(id).map(_.map(_ => traces))
+          execution.dbBinding.deploymentRequestExists(id).map(if (_) Some(traces) else None)
+        }
         else
           Future.successful(
             Some(

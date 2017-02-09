@@ -1,16 +1,26 @@
 package com.criteo.perpetuo.dao
 
-import com.criteo.perpetuo.model.{DeploymentRequest, DeploymentRequestAndProduct}
+import com.criteo.perpetuo.model.{DeploymentRequest, DeploymentRequestAttrs}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
+
+
+private[dao] case class DeploymentRequestRecord(id: Option[Long],
+                                                productId: Int,
+                                                version: String,
+                                                target: String,
+                                                comment: String, // Not an `Option` because it's easier to consider that no comment <=> empty
+                                                creator: String,
+                                                creationDate: java.sql.Timestamp)
+
 
 trait DeploymentRequestBinder extends TableBinder {
   this: ProductBinder with DbContextProvider =>
 
   import dbContext.driver.api._
 
-  class DeploymentRequestTable(tag: Tag) extends Table[DeploymentRequest](tag, "deployment_request") {
+  class DeploymentRequestTable(tag: Tag) extends Table[DeploymentRequestRecord](tag, "deployment_request") {
     def id = column[Long]("id", O.AutoInc)
     protected def pk = primaryKey(id)
 
@@ -25,21 +35,36 @@ trait DeploymentRequestBinder extends TableBinder {
     def creator = column[String]("creator", O.SqlType("nchar(64)"))
     def creationDate = column[java.sql.Timestamp]("creation_date")
 
-    def * = (id.?, productId, version, target, comment, creator, creationDate) <> (DeploymentRequest.tupled, DeploymentRequest.unapply)
+    def * = (id.?, productId, version, target, comment, creator, creationDate) <> (DeploymentRequestRecord.tupled, DeploymentRequestRecord.unapply)
   }
 
   val deploymentRequestQuery = TableQuery[DeploymentRequestTable]
 
-  def insert(d: DeploymentRequest): Future[Long] = {
-    dbContext.db.run((deploymentRequestQuery returning deploymentRequestQuery.map(_.id)) += d)
+  def insert(d: DeploymentRequestAttrs): Future[DeploymentRequest] = {
+    // find the product to which the corresponding foreign key is pointing to
+    findProductByName(d.productName).map(_.getOrElse {
+      throw new UnknownProduct(d.productName)
+    }).flatMap { product =>
+      val record = DeploymentRequestRecord(None, product.id, d.version, d.target, d.comment, d.creator, d.creationDate)
+      dbContext.db.run((deploymentRequestQuery returning deploymentRequestQuery.map(_.id)) += record).map { id =>
+        val ret = DeploymentRequest(id, product, d.version, d.target, d.comment, d.creator, d.creationDate)
+        ret.copyParsedTargetCacheFrom(d)
+        ret
+      }
+    }
   }
 
-  def findDeploymentRequestById(id: Long): Future[Option[DeploymentRequest]] = {
-    dbContext.db.run(deploymentRequestQuery.filter(_.id === id).result).map(_.headOption)
+  def deploymentRequestExists(id: Long): Future[Boolean] = {
+    dbContext.db.run(deploymentRequestQuery.filter(_.id === id).exists.result)
   }
 
-  def findDeploymentRequestByIdAndProduct(id: Long): Future[Option[DeploymentRequestAndProduct]] = {
+  def findDeploymentRequestByIdWithProduct(id: Long): Future[Option[DeploymentRequest]] = {
     dbContext.db.run((deploymentRequestQuery join productQuery on (_.productId === _.id) filter (_._1.id === id)).result)
-      .map(_.headOption.map { case (req, prod) => new DeploymentRequestAndProduct(req, prod) })
+      .map(_.headOption.map {
+        case (req, prod) => DeploymentRequest(req.id.get, prod.toProduct, req.version, req.target, req.comment, req.creator, req.creationDate)
+      })
   }
 }
+
+
+class UnknownProduct(val productName: String) extends RuntimeException

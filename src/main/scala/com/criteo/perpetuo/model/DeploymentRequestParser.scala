@@ -2,16 +2,13 @@ package com.criteo.perpetuo.model
 
 import java.sql.Timestamp
 
-import com.criteo.perpetuo.dispatchers.{TargetTerm, TargetExpr, Tactics}
+import com.criteo.perpetuo.dispatchers.{Tactics, TargetExpr, TargetTerm}
 import com.twitter.finatra.http.exceptions.BadRequestException
 import spray.json.{JsArray, JsObject, JsString, JsValue, _}
 
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.Future
-
 
 object DeploymentRequestParser {
-  def parse(jsonInput: String, productRetriever: (String) => Future[Product]): Future[DeploymentRequest] =
+  def parse(jsonInput: String): DeploymentRequestAttrs =
     jsonInput.parseJson match {
       case body: JsObject =>
         val fields = body.fields
@@ -23,14 +20,17 @@ object DeploymentRequestParser {
         }
 
         val targetExpr = read("target")
+        val attrs = new DeploymentRequestAttrs(
+          readStr("productName"),
+          readStr("version"),
+          targetExpr.compactPrint,
+          readStr("comment", Some("")),
+          "anonymous",
+          new Timestamp(System.currentTimeMillis)
+        )
+        attrs.parsedTarget // validate the target
 
-        productRetriever(readStr("productName")).map { product =>
-          val record = DeploymentRequest(None,
-            product.id.get, readStr("version"), targetExpr.compactPrint, readStr("comment", Some("")),
-            "anonymous", new Timestamp(System.currentTimeMillis))
-          record.parsedTarget // validate the target
-          record
-        }
+        attrs
 
       case unknown => throw BadRequestException(s"Expected a JSON object as request body, got: $unknown")
     }

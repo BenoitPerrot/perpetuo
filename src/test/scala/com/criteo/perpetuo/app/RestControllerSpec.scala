@@ -3,7 +3,7 @@ package com.criteo.perpetuo.app
 import java.sql.Timestamp
 
 import com.criteo.perpetuo.TestDb
-import com.criteo.perpetuo.model.DeploymentRequest
+import com.criteo.perpetuo.model.DeploymentRequestAttrs
 import com.twitter.finagle.http.Status.{BadRequest, Created, NotFound, Ok}
 import com.twitter.finagle.http.{Request, Response}
 import com.twitter.finatra.http.HttpServer
@@ -201,10 +201,10 @@ class RestControllerSpec extends FeatureTest with TestDb {
     }
 
     "not fail when the existing DeploymentRequest doesn't have execution traces yet" in {
-      val newReq = DeploymentRequest(None, 1, "v", "t", "c", "c", new Timestamp(System.currentTimeMillis))
-      val depReqId = Await.result(controller.execution.dbBinding.insert(newReq), 1.second)
+      val attrs = new DeploymentRequestAttrs("my product", "v", "t", "c", "c", new Timestamp(System.currentTimeMillis))
+      val depReq = Await.result(controller.execution.dbBinding.insert(attrs), 1.second)
       val traces = server.httpGet(
-        path = s"/api/execution-traces/by-deployment-request/$depReqId",
+        path = s"/api/execution-traces/by-deployment-request/${depReq.id}",
         andExpect = Ok
       ).contentString.parseJson.asInstanceOf[JsArray].elements
       traces shouldBe empty
