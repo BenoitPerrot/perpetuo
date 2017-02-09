@@ -1,11 +1,18 @@
 package com.criteo.perpetuo.dao
 
 import com.criteo.perpetuo.model.Operation.Operation
-import com.criteo.perpetuo.model.{Operation, OperationTrace, TargetStatus}
+import com.criteo.perpetuo.model.{Operation, TargetStatus}
 import spray.json.{JsNumber, JsObject, _}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
+
+
+private[dao] case class OperationTrace(id: Option[Long],
+                                       deploymentRequestId: Long,
+                                       operation: Operation,
+                                       targetStatus: TargetStatus.MapType = Map())
+
 
 trait OperationTraceBinder extends TableBinder {
   this: DeploymentRequestBinder with DbContextProvider =>

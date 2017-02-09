@@ -1,10 +1,17 @@
 package com.criteo.perpetuo.dao
 
+import com.criteo.perpetuo.model.ExecutionState
 import com.criteo.perpetuo.model.ExecutionState.ExecutionState
-import com.criteo.perpetuo.model.{ExecutionState, ExecutionTrace}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
+
+
+private[dao] case class ExecutionTrace(id: Option[Long],
+                                       operationTraceId: Long,
+                                       logHref: Option[String] = None,
+                                       state: ExecutionState = ExecutionState.pending)
+
 
 trait ExecutionTraceBinder extends TableBinder {
   this: OperationTraceBinder with DbContextProvider =>
