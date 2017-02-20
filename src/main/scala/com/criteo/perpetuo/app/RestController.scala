@@ -53,8 +53,10 @@ class RestController @Inject()(val execution: Execution)
     r: ProductPost =>
       futurePool {
         Await.result(execution.dbBinding.insert(Product(None, r.name)).recover {
-          // todo: check the error when with SQL Server
-          case e: SQLException if e.getMessage.startsWith("Unique index") =>
+          case e: SQLException if e.getMessage.contains("nique index") =>
+            // there is no specific exception type if the name is already used but the error message starts with
+            // * if H2: Unique index or primary key violation: "ix_product_name ON PUBLIC.""product""(""name"") VALUES ('my product', 1)"
+            // * if SQLServer: Cannot insert duplicate key row in object 'dbo.product' with unique index 'ix_product_name'
             throw BadRequestException(s"Name `${r.name}` is already used")
         }, 2.seconds)
         response.created.nothing
