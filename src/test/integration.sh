@@ -1,9 +1,18 @@
 #!/usr/bin/env bash
 set -eu
+# You can use option `--fast` to not rebuild, run unit-tests, package and setup jobs every time
 
 RUNDECK_REPO=incubator/criteo-rundeck-resources
 
 cd $(dirname $0)/../..
+
+if [ "${1:-}" == "--fast" ]; then fast=true; else fast=false; fi
+export fast
+
+${fast} || mvn clean package -DpackageForDeploy
+export perpetuo_jar=$(ls -t $PWD/target/perpetuo-app-*-uber.jar | head -1)
+echo Using ${perpetuo_jar}
+echo
 
 
 ### get into an up-to-date clone of criteo-rundeck-resources
@@ -24,8 +33,10 @@ fi
 
 ### define the test run
 function run_tests() {
-    ./gradlew clean setupForTest
-    echo
+    ${fast} || ./gradlew clean setupForTest
+
+    start_temporarily "Perpetuo" "Startup complete, server ready" java -Dtokens.rundeck=token -jar ${perpetuo_jar}
+
     echo "all good!"
 }
 
