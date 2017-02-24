@@ -1,19 +1,12 @@
 #!/usr/bin/env bash
 set -eu
 set -o pipefail
-# You can use option `--fast` to not rebuild, run unit-tests, package and setup jobs every time
 
 RUNDECK_REPO=incubator/criteo-rundeck-resources
 
-cd $(dirname $0)/../..
-
-if [ "${1:-}" == "--fast" ]; then fast=true; else fast=false; fi
-export fast
-
-${fast} || mvn clean package -DpackageForDeploy
-export perpetuo_jar=$(ls -t $PWD/target/perpetuo-app-*-uber.jar | head -1)
-echo Using ${perpetuo_jar}
-echo
+cd $(dirname $0)
+export test_dir=$PWD
+cd ${test_dir}/../..
 
 
 ### get into an up-to-date clone of criteo-rundeck-resources
@@ -34,37 +27,27 @@ fi
 
 ### define the test run
 function run_tests() {
-    ${fast} || ./gradlew clean setupForTest
+    ./gradlew clean setupForTest
+    cd ${test_dir}
+    export -f start_temporarily wait_for # for integration-test-suite.sh
 
-    start_temporarily "Perpetuo" "Startup complete, server ready" java -Dtokens.rundeck=token -jar ${perpetuo_jar}
-    echo
+    while true
+    do
+        ./integration-test-suite.sh || { echo FAILED; status=1; }
 
-    function api_query() {
-        echo "==> /api/$@" 1>&2
-        curl -sfS -H 'Content-Type: application/json' "http://localhost:8989/api/$@"
-    }
-    # setup
-    api_query products -d '{"name": "test-project"}'
-
-    scenarios
-}
-
-
-### define the integration test scenarios (that use the local Rundeck instance)
-function scenarios() {
-    function expects() {
-        read line
-        grep -Ex "$1" <<< "${line}" || { echo "! Expected $1"; echo ". Got ${line}"; return 1; }
-    }
-
-    { api_query deployment-requests -d '{
-        "productName": "test-project",
-        "version": "v42",
-        "target": "everywhere please"
-    }' && echo; } | expects '\{"id":[0-9]+}'
+        if [[ -t 0 && -t 1 ]] # interactive mode, in a tty with no pipes in input and output
+        then
+            echo
+            read -p "Re-run tests (y)? " ans
+            [ "${ans}" == "y" ] || break
+        else
+            break
+        fi
+    done
+    return ${status:-0}
 }
 
 
 ### run the tests using a local Rundeck instance running
-export -f run_tests scenarios
+export -f run_tests
 ./using-local-rundeck.sh run_tests
