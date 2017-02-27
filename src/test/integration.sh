@@ -36,11 +36,11 @@ function run_tests() {
 
     while true
     do
-        ./integration-test-suite.sh || { echo FAILED; status=1; }
+        status=0
+        ./integration-test-suite.sh && echo || { status=$?; echo "  FAILED (${status})"; }
 
         if [[ -t 0 && -t 1 ]] # interactive mode, in a tty with no pipes in input and output
         then
-            echo
             read -p "Re-run tests (y)? " ans
             [ "${ans}" == "y" ] || break
         else
