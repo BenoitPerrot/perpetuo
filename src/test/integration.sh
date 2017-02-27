@@ -29,7 +29,10 @@ fi
 function run_tests() {
     ./gradlew clean setupForTest
     cd ${test_dir}
-    export -f start_temporarily wait_for # for integration-test-suite.sh
+
+    # export from using-local-rundeck.sh for integration-test-suite.sh
+    export -f start_temporarily wait_for
+    export RD_TEST_TOKEN
 
     while true
     do

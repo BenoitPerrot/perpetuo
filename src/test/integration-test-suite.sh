@@ -22,7 +22,9 @@ then
     perpetuo_jar=$(ls -t target/perpetuo-app-*-uber.jar | head -1)
     echo Using ${perpetuo_jar}
     trap_stack="" # used by `start_temporarily`
-    start_temporarily "Perpetuo" "Startup complete, server ready" java -Dtokens.rundeck=token -jar ${perpetuo_jar}
+    start_temporarily "Perpetuo" "Startup complete, server ready" java \
+        -Dtokens.rundeck="${RD_TEST_TOKEN}" \
+        -jar ${perpetuo_jar}
     echo
 
     api_query products -d '{"name": "itest-project"}'
