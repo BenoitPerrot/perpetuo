@@ -18,8 +18,16 @@ function expects() {
 ### setup
 if ! curl -fs localhost:8989 -o /dev/null
 then
-    mvn clean package -DpackageForDeploy -DskipTests
-    perpetuo_jar=$(ls -t target/perpetuo-app-*-uber.jar | head -1)
+    function get_uber_jar_if_exists() {
+        ls -t target/perpetuo-app-*-uber.jar 2> /dev/null | head -1
+    }
+    perpetuo_jar=$(get_uber_jar_if_exists)
+    if [[ -z "${perpetuo_jar}" || $(find src -newer ${perpetuo_jar} 2> /dev/null | wc -l) -ne 0 ]]
+    then
+        # the current version of the code has not been built yet (as an uber-jar)
+        mvn clean package -DpackageForDeploy -DskipTests
+        perpetuo_jar=$(get_uber_jar_if_exists)
+    fi
     echo Using ${perpetuo_jar}
     trap_stack="" # used by `start_temporarily`
     start_temporarily "Perpetuo" "Startup complete, server ready" java \
