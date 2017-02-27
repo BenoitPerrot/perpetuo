@@ -17,6 +17,8 @@
   <name>Perpetuo</name>
 
   <properties>
+    <webapp.directory>src/main/webapp</webapp.directory>
+
     <minimizeJar>false</minimizeJar>
     <main.class>com.criteo.perpetuo.app.main</main.class>
 
@@ -243,6 +245,9 @@
   <build>
 
     <resources>
+      <resource>
+        <directory>${webapp.directory}</directory>
+      </resource>
       <resource>
         <directory>src/main/resources</directory>
         <filtering>true</filtering>

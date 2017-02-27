@@ -115,4 +115,9 @@ class RestController @Inject()(val execution: Execution)
     )
   )
 
+  // Be sure to capture invalid calls to APIs
+  get("/api/:*") { r: Request =>
+    response.notFound
+  }
+
 }

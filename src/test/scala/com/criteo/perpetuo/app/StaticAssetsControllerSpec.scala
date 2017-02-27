@@ -27,11 +27,10 @@ class StaticAssetsControllerSpec extends FeatureTest {
 
   "The StaticAssetsController" should {
 
-    "say hello on /" in {
+    "answer on /" in {
       server.httpGet(
         path = "/",
-        andExpect = Ok,
-        withBody = "hello"
+        andExpect = Ok
       )
     }
 
