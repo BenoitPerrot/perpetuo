@@ -22,11 +22,16 @@ import scala.util.matching.Regex
 class RundeckInvoker(val host: String,
                      val port: Int,
                      val name: String,
+                     val marathonEnv: String,
                      val forceSsl: Boolean = false) extends ExecutorInvoker with Logging {
   // how Rundeck is currently configured
+  protected def jobName(operation: Operation): String = "deploy-to-marathon"
   protected val apiVersion = 16
+
+  // authentication
   protected val authToken: String = AppConfig.under("tokens").get(name)
-  protected def jobName(operation: Operation): String = operation.toString
+  protected val marathonUser: String = AppConfig.get("marathon.user")
+  protected val marathonPassword: String = AppConfig.get("marathon.password")
 
   // Rundeck's API
   private def authenticated(path: String) = s"$path?authtoken=$authToken"
@@ -52,9 +57,25 @@ class RundeckInvoker(val host: String,
 
   override def trigger(operation: Operation, executionId: Long, productName: String, version: String, rawTarget: String, initiator: String): Some[ScalaFuture[String]] = {
     // before version 18 of Rundeck, we can't pass options in a structured way
-    val Seq(escapedProductName, escapedVersion, escapedRawTarget) = Seq(productName, version, rawTarget).map((x: String) => x.toJson.compactPrint)
+    val degenerateTarget = Try(
+      rawTarget.parseJson
+        .asInstanceOf[JsArray].elements.head
+        .asJsObject.fields("select")
+        .asInstanceOf[JsArray].elements.head
+        .asInstanceOf[JsString].value)
+      .getOrElse(rawTarget) // todo: remove it
+
+    val Seq(escapedMarathonUser, escapedMarathonPassword, escapedProductName, escapedVersion, escapedTarget) =
+      Seq(marathonUser, marathonPassword, productName, version, degenerateTarget).map((x: String) => x.toJson.compactPrint)
     val body = Map(
-      "argString" -> s"-executionId $executionId -productName $escapedProductName -version $escapedVersion -rawTarget $escapedRawTarget"
+      "argString" -> (
+        s"-MARATHON_USER $escapedMarathonUser " + // todo: remove it
+          s"-MARATHON_PASSWORD $escapedMarathonPassword " + // todo: remove it
+          s"-environment $marathonEnv " + // todo: remove it
+          s"-execution-id $executionId " +
+          s"-product-name $escapedProductName " +
+          s"-product-version $escapedVersion " +
+          s"-target $escapedTarget")
       // todo? "asUser" -> initiator
     ).toJson.compactPrint
 

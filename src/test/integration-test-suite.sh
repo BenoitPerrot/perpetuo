@@ -24,6 +24,8 @@ then
     trap_stack="" # used by `start_temporarily`
     start_temporarily "Perpetuo" "Startup complete, server ready" java \
         -Dtokens.rundeck="${RD_TEST_TOKEN}" \
+        -Dmarathon.user="Pheidippides" \
+        -Dmarathon.password="Nenikekamen!" \
         -jar ${perpetuo_jar}
     echo
 
@@ -39,5 +41,5 @@ fi
 api_query deployment-requests -d '{
     "productName": "itest-project",
     "version": "v42",
-    "target": "everywhere please"
+    "target": "par"
 }' | expects '\{"id":[0-9]+}'
