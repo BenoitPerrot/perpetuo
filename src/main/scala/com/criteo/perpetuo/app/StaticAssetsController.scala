@@ -8,9 +8,15 @@ import com.twitter.finatra.http.Controller
   */
 class StaticAssetsController() extends Controller {
 
-  get("/manifest.json") { request: Request =>
-    response.ok.file(request.uri)
-  }
+  Array(
+    "/manifest.json",
+    "/src/:*",
+    "/bower_components/:*"
+  ).foreach(uri => {
+    get(uri) { request: Request =>
+      response.ok.file(request.uri)
+    }
+  })
 
   get("/:*") { request: Request =>
     response.ok.file("index.html")
