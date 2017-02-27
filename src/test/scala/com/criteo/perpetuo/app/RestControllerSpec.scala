@@ -224,4 +224,14 @@ class RestControllerSpec extends FeatureTest with TestDb {
     }
 
   }
+
+  "Any other *API* entry-point" should {
+    "throw a 404" in {
+      server.httpGet(
+        path = "/api/woot/woot",
+        andExpect = NotFound
+      )
+    }
+  }
+
 }
