@@ -1,0 +1,9 @@
+{
+    "name": "build-aux",
+    "private": true,
+
+    "dependencies": {},
+    "devDependencies": {
+        "polymer-cli": "0.17"
+    }
+}

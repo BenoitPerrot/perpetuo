@@ -17,7 +17,9 @@
   <name>Perpetuo</name>
 
   <properties>
+    <build-aux.directory>build-aux</build-aux.directory>
     <webapp.directory>src/main/webapp</webapp.directory>
+    <webapp.build.directory>${webapp.directory}/build/unbundled</webapp.build.directory>
 
     <minimizeJar>false</minimizeJar>
     <main.class>com.criteo.perpetuo.app.main</main.class>
@@ -246,7 +248,7 @@
 
     <resources>
       <resource>
-        <directory>${webapp.directory}</directory>
+        <directory>${webapp.build.directory}</directory>
       </resource>
       <resource>
         <directory>src/main/resources</directory>
@@ -265,6 +267,59 @@
     </pluginManagement>
 
     <plugins>
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>exec-maven-plugin</artifactId>
+        <executions>
+          <!-- Ask NPM to install required tools -->
+          <execution>
+            <id>npm install</id>
+            <goals>
+              <goal>exec</goal>
+            </goals>
+            <phase>initialize</phase>
+            <configuration>
+              <executable>npm</executable>
+              <arguments>
+                <argument>install</argument>
+              </arguments>
+              <workingDirectory>${build-aux.directory}</workingDirectory>
+            </configuration>
+          </execution>
+          <!-- Ask Bower to install required front-end packages -->
+          <execution>
+            <id>bower install</id>
+            <goals>
+              <goal>exec</goal>
+            </goals>
+            <phase>generate-resources</phase>
+            <configuration>
+              <executable>bower</executable>
+              <arguments>
+                <argument>install</argument>
+              </arguments>
+              <workingDirectory>${webapp.directory}</workingDirectory>
+            </configuration>
+          </execution>
+          <!-- Have polymer-cli build the app -->
+          <execution>
+            <id>polymer build</id>
+            <goals>
+              <goal>exec</goal>
+            </goals>
+            <phase>process-resources</phase>
+            <configuration>
+              <executable>node</executable>
+              <arguments>
+                <argument>${project.basedir}/${build-aux.directory}/node_modules/polymer-cli/bin/polymer.js</argument>
+                <argument>build</argument>
+              </arguments>
+              <workingDirectory>${webapp.directory}</workingDirectory>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+
       <plugin>
         <groupId>net.alchim31.maven</groupId>
         <artifactId>scala-maven-plugin</artifactId>
