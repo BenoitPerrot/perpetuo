@@ -5,8 +5,8 @@ set -o pipefail
 RUNDECK_REPO=incubator/criteo-rundeck-resources
 
 cd $(dirname $0)
-export test_dir=$PWD
-cd ${test_dir}/../..
+export scripts_dir=$PWD
+cd ${scripts_dir}/..
 
 
 ### get into an up-to-date clone of criteo-rundeck-resources
@@ -28,7 +28,7 @@ fi
 ### define the test run
 function run_tests() {
     ./gradlew clean setupForTest
-    cd ${test_dir}
+    cd ${scripts_dir}
 
     # export from using-local-rundeck.sh for integration-test-suite.sh
     export -f start_temporarily wait_for

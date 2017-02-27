@@ -2,7 +2,7 @@
 set -eu
 # it's not supposed to be run by hand, it's run by integration.sh with the right setup
 
-cd $(dirname $0)/../..
+cd $(dirname $0)/..
 
 function api_query() {
     echo "==> /api/$@" 1>&2
