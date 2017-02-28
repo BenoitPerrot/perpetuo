@@ -1,12 +1,41 @@
 <link rel="import" href="../../bower_components/polymer/polymer.html">
 
+<link rel="import" href="../../bower_components/paper-card/paper-card.html">
+
+<link rel="import" href="../perpetuo-client/perpetuo-client.html">
+<link rel="import" href="../perpetuo-product/perpetuo-product-table.html">
+
 <dom-module id="perpetuo-products-page">
+  <style>
+  :host {
+    display: flex;
+    flex-direction: column;
+  }
+  :host > * {
+    flex: 1;
+  }
+
+  paper-card {
+    margin: 1em;
+  }
+  </style>
   <template>
-    <h1>Products</h1>
+    <paper-card>
+      <perpetuo-product-table id="productTable"></perpetuo-product-table>
+    </paper-card>
   </template>
   <script>
   Polymer({
-    is: 'perpetuo-products-page'
+    is: 'perpetuo-products-page',
+
+    attached() {
+      const client = new Perpetuo.Client();
+      client.fetchProducts().then(o => {
+        this.$.productTable.data = o.map(_ => {
+          return { productType: 'mesos', productName: _ }
+        });
+      });
+    }
   });
   </script>
 </dom-module>

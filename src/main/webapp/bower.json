@@ -9,7 +9,8 @@
     "iron-icons": "PolymerElements/iron-icons#^1.2.0",
     "font-roboto": "PolymerElements/font-roboto#^1.0.1",
     "paper-icon-button": "PolymerElements/paper-icon-button#^1.1.4",
-    "paper-item": "PolymerElements/paper-item#^1.2.1"
+    "paper-item": "PolymerElements/paper-item#^1.2.1",
+    "paper-card": "PolymerElements/paper-card#^1.1.4"
   },
   "devDependencies": {
     "web-component-tester": "^4.0.0",
