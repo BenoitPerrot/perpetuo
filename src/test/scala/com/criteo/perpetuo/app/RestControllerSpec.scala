@@ -4,8 +4,8 @@ import java.sql.Timestamp
 
 import com.criteo.perpetuo.TestDb
 import com.criteo.perpetuo.model.DeploymentRequestAttrs
-import com.twitter.finagle.http.Status.{BadRequest, Created, NotFound, Ok}
-import com.twitter.finagle.http.{Request, Response}
+import com.twitter.finagle.http.Status.{BadRequest, Conflict, Created, NotFound, Ok}
+import com.twitter.finagle.http.{Request, Response, Status}
 import com.twitter.finatra.http.HttpServer
 import com.twitter.finatra.http.filters.{CommonFilters, LoggingMDCFilter, TraceIdMDCFilter}
 import com.twitter.finatra.http.routing.HttpRouter
@@ -44,13 +44,13 @@ class RestControllerSpec extends FeatureTest with TestDb {
     }
   })
 
-  private def product(name: String, expectsMessage: Option[String] = None) = {
+  private def product(name: String, expectedError: Option[(String, Status)] = None) = {
     val ans = server.httpPost(
       path = s"/api/products",
-      andExpect = if (expectsMessage.isDefined) BadRequest else Created,
+      andExpect = expectedError.map(_._2).getOrElse(Created),
       postBody = JsObject("name" -> JsString(name)).compactPrint
     ).contentString
-    expectsMessage.foreach(msg => ans shouldEqual JsObject("errors" -> JsArray(JsString(msg))).compactPrint)
+    expectedError.foreach(err => ans shouldEqual JsObject("errors" -> JsArray(JsString(err._1))).compactPrint)
   }
 
   private def requestDeployment(productName: String, version: String, target: JsValue, comment: Option[String], expectsMessage: Option[String] = None): JsObject =
@@ -83,7 +83,7 @@ class RestControllerSpec extends FeatureTest with TestDb {
     }
 
     "properly reject already used names" in {
-      product("my product", Some("Name `my product` is already used"))
+      product("my product", Some("Name `my product` is already used", Conflict))
     }
 
     "return the list of all known product names" in {

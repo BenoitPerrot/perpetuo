@@ -7,7 +7,7 @@ import com.criteo.perpetuo.dao.UnknownProduct
 import com.criteo.perpetuo.dispatchers.{Execution, TargetDispatcher}
 import com.criteo.perpetuo.model.DeploymentRequestParser.parse
 import com.twitter.finagle.http.Request
-import com.twitter.finatra.http.exceptions.BadRequestException
+import com.twitter.finatra.http.exceptions.{BadRequestException, ConflictException}
 import com.twitter.finatra.http.{Controller => BaseController}
 import com.twitter.finatra.request._
 import com.twitter.finatra.utils.FuturePools
@@ -57,7 +57,7 @@ class RestController @Inject()(val execution: Execution)
             // there is no specific exception type if the name is already used but the error message starts with
             // * if H2: Unique index or primary key violation: "ix_product_name ON PUBLIC.""product""(""name"") VALUES ('my product', 1)"
             // * if SQLServer: Cannot insert duplicate key row in object 'dbo.product' with unique index 'ix_product_name'
-            throw BadRequestException(s"Name `${r.name}` is already used")
+            throw ConflictException(s"Name `${r.name}` is already used")
         }, 2.seconds)
         response.created.nothing
       }
