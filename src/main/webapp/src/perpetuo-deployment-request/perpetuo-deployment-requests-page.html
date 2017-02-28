@@ -1,12 +1,62 @@
 <link rel="import" href="../../bower_components/polymer/polymer.html">
 
+<link rel="import" href="../../bower_components/paper-tabs/paper-tab.html">
+<link rel="import" href="../../bower_components/paper-tabs/paper-tabs.html">
+<link rel="import" href="../../bower_components/paper-card/paper-card.html">
+
+<link rel="import" href="../perpetuo-deployment-request/perpetuo-deployment-request-table.html">
+
 <dom-module id="perpetuo-deployment-requests-page">
+  <style>
+  :host {
+    display: flex;
+    flex-direction: column;
+  }
+  :host > * {
+    flex: 1;
+  }
+
+  .page-header {
+    background-color: #f1f1f1;
+  }
+  .page-header paper-tabs {
+    --paper-tabs-selection-bar-color: #007acc;
+  }
+  .page-header paper-tab {
+    --paper-tab-ink: #007acc;
+    --paper-tab-content: {
+      text-transform: uppercase;
+      font-size: 12px;
+    }
+  }
+
+  paper-card {
+    margin: 1em;
+  }
+  </style>
   <template>
-    <h1>Deployment Requests</h1>
+    <div class="page-header">
+      <paper-tabs selected="{{selected}}" scrollable>
+        <paper-tab>All</paper-tab>
+      </paper-tabs>
+    </div>
+    <paper-card>
+      <perpetuo-deployment-request-table id="deploymentRequestTable"></perpetuo-deployment-request-table>
+    </paper-card>
   </template>
   <script>
   Polymer({
-    is: 'perpetuo-deployment-requests-page'
+    is: 'perpetuo-deployment-requests-page',
+
+    properties: {
+      selected: { type: Number, value: 0 }
+    },
+
+    attached() {
+      new Perpetuo.Client().fetchDeploymentRequests().then(deploymentRequests => {
+        this.$.deploymentRequestTable.data = deploymentRequests;
+      });
+    }
   });
   </script>
 </dom-module>

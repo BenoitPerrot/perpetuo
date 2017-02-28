@@ -18,6 +18,10 @@ this.Perpetuo.Client = this.Perpetuo.Client || (function () {
       this.host = host;
     }
 
+    fetchDeploymentRequests() {
+      return jsonFetch('/api/unstable/deployment-requests').then(_ => _.json());
+    }
+
     fetchProducts() {
       return jsonFetch('/api/products').then(_ => _.json());
     }
