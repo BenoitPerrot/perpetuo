@@ -5,7 +5,7 @@ import javax.inject.{Inject, Singleton}
 import com.criteo.perpetuo.dao._
 import com.criteo.perpetuo.executors.ExecutorInvoker
 import com.criteo.perpetuo.model.Operation.Operation
-import com.criteo.perpetuo.model.{DeploymentRequest, DeploymentRequestAttrs, Operation}
+import com.criteo.perpetuo.model.{DeploymentRequest, DeploymentRequestAttrs, ExecutionState, Operation}
 import com.twitter.inject.Logging
 import spray.json._
 
@@ -51,10 +51,20 @@ class Execution @Inject()(val dbBinding: DbBinding) extends Logging {
             rawTarget,
             deploymentRequest.creator
           ).map(
-            // if that answers a log href, update the trace with it
-            _.flatMap(logHref => dbBinding.updateExecutionTrace(execId, logHref).map(_ => s"`$logHref`"))
+            // if that answers a log href, update the trace with it, and consider that the job
+            // is running (i.e. already followable and not yet terminated, really)
+            _.map(logHref =>
+              dbBinding.updateExecutionTrace(execId, logHref, ExecutionState.running).map(_ =>
+                s"`$logHref` succeeded"
+              )
+            ).recover({
+              // if triggering the job throws an error, mark the execution as failed at initialization
+              case e: Throwable =>
+                dbBinding.updateExecutionTrace(execId, ExecutionState.initFailed).map(_ =>
+                  s"failed (${e.getMessage})")
+            }).flatMap(x => x) // flatten doesn't exist on Future... :(
           ).getOrElse(
-            Future.successful("with unknown log href")
+            Future.successful("succeeded (but with an unknown log href)")
           ).map(logExecution(_, execId, executor, rawTarget))
       }.map(_.length)
     )
@@ -100,6 +110,6 @@ class Execution @Inject()(val dbBinding: DbBinding) extends Logging {
   }
 
   protected def logExecution(identifier: String, execId: Long, executor: ExecutorInvoker, rawTarget: String): Unit = {
-    logger.debug(s"Triggered job $identifier for execution #$execId: $executor <- $rawTarget")
+    logger.debug(s"Triggering job $identifier for execution #$execId: $executor <- $rawTarget")
   }
 }
