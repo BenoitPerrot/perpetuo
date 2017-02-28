@@ -1,0 +1,29 @@
+<link rel="import" href="../../bower_components/polymer/polymer.html"/>
+
+<script>
+'use strict';
+
+this.Perpetuo = this.Perpetuo || {}
+this.Perpetuo.Client = this.Perpetuo.Client || (function () {
+
+  function jsonFetch(url, options) {
+    return fetch(url, Object.assign({
+      headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
+      credentials: 'include'
+    }, options || {}));
+  }
+
+  return class Client {
+    constructor(host) {
+      this.host = host;
+    }
+
+    fetchProducts() {
+      return jsonFetch('/api/products').then(_ => _.json());
+    }
+    createProduct(productName) {
+      return jsonFetch('/api/products', { method: 'POST', body: JSON.stringify({name: productName}) });
+    }
+  };
+} ());
+</script>
