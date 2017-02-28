@@ -75,6 +75,14 @@ class RestControllerSpec extends FeatureTest with TestDb {
     ans.parseJson.asJsObject
   }
 
+  private def checkCreationDate(depReqMap: Map[String, JsValue]): Long = {
+    depReqMap should contain key "creationDate"
+    val creationDate = depReqMap("creationDate").toString.toLong
+    creationDate should (be > 14e8.toLong and be < 20e8.toLong) // it's a timestamp in s.
+    creationDate
+  }
+
+
   "The Product's entry-points" should {
 
     "return 201 when creating a Product" in {
@@ -154,9 +162,7 @@ class RestControllerSpec extends FeatureTest with TestDb {
         andExpect = Ok
       ).contentString.parseJson.asJsObject.fields
 
-      values1 should contain key "creationDate"
-      val creationDate = values1("creationDate").toString.toLong
-      creationDate should (be > 14e8.toLong and be < 20e8.toLong) // it's a timestamp in s.
+      val creationDate = checkCreationDate(values1)
 
       values1 shouldEqual Map(
         "id" -> JsNumber(i),
