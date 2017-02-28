@@ -201,7 +201,7 @@ class RestControllerSpec extends FeatureTest with TestDb {
     }
 
     "not fail when the existing DeploymentRequest doesn't have execution traces yet" in {
-      val attrs = new DeploymentRequestAttrs("my product", "v", "t", "c", "c", new Timestamp(System.currentTimeMillis))
+      val attrs = new DeploymentRequestAttrs("my product", "v", "\"t\"", "c", "c", new Timestamp(System.currentTimeMillis))
       val depReq = Await.result(controller.execution.dbBinding.insert(attrs), 1.second)
       val traces = server.httpGet(
         path = s"/api/execution-traces/by-deployment-request/${depReq.id}",
