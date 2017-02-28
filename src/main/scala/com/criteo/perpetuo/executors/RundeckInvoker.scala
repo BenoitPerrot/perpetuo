@@ -97,7 +97,6 @@ class RundeckInvoker(val host: String,
       response.status match {
         case Status.Successful(_) =>
           // return the permalink to this job run as the execution's log href
-          logger.warn(content)
           content.parseJson.asJsObject.fields("permalink").asInstanceOf[JsString].value
         case s =>
           val embeddedDetail = Try(content.parseJson)
