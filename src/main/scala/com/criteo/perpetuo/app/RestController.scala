@@ -115,6 +115,13 @@ class RestController @Inject()(val execution: Execution)
     )
   )
 
+  get("/api/unstable/deployment-requests") {
+    _: Request =>
+      futurePool {
+        Await.result(execution.dbBinding.deepQueryDeploymentRequests(), 5.seconds)
+      }
+  }
+
   // Be sure to capture invalid calls to APIs
   get("/api/:*") {
     _: Request => response.notFound

@@ -231,6 +231,49 @@ class RestControllerSpec extends FeatureTest with TestDb {
 
   }
 
+  "Deep query" should {
+    "return many things... as a valid JSON" in {
+      val depReqs = server.httpGet(
+        path = "/api/unstable/deployment-requests",
+        andExpect = Ok
+      ).contentString.parseJson.asInstanceOf[JsArray].elements
+
+      depReqs.length should be > 1
+      val operationsCounts = depReqs
+        .map(_.asJsObject.fields)
+        .map(_ ("operations").asInstanceOf[JsArray].elements.size)
+        .toSet
+      // there are deployment requests that triggered 1 operation, there is one with 0:
+      operationsCounts shouldEqual Set(0, 1)
+      // let's take the first deployment request:
+      val depReq1 = depReqs.map(_.asJsObject.fields).find(_ ("id") == JsNumber(1)).get
+      val creationDate = checkCreationDate(depReq1)
+      depReq1 shouldEqual Map(
+        "id" -> 1.toJson,
+        "productName" -> "my product".toJson,
+        "version" -> "v21".toJson,
+        "target" -> "to everywhere".toJson,
+        "comment" -> "my comment".toJson,
+        "creator" -> "anonymous".toJson,
+        "creationDate" -> creationDate.toJson,
+        "operations" -> JsArray(
+          JsObject(
+            "id" -> 1.toJson,
+            "type" -> "deploy".toJson,
+            "targetStatus" -> JsObject(),
+            "executions" -> JsArray(
+              JsObject(
+                "id" -> 1.toJson,
+                "logHref" -> JsNull,
+                "state" -> "pending".toJson
+              )
+            )
+          )
+        )
+      )
+    }
+  }
+
   "Any other *API* entry-point" should {
     "throw a 404" in {
       server.httpGet(
