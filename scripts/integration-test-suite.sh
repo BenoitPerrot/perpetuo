@@ -49,5 +49,5 @@ fi
 api_query deployment-requests -d '{
     "productName": "itest-project",
     "version": "v42",
-    "target": "par"
+    "target": ["par", "am5"]
 }' | expects '\{"id":[0-9]+}'

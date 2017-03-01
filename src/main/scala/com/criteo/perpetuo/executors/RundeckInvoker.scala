@@ -61,8 +61,9 @@ class RundeckInvoker(val host: String,
       rawTarget.parseJson
         .asInstanceOf[JsArray].elements.head
         .asJsObject.fields("select")
-        .asInstanceOf[JsArray].elements.head
-        .asInstanceOf[JsString].value)
+        .asInstanceOf[JsArray].elements
+        .map(_.asInstanceOf[JsString].value)
+        .mkString(","))
       .getOrElse(rawTarget) // todo: remove it
 
     assert(!productName.contains("'"))
