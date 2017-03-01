@@ -4,9 +4,11 @@ set -eu
 
 cd $(dirname $0)/..
 
+PORT=$((8989 - ${EXECUTOR_NUMBER:-0}))
+
 function api_query() {
     echo "==> /api/$@" 1>&2
-    echo $(curl -sfS -H 'Content-Type: application/json' "http://localhost:8989/api/$@")
+    echo $(curl -sfS -H 'Content-Type: application/json' "http://localhost:${PORT}/api/$@")
 }
 
 function expects() {
@@ -16,7 +18,7 @@ function expects() {
 
 
 ### setup
-if ! curl -fs localhost:8989 -o /dev/null
+if ! curl -fs localhost:${PORT} -o /dev/null
 then
     function get_uber_jar_if_exists() {
         ls -t target/perpetuo-app-*-uber.jar 2> /dev/null | head -1
@@ -34,6 +36,7 @@ then
         -Dtokens.rundeck="${RD_TEST_TOKEN}" \
         -Dmarathon.user="Pheidippides" \
         -Dmarathon.password="Nenikekamen!" \
+        -Dhttp.port=${PORT} \
         -jar ${perpetuo_jar}
     echo
 
