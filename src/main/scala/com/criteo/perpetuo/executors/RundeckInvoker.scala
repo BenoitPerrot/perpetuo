@@ -56,7 +56,7 @@ class RundeckInvoker(val host: String,
   override def toString: String = name
 
   override def trigger(operation: Operation, executionId: Long, productName: String, version: String, rawTarget: String, initiator: String): Some[ScalaFuture[String]] = {
-    // before version 18 of Rundeck, we can't pass options in a structured way
+    // todo: while we only deal with marathon target, we directly give the select dimension, and formatted differently
     val degenerateTarget = Try(
       rawTarget.parseJson
         .asInstanceOf[JsArray].elements.head
@@ -65,16 +65,18 @@ class RundeckInvoker(val host: String,
         .asInstanceOf[JsString].value)
       .getOrElse(rawTarget) // todo: remove it
 
-    val Seq(escapedMarathonUser, escapedMarathonPassword, escapedProductName, escapedVersion, escapedTarget) =
-      Seq(marathonUser, marathonPassword, productName, version, degenerateTarget).map((x: String) => x.toJson.compactPrint)
+    assert(!productName.contains("'"))
+    assert(!version.contains("'"))
+    val escapedTarget = degenerateTarget.toJson.compactPrint
     val body = Map(
+      // before version 18 of Rundeck, we can't pass options in a structured way
       "argString" -> (
-        s"-MARATHON_USER $escapedMarathonUser " + // todo: remove it
-          s"-MARATHON_PASSWORD $escapedMarathonPassword " + // todo: remove it
+        s"-MARATHON_USER '$marathonUser' " + // todo: remove it (we currently know there is no " in the user name...)
+          s"-MARATHON_PASSWORD '$marathonPassword' " + // todo: remove it (we currently know there is no " in the password...)
           s"-environment $marathonEnv " + // todo: remove it
           s"-execution-id $executionId " +
-          s"-product-name $escapedProductName " +
-          s"-product-version $escapedVersion " +
+          s"-product-name '$productName' " +
+          s"-product-version '$version' " +
           s"-target $escapedTarget")
       // todo? "asUser" -> initiator
     ).toJson.compactPrint
