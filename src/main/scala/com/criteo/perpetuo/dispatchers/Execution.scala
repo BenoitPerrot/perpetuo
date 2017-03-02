@@ -54,14 +54,17 @@ class Execution @Inject()(val dbBinding: DbBinding) extends Logging {
             // if that answers a log href, update the trace with it, and consider that the job
             // is running (i.e. already followable and not yet terminated, really)
             _.map(logHref =>
-              dbBinding.updateExecutionTrace(execId, logHref, ExecutionState.running).map(_ =>
+              dbBinding.updateExecutionTrace(execId, logHref, ExecutionState.running).map { updated =>
+                assert(updated)
                 s"`$logHref` succeeded"
-              )
+              }
             ).recover({
               // if triggering the job throws an error, mark the execution as failed at initialization
               case e: Throwable =>
-                dbBinding.updateExecutionTrace(execId, ExecutionState.initFailed).map(_ =>
-                  s"failed (${e.getMessage})")
+                dbBinding.updateExecutionTrace(execId, ExecutionState.initFailed).map { updated =>
+                  assert(updated)
+                  s"failed (${e.getMessage})"
+                }
             }).flatMap(x => x) // flatten doesn't exist on Future... :(
           ).getOrElse(
             Future.successful("succeeded (but with an unknown log href)")
