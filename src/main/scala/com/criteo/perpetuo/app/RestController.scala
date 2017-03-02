@@ -6,6 +6,7 @@ import javax.inject.Inject
 import com.criteo.perpetuo.dao.UnknownProduct
 import com.criteo.perpetuo.dispatchers.{Execution, TargetDispatcher}
 import com.criteo.perpetuo.model.DeploymentRequestParser.parse
+import com.criteo.perpetuo.model.ExecutionState
 import com.twitter.finagle.http.Request
 import com.twitter.finatra.http.exceptions.{BadRequestException, ConflictException}
 import com.twitter.finatra.http.{Controller => BaseController}
@@ -23,9 +24,11 @@ import scala.util.Try
 @JsonIgnoreBody
 private case class GetWithId(@RouteParam @NotEmpty id: String)
 
-
 private case class ProductPost(@NotEmpty name: String)
 
+private case class ExecutionTracePut(@RouteParam @NotEmpty id: String,
+                                     @NotEmpty state: String,
+                                     logHref: String = "")
 
 /**
   * Controller that handles deployment requests as a REST API.
@@ -114,6 +117,29 @@ class RestController @Inject()(val execution: Execution)
       }
     )
   )
+
+  put("/api/execution-traces/:id") {
+    r: ExecutionTracePut =>
+      futurePool {
+        Try(r.id.toLong).toOption
+          .map { id =>
+            val executionState = try {
+              ExecutionState.withName(r.state)
+            } catch {
+              case _: NoSuchElementException => throw BadRequestException(s"Unknown state `${r.state}`")
+            }
+
+            val executionUpdate = if (r.logHref.nonEmpty)
+              execution.dbBinding.updateExecutionTrace(id, r.logHref, executionState)
+            else
+              execution.dbBinding.updateExecutionTrace(id, executionState)
+            executionUpdate.map(if (_) Some() else None)
+          }
+          .flatMap(Await.result(_, 3.seconds))
+          .map(_ => response.noContent)
+          .getOrElse(response.notFound)
+      }
+  }
 
   get("/api/unstable/deployment-requests") {
     _: Request =>

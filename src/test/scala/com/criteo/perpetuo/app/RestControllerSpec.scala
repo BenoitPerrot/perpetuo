@@ -4,7 +4,7 @@ import java.sql.Timestamp
 
 import com.criteo.perpetuo.TestDb
 import com.criteo.perpetuo.model.DeploymentRequestAttrs
-import com.twitter.finagle.http.Status.{BadRequest, Conflict, Created, NotFound, Ok}
+import com.twitter.finagle.http.Status._
 import com.twitter.finagle.http.{Request, Response, Status}
 import com.twitter.finatra.http.HttpServer
 import com.twitter.finatra.http.filters.{CommonFilters, LoggingMDCFilter, TraceIdMDCFilter}
@@ -15,6 +15,7 @@ import com.twitter.inject.server.FeatureTest
 import spray.json.DefaultJsonProtocol._
 import spray.json.{JsArray, JsString, _}
 
+import scala.collection.mutable
 import scala.concurrent.Await
 import scala.concurrent.duration._
 
@@ -48,6 +49,8 @@ class RestControllerSpec extends FeatureTest with TestDb {
   object T extends JsNumber(0) {
     override def equals(o: Any): Boolean = true
   }
+
+  private val logHrefHistory: mutable.Map[Int, JsValue] = mutable.Map()
 
   private def product(name: String, expectedError: Option[(String, Status)] = None) = {
     val ans = server.httpPost(
@@ -92,6 +95,48 @@ class RestControllerSpec extends FeatureTest with TestDb {
       path = "/api/unstable/deployment-requests",
       andExpect = Ok
     ).contentString.parseJson.asInstanceOf[JsArray].elements.map(_.asJsObject.fields)
+  }
+
+  private def updateExecTrace(execId: Int, state: String,
+                              logHref: Option[String]) = {
+    val logHrefJson = logHref.map(_.toJson)
+    val previousLogHrefJson = logHrefHistory.getOrElse(execId, JsNull)
+    val expectedLogHrefJson = logHrefJson.getOrElse(previousLogHrefJson)
+    logHrefHistory(execId) = expectedLogHrefJson
+
+    val params = Map(
+      "state" -> Some(state.toJson),
+      "logHref" -> logHrefJson
+    ).collect {
+      case (k, v) if v.isDefined => k -> v.get
+    }
+    val ret = server.httpPut(
+      path = s"/api/execution-traces/$execId",
+      putBody = params.toJson.compactPrint,
+      andExpect = NoContent
+    )
+    ret.contentLength shouldEqual Some(0)
+
+    val depReqs = deepGetDepReq()
+    val getFirst: (JsValue) => Option[Map[String, JsValue]] =
+      _.asInstanceOf[JsArray].elements.headOption.map(_.asJsObject.fields)
+    val depReq = depReqs.find(req =>
+      getFirst(req("operations")).map(_ ("executions")).flatMap(getFirst).exists(_ ("id") == execId.toJson)
+    ).get
+    val operations = depReq("operations").asInstanceOf[JsArray].elements.map(_.asJsObject.fields)
+    operations.size shouldEqual 1
+    Map(
+      "id" -> T,
+      "type" -> "deploy".toJson,
+      "targetStatus" -> JsObject(),
+      "executions" -> JsArray(
+        JsObject(
+          "id" -> execId.toJson,
+          "logHref" -> expectedLogHrefJson,
+          "state" -> state.toJson
+        )
+      )
+    ) shouldEqual operations.head
   }
 
 
@@ -241,6 +286,49 @@ class RestControllerSpec extends FeatureTest with TestDb {
       ) shouldEqual traces.head.asJsObject.fields
     }
 
+    "update one record's execution state on a PUT" in {
+      updateExecTrace(
+        1, "completed", None
+      )
+    }
+
+    "update one record's execution state and log href on a PUT" in {
+      updateExecTrace(
+        2, "completed", Some("http://somewhe.re")
+      )
+    }
+
+    "return 404 on non-integral ID" in {
+      server.httpPut(
+        path = s"/api/execution-traces/abc",
+        putBody = Map("state" -> "conflicting").toJson.compactPrint,
+        andExpect = NotFound
+      )
+    }
+
+    "return 404 if trying to update an unknown execution trace" in {
+      server.httpPut(
+        path = s"/api/execution-traces/12345",
+        putBody = Map("state" -> "conflicting").toJson.compactPrint,
+        andExpect = NotFound
+      )
+    }
+
+    "return 400 if no state is provided" in {
+      server.httpPut(
+        path = s"/api/execution-traces/1",
+        putBody = JsObject("targetStatus" -> Map("par" -> "success").toJson).compactPrint,
+        andExpect = BadRequest
+      ).contentString should include("state: field is required")
+    }
+
+    "return 400 if the provided state is unknown" in {
+      server.httpPut(
+        path = s"/api/execution-traces/1",
+        putBody = Map("state" -> "what?").toJson.compactPrint,
+        andExpect = BadRequest
+      ).contentString should include("Unknown state `what?`")
+    }
   }
 
   "Deep query" should {
@@ -266,8 +354,8 @@ class RestControllerSpec extends FeatureTest with TestDb {
           "executions" -> JsArray(
             JsObject(
               "id" -> 2.toJson,
-              "logHref" -> JsNull,
-              "state" -> "pending".toJson
+              "logHref" -> "http://somewhe.re".toJson,
+              "state" -> "completed".toJson
             )
           )
         )
