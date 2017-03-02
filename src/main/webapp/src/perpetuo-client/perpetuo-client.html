@@ -19,11 +19,11 @@ this.Perpetuo.Client = this.Perpetuo.Client || (function () {
     }
 
     fetchDeploymentRequests() {
-      return jsonFetch('/api/unstable/deployment-requests').then(_ => _.json());
+      return jsonFetch('/api/unstable/deployment-requests').then(_ => _.json()).then(deploymentRequests => deploymentRequests.map(_ => Object.assign(_, { productType: 'mesos' }))); // TODO: have the productType in the backend);
     }
 
     fetchProducts() {
-      return jsonFetch('/api/products').then(_ => _.json());
+      return jsonFetch('/api/products').then(_ => _.json()).then(products => products.map(_ => { return {type: 'mesos', name: _} })); // TODO: have the productType in the backend
     }
     createProduct(productName) {
       return jsonFetch('/api/products', { method: 'POST', body: JSON.stringify({name: productName}) });

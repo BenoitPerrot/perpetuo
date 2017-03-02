@@ -30,10 +30,8 @@
 
     attached() {
       const client = new Perpetuo.Client();
-      client.fetchProducts().then(o => {
-        this.$.productTable.data = o.map(_ => {
-          return { productType: 'mesos', productName: _ }
-        });
+      client.fetchProducts().then(products => {
+        this.$.productTable.data = products
       });
     }
   });
