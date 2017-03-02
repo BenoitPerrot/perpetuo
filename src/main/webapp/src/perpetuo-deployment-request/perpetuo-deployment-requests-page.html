@@ -53,9 +53,11 @@
     },
 
     attached() {
-      new Perpetuo.Client().fetchDeploymentRequests().then(deploymentRequests => {
-        this.$.deploymentRequestTable.data = deploymentRequests;
-      });
+      this.deploymentRequestsListener = deploymentRequests => { this.$.deploymentRequestTable.data = deploymentRequests; }
+      this.ownerDocument.client.addDeploymentRequestsListener(this.deploymentRequestsListener);
+    },
+    detached() {
+      this.ownerDocument.client.removeDeploymentRequestsListener(this.deploymentRequestsListener);
     }
   });
   </script>
