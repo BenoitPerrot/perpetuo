@@ -244,39 +244,34 @@ class RestControllerSpec extends FeatureTest with TestDb {
   }
 
   "Deep query" should {
-    "return many things... as a valid JSON" in {
+    "return the right executions in a valid JSON" in {
       val depReqs = deepGetDepReq()
 
       depReqs.length should be > 1
       val operationsCounts = depReqs.map(_ ("operations").asInstanceOf[JsArray].elements.size).toSet
       // there are deployment requests that triggered 1 operation, there is one with 0:
       operationsCounts shouldEqual Set(0, 1)
-      // let's take the first deployment request:
-      val depReq1 = depReqs.find(_ ("id") == JsNumber(1)).get
-      checkCreationDate(depReq1)
-      Map(
-        "id" -> 1.toJson,
-        "productName" -> "my product".toJson,
-        "version" -> "v21".toJson,
-        "target" -> "to everywhere".toJson,
-        "comment" -> "my comment".toJson,
-        "creator" -> "anonymous".toJson,
-        "creationDate" -> T,
-        "operations" -> JsArray(
-          JsObject(
-            "id" -> T,
-            "type" -> "deploy".toJson,
-            "targetStatus" -> JsObject(),
-            "executions" -> JsArray(
-              JsObject(
-                "id" -> T,
-                "logHref" -> JsNull,
-                "state" -> "pending".toJson
-              )
+
+      val getFirst: (JsValue) => Option[Map[String, JsValue]] =
+        _.asInstanceOf[JsArray].elements.headOption.map(_.asJsObject.fields)
+      val depReq = depReqs.find(req =>
+        getFirst(req("operations")).map(_ ("executions")).flatMap(getFirst).exists(_ ("id") == 2.toJson)
+      ).get
+
+      JsArray(
+        JsObject(
+          "id" -> T,
+          "type" -> "deploy".toJson,
+          "targetStatus" -> JsObject(),
+          "executions" -> JsArray(
+            JsObject(
+              "id" -> 2.toJson,
+              "logHref" -> JsNull,
+              "state" -> "pending".toJson
             )
           )
         )
-      ) shouldEqual depReq1
+      ) shouldEqual depReq("operations")
     }
   }
 
