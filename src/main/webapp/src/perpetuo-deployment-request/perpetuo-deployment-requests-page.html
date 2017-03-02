@@ -1,10 +1,13 @@
 <link rel="import" href="../../bower_components/polymer/polymer.html">
 
+<link rel="import" href="../../bower_components/iron-pages/iron-pages.html">
+<link rel="import" href="../../bower_components/paper-card/paper-card.html">
 <link rel="import" href="../../bower_components/paper-tabs/paper-tab.html">
 <link rel="import" href="../../bower_components/paper-tabs/paper-tabs.html">
 <link rel="import" href="../../bower_components/paper-card/paper-card.html">
 
 <link rel="import" href="../perpetuo-deployment-request/perpetuo-deployment-request-table.html">
+<link rel="import" href="../perpetuo-deployment-request/perpetuo-deployment-request-creation-form.html">
 
 <dom-module id="perpetuo-deployment-requests-page">
   <style>
@@ -13,6 +16,13 @@
     flex-direction: column;
   }
   :host > * {
+    flex: 1;
+  }
+
+  iron-pages {
+    display: flex;
+  }
+  iron-pages > * {
     flex: 1;
   }
 
@@ -33,16 +43,26 @@
   paper-card {
     margin: 1em;
   }
+
+  paper-card#new {
+      padding: 1em;
+  }
   </style>
   <template>
     <div class="page-header">
       <paper-tabs selected="{{selected}}" scrollable>
         <paper-tab>All</paper-tab>
+        <paper-tab>New...</paper-tab>
       </paper-tabs>
     </div>
-    <paper-card>
-      <perpetuo-deployment-request-table id="deploymentRequestTable"></perpetuo-deployment-request-table>
-    </paper-card>
+    <iron-pages selected="{{selected}}">
+      <paper-card id="all">
+        <perpetuo-deployment-request-table id="deploymentRequestTable"></perpetuo-deployment-request-table>
+      </paper-card>
+      <paper-card id="new">
+        <perpetuo-deployment-request-creation-form on-close="onCreationFormClose"></perpetuo-deployment-request-creation-form>
+      </paper-card>
+    </iron-pages>
   </template>
   <script>
   Polymer({
@@ -58,7 +78,11 @@
     },
     detached() {
       this.ownerDocument.client.removeDeploymentRequestsListener(this.deploymentRequestsListener);
-    }
+    },
+
+    onCreationFormClose() {
+      this.selected = 0;
+    },
   });
   </script>
 </dom-module>
