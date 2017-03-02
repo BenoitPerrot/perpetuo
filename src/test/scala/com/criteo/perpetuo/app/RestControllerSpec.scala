@@ -44,6 +44,11 @@ class RestControllerSpec extends FeatureTest with TestDb {
     }
   })
 
+
+  object T extends JsNumber(0) {
+    override def equals(o: Any): Boolean = true
+  }
+
   private def product(name: String, expectedError: Option[(String, Status)] = None) = {
     val ans = server.httpPost(
       path = s"/api/products",
@@ -162,17 +167,17 @@ class RestControllerSpec extends FeatureTest with TestDb {
         andExpect = Ok
       ).contentString.parseJson.asJsObject.fields
 
-      val creationDate = checkCreationDate(values1)
+      checkCreationDate(values1)
 
-      values1 shouldEqual Map(
+      Map(
         "id" -> JsNumber(i),
         "productName" -> JsString("my product"),
         "version" -> JsString("v2097"),
         "target" -> JsString("to everywhere"),
         "comment" -> JsString("hello world"),
         "creator" -> JsString("anonymous"),
-        "creationDate" -> JsNumber(creationDate)
-      )
+        "creationDate" -> T
+      ) shouldEqual values1
     }
 
     lazy val values3 = server.httpGet(
@@ -222,11 +227,11 @@ class RestControllerSpec extends FeatureTest with TestDb {
         andExpect = Ok
       ).contentString.parseJson.asInstanceOf[JsArray].elements
       traces.length shouldEqual 1
-      traces.head.asJsObject.fields shouldEqual Map(
-        "id" -> JsNumber(1),
+      Map(
+        "id" -> T,
         "logHref" -> JsNull,
         "state" -> JsString("pending")
-      )
+      ) shouldEqual traces.head.asJsObject.fields
     }
 
   }
@@ -247,30 +252,30 @@ class RestControllerSpec extends FeatureTest with TestDb {
       operationsCounts shouldEqual Set(0, 1)
       // let's take the first deployment request:
       val depReq1 = depReqs.map(_.asJsObject.fields).find(_ ("id") == JsNumber(1)).get
-      val creationDate = checkCreationDate(depReq1)
-      depReq1 shouldEqual Map(
+      checkCreationDate(depReq1)
+      Map(
         "id" -> 1.toJson,
         "productName" -> "my product".toJson,
         "version" -> "v21".toJson,
         "target" -> "to everywhere".toJson,
         "comment" -> "my comment".toJson,
         "creator" -> "anonymous".toJson,
-        "creationDate" -> creationDate.toJson,
+        "creationDate" -> T,
         "operations" -> JsArray(
           JsObject(
-            "id" -> 1.toJson,
+            "id" -> T,
             "type" -> "deploy".toJson,
             "targetStatus" -> JsObject(),
             "executions" -> JsArray(
               JsObject(
-                "id" -> 1.toJson,
+                "id" -> T,
                 "logHref" -> JsNull,
                 "state" -> "pending".toJson
               )
             )
           )
         )
-      )
+      ) shouldEqual depReq1
     }
   }
 
