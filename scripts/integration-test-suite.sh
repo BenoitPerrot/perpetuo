@@ -37,6 +37,7 @@ then
         -Dmarathon.user="Pheidippides" \
         -Dmarathon.password="Nenikekamen!" \
         -Dhttp.port=${PORT} \
+        -DselfUrl="http://localhost:${PORT}" \
         -jar ${perpetuo_jar}
     echo
 

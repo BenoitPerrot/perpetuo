@@ -75,7 +75,7 @@ class RundeckInvoker(val host: String,
         s"-MARATHON_USER '$marathonUser' " + // todo: remove it (we currently know there is no " in the user name...)
           s"-MARATHON_PASSWORD '$marathonPassword' " + // todo: remove it (we currently know there is no " in the password...)
           s"-environment $marathonEnv " + // todo: remove it
-          s"-execution-id $executionId " +
+          s"-callback-url '${callbackUrl(executionId)}' " +
           s"-product-name '$productName' " +
           s"-product-version '$version' " +
           s"-target $escapedTarget")

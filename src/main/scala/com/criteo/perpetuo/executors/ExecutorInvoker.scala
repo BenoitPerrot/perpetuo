@@ -1,5 +1,6 @@
 package com.criteo.perpetuo.executors
 
+import com.criteo.perpetuo.app.AppConfig
 import com.criteo.perpetuo.model.Operation.Operation
 import com.twitter.inject.Logging
 
@@ -10,6 +11,8 @@ import scala.concurrent.Future
 abstract class ExecutorInvoker {
   ExecutorInvoker.registeredInvokers += this
 
+  protected def callbackUrl(executionId: Long): String = s"${ExecutorInvoker.selfUrl}/api/execution-traces/$executionId"
+
   def trigger(operation: Operation, executionId: Long, productName: String, version: String, rawTarget: String, initiator: String): Option[Future[String]]
 
   def getExecutionDetailsUrlIfApplicable(logHref: String): Option[String] = None
@@ -18,6 +21,8 @@ abstract class ExecutorInvoker {
 
 object ExecutorInvoker {
   protected val registeredInvokers: mutable.Set[ExecutorInvoker] = mutable.Set()
+
+  protected val selfUrl: String = AppConfig.get("selfUrl")
 
   def getExecutionDetailsUrl(logHref: String): String = {
     if (logHref.contains("://"))
