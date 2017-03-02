@@ -6,7 +6,7 @@ import javax.inject.Inject
 import com.criteo.perpetuo.dao.UnknownProduct
 import com.criteo.perpetuo.dispatchers.{Execution, TargetDispatcher}
 import com.criteo.perpetuo.model.DeploymentRequestParser.parse
-import com.criteo.perpetuo.model.ExecutionState
+import com.criteo.perpetuo.model.{ExecutionState, TargetStatus}
 import com.twitter.finagle.http.Request
 import com.twitter.finatra.http.exceptions.{BadRequestException, ConflictException}
 import com.twitter.finatra.http.{Controller => BaseController}
@@ -28,7 +28,9 @@ private case class ProductPost(@NotEmpty name: String)
 
 private case class ExecutionTracePut(@RouteParam @NotEmpty id: String,
                                      @NotEmpty state: String,
-                                     logHref: String = "")
+                                     logHref: String = "",
+                                     targetStatus: Map[String, String] = Map())
+
 
 /**
   * Controller that handles deployment requests as a REST API.
@@ -129,11 +131,41 @@ class RestController @Inject()(val execution: Execution)
               case _: NoSuchElementException => throw BadRequestException(s"Unknown state `${r.state}`")
             }
 
+            val statusMap = r.targetStatus.mapValues { status =>
+              try {
+                TargetStatus.withName(status)
+              } catch {
+                case _: NoSuchElementException => throw BadRequestException(s"Unknown target status `$status`")
+              }
+            }
+
             val executionUpdate = if (r.logHref.nonEmpty)
               execution.dbBinding.updateExecutionTrace(id, r.logHref, executionState)
             else
               execution.dbBinding.updateExecutionTrace(id, executionState)
-            executionUpdate.map(if (_) Some() else None)
+
+            if (r.targetStatus.nonEmpty) {
+              executionUpdate.flatMap {
+                if (_) {
+                  execution.dbBinding.findOperationTraceByExecutionTrace(id)
+                    .map(_.get) // the execution trace has been updated, so the operation must exist!
+                    .flatMap { opTrace =>
+                    val updatedTargetStatus = opTrace.targetStatus ++ statusMap
+                    execution.dbBinding.updateOperationTrace(opTrace.id.get, updatedTargetStatus)
+                      .map { updated =>
+                        assert(updated)
+                        Some()
+                      }
+                  }
+                }
+                else
+                  Future.successful(None)
+              }
+            }
+            else
+              executionUpdate.map {
+                if (_) Some() else None
+              }
           }
           .flatMap(Await.result(_, 3.seconds))
           .map(_ => response.noContent)

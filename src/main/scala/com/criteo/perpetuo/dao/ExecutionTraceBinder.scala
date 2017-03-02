@@ -61,6 +61,13 @@ trait ExecutionTraceBinder extends TableBinder {
     dbContext.db.run(query.result)
   }
 
+  def findOperationTraceByExecutionTrace(executionTraceId: Long): Future[Option[OperationTrace]] = {
+    val query = for {
+      (exec, op) <- executionTraceQuery join operationTraceQuery on (_.operationTraceId === _.id) if exec.id === executionTraceId
+    } yield op
+    dbContext.db.run(query.result).map(_.headOption)
+  }
+
   def updateExecutionTrace(id: Long, logHref: String, state: ExecutionState): Future[Boolean] =
     runUpdate(id, _.map(r => (r.logHref, r.state)).update((Some(logHref), state)))
   def updateExecutionTrace(id: Long, state: ExecutionState): Future[Boolean] =

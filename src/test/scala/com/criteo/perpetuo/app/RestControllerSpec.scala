@@ -98,7 +98,8 @@ class RestControllerSpec extends FeatureTest with TestDb {
   }
 
   private def updateExecTrace(execId: Int, state: String,
-                              logHref: Option[String]) = {
+                              logHref: Option[String], targetStatus: Option[Map[String, String]],
+                              expectedTargetStatus: Map[String, String]) = {
     val logHrefJson = logHref.map(_.toJson)
     val previousLogHrefJson = logHrefHistory.getOrElse(execId, JsNull)
     val expectedLogHrefJson = logHrefJson.getOrElse(previousLogHrefJson)
@@ -106,7 +107,8 @@ class RestControllerSpec extends FeatureTest with TestDb {
 
     val params = Map(
       "state" -> Some(state.toJson),
-      "logHref" -> logHrefJson
+      "logHref" -> logHrefJson,
+      "targetStatus" -> targetStatus.map(_.toJson)
     ).collect {
       case (k, v) if v.isDefined => k -> v.get
     }
@@ -128,7 +130,7 @@ class RestControllerSpec extends FeatureTest with TestDb {
     Map(
       "id" -> T,
       "type" -> "deploy".toJson,
-      "targetStatus" -> JsObject(),
+      "targetStatus" -> expectedTargetStatus.toJson,
       "executions" -> JsArray(
         JsObject(
           "id" -> execId.toJson,
@@ -288,13 +290,36 @@ class RestControllerSpec extends FeatureTest with TestDb {
 
     "update one record's execution state on a PUT" in {
       updateExecTrace(
-        1, "completed", None
+        1, "completed", None, None,
+        expectedTargetStatus = Map()
       )
     }
 
     "update one record's execution state and log href on a PUT" in {
       updateExecTrace(
-        2, "completed", Some("http://somewhe.re")
+        2, "completed", Some("http://somewhe.re"), None,
+        expectedTargetStatus = Map()
+      )
+    }
+
+    "update one record's execution state and target status on a PUT" in {
+      updateExecTrace(
+        2, "initFailed", None, Some(Map("par" -> "success")),
+        expectedTargetStatus = Map("par" -> "success")
+      )
+    }
+
+    "update one record's execution state, log href and target status (partially) on a PUT" in {
+      updateExecTrace(
+        2, "conflicting", Some("http://"), Some(Map("am5" -> "notDone")),
+        expectedTargetStatus = Map("par" -> "success", "am5" -> "notDone")
+      )
+    }
+
+    "partially update one record's target status on a PUT" in {
+      updateExecTrace(
+        2, "completed", Some("http://final"), Some(Map("am5" -> "serverFailure")),
+        expectedTargetStatus = Map("par" -> "success", "am5" -> "serverFailure")
       )
     }
 
@@ -314,6 +339,19 @@ class RestControllerSpec extends FeatureTest with TestDb {
       )
     }
 
+    "return 400 if the target status is badly formatted and not update the state" in {
+      server.httpPut(
+        path = s"/api/execution-traces/1",
+        putBody = JsObject("state" -> "conflicting".toJson, "targetStatus" -> Vector("par", "am5").toJson).compactPrint,
+        andExpect = BadRequest
+      ).contentString should include("targetStatus: Unable to parse")
+
+      updateExecTrace(
+        2, "completed", None, None,
+        expectedTargetStatus = Map("par" -> "success", "am5" -> "serverFailure")
+      )
+    }
+
     "return 400 if no state is provided" in {
       server.httpPut(
         path = s"/api/execution-traces/1",
@@ -329,6 +367,20 @@ class RestControllerSpec extends FeatureTest with TestDb {
         andExpect = BadRequest
       ).contentString should include("Unknown state `what?`")
     }
+
+    "return 400 if a provided target status is unknown and not update the state" in {
+      server.httpPut(
+        path = s"/api/execution-traces/1",
+        putBody = JsObject("state" -> "conflicting".toJson, "targetStatus" -> Map("par" -> "foobar").toJson).compactPrint,
+        andExpect = BadRequest
+      ).contentString should include("Unknown target status `foobar`")
+
+      updateExecTrace(
+        2, "completed", None, None,
+        expectedTargetStatus = Map("par" -> "success", "am5" -> "serverFailure")
+      )
+    }
+
   }
 
   "Deep query" should {
@@ -350,11 +402,14 @@ class RestControllerSpec extends FeatureTest with TestDb {
         JsObject(
           "id" -> T,
           "type" -> "deploy".toJson,
-          "targetStatus" -> JsObject(),
+          "targetStatus" -> Map(
+            "par" -> "success",
+            "am5" -> "serverFailure"
+          ).toJson,
           "executions" -> JsArray(
             JsObject(
               "id" -> 2.toJson,
-              "logHref" -> "http://somewhe.re".toJson,
+              "logHref" -> "http://final".toJson,
               "state" -> "completed".toJson
             )
           )
