@@ -19,7 +19,7 @@
   <properties>
     <build-aux.directory>build-aux</build-aux.directory>
     <webapp.directory>src/main/webapp</webapp.directory>
-    <webapp.build.directory>${webapp.directory}/build/unbundled</webapp.build.directory>
+    <webapp.build.directory>${webapp.directory}/build/default</webapp.build.directory>
 
     <minimizeJar>false</minimizeJar>
     <main.class>com.criteo.perpetuo.app.main</main.class>
