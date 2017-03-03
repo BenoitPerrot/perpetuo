@@ -1,10 +1,8 @@
 <link rel="import" href="../../bower_components/polymer/polymer.html">
 
 <link rel="import" href="../../bower_components/iron-pages/iron-pages.html">
-<link rel="import" href="../../bower_components/paper-card/paper-card.html">
 <link rel="import" href="../../bower_components/paper-tabs/paper-tab.html">
 <link rel="import" href="../../bower_components/paper-tabs/paper-tabs.html">
-<link rel="import" href="../../bower_components/paper-card/paper-card.html">
 
 <link rel="import" href="../perpetuo-deployment-request/perpetuo-deployment-request-table.html">
 <link rel="import" href="../perpetuo-deployment-request/perpetuo-deployment-request-creation-form.html">
@@ -40,12 +38,8 @@
     }
   }
 
-  paper-card {
-    margin: 1em;
-  }
-
-  paper-card#new {
-      padding: 1em;
+  perpetuo-deployment-request-creation-form {
+    padding: 1em;
   }
   </style>
   <template>
@@ -56,12 +50,8 @@
       </paper-tabs>
     </div>
     <iron-pages selected="{{selected}}">
-      <paper-card id="all">
-        <perpetuo-deployment-request-table id="deploymentRequestTable"></perpetuo-deployment-request-table>
-      </paper-card>
-      <paper-card id="new">
-        <perpetuo-deployment-request-creation-form on-close="onCreationFormClose"></perpetuo-deployment-request-creation-form>
-      </paper-card>
+      <perpetuo-deployment-request-table id="deploymentRequestTable"></perpetuo-deployment-request-table>
+      <perpetuo-deployment-request-creation-form on-close="onCreationFormClose"></perpetuo-deployment-request-creation-form>
     </iron-pages>
   </template>
   <script>
