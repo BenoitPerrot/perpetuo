@@ -61,7 +61,7 @@ class RestControllerSpec extends FeatureTest with TestDb {
     expectedError.foreach(err => ans shouldEqual JsObject("errors" -> JsArray(JsString(err._1))).compactPrint)
   }
 
-  private def requestDeployment(productName: String, version: String, target: JsValue, comment: Option[String], expectsMessage: Option[String] = None): JsObject =
+  private def requestDeployment(productName: String, version: String, target: JsValue, comment: Option[String], expectsMessage: Option[String] = None, start: Boolean = true): JsObject =
     requestDeployment(
       JsObject(
         Map(
@@ -70,12 +70,13 @@ class RestControllerSpec extends FeatureTest with TestDb {
           "target" -> target
         ) ++ (if (comment.isDefined) Map("comment" -> JsString(comment.get)) else Map())
       ).compactPrint,
-      expectsMessage
+      expectsMessage,
+      start
     )
 
-  private def requestDeployment(body: String, expectsMessage: Option[String]): JsObject = {
+  private def requestDeployment(body: String, expectsMessage: Option[String], start: Boolean): JsObject = {
     val ans = server.httpPost(
-      path = "/api/deployment-requests?start=true",
+      path = s"/api/deployment-requests?start=$start",
       andExpect = if (expectsMessage.isDefined) BadRequest else Created,
       postBody = body
     ).contentString
@@ -171,9 +172,9 @@ class RestControllerSpec extends FeatureTest with TestDb {
     }
 
     "properly reject bad input" in {
-      requestDeployment("{", Some("Unexpected end-of-input at input"))
-      requestDeployment("""{"productName": "abc"}""", Some("Expected to find `target`"))
-      requestDeployment("""{"productName": "abc", "target": "*", "version": "2"}""", Some("Product `abc` could not be found"))
+      requestDeployment("{", Some("Unexpected end-of-input at input"), start = true)
+      requestDeployment("""{"productName": "abc"}""", Some("Expected to find `target`"), start = true)
+      requestDeployment("""{"productName": "abc", "target": "*", "version": "2"}""", Some("Product `abc` could not be found"), start = true)
     }
 
     "handle a complex target expression" in {
@@ -195,6 +196,17 @@ class RestControllerSpec extends FeatureTest with TestDb {
 
   }
 
+  "The DeploymentRequest's PUT entry-point" should {
+    "start a deployment that was not started yet" in {
+      val id = requestDeployment("my product", "not ready yet", "par".toJson, None, None, start = false)
+        .fields("id").asInstanceOf[JsNumber].value
+      server.httpPut(
+        path = s"/api/deployment-requests/$id",
+        andExpect = Ok,
+        putBody = ""
+      ).contentString.parseJson.asJsObject shouldEqual JsObject("id" -> id.toJson)
+    }
+  }
 
   "The DeploymentRequest's GET entry-point" should {
 
@@ -415,6 +427,22 @@ class RestControllerSpec extends FeatureTest with TestDb {
           )
         )
       ) shouldEqual depReq("operations")
+
+      val wasDelayed = depReqs.find(_ ("version") == "not ready yet".toJson).get
+      JsArray(
+        JsObject(
+          "id" -> T,
+          "type" -> "deploy".toJson,
+          "targetStatus" -> JsObject(),
+          "executions" -> JsArray(
+            JsObject(
+              "id" -> T,
+              "logHref" -> JsNull,
+              "state" -> "pending".toJson
+            )
+          )
+        )
+      ) shouldEqual wasDelayed("operations")
     }
   }
 

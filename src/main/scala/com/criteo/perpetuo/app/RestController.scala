@@ -104,6 +104,18 @@ class RestController @Inject()(val execution: Execution)
       }
   }
 
+  put("/api/deployment-requests/:id")(
+    withLongId(
+      execution.dbBinding.findDeploymentRequestByIdWithProduct(_).map(_.map { req =>
+        // done asynchronously
+        execution.startOperation(dispatcher, req, Operation.deploy)
+
+        // returned synchronously
+        Map("id" -> req.id)
+      })
+    )
+  )
+
   get("/api/execution-traces/by-deployment-request/:id")(
     withLongId(id =>
       execution.dbBinding.findExecutionTraceRecordsByDeploymentRequest(id).flatMap { traces =>
