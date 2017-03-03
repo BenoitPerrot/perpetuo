@@ -1,0 +1,56 @@
+<link rel="import" href="../../bower_components/polymer/polymer.html">
+
+<dom-module id="perpetuo-deployment-request-entry">
+  <style>
+  :host {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 5px;
+  }
+
+  div.heading {
+    display: flex;
+    align-items: center;
+    padding: 0.5em;
+    cursor: pointer;
+  }
+
+  span {
+    flex: 1;
+    display: inline-block;
+  }
+
+  span.product-type {
+    flex: 0.5;
+  }
+  </style>
+  <template>
+    <div class="heading">
+      <span class="product-type">[[data.productType]]</span>
+      <span class="product-name">[[data.productName]]</span>
+      <span class="version">[[data.version]]</span>
+      <span class="state">[[aggregateState(data)]]</span>
+    </div>
+  </template>
+  <script>
+  Polymer({
+    is: 'perpetuo-deployment-request-entry',
+
+    properties: {
+      data: { type: Object, value: () => {} }
+    },
+
+    aggregateState(item) {
+      if (0 < item.operations.length) {
+        if (item.operations.some(op => op.executions.some(exec => exec.state === 'pending' || exec.state === 'running'))) {
+          return 'in progress';
+        } else {
+          return 'finished';
+        }
+      } else {
+        return 'waiting for approval';
+      }
+    }
+  });
+  </script>
+</dom-module>

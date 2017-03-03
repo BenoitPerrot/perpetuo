@@ -1,5 +1,7 @@
 <link rel="import" href="../../bower_components/polymer/polymer.html">
 
+<link rel="import" href="../perpetuo-deployment-request/perpetuo-deployment-request-entry.html">
+
 <dom-module id="perpetuo-deployment-request-table">
   <style>
   :host {
@@ -11,12 +13,11 @@
     flex: 1;
     padding: 1em;
   }
-  .row {
+  .row.heading {
+    flex: 1;
     display: flex;
     align-items: center;
     padding: 0.5em;
-  }
-  .row.heading {
     border-bottom: solid 1px #ddd;
     margin-bottom: 1em;
   }
@@ -37,12 +38,7 @@
         <span class="status">State</span>
       </div>
       <template is="dom-repeat" items="[[data]]">
-        <div class="row">
-          <span class="product-type">[[item.productType]]</span>
-          <span class="product-name">[[item.productName]]</span>
-          <span class="version">[[item.version]]</span>
-          <span class="state">[[aggregateState(item)]]</span>
-        </div>
+        <perpetuo-deployment-request-entry data="[[item]]"></perpetuo-deployment-request-entry>
       </template>
     </div>
   </template>
@@ -53,18 +49,6 @@
     properties: {
       data: { type: Array, value: () => [] }
     },
-
-    aggregateState(item) {
-      if (0 < item.operations.length) {
-        if (item.operations.some(op => op.executions.some(exec => exec.state === 'pending' || exec.state === 'running'))) {
-          return 'in progress';
-        } else {
-          return 'finished';
-        }
-      } else {
-        return 'waiting for approval';
-      }
-    }
   });
   </script>
 </dom-module>
