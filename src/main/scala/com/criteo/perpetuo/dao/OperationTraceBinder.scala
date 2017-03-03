@@ -8,10 +8,10 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
 
-private[dao] case class OperationTrace(id: Option[Long],
-                                       deploymentRequestId: Long,
-                                       operation: Operation,
-                                       targetStatus: TargetStatus.MapType = Map())
+private[dao] case class OperationTraceRecord(id: Option[Long],
+                                             deploymentRequestId: Long,
+                                             operation: Operation,
+                                             targetStatus: TargetStatus.MapType = Map())
 
 
 trait OperationTraceBinder extends TableBinder {
@@ -28,7 +28,7 @@ trait OperationTraceBinder extends TableBinder {
     str => str.parseJson.asJsObject.fields map { case (k, JsNumber(v)) => (k, TargetStatus(v.value.toInt)) }
   )
 
-  class OperationTraceTable(tag: Tag) extends Table[OperationTrace](tag, "operation_trace") {
+  class OperationTraceTable(tag: Tag) extends Table[OperationTraceRecord](tag, "operation_trace") {
     def id = column[Long]("id", O.AutoInc)
     protected def pk = primaryKey(id)
 
@@ -38,22 +38,14 @@ trait OperationTraceBinder extends TableBinder {
     def operation = column[Operation]("operation")
     def targetStatus = column[TargetStatus.MapType]("target_status", O.SqlType("nvarchar(max)"))
 
-    def * = (id.?, deploymentRequestId, operation, targetStatus) <> (OperationTrace.tupled, OperationTrace.unapply)
+    def * = (id.?, deploymentRequestId, operation, targetStatus) <> (OperationTraceRecord.tupled, OperationTraceRecord.unapply)
   }
 
   val operationTraceQuery = TableQuery[OperationTraceTable]
 
   def addToDeploymentRequest(requestId: Long, operation: Operation): Future[Long] = {
-    val operationTrace = OperationTrace(None, requestId, operation)
+    val operationTrace = OperationTraceRecord(None, requestId, operation)
     dbContext.db.run((operationTraceQuery returning operationTraceQuery.map(_.id)) += operationTrace)
-  }
-
-  def findOperationTraceById(id: Long): Future[Option[OperationTrace]] = {
-    dbContext.db.run(operationTraceQuery.filter(_.id === id).result).map(_.headOption)
-  }
-
-  def findOperationTracesByDeploymentRequest(deploymentRequestId: Long): Future[Seq[OperationTrace]] = {
-    dbContext.db.run(operationTraceQuery.filter(_.deploymentRequestId === deploymentRequestId).result)
   }
 
   def updateOperationTrace(id: Long, targetStatus: TargetStatus.MapType): Future[Boolean] = {

@@ -38,19 +38,20 @@ class OperationTraceSpec extends FunSuite with ScalaFutures
         deployId <- addToDeploymentRequest(request.id, Operation.deploy)
         revertId <- addToDeploymentRequest(request.id, Operation.revert)
         traces <- dbContext.db.run(operationTraceQuery.result)
-        deploy <- findOperationTraceById(deployId)
-        revert <- findOperationTraceById(revertId)
       } yield {
-        assert(deploy.isDefined && revert.isDefined)
-        assert(traces == Seq(deploy.get, revert.get))
-        assert(deploy.get.id.get != revert.get.id.get) // different primary keys
-        assert(deploy.get.deploymentRequestId == revert.get.deploymentRequestId) // same foreign key
-        assert(deploy.get.deploymentRequestId == request.id) // pointing to the same DeploymentRequest
-        assert(deploy.get.operation == Operation.deploy) // right operation type
-        assert(revert.get.operation == Operation.revert) // right operation type
-        assert(deploy.get.operation != revert.get.operation) // different operation types
-        assert(deploy.get.targetStatus == revert.get.targetStatus) // same target status
-        assert(deploy.get.targetStatus == Map()) // same empty target status
+        assert(traces.length == 2)
+        val deploy = traces.head
+        val revert = traces.tail.head
+        assert(deployId == deploy.id.get)
+        assert(revertId == revert.id.get)
+        assert(deploy.id.get != revert.id.get) // different primary keys
+        assert(deploy.deploymentRequestId == revert.deploymentRequestId) // same foreign key
+        assert(deploy.deploymentRequestId == request.id) // pointing to the same DeploymentRequest
+        assert(deploy.operation == Operation.deploy) // right operation type
+        assert(revert.operation == Operation.revert) // right operation type
+        assert(deploy.operation != revert.operation) // different operation types
+        assert(deploy.targetStatus == revert.targetStatus) // same target status
+        assert(deploy.targetStatus == Map()) // same empty target status
       },
       1.second
     )
@@ -63,10 +64,10 @@ class OperationTraceSpec extends FunSuite with ScalaFutures
       for {
         traceId <- dbContext.db.run(operationTraceQuery.result).map(_.head.id.get)
         updated <- updateOperationTrace(traceId, Map("abc" -> TargetStatus.serverFailure))
-        trace <- findOperationTraceById(traceId)
+        traces <- dbContext.db.run(operationTraceQuery.result)
       } yield {
         assert(updated)
-        assert(trace.get.targetStatus == Map("abc" -> TargetStatus.serverFailure))
+        assert(traces.head.targetStatus == Map("abc" -> TargetStatus.serverFailure))
       },
       1.second
     )

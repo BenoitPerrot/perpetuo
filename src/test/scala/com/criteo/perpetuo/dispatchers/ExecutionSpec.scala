@@ -47,7 +47,7 @@ class ExecutionSpec extends Test with TestDb {
     asyncStart.flatMap { count =>
       assert(depReq.isCompleted) // if `asyncStart` has successfully completed, `depReq` must have completed
 
-      depReq.map(_.id).flatMap(execution.dbBinding.findExecutionTracesByDeploymentRequest).map { traces =>
+      depReq.map(_.id).flatMap(execution.dbBinding.findExecutionTraceRecordsByDeploymentRequest).map { traces =>
         val executions = traces.map(trace => {
           assert(trace.id.isDefined)
           (trace.id.get, trace.logHref)

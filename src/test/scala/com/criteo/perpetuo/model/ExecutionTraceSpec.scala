@@ -34,14 +34,12 @@ class ExecutionTraceSpec extends FunSuite with ScalaFutures
         deployId <- addToDeploymentRequest(request.id, Operation.deploy)
         execIds <- addToOperationTrace(deployId, 1)
         execTraces <- dbContext.db.run(executionTraceQuery.result)
-        execTrace <- findExecutionTraceById(execIds.head)
       } yield {
-        assert(execTrace.isDefined)
-        assert(execTraces == Seq(execTrace.get))
-        assert(execTrace.get.id.get == execIds.head)
-        assert(execTrace.get.operationTraceId == deployId)
-        assert(execTrace.get.logHref.isEmpty)
-        assert(execTrace.get.state == ExecutionState.pending)
+        assert(execTraces.length == 1)
+        assert(execTraces.head.id.get == execIds.head)
+        assert(execTraces.head.operationTraceId == deployId)
+        assert(execTraces.head.logHref.isEmpty)
+        assert(execTraces.head.state == ExecutionState.pending)
       },
       1.second
     )
