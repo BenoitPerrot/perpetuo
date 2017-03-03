@@ -6,7 +6,7 @@ import javax.inject.Inject
 import com.criteo.perpetuo.dao.UnknownProduct
 import com.criteo.perpetuo.dispatchers.{Execution, TargetDispatcher}
 import com.criteo.perpetuo.model.DeploymentRequestParser.parse
-import com.criteo.perpetuo.model.{ExecutionState, TargetStatus}
+import com.criteo.perpetuo.model.{ExecutionState, Operation, TargetStatus}
 import com.twitter.finagle.http.Request
 import com.twitter.finatra.http.exceptions.{BadRequestException, ConflictException}
 import com.twitter.finatra.http.{Controller => BaseController}
@@ -86,8 +86,15 @@ class RestController @Inject()(val execution: Execution)
               case e: ParsingException => throw BadRequestException(e.getMessage)
             }
 
-            val (futureDepReq, asyncStart) = execution.startTransaction(dispatcher, attrs)
-            asyncStart.onFailure { case e => logger.error("Transaction failed to start: " + e.getMessage + "\n" + e.getStackTrace.mkString("\n")) }
+            // first, log the user's general intent
+            val futureDepReq = execution.dbBinding.insert(attrs)
+
+            if (r.getBooleanParam("start", default = false)) {
+              val asyncStart = futureDepReq.flatMap(execution.startOperation(dispatcher, _, Operation.deploy))
+
+              asyncStart.onFailure { case e => logger.error("Transaction failed to start: " + e.getMessage + "\n" + e.getStackTrace.mkString("\n")) }
+            }
+
             futureDepReq
               .recover { case e: UnknownProduct => throw BadRequestException(s"Product `${e.productName}` could not be found") }
               .map { depReq => response.created.json(Map("id" -> depReq.id)) }

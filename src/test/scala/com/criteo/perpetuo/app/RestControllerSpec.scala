@@ -75,7 +75,7 @@ class RestControllerSpec extends FeatureTest with TestDb {
 
   private def requestDeployment(body: String, expectsMessage: Option[String]): JsObject = {
     val ans = server.httpPost(
-      path = "/api/deployment-requests",
+      path = "/api/deployment-requests?start=true",
       andExpect = if (expectsMessage.isDefined) BadRequest else Created,
       postBody = body
     ).contentString

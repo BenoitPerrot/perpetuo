@@ -18,14 +18,6 @@ class Execution @Inject()(val dbBinding: DbBinding) extends Logging {
 
   import spray.json.DefaultJsonProtocol._
 
-  def startTransaction(dispatcher: TargetDispatcher, attrs: DeploymentRequestAttrs): (Future[DeploymentRequest], Future[Int]) = {
-    // first, log the user's general intent
-    val deploymentRequest = dbBinding.insert(attrs)
-
-    // return futures on the deployment request and on the number of job runs triggered
-    (deploymentRequest, deploymentRequest.flatMap(startOperation(dispatcher, _, Operation.deploy)))
-  }
-
   def startOperation(dispatcher: TargetDispatcher, deploymentRequest: DeploymentRequest, operation: Operation): Future[Int] = {
     // infer dispatching
     val invocations = dispatch(dispatcher, deploymentRequest.parsedTarget).toSeq

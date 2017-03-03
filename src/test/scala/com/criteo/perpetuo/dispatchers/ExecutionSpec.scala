@@ -7,7 +7,7 @@ import com.criteo.perpetuo.dao._
 import com.criteo.perpetuo.executors.{DummyInvoker, ExecutorInvoker}
 import com.criteo.perpetuo.model.DeploymentRequestParser._
 import com.criteo.perpetuo.model.Operation.Operation
-import com.criteo.perpetuo.model.{DeploymentRequestAttrs, Product}
+import com.criteo.perpetuo.model.{DeploymentRequestAttrs, Operation, Product}
 import com.twitter.inject.Test
 import spray.json.DefaultJsonProtocol._
 import spray.json.{JsObject, _}
@@ -43,10 +43,9 @@ class ExecutionSpec extends Test with TestDb {
   private def getExecutions(dispatcher: TargetDispatcher): Future[Seq[(Long, Option[String])]] = {
     val req = new DeploymentRequestAttrs(product.name, "v42", """"*"""", "No fear", "c.norris", new Timestamp(123456789))
 
-    val (depReq, asyncStart) = execution.startTransaction(dispatcher, req)
+    val depReq = execution.dbBinding.insert(req)
+    val asyncStart = depReq.flatMap(execution.startOperation(dispatcher, _, Operation.deploy))
     asyncStart.flatMap { count =>
-      assert(depReq.isCompleted) // if `asyncStart` has successfully completed, `depReq` must have completed
-
       depReq.map(_.id).flatMap(execution.dbBinding.findExecutionTraceRecordsByDeploymentRequest).map { traces =>
         val executions = traces.map(trace => {
           assert(trace.id.isDefined)
@@ -67,6 +66,7 @@ class ExecutionSpec extends Test with TestDb {
   implicit class ComplexDispatchTest(private val target: TargetExpr) {
     private val rawTarget = target.toJson.compactPrint
     private val request = new DeploymentRequestAttrs(product.name, "v42", rawTarget, "No fear", "c.norris", new Timestamp(123456789))
+    private val depReq = execution.dbBinding.insert(request)
 
     private def parse(it: Iterable[(ExecutorInvoker, String)]): Iterable[(ExecutorInvoker, TargetExpr)] =
       it.map { case (exec, raw) => (exec, parseTargetExpression(raw.parseJson)) }
@@ -76,9 +76,9 @@ class ExecutionSpec extends Test with TestDb {
 
       execLogs.clear()
       Await.result(
-        execution.startTransaction(TestSuffixDispatcher, request)._2.map(_ =>
+        depReq.flatMap(execution.startOperation(TestSuffixDispatcher, _, Operation.deploy).map(_ =>
           parse(execLogs) should contain theSameElementsAs that
-        ),
+        )),
         1.second
       )
     }
