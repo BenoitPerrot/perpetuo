@@ -1,5 +1,7 @@
 <link rel="import" href="../../bower_components/polymer/polymer.html">
 
+<link rel="import" href="../../bower_components/paper-card/paper-card.html">
+
 <dom-module id="perpetuo-deployment-request-entry">
   <style>
   :host {
@@ -25,19 +27,48 @@
   }
   </style>
   <template>
-    <div class="heading">
-      <span class="product-type">[[data.productType]]</span>
-      <span class="product-name">[[data.productName]]</span>
-      <span class="version">[[data.version]]</span>
-      <span class="state">[[aggregateState(data)]]</span>
-    </div>
+    <paper-card elevation="[[computeElevation(expanded)]]">
+      <div class="heading" on-tap="toggle">
+        <span class="product-type">[[data.productType]]</span>
+        <span class="product-name">[[data.productName]]</span>
+        <span class="version">[[data.version]]</span>
+        <span class="state">[[aggregateState(data)]]</span>
+      </div>
+      <template is="dom-if" if="[[expanded]]">
+        <ul>
+          <template is="dom-repeat" items="[[data.operations]]">
+            <li>
+              <span>[[item.type]]</span>
+              <ul>
+                <template is="dom-repeat" items="[[item.executions]]">
+                  <li>
+                    <span>[[item.state]]</span>
+                    <a href$="[[item.logHref]]">Logs...</a>
+                  </li>
+                </template>
+              </ul>
+            </li>
+          </template>
+        </ul>
+      </template>
+    </paper-card>
   </template>
   <script>
   Polymer({
     is: 'perpetuo-deployment-request-entry',
 
     properties: {
-      data: { type: Object, value: () => {} }
+      data: { type: Object, value: () => {} },
+      expanded: { type: Boolean, value: false }
+    },
+
+    toggle() {
+      this.expanded = !this.expanded;
+      console.log(this.data);
+    },
+
+    computeElevation() {
+      return this.expanded ? 1 : 0;
     },
 
     aggregateState(item) {
