@@ -33,7 +33,12 @@
         <span class="product-name">[[data.productName]]</span>
         <span class="version">[[data.version]]</span>
         <span class="target">[[data.target]]</span>
-        <span class="state">[[state]]</span>
+        <template is="dom-if" if="[[isWaitingForApproval(state)]]">
+          <paper-button on-tap="onStartTap" raised>Start!</paper-button>
+        </template>
+        <template is="dom-if" if="[[!isWaitingForApproval(state)]]">
+          <span class="state">[[state]]</span>
+        </template>
       </div>
       <template is="dom-if" if="[[expanded]]">
         <p class="comment">[[data.comment]]</p>
@@ -84,6 +89,13 @@
       } else {
         return 'waiting for approval';
       }
+    },
+    isWaitingForApproval(state) {
+      return state === 'waiting for approval';
+    },
+
+    onStartTap() {
+      this.ownerDocument.client.startDeploymentRequest(this.data.id);
     }
   });
   </script>

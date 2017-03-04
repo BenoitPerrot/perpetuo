@@ -29,6 +29,9 @@ this.Perpetuo.Client = this.Perpetuo.Client || (function () {
         comment: comment
       }) });
     }
+    startDeploymentRequest(deploymentRequestId) {
+      return jsonFetch(`/api/deployment-requests/${deploymentRequestId}`, { method: 'PUT' });
+    }
 
     fetchProducts() {
       return jsonFetch('/api/products').then(_ => _.json()).then(products => products.map(_ => { return {type: 'mesos', name: _} })); // TODO: have the productType in the backend
