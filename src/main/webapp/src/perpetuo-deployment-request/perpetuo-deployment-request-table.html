@@ -17,26 +17,40 @@
     flex: 1;
     display: flex;
     align-items: center;
-    padding: 0.5em;
+    padding: 0.5em 2em;
     border-bottom: solid 1px #ddd;
     margin-bottom: 1em;
   }
   span {
     display: inline-block;
-    flex: 1;
+  }
+  span.product-name {
+    width: 30%;
+  }
+  span.version {
+    width: 10%;
   }
   span.product-type {
-    flex: 0.5;
+    width: 100px;
+    text-align: center;
+  }
+  div.state {
+    flex: 1;
+    display: flex;
+    justify-content: flex-end;
+    padding-right: 1.5em;
   }
   </style>
   <template>
     <div class="table">
       <div class="row heading">
-        <span class="product-type">Product Type</span>
-        <span class="product-name">Product Name</span>
+        <span class="product-name">Product</span>
         <span class="version">Version</span>
+        <span class="product-type">Type</span>
         <span class="target">Target</span>
-        <span class="status">State</span>
+        <div class="state">
+          <span>State</span>
+        </div>
       </div>
       <template is="dom-repeat" items="[[data]]">
         <perpetuo-deployment-request-entry data="[[item]]"></perpetuo-deployment-request-entry>

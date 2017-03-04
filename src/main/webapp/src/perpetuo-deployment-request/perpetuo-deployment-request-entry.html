@@ -1,6 +1,8 @@
 <link rel="import" href="../../bower_components/polymer/polymer.html">
 
+<link rel="import" href="../../bower_components/paper-button/paper-button.html">
 <link rel="import" href="../../bower_components/paper-card/paper-card.html">
+<link rel="import" href="../../bower_components/paper-material/paper-material.html">
 
 <dom-module id="perpetuo-deployment-request-entry">
   <style>
@@ -13,40 +15,81 @@
   div.heading {
     display: flex;
     align-items: center;
-    padding: 0.5em;
+    padding: 0.5em 2em;
     cursor: pointer;
+    height: 50px;
+    border-bottom: solid 1px #ddd;
   }
 
   span {
-    flex: 1;
     display: inline-block;
   }
 
+  span.product-name {
+    font-size: 26px;
+    width: 30%;
+  }
+  span.product-name > iron-icon {
+    margin-left: -0.5em;
+    margin-right: 0.5em;
+  }
+  span.version {
+    font-size: 20px;
+    width: 10%;
+  }
   span.product-type {
-    flex: 0.5;
+    width: 100px;
+    text-align: center;
+  }
+  div.state {
+    flex: 1;
+    display: flex;
+    justify-content: flex-end;
+  }
+  div.state > paper-material {
+    border-radius: 3px;
+    padding: 0.7em 0.57em;
+    text-transform: uppercase;
+  }
+  div.state.finished > paper-material {
+    color: #fff;
+    background-color: #888;
+  }
+  div.state.in-progress > paper-material {
+    color: #fff;
+    background: repeating-linear-gradient(-45deg, #009688, #009688 10px, #26a69a 10px, #26a69a 20px);
+  }
+
+  p.comment {
+    margin: 0.5em 2em;
+    background-color: #eee;
+    border: solid 1px #ddd;
+    padding-left: 1em;
   }
   </style>
   <template>
-    <paper-card elevation="[[computeElevation(expanded)]]">
+    <paper-card>
       <div class="heading" on-tap="toggle">
-        <span class="product-type">[[data.productType]]</span>
-        <span class="product-name">[[data.productName]]</span>
+        <span class="product-name"><iron-icon icon="[[expanderIcon(expanded)]]"></iron-icon>[[data.productName]]</span>
         <span class="version">[[data.version]]</span>
+        <span class="product-type">[[data.productType]]</span>
         <span class="target">[[data.target]]</span>
-        <template is="dom-if" if="[[isWaitingForApproval(state)]]">
-          <paper-button on-tap="onStartTap" raised>Start!</paper-button>
-        </template>
-        <template is="dom-if" if="[[!isWaitingForApproval(state)]]">
-          <span class="state">[[state]]</span>
-        </template>
+        <div class$="state [[state]]">
+          <template is="dom-if" if="[[isWaitingForApproval(state)]]">
+            <paper-button on-tap="onStartTap" raised>Start!</paper-button>
+          </template>
+          <template is="dom-if" if="[[!isWaitingForApproval(state)]]">
+            <paper-material>[[state]]</paper-material>
+          </template>
+        </div>
       </div>
       <template is="dom-if" if="[[expanded]]">
         <p class="comment">[[data.comment]]</p>
-        <ul>
+        <ul class="operations">
           <template is="dom-repeat" items="[[data.operations]]">
             <li>
               <span>[[item.type]]</span>
-              <ul>
+              <ul class="executions">
                 <template is="dom-repeat" items="[[item.executions]]">
                   <li>
                     <span>[[item.state]]</span>
@@ -74,24 +117,23 @@
       this.expanded = !this.expanded;
       console.log(this.data);
     },
-
-    computeElevation() {
-      return this.expanded ? 1 : 0;
+    expanderIcon(expanded) {
+      return expanded ? 'expand-more' : 'chevron-right';
     },
 
     computeState(data) {
       if (0 < data.operations.length) {
         if (data.operations.some(op => op.executions.some(exec => exec.state === 'pending' || exec.state === 'running'))) {
-          return 'in progress';
+          return 'in-progress';
         } else {
           return 'finished';
         }
       } else {
-        return 'waiting for approval';
+        return 'waiting-for-approval';
       }
     },
     isWaitingForApproval(state) {
-      return state === 'waiting for approval';
+      return state === 'waiting-for-approval';
     },
 
     onStartTap() {
