@@ -36,6 +36,7 @@
         <span class="state">[[aggregateState(data)]]</span>
       </div>
       <template is="dom-if" if="[[expanded]]">
+        <p class="comment">[[data.comment]]</p>
         <ul>
           <template is="dom-repeat" items="[[data.operations]]">
             <li>
