@@ -167,8 +167,7 @@ class RestController @Inject()(val execution: Execution)
               executionUpdate.flatMap {
                 if (_) {
                   // the execution trace has been updated, so it must exist!
-                  val executionTrace = execution.dbBinding.findExecutionTraceByIdWithOperationTrace(id).map(_.get)
-                  executionTrace.flatMap { execTrace =>
+                  execution.dbBinding.findExecutionTraceByIdWithOperationTrace(id).map(_.get).flatMap { execTrace =>
                     val op = execTrace.operationTrace
                     execution.dbBinding.updateOperationTrace(op.id, op.partialUpdate(statusMap))
                       .map { updated =>
