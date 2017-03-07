@@ -41,67 +41,71 @@ class RestController @Inject()(val execution: Execution)
   private val futurePool = FuturePools.unboundedPool("RequestFuturePool")
   private val dispatcher = TargetDispatcher.fromConfig
 
-  private def withLongId[T](view: Long => Future[Option[T]]): GetWithId => com.twitter.util.Future[Option[T]] =
+  private def timeBoxed[T](view: => Future[T], maxDuration: Duration): com.twitter.util.Future[T] =
+    futurePool {
+      Await.result(view, maxDuration)
+    }
+
+  private def withLongId[T](view: Long => Future[Option[T]], maxDuration: Duration): GetWithId => com.twitter.util.Future[Option[T]] =
     request => futurePool {
-      Try(request.id.toLong).toOption.map(view).flatMap(Await.result(_, 2.seconds))
+      Try(request.id.toLong).toOption.map(view).flatMap(Await.result(_, maxDuration))
     }
 
 
-  get("/api/products") {
-    _: Request =>
-      futurePool {
-        Await.result(execution.dbBinding.getProductNames, 2.seconds)
-      }
+  get("/api/products") { _: Request =>
+    timeBoxed(
+      execution.dbBinding.getProductNames,
+      2.seconds
+    )
   }
 
-  post("/api/products") {
-    r: ProductPost =>
-      futurePool {
-        Await.result(execution.dbBinding.insert(r.name).recover {
+  post("/api/products") { r: ProductPost =>
+    timeBoxed(
+      execution.dbBinding.insert(r.name)
+        .recover {
           case e: SQLException if e.getMessage.contains("nique index") =>
             // there is no specific exception type if the name is already used but the error message starts with
             // * if H2: Unique index or primary key violation: "ix_product_name ON PUBLIC.""product""(""name"") VALUES ('my product', 1)"
             // * if SQLServer: Cannot insert duplicate key row in object 'dbo.product' with unique index 'ix_product_name'
             throw ConflictException(s"Name `${r.name}` is already used")
-        }, 2.seconds)
-        response.created.nothing
-      }
+        }
+        .map(_ => response.created.nothing),
+      2.seconds
+    )
   }
 
   get("/api/deployment-requests/:id")(
     withLongId(
-      execution.dbBinding.findDeploymentRequestByIdWithProduct(_).map(_.map(_.toJsonReadyMap))
+      execution.dbBinding.findDeploymentRequestByIdWithProduct(_).map(_.map(_.toJsonReadyMap)),
+      2.seconds
     )
   )
 
-  post("/api/deployment-requests") {
-    r: Request =>
-      futurePool {
-        Await.result(
-          {
-            val attrs = try {
-              parse(r.contentString)
-            }
-            catch {
-              case e: ParsingException => throw BadRequestException(e.getMessage)
-            }
+  post("/api/deployment-requests") { r: Request =>
+    timeBoxed(
+      {
+        val attrs = try {
+          parse(r.contentString)
+        }
+        catch {
+          case e: ParsingException => throw BadRequestException(e.getMessage)
+        }
 
-            // first, log the user's general intent
-            val futureDepReq = execution.dbBinding.insert(attrs)
+        // first, log the user's general intent
+        val futureDepReq = execution.dbBinding.insert(attrs)
 
-            if (r.getBooleanParam("start", default = false)) {
-              val asyncStart = futureDepReq.flatMap(execution.startOperation(dispatcher, _, Operation.deploy))
+        if (r.getBooleanParam("start", default = false)) {
+          val asyncStart = futureDepReq.flatMap(execution.startOperation(dispatcher, _, Operation.deploy))
 
-              asyncStart.onFailure { case e => logger.error("Transaction failed to start: " + e.getMessage + "\n" + e.getStackTrace.mkString("\n")) }
-            }
+          asyncStart.onFailure { case e => logger.error("Transaction failed to start: " + e.getMessage + "\n" + e.getStackTrace.mkString("\n")) }
+        }
 
-            futureDepReq
-              .recover { case e: UnknownProduct => throw BadRequestException(s"Product `${e.productName}` could not be found") }
-              .map { depReq => response.created.json(Map("id" -> depReq.id)) }
-          },
-          2.seconds
-        )
-      }
+        futureDepReq
+          .recover { case e: UnknownProduct => throw BadRequestException(s"Product `${e.productName}` could not be found") }
+          .map { depReq => response.created.json(Map("id" -> depReq.id)) }
+      },
+      2.seconds
+    )
   }
 
   put("/api/deployment-requests/:id")(
@@ -112,7 +116,8 @@ class RestController @Inject()(val execution: Execution)
 
         // returned synchronously
         Map("id" -> req.id)
-      })
+      }),
+      2.seconds
     )
   )
 
@@ -135,7 +140,8 @@ class RestController @Inject()(val execution: Execution)
               )
             )
           )
-      }
+      },
+      2.seconds
     )
   )
 
@@ -191,16 +197,16 @@ class RestController @Inject()(val execution: Execution)
       }
   }
 
-  get("/api/unstable/deployment-requests") {
-    _: Request =>
-      futurePool {
-        Await.result(execution.dbBinding.deepQueryDeploymentRequests(), 5.seconds)
-      }
+  get("/api/unstable/deployment-requests") { _: Request =>
+    timeBoxed(
+      execution.dbBinding.deepQueryDeploymentRequests(),
+      5.seconds
+    )
   }
 
   // Be sure to capture invalid calls to APIs
-  get("/api/:*") {
-    _: Request => response.notFound
+  get("/api/:*") { _: Request =>
+    response.notFound
   }
 
 }
