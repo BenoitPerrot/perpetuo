@@ -21,15 +21,19 @@ import scala.concurrent.{Await, Future}
 import scala.util.Try
 
 
+trait RequestWithId {
+  val id: String
+}
+
 @JsonIgnoreBody
-private case class GetWithId(@RouteParam @NotEmpty id: String)
+private case class GetWithId(@RouteParam @NotEmpty id: String) extends RequestWithId
 
 private case class ProductPost(@NotEmpty name: String)
 
 private case class ExecutionTracePut(@RouteParam @NotEmpty id: String,
                                      @NotEmpty state: String,
                                      logHref: String = "",
-                                     targetStatus: Map[String, String] = Map())
+                                     targetStatus: Map[String, String] = Map()) extends RequestWithId
 
 
 /**
@@ -47,8 +51,11 @@ class RestController @Inject()(val execution: Execution)
     }
 
   private def withLongId[T](view: Long => Future[Option[T]], maxDuration: Duration): GetWithId => com.twitter.util.Future[Option[T]] =
+    withIdAndRequest[GetWithId, T]({ case (id, _) => view(id) }, maxDuration)
+
+  private def withIdAndRequest[I <: RequestWithId, O](view: (Long, I) => Future[Option[O]], maxDuration: Duration): I => com.twitter.util.Future[Option[O]] =
     request => futurePool {
-      Try(request.id.toLong).toOption.map(view).flatMap(Await.result(_, maxDuration))
+      Try(request.id.toLong).toOption.map(view(_, request)).flatMap(Await.result(_, maxDuration))
     }
 
 
@@ -145,56 +152,56 @@ class RestController @Inject()(val execution: Execution)
     )
   )
 
-  put("/api/execution-traces/:id") {
-    r: ExecutionTracePut =>
-      futurePool {
-        Try(r.id.toLong).toOption
-          .map { id =>
-            val executionState = try {
-              ExecutionState.withName(r.state)
-            } catch {
-              case _: NoSuchElementException => throw BadRequestException(s"Unknown state `${r.state}`")
-            }
+  private def putExecutionTrace(id: Long, r: ExecutionTracePut) = {
+    val executionState = try {
+      ExecutionState.withName(r.state)
+    } catch {
+      case _: NoSuchElementException => throw BadRequestException(s"Unknown state `${r.state}`")
+    }
 
-            val statusMap = r.targetStatus.mapValues { status =>
-              try {
-                TargetStatus.withName(status)
-              } catch {
-                case _: NoSuchElementException => throw BadRequestException(s"Unknown target status `$status`")
-              }
-            }
+    val statusMap = r.targetStatus.mapValues { status =>
+      try {
+        TargetStatus.withName(status)
+      } catch {
+        case _: NoSuchElementException => throw BadRequestException(s"Unknown target status `$status`")
+      }
+    }
 
-            val executionUpdate = if (r.logHref.nonEmpty)
-              execution.dbBinding.updateExecutionTrace(id, r.logHref, executionState)
-            else
-              execution.dbBinding.updateExecutionTrace(id, executionState)
+    val executionUpdate = if (r.logHref.nonEmpty)
+      execution.dbBinding.updateExecutionTrace(id, r.logHref, executionState)
+    else
+      execution.dbBinding.updateExecutionTrace(id, executionState)
 
-            if (r.targetStatus.nonEmpty) {
-              executionUpdate.flatMap {
-                if (_) {
-                  // the execution trace has been updated, so it must exist!
-                  execution.dbBinding.findExecutionTraceByIdWithOperationTrace(id).map(_.get).flatMap { execTrace =>
-                    val op = execTrace.operationTrace
-                    execution.dbBinding.updateOperationTrace(op.id, op.partialUpdate(statusMap))
-                      .map { updated =>
-                        assert(updated)
-                        Some()
-                      }
-                  }
-                }
-                else
-                  Future.successful(None)
-              }
-            }
-            else
-              executionUpdate.map {
-                if (_) Some() else None
+    val op = if (r.targetStatus.nonEmpty) {
+      executionUpdate.flatMap {
+        if (_) {
+          // the execution trace has been updated, so it must exist!
+          execution.dbBinding.findExecutionTraceByIdWithOperationTrace(id).map(_.get).flatMap { execTrace =>
+            val op = execTrace.operationTrace
+            execution.dbBinding.updateOperationTrace(op.id, op.partialUpdate(statusMap))
+              .map { updated =>
+                assert(updated)
+                Some()
               }
           }
-          .flatMap(Await.result(_, 3.seconds))
-          .map(_ => response.noContent)
-          .getOrElse(response.notFound)
+        }
+        else
+          Future.successful(None)
       }
+    }
+    else
+      executionUpdate.map {
+        if (_) Some() else None
+      }
+
+    op.map(_.map(_ => response.noContent))
+  }
+
+  put("/api/execution-traces/:id") {
+    withIdAndRequest(
+      putExecutionTrace,
+      3.seconds
+    )
   }
 
   get("/api/unstable/deployment-requests") { _: Request =>
