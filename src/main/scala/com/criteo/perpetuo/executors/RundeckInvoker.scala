@@ -9,12 +9,12 @@ import com.twitter.finagle.builder.ClientBuilder
 import com.twitter.finagle.http.{Fields, _}
 import com.twitter.finagle.service.{Backoff, RetryPolicy}
 import com.twitter.inject.Logging
-import com.twitter.util.{Await, Future => TwitterFuture}
+import com.twitter.util.{Await, Future => TwitterFuture, TimeoutException => TwitterTimeout}
 import spray.json.DefaultJsonProtocol._
 import spray.json._
 
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.{Future => ScalaFuture}
+import scala.concurrent.{Future => ScalaFuture, TimeoutException => ScalaTimeout}
 import scala.util.Try
 import scala.util.matching.Regex
 
@@ -93,8 +93,12 @@ class RundeckInvoker(val host: String,
 
     // trigger the job and return a future to the execution's log href
     Some(ScalaFuture {
-      // convert a twitter Future to a scala one
-      val response = Await.result(client(req), totalTimeout + 1.second)
+      // convert a twitter Future to a scala one, as well as the possibly induced timeout exception
+      val response = try {
+        Await.result(client(req), totalTimeout + 1.second)
+      } catch {
+        case e: TwitterTimeout => throw new ScalaTimeout(e.getMessage)
+      }
 
       val content = response.contentString
       response.status match {

@@ -7,8 +7,8 @@ import com.criteo.perpetuo.dao.UnknownProduct
 import com.criteo.perpetuo.dispatchers.{Execution, TargetDispatcher}
 import com.criteo.perpetuo.model.DeploymentRequestParser.parse
 import com.criteo.perpetuo.model.{ExecutionState, Operation, TargetStatus}
-import com.twitter.finagle.http.Request
-import com.twitter.finatra.http.exceptions.{BadRequestException, ConflictException}
+import com.twitter.finagle.http.{Request, Status}
+import com.twitter.finatra.http.exceptions.{BadRequestException, ConflictException, HttpException}
 import com.twitter.finatra.http.{Controller => BaseController}
 import com.twitter.finatra.request._
 import com.twitter.finatra.utils.FuturePools
@@ -17,7 +17,7 @@ import spray.json.JsonParser.ParsingException
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
-import scala.concurrent.{Await, Future}
+import scala.concurrent.{Await, Future, TimeoutException}
 import scala.util.Try
 
 
@@ -45,9 +45,17 @@ class RestController @Inject()(val execution: Execution)
   private val futurePool = FuturePools.unboundedPool("RequestFuturePool")
   private val dispatcher = TargetDispatcher.fromConfig
 
+  private def await[T](future: Future[T], maxDuration: Duration): T =
+    try {
+      Await.result(future, maxDuration)
+    }
+    catch {
+      case e: TimeoutException => throw HttpException(Status.GatewayTimeout, e.getMessage)
+    }
+
   private def timeBoxed[T](view: => Future[T], maxDuration: Duration): com.twitter.util.Future[T] =
     futurePool {
-      Await.result(view, maxDuration)
+      await(view, maxDuration)
     }
 
   private def withLongId[T](view: Long => Future[Option[T]], maxDuration: Duration): GetWithId => com.twitter.util.Future[Option[T]] =
@@ -55,7 +63,7 @@ class RestController @Inject()(val execution: Execution)
 
   private def withIdAndRequest[I <: RequestWithId, O](view: (Long, I) => Future[Option[O]], maxDuration: Duration): I => com.twitter.util.Future[Option[O]] =
     request => futurePool {
-      Try(request.id.toLong).toOption.map(view(_, request)).flatMap(Await.result(_, maxDuration))
+      Try(request.id.toLong).toOption.map(view(_, request)).flatMap(await(_, maxDuration))
     }
 
 
