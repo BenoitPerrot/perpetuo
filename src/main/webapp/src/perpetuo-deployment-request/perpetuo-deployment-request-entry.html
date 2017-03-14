@@ -37,8 +37,11 @@
     font-size: 20px;
     width: 10%;
   }
-  span.product-type {
-    width: 100px;
+  span.target {
+    width: 10%;
+  }
+  span.creation-date {
+    width: 20em;
     text-align: center;
   }
   div.state {
@@ -72,8 +75,8 @@
       <div class="heading" on-tap="toggle">
         <span class="product-name"><iron-icon icon="[[expanderIcon(expanded)]]"></iron-icon>[[data.productName]]</span>
         <span class="version">[[data.version]]</span>
-        <span class="product-type">[[data.productType]]</span>
         <span class="target">[[data.target]]</span>
+        <span class="creation-date">[[unixTimestampToISODate(data.creationDate)]]</span>
         <div class$="state [[state]]">
           <template is="dom-if" if="[[isWaitingForApproval(state)]]">
             <paper-button on-tap="onStartTap" raised>Start!</paper-button>
@@ -119,6 +122,10 @@
     },
     expanderIcon(expanded) {
       return expanded ? 'expand-more' : 'chevron-right';
+    },
+
+    unixTimestampToISODate(unixTimestamp) {
+      return new Date(unixTimestamp * 1000).toISOString().replace('T', ' ').replace(/\..*/, '');
     },
 
     computeState(data) {
