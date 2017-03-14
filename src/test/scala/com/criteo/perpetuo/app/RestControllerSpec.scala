@@ -100,7 +100,7 @@ class RestControllerSpec extends FeatureTest with TestDb {
 
   private def updateExecTrace(execId: Int, state: String, logHref: Option[String],
                               targetStatus: Option[Map[String, JsValue]] = None,
-                              expectedTargetStatus: Map[String, String]) = {
+                              expectedTargetStatus: Map[String, (String, String)]) = {
     val logHrefJson = logHref.map(_.toJson)
     val previousLogHrefJson = logHrefHistory.getOrElse(execId, JsNull)
     val expectedLogHrefJson = logHrefJson.getOrElse(previousLogHrefJson)
@@ -131,7 +131,7 @@ class RestControllerSpec extends FeatureTest with TestDb {
     Map(
       "id" -> T,
       "type" -> "deploy".toJson,
-      "targetStatus" -> expectedTargetStatus.toJson,
+      "targetStatus" -> expectedTargetStatus.mapValues { case (s, d) => Map("code" -> s, "detail" -> d) }.toJson,
       "executions" -> JsArray(
         JsObject(
           "id" -> execId.toJson,
@@ -318,7 +318,7 @@ class RestControllerSpec extends FeatureTest with TestDb {
       updateExecTrace(
         2, "initFailed", None,
         targetStatus = Some(Map("par" -> "success".toJson)),
-        expectedTargetStatus = Map("par" -> "success")
+        expectedTargetStatus = Map("par" -> ("success", ""))
       )
     }
 
@@ -326,7 +326,7 @@ class RestControllerSpec extends FeatureTest with TestDb {
       updateExecTrace(
         2, "conflicting", Some("http://"),
         targetStatus = Some(Map("am5" -> "notDone".toJson)),
-        expectedTargetStatus = Map("par" -> "success", "am5" -> "notDone")
+        expectedTargetStatus = Map("par" -> ("success", ""), "am5" -> ("notDone", ""))
       )
     }
 
@@ -334,7 +334,7 @@ class RestControllerSpec extends FeatureTest with TestDb {
       updateExecTrace(
         2, "completed", Some("http://final"),
         targetStatus = Some(Map("am5" -> Map("code" -> "serverFailure", "detail" -> "some details...").toJson)),
-        expectedTargetStatus = Map("par" -> "success", "am5" -> "serverFailure")
+        expectedTargetStatus = Map("par" -> ("success", ""), "am5" -> ("serverFailure", "some details..."))
       )
     }
 
@@ -363,7 +363,7 @@ class RestControllerSpec extends FeatureTest with TestDb {
 
       updateExecTrace(
         2, "completed", None,
-        expectedTargetStatus = Map("par" -> "success", "am5" -> "serverFailure")
+        expectedTargetStatus = Map("par" -> ("success", ""), "am5" -> ("serverFailure", "some details..."))
       )
     }
 
@@ -393,7 +393,7 @@ class RestControllerSpec extends FeatureTest with TestDb {
       updateExecTrace(
         2, "completed", None,
         targetStatus = Some(Map("am5" -> Map("code" -> "serverFailure", "detail" -> "some interesting details").toJson)),
-        expectedTargetStatus = Map("par" -> "success", "am5" -> "serverFailure")
+        expectedTargetStatus = Map("par" -> ("success", ""), "am5" -> ("serverFailure", "some interesting details"))
       )
     }
 
@@ -419,8 +419,8 @@ class RestControllerSpec extends FeatureTest with TestDb {
           "id" -> T,
           "type" -> "deploy".toJson,
           "targetStatus" -> Map(
-            "par" -> "success",
-            "am5" -> "serverFailure"
+            "par" -> Map("code" -> "success", "detail" -> "").toJson,
+            "am5" -> Map("code" -> "serverFailure", "detail" -> "some interesting details").toJson
           ).toJson,
           "executions" -> JsArray(
             JsObject(

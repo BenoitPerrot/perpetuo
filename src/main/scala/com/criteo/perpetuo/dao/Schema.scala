@@ -60,7 +60,7 @@ class DbBinding @Inject()(val dbContext: DbContext)
             Map(
               "id" -> op.id.get,
               "type" -> op.operation.toString,
-              "targetStatus" -> op.targetStatus.mapValues(_.code.toString),
+              "targetStatus" -> op.targetStatus.mapValues(s => Map("code" -> s.code.toString, "detail" -> s.detail)),
               "executions" -> execs.map(exec =>
                 Map(
                   "id" -> exec.id.get,
