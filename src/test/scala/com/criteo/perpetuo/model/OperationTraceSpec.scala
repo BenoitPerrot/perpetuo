@@ -27,7 +27,7 @@ class OperationTraceSpec extends FunSuite with ScalaFutures
   }
 
   test("TargetStatus values are all different") {
-    TargetStatus.values
+    Status.values
   }
 
   test("Operation traces can be bound to deployment requests, and retrieved") {
@@ -63,11 +63,11 @@ class OperationTraceSpec extends FunSuite with ScalaFutures
     Await.result(
       for {
         traceId <- dbContext.db.run(operationTraceQuery.result).map(_.head.id.get)
-        updated <- updateOperationTrace(traceId, Map("abc" -> TargetStatus.serverFailure))
+        updated <- updateOperationTrace(traceId, Map("abc" -> TargetAtomStatus(Status.serverFailure, "details...")))
         traces <- dbContext.db.run(operationTraceQuery.result)
       } yield {
         assert(updated)
-        assert(traces.head.targetStatus == Map("abc" -> TargetStatus.serverFailure))
+        assert(traces.head.targetStatus == Map("abc" -> TargetAtomStatus(Status.serverFailure, "details...")))
       },
       1.second
     )

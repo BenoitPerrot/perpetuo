@@ -98,8 +98,8 @@ class RestControllerSpec extends FeatureTest with TestDb {
     ).contentString.parseJson.asInstanceOf[JsArray].elements.map(_.asJsObject.fields)
   }
 
-  private def updateExecTrace(execId: Int, state: String,
-                              logHref: Option[String], targetStatus: Option[Map[String, String]],
+  private def updateExecTrace(execId: Int, state: String, logHref: Option[String],
+                              targetStatus: Option[Map[String, JsValue]] = None,
                               expectedTargetStatus: Map[String, String]) = {
     val logHrefJson = logHref.map(_.toJson)
     val previousLogHrefJson = logHrefHistory.getOrElse(execId, JsNull)
@@ -302,35 +302,38 @@ class RestControllerSpec extends FeatureTest with TestDb {
 
     "update one record's execution state on a PUT" in {
       updateExecTrace(
-        1, "completed", None, None,
+        1, "completed", None,
         expectedTargetStatus = Map()
       )
     }
 
     "update one record's execution state and log href on a PUT" in {
       updateExecTrace(
-        2, "completed", Some("http://somewhe.re"), None,
+        2, "completed", Some("http://somewhe.re"),
         expectedTargetStatus = Map()
       )
     }
 
     "update one record's execution state and target status on a PUT" in {
       updateExecTrace(
-        2, "initFailed", None, Some(Map("par" -> "success")),
+        2, "initFailed", None,
+        targetStatus = Some(Map("par" -> "success".toJson)),
         expectedTargetStatus = Map("par" -> "success")
       )
     }
 
     "update one record's execution state, log href and target status (partially) on a PUT" in {
       updateExecTrace(
-        2, "conflicting", Some("http://"), Some(Map("am5" -> "notDone")),
+        2, "conflicting", Some("http://"),
+        targetStatus = Some(Map("am5" -> "notDone".toJson)),
         expectedTargetStatus = Map("par" -> "success", "am5" -> "notDone")
       )
     }
 
     "partially update one record's target status on a PUT" in {
       updateExecTrace(
-        2, "completed", Some("http://final"), Some(Map("am5" -> "serverFailure")),
+        2, "completed", Some("http://final"),
+        targetStatus = Some(Map("am5" -> Map("code" -> "serverFailure", "detail" -> "some details...").toJson)),
         expectedTargetStatus = Map("par" -> "success", "am5" -> "serverFailure")
       )
     }
@@ -359,7 +362,7 @@ class RestControllerSpec extends FeatureTest with TestDb {
       ).contentString should include("targetStatus: Unable to parse")
 
       updateExecTrace(
-        2, "completed", None, None,
+        2, "completed", None,
         expectedTargetStatus = Map("par" -> "success", "am5" -> "serverFailure")
       )
     }
@@ -388,7 +391,8 @@ class RestControllerSpec extends FeatureTest with TestDb {
       ).contentString should include("Unknown target status `foobar`")
 
       updateExecTrace(
-        2, "completed", None, None,
+        2, "completed", None,
+        targetStatus = Some(Map("am5" -> Map("code" -> "serverFailure", "detail" -> "some interesting details").toJson)),
         expectedTargetStatus = Map("par" -> "success", "am5" -> "serverFailure")
       )
     }

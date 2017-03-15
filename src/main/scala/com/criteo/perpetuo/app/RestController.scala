@@ -6,14 +6,15 @@ import javax.inject.Inject
 import com.criteo.perpetuo.dao.UnknownProduct
 import com.criteo.perpetuo.dispatchers.{Execution, TargetDispatcher}
 import com.criteo.perpetuo.model.DeploymentRequestParser.parse
-import com.criteo.perpetuo.model.{ExecutionState, Operation, TargetStatus}
-import com.twitter.finagle.http.{Request, Status}
+import com.criteo.perpetuo.model._
+import com.twitter.finagle.http.{Request, Status => HttpStatus}
 import com.twitter.finatra.http.exceptions.{BadRequestException, ConflictException, HttpException}
 import com.twitter.finatra.http.{Controller => BaseController}
 import com.twitter.finatra.request._
 import com.twitter.finatra.utils.FuturePools
 import com.twitter.finatra.validation._
 import spray.json.JsonParser.ParsingException
+import spray.json._
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
@@ -33,7 +34,7 @@ private case class ProductPost(@NotEmpty name: String)
 private case class ExecutionTracePut(@RouteParam @NotEmpty id: String,
                                      @NotEmpty state: String,
                                      logHref: String = "",
-                                     targetStatus: Map[String, String] = Map()) extends RequestWithId
+                                     targetStatus: Map[String, Any] = Map()) extends RequestWithId
 
 
 /**
@@ -50,7 +51,7 @@ class RestController @Inject()(val execution: Execution)
       Await.result(future, maxDuration)
     }
     catch {
-      case e: TimeoutException => throw HttpException(Status.GatewayTimeout, e.getMessage)
+      case e: TimeoutException => throw HttpException(HttpStatus.GatewayTimeout, e.getMessage)
     }
 
   private def timeBoxed[T](view: => Future[T], maxDuration: Duration): com.twitter.util.Future[T] =
@@ -167,20 +168,24 @@ class RestController @Inject()(val execution: Execution)
       case _: NoSuchElementException => throw BadRequestException(s"Unknown state `${r.state}`")
     }
 
-    val statusMap = r.targetStatus.mapValues { status =>
+    import DefaultJsonProtocol._
+    val statusMap =
       try {
-        TargetStatus.withName(status)
+        r.targetStatus.map { // don't use mapValues, as it gives a view (lazy generation, incompatible with error management here)
+          case (k, s: String) => (k, TargetAtomStatus(Status.fromString(s), ""))
+          case (k, obj: Map[String, String]) => (k, Status.targetMapJsonFormat.read(obj.toJson)) // yes it's crazy to use spray's case class deserializer
+          case unknown => throw BadRequestException(s"Expected an object as `targetStatus`, got $unknown")
+        }
       } catch {
-        case _: NoSuchElementException => throw BadRequestException(s"Unknown target status `$status`")
+        case e: DeserializationException => throw BadRequestException(e.getMessage)
       }
-    }
 
     val executionUpdate = if (r.logHref.nonEmpty)
       execution.dbBinding.updateExecutionTrace(id, r.logHref, executionState)
     else
       execution.dbBinding.updateExecutionTrace(id, executionState)
 
-    val op = if (r.targetStatus.nonEmpty) {
+    val op = if (statusMap.nonEmpty) {
       executionUpdate.flatMap {
         if (_) {
           // the execution trace has been updated, so it must exist!

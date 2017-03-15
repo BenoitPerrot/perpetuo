@@ -1,7 +1,7 @@
 package com.criteo.perpetuo.dao
 
 import com.criteo.perpetuo.model.Operation.Operation
-import com.criteo.perpetuo.model.{Operation, TargetStatus}
+import com.criteo.perpetuo.model.{Operation, Status, TargetAtomStatus}
 import spray.json.{JsNumber, JsObject, _}
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -11,7 +11,7 @@ import scala.concurrent.Future
 private[dao] case class OperationTraceRecord(id: Option[Long],
                                              deploymentRequestId: Long,
                                              operation: Operation,
-                                             targetStatus: TargetStatus.MapType = Map())
+                                             targetStatus: Status.TargetMap = Map())
 
 
 trait OperationTraceBinder extends TableBinder {
@@ -23,9 +23,18 @@ trait OperationTraceBinder extends TableBinder {
     op => op.id.toShort,
     short => Operation(short.toInt)
   )
-  private implicit lazy val targetStatusMapper = MappedColumnType.base[TargetStatus.MapType, String](
-    obj => JsObject(obj map { case (k, v) => (k, JsNumber(v.id)) }).toString,
-    str => str.parseJson.asJsObject.fields map { case (k, JsNumber(v)) => (k, TargetStatus(v.value.toInt)) }
+  private implicit lazy val targetStatusMapper = MappedColumnType.base[Status.TargetMap, String](
+    obj => JsObject(obj.mapValues { status => JsArray(JsNumber(status.code.id), JsString(status.detail)) }).compactPrint,
+    str => str.parseJson.asJsObject.fields.mapValues { value =>
+      val (statusId, detail) = value match {
+        case JsArray(elements) =>
+          val Vector(JsNumber(s), JsString(d)) = elements
+          (s, d)
+        case JsNumber(s) => // todo: remove the day after merge! this is for retro-compatibility but we're still in preprod as of now, so the DB will be trashed anyway
+          (s, "")
+      }
+      TargetAtomStatus(Status(statusId.toInt), detail)
+    }
   )
 
   class OperationTraceTable(tag: Tag) extends Table[OperationTraceRecord](tag, "operation_trace") {
@@ -36,7 +45,7 @@ trait OperationTraceBinder extends TableBinder {
     protected def fk = foreignKey(deploymentRequestId, deploymentRequestQuery)(_.id)
 
     def operation = column[Operation]("operation")
-    def targetStatus = column[TargetStatus.MapType]("target_status", O.SqlType("nvarchar(max)"))
+    def targetStatus = column[Status.TargetMap]("target_status", O.SqlType("nvarchar(max)"))
 
     def * = (id.?, deploymentRequestId, operation, targetStatus) <> (OperationTraceRecord.tupled, OperationTraceRecord.unapply)
   }
@@ -48,7 +57,7 @@ trait OperationTraceBinder extends TableBinder {
     dbContext.db.run((operationTraceQuery returning operationTraceQuery.map(_.id)) += operationTrace)
   }
 
-  def updateOperationTrace(id: Long, targetStatus: TargetStatus.MapType): Future[Boolean] = {
+  def updateOperationTrace(id: Long, targetStatus: Status.TargetMap): Future[Boolean] = {
     dbContext.db.run(operationTraceQuery.filter(_.id === id).map(_.targetStatus).update(targetStatus))
       .map(count => {
         assert(count <= 1)
