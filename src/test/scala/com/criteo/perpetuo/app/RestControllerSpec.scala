@@ -3,6 +3,7 @@ package com.criteo.perpetuo.app
 import java.sql.Timestamp
 
 import com.criteo.perpetuo.TestDb
+import com.criteo.perpetuo.auth.{User, UserFilter}
 import com.criteo.perpetuo.model.DeploymentRequestAttrs
 import com.twitter.finagle.http.Status._
 import com.twitter.finagle.http.{Request, Response, Status}
@@ -25,6 +26,10 @@ import scala.concurrent.duration._
   */
 class RestControllerSpec extends FeatureTest with TestDb {
 
+  val authModule = new AuthModule(AppConfig.under("auth"))
+  val knownUser = User("knownUser")
+  val knownUserJWT = knownUser.toJWT(authModule.jwtEncoder)
+
   var controller: RestController = _
 
   val server = new EmbeddedHttpServer(new HttpServer {
@@ -32,6 +37,7 @@ class RestControllerSpec extends FeatureTest with TestDb {
     override protected def jacksonModule: FinatraJacksonModule = CustomServerModules.jackson
 
     override def modules = Seq(
+      authModule,
       dbTestModule
     )
 
@@ -41,6 +47,7 @@ class RestControllerSpec extends FeatureTest with TestDb {
         .filter[LoggingMDCFilter[Request, Response]]
         .filter[TraceIdMDCFilter[Request, Response]]
         .filter[CommonFilters]
+        .filter[UserFilter]
         .add(controller)
     }
   })
@@ -55,6 +62,7 @@ class RestControllerSpec extends FeatureTest with TestDb {
   private def product(name: String, expectedError: Option[(String, Status)] = None) = {
     val ans = server.httpPost(
       path = s"/api/products",
+      headers = Map("Cookie" -> s"jwt=$knownUserJWT"),
       andExpect = expectedError.map(_._2).getOrElse(Created),
       postBody = JsObject("name" -> JsString(name)).compactPrint
     ).contentString
@@ -77,6 +85,7 @@ class RestControllerSpec extends FeatureTest with TestDb {
   private def requestDeployment(body: String, expectsMessage: Option[String], start: Boolean): JsObject = {
     val ans = server.httpPost(
       path = s"/api/deployment-requests?start=$start",
+      headers = Map("Cookie" -> s"jwt=$knownUserJWT"),
       andExpect = if (expectsMessage.isDefined) BadRequest else Created,
       postBody = body
     ).contentString

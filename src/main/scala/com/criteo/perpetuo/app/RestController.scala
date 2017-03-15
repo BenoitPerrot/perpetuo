@@ -3,14 +3,17 @@ package com.criteo.perpetuo.app
 import java.sql.SQLException
 import javax.inject.Inject
 
+import com.criteo.perpetuo.auth.User
+import com.criteo.perpetuo.auth.UserFilter._
 import com.criteo.perpetuo.dao.UnknownProduct
 import com.criteo.perpetuo.dispatchers.{Execution, TargetDispatcher}
 import com.criteo.perpetuo.model.DeploymentRequestParser.parse
 import com.criteo.perpetuo.model._
-import com.twitter.finagle.http.{Request, Status => HttpStatus}
+import com.twitter.finagle.http.{Request, Response, Status => HttpStatus}
 import com.twitter.finatra.http.exceptions.{BadRequestException, ConflictException, HttpException}
 import com.twitter.finatra.http.{Controller => BaseController}
 import com.twitter.finatra.request._
+import com.twitter.util.{Future => TwitterFuture}
 import com.twitter.finatra.utils.FuturePools
 import com.twitter.finatra.validation._
 import spray.json.JsonParser.ParsingException
@@ -21,6 +24,9 @@ import scala.concurrent.duration._
 import scala.concurrent.{Await, Future, TimeoutException}
 import scala.util.Try
 
+trait WithInjectedRequest {
+  val request: Request
+}
 
 trait RequestWithId {
   val id: String
@@ -29,7 +35,8 @@ trait RequestWithId {
 @JsonIgnoreBody
 private case class GetWithId(@RouteParam @NotEmpty id: String) extends RequestWithId
 
-private case class ProductPost(@NotEmpty name: String)
+private case class ProductPost(@NotEmpty name: String,
+                               @Inject request: Request) extends WithInjectedRequest
 
 private case class ExecutionTracePut(@RouteParam @NotEmpty id: String,
                                      @NotEmpty state: String,
@@ -67,6 +74,14 @@ class RestController @Inject()(val execution: Execution)
       Try(request.id.toLong).toOption.map(view(_, request)).flatMap(await(_, maxDuration))
     }
 
+  def authenticate(user: Option[User])(callback: (User => TwitterFuture[Response])): TwitterFuture[Response] = {
+    user
+      .flatMap({ user: User => if (user != User.anonymous) Some(user) else None })
+      .map { user: User =>
+        callback(user)
+      }
+      .getOrElse(TwitterFuture(response.forbidden))
+  }
 
   get("/api/products") { _: Request =>
     timeBoxed(
@@ -76,18 +91,20 @@ class RestController @Inject()(val execution: Execution)
   }
 
   post("/api/products") { r: ProductPost =>
-    timeBoxed(
-      execution.dbBinding.insert(r.name)
-        .recover {
-          case e: SQLException if e.getMessage.contains("nique index") =>
-            // there is no specific exception type if the name is already used but the error message starts with
-            // * if H2: Unique index or primary key violation: "ix_product_name ON PUBLIC.""product""(""name"") VALUES ('my product', 1)"
-            // * if SQLServer: Cannot insert duplicate key row in object 'dbo.product' with unique index 'ix_product_name'
-            throw ConflictException(s"Name `${r.name}` is already used")
-        }
-        .map(_ => response.created.nothing),
-      2.seconds
-    )
+    authenticate(r.request.user) { user: User =>
+      timeBoxed(
+        execution.dbBinding.insert(r.name)
+          .recover {
+            case e: SQLException if e.getMessage.contains("nique index") =>
+              // there is no specific exception type if the name is already used but the error message starts with
+              // * if H2: Unique index or primary key violation: "ix_product_name ON PUBLIC.""product""(""name"") VALUES ('my product', 1)"
+              // * if SQLServer: Cannot insert duplicate key row in object 'dbo.product' with unique index 'ix_product_name'
+              throw ConflictException(s"Name `${r.name}` is already used")
+          }
+          .map(_ => response.created.nothing),
+        2.seconds
+      )
+    }
   }
 
   get("/api/deployment-requests/:id")(
@@ -98,30 +115,32 @@ class RestController @Inject()(val execution: Execution)
   )
 
   post("/api/deployment-requests") { r: Request =>
-    timeBoxed(
-      {
-        val attrs = try {
-          parse(r.contentString)
-        }
-        catch {
-          case e: ParsingException => throw BadRequestException(e.getMessage)
-        }
+    authenticate(r.user) { user: User =>
+      timeBoxed(
+        {
+          val attrs = try {
+            parse(r.contentString)
+          }
+          catch {
+            case e: ParsingException => throw BadRequestException(e.getMessage)
+          }
 
-        // first, log the user's general intent
-        val futureDepReq = execution.dbBinding.insert(attrs)
+          // first, log the user's general intent
+          val futureDepReq = execution.dbBinding.insert(attrs)
 
-        if (r.getBooleanParam("start", default = false)) {
-          val asyncStart = futureDepReq.flatMap(execution.startOperation(dispatcher, _, Operation.deploy))
+          if (r.getBooleanParam("start", default = false)) {
+            val asyncStart = futureDepReq.flatMap(execution.startOperation(dispatcher, _, Operation.deploy))
 
-          asyncStart.onFailure { case e => logger.error("Transaction failed to start: " + e.getMessage + "\n" + e.getStackTrace.mkString("\n")) }
-        }
+            asyncStart.onFailure { case e => logger.error("Transaction failed to start: " + e.getMessage + "\n" + e.getStackTrace.mkString("\n")) }
+          }
 
-        futureDepReq
-          .recover { case e: UnknownProduct => throw BadRequestException(s"Product `${e.productName}` could not be found") }
-          .map { depReq => response.created.json(Map("id" -> depReq.id)) }
-      },
-      2.seconds
-    )
+          futureDepReq
+            .recover { case e: UnknownProduct => throw BadRequestException(s"Product `${e.productName}` could not be found") }
+            .map { depReq => response.created.json(Map("id" -> depReq.id)) }
+        },
+        2.seconds
+      )
+    }
   }
 
   put("/api/deployment-requests/:id")(
