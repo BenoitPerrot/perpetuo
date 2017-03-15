@@ -23,7 +23,8 @@ function api_query() {
 
     # Ensure the response output is written on a single line ended with a newline.
     # In case of error, let the error go on stderr, and copy the error in a dedicated file.
-    echo $(curl -sfS -H 'Content-Type: application/json' "http://localhost:${PORT}/api/$@") | \
+    # The JWT specifies the user "itester", and is encoded with the secret "itest-jwt-secret"
+    echo $(curl -sfS --cookie "jwt=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJuYW1lIjoiaXRlc3RlciJ9.d2zfrMvLn5ENbLpdQBEOHnKJcJuf9X8GBOQbP71XQ1U" -H 'Content-Type: application/json' "http://localhost:${PORT}/api/$@") | \
         tee ${out_tmp_file} 2> ${err_tmp_file} \
         || { cat ${err_tmp_file} 1>&2; }
 }
@@ -73,6 +74,7 @@ then
     echo Using ${perpetuo_jar}
     start_temporarily "Perpetuo" "Startup complete, server ready" java \
         -Dtokens.rundeck="${RD_TEST_TOKEN}" \
+        -Dauth.jwt.secret="itest-jwt-secret" \
         -Dmarathon.user="Pheidippides" \
         -Dmarathon.password="Nenikekamen!" \
         -Dhttp.port=${PORT} \

@@ -1,5 +1,7 @@
 package com.criteo.perpetuo.app
 
+import com.criteo.perpetuo.auth.UserFilter
+import com.criteo.perpetuo.auth.{Controller => AuthenticationController}
 import com.twitter.finagle.http.{Request, Response}
 import com.twitter.finatra.http.HttpServer
 import com.twitter.finatra.http.filters.{CommonFilters, LoggingMDCFilter, TraceIdMDCFilter}
@@ -31,7 +33,8 @@ class Server extends HttpServer {
 
   override def modules = Seq(
     Slf4jBridgeModule,
-    new DbContextModule(AppConfig.db)
+    new DbContextModule(AppConfig.db),
+    new AuthModule(AppConfig.under("auth"))
   )
 
   override def configureHttp(router: HttpRouter) {
@@ -44,6 +47,8 @@ class Server extends HttpServer {
     }
 
     router
+      .filter[UserFilter]
+      .add[AuthenticationController]
       .add[RestController]
 
       // Add controller for serving static assets as the last one / fallback one
