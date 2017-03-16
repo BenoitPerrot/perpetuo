@@ -13,9 +13,27 @@ this.Perpetuo.Client = this.Perpetuo.Client || (function () {
     }, options || {}));
   }
 
+  function memoize(f) {
+    const memoized = () => {
+      if (!memoized.hasOwnProperty('__cache')) {
+        memoized.__cache = f();
+      }
+      return memoized.__cache;
+    };
+    return memoized;
+  }
+
+  const fetchAuthorizeURL = memoize(() => jsonFetch('/api/auth/authorize-url').then(_ => _.json()).then(_ => _.url));
+
   return class Client {
     constructor(host) {
       this.host = host;
+    }
+
+    redirectToAuthorizeURL(win) {
+      fetchAuthorizeURL().then(url => {
+        win.location.replace(`${url}&redirect_uri=${window.location.origin}/identify&state=${window.location.href}`);
+      });
     }
 
     fetchDeploymentRequests() {

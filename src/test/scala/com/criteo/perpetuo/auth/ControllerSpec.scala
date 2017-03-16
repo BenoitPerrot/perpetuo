@@ -38,6 +38,12 @@ class ControllerSpec extends FeatureTest {
 
   "A Server" should {
 
+    "serve the authorizer url" in {
+      server.httpGet("/api/auth/authorize-url",
+        andExpect = Ok
+      )
+    }
+
     "accept valid token" in {
       server.httpGet("/api/auth/identity",
         headers = Map("Cookie" -> s"jwt=$knownUserJWT"),

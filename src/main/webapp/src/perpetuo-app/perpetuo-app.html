@@ -69,7 +69,7 @@
         <app-toolbar>
           <paper-icon-button icon="menu" onclick="drawer.toggle()"></paper-icon-button>
           <div main-title><span>Perpetuo</span><span hidden$="[[!activePageTitle]]" class="pageTitle"> / [[activePageTitle]]</span></div>
-          <paper-icon-button icon="social:person"></paper-icon-button>
+          <paper-icon-button icon="social:person" on-tap="onIdentityTap"></paper-icon-button>
         </app-toolbar>
       </app-header>
       <iron-pages id="pageSelector" selected="[[routeData.page]]" attr-for-selected="name">
@@ -131,6 +131,10 @@
 
       computeActivePageTitle(routeData) {
         return this.$.pageSelector.selected ? this.$.pageSelector.selected.replace('-' , ' ') : null;
+      },
+
+      onIdentityTap() {
+        this.ownerDocument.client.redirectToAuthorizeURL(window);
       }
     });
   </script>
