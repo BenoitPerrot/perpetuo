@@ -72,7 +72,7 @@
           <paper-icon-button icon="social:person" on-tap="onIdentityTap"></paper-icon-button>
         </app-toolbar>
       </app-header>
-      <iron-pages id="pageSelector" selected="[[routeData.page]]" attr-for-selected="name">
+      <iron-pages id="pageSelector" selected="[[routeData.page]]" attr-for-selected="name" on-iron-select="onPageSelected">
         <perpetuo-deployment-requests-page name="deployment-requests"></perpetuo-deployment-requests-page>
         <perpetuo-products-page name="products"></perpetuo-products-page>
         <perpetuo-administration-page name="administration"></perpetuo-administration-page>
@@ -94,7 +94,14 @@
       properties: {
         route: String,
         routeData: Object,
-        activePageTitle: { type: String, computed: 'computeActivePageTitle(routeData)' }
+        activePageTitle: { type: String }
+      },
+
+      onPageSelected() {
+        const selectedPage = this.$.pageSelector.selectedItem;
+        if (selectedPage) {
+          this.activePageTitle = selectedPage.getAttribute('name').replace('-', ' ');
+        }
       },
 
       // TODO: not the appropriate place; move this to a dedicated component? <<
@@ -128,10 +135,6 @@
         ]);
       },
       // >>
-
-      computeActivePageTitle(routeData) {
-        return this.$.pageSelector.selected ? this.$.pageSelector.selected.replace('-' , ' ') : null;
-      },
 
       onIdentityTap() {
         this.ownerDocument.client.redirectToAuthorizeURL(window);
