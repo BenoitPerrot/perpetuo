@@ -18,13 +18,7 @@ object Status extends Enumeration {
 
   def fromString(name: String): Status.Code =
     try {
-      // todo: temporary hack to change the name (just let the time to update the Rundeck job)
-      val newName = name match {
-        case "deploymentFailure" => "productFailure"
-        case "serverFailure" => "hostFailure"
-        case n => n
-      }
-      Status.withName(newName)
+      Status.withName(name)
     } catch {
       case _: NoSuchElementException => throw new DeserializationException(s"Unknown target status `$name`")
     }
