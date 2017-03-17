@@ -26,13 +26,7 @@ trait OperationTraceBinder extends TableBinder {
   private implicit lazy val targetStatusMapper = MappedColumnType.base[Status.TargetMap, String](
     obj => JsObject(obj.mapValues { status => JsArray(JsNumber(status.code.id), JsString(status.detail)) }).compactPrint,
     str => str.parseJson.asJsObject.fields.mapValues { value =>
-      val (statusId, detail) = value match {
-        case JsArray(elements) =>
-          val Vector(JsNumber(s), JsString(d)) = elements
-          (s, d)
-        case JsNumber(s) => // todo: remove the day after merge! this is for retro-compatibility but we're still in preprod as of now, so the DB will be trashed anyway
-          (s, "")
-      }
+      val Vector(JsNumber(statusId), JsString(detail)) = value.asInstanceOf[JsArray].elements
       TargetAtomStatus(Status(statusId.toInt), detail)
     }
   )
