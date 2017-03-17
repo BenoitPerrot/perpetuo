@@ -16,6 +16,7 @@
 <link rel="import" href="../perpetuo-administration/perpetuo-administration-page.html">
 <link rel="import" href="../perpetuo-client/perpetuo-client.html">
 <link rel="import" href="../perpetuo-deployment-request/perpetuo-deployment-requests-page.html">
+<link rel="import" href="../perpetuo-identity/perpetuo-identity.html">
 <link rel="import" href="../perpetuo-product/perpetuo-products-page.html">
 
 <dom-module id="perpetuo-app">
@@ -61,7 +62,10 @@
     }
     </style>
 
+    <perpetuo-identity login="{{login}}"></perpetuo-identity>
+
     <app-location route="{{route}}"></app-location>
+    <app-route route="{{route}}" pattern="/identify" data="{{routeData}}" tail="{{subroute}}" on-active-changed="onIdentifyActiveChanged"></app-route>
     <app-route route="{{route}}" pattern="/:page" data="{{routeData}}" tail="{{subroute}}"></app-route>
 
     <app-header-layout>
@@ -69,7 +73,7 @@
         <app-toolbar>
           <paper-icon-button icon="menu" onclick="drawer.toggle()"></paper-icon-button>
           <div main-title><span>Perpetuo</span><span hidden$="[[!activePageTitle]]" class="pageTitle"> / [[activePageTitle]]</span></div>
-          <paper-icon-button icon="social:person" on-tap="onIdentityTap"></paper-icon-button>
+          <paper-icon-button icon="social:person" on-tap="onIdentityTap"></paper-icon-button><span>[[login]]</span>
         </app-toolbar>
       </app-header>
       <iron-pages id="pageSelector" selected="[[routeData.page]]" attr-for-selected="route" on-iron-select="onPageSelected">
@@ -94,8 +98,16 @@
 
       properties: {
         route: String,
+        subroute: String,
         routeData: Object,
-        activePageTitle: { type: String }
+        activePageTitle: { type: String },
+        login: String
+      },
+
+      onIdentifyActiveChanged(e) {
+        if (e.detail.value) {
+          this.$$('perpetuo-identity').identify();
+        }
       },
 
       onPageSelected() {

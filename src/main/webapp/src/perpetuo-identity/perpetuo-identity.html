@@ -1,0 +1,30 @@
+<link rel="import" href="../../bower_components/polymer/polymer.html"/>
+
+<dom-module id="perpetuo-identity">
+  <script>
+  Polymer({
+    is: 'perpetuo-identity',
+
+    properties: {
+      login: { type: String, notify: true, readOnly: true }
+    },
+
+    attached() {
+      this.ownerDocument.client.fetchIdentity().then(login => {
+        this._setLogin(login);
+      });
+    },
+
+    identify() {
+      const query = window.location.hash.slice(1).split('&').reduce((m, p) => {
+        const kv = p.split('=');
+        return m.set(kv[0], kv[1]);
+      }, new Map());
+
+      this.ownerDocument.client.identify(query.get('access_token')).then(() => {
+        window.location.replace(decodeURIComponent(query.get('state')));
+      });
+    }
+  })
+  </script>
+</dom-module>
