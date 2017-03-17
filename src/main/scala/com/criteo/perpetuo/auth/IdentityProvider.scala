@@ -1,5 +1,8 @@
 package com.criteo.perpetuo.auth
 
-import java.net.URL
+import com.twitter.util.Future
 
-case class IdentityProvider(authorizeUrl: URL)
+trait IdentityProvider {
+  def identify(token: String): Future[User]
+  def authorizeUrl: String
+}
