@@ -72,10 +72,11 @@
           <paper-icon-button icon="social:person" on-tap="onIdentityTap"></paper-icon-button>
         </app-toolbar>
       </app-header>
-      <iron-pages id="pageSelector" selected="[[routeData.page]]" attr-for-selected="name" on-iron-select="onPageSelected">
-        <perpetuo-deployment-requests-page name="deployment-requests"></perpetuo-deployment-requests-page>
-        <perpetuo-products-page name="products"></perpetuo-products-page>
-        <perpetuo-administration-page name="administration"></perpetuo-administration-page>
+      <iron-pages id="pageSelector" selected="[[routeData.page]]" attr-for-selected="route" on-iron-select="onPageSelected">
+        <div route="" title=""></div>
+        <perpetuo-deployment-requests-page route="deployment-requests" title="Deployment Requests"></perpetuo-deployment-requests-page>
+        <perpetuo-products-page route="products" title="Products"></perpetuo-products-page>
+        <perpetuo-administration-page route="administration" title="Administration"></perpetuo-administration-page>
       </iron-pages>
     </app-header-layout>
     <app-drawer id="drawer" swipe-open>
@@ -100,7 +101,10 @@
       onPageSelected() {
         const selectedPage = this.$.pageSelector.selectedItem;
         if (selectedPage) {
-          this.activePageTitle = selectedPage.getAttribute('name').replace('-', ' ');
+          const title = selectedPage.getAttribute('title');
+          if (title) {
+            this.activePageTitle = title;
+          }
         }
       },
 
