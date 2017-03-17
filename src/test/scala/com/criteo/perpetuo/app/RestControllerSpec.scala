@@ -342,8 +342,8 @@ class RestControllerSpec extends FeatureTest with TestDb {
     "partially update one record's target status on a PUT" in {
       updateExecTrace(
         2, "completed", Some("http://final"),
-        targetStatus = Some(Map("am5" -> Map("code" -> "serverFailure", "detail" -> "some details...").toJson)),
-        expectedTargetStatus = Map("par" -> ("success", ""), "am5" -> ("serverFailure", "some details..."))
+        targetStatus = Some(Map("am5" -> Map("code" -> "hostFailure", "detail" -> "some details...").toJson)),
+        expectedTargetStatus = Map("par" -> ("success", ""), "am5" -> ("hostFailure", "some details..."))
       )
     }
 
@@ -372,7 +372,7 @@ class RestControllerSpec extends FeatureTest with TestDb {
 
       updateExecTrace(
         2, "completed", None,
-        expectedTargetStatus = Map("par" -> ("success", ""), "am5" -> ("serverFailure", "some details..."))
+        expectedTargetStatus = Map("par" -> ("success", ""), "am5" -> ("hostFailure", "some details..."))
       )
     }
 
@@ -401,8 +401,8 @@ class RestControllerSpec extends FeatureTest with TestDb {
 
       updateExecTrace(
         2, "completed", None,
-        targetStatus = Some(Map("am5" -> Map("code" -> "serverFailure", "detail" -> "some interesting details").toJson)),
-        expectedTargetStatus = Map("par" -> ("success", ""), "am5" -> ("serverFailure", "some interesting details"))
+        targetStatus = Some(Map("am5" -> Map("code" -> "hostFailure", "detail" -> "some interesting details").toJson)),
+        expectedTargetStatus = Map("par" -> ("success", ""), "am5" -> ("hostFailure", "some interesting details"))
       )
     }
 
@@ -429,7 +429,7 @@ class RestControllerSpec extends FeatureTest with TestDb {
           "type" -> "deploy".toJson,
           "targetStatus" -> Map(
             "par" -> Map("code" -> "success", "detail" -> "").toJson,
-            "am5" -> Map("code" -> "serverFailure", "detail" -> "some interesting details").toJson
+            "am5" -> Map("code" -> "hostFailure", "detail" -> "some interesting details").toJson
           ).toJson,
           "executions" -> JsArray(
             JsObject(

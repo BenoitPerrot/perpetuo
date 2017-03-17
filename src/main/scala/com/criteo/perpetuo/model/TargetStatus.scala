@@ -12,13 +12,19 @@ object Status extends Enumeration {
 
   // these values should be stable in short term, since they are persisted in the DB for a few hours max
   val success = Value(1)
-  val deploymentFailure = Value(2)
-  val serverFailure = Value(3)
+  val productFailure = Value(2)
+  val hostFailure = Value(3)
   val notDone = Value(4)
 
   def fromString(name: String): Status.Code =
     try {
-      Status.withName(name)
+      // todo: temporary hack to change the name (just let the time to update the Rundeck job)
+      val newName = name match {
+        case "deploymentFailure" => "productFailure"
+        case "serverFailure" => "hostFailure"
+        case n => n
+      }
+      Status.withName(newName)
     } catch {
       case _: NoSuchElementException => throw new DeserializationException(s"Unknown target status `$name`")
     }
