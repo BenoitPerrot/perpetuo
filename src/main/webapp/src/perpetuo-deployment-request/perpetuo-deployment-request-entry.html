@@ -54,9 +54,13 @@
     padding: 0.7em 0.57em;
     text-transform: uppercase;
   }
-  div.state.finished > paper-material {
+  div.state.success > paper-material {
     color: #fff;
-    background-color: #888;
+    background-color: #0f9d58;
+  }
+  div.state.failed > paper-material {
+    color: #fff;
+    background-color: #f44336;
   }
   div.state.in-progress > paper-material {
     color: #fff;
@@ -92,6 +96,11 @@
           <template is="dom-repeat" items="[[data.operations]]">
             <li>
               <span>[[item.type]]</span>
+              <table>
+                <template is="dom-repeat" items="[[arrayifyTargetStatus(item.targetStatus)]]">
+                  <tr><td>[[item.targetAtom]]</td><td>[[item.code]]</td><td>[[item.detail]]</td></tr>
+                </template>
+              </table>
               <ul class="executions">
                 <template is="dom-repeat" items="[[item.executions]]">
                   <li>
@@ -107,6 +116,20 @@
     </paper-card>
   </template>
   <script>
+  function arrayifyTargetStatus(targetStatusMap) {
+    return Object.keys(targetStatusMap).map(targetAtom => {
+      const targetAtomStatus = targetStatusMap[targetAtom];
+      return { targetAtom: targetAtom, code: targetAtomStatus.code, detail: targetAtomStatus.detail };
+    });
+  }
+
+  function aggregateOperationState(operation) {
+    const isFinished = operation.executions.every(_ => _.state !== 'pending' && _.state !== 'running');
+    const hasFailures = operation.executions.some(_ => _.state === 'initFailed') ||
+                        arrayifyTargetStatus(operation.targetStatus).some(_ => _.code !== 'success');
+    return { isFinished: isFinished, hasFailures: hasFailures };
+  }
+
   Polymer({
     is: 'perpetuo-deployment-request-entry',
 
@@ -128,12 +151,19 @@
       return new Date(unixTimestamp * 1000).toISOString().replace('T', ' ').replace(/\..*/, '');
     },
 
+    arrayifyTargetStatus(_) {
+      return arrayifyTargetStatus(_);
+    },
+
     computeState(data) {
       if (0 < data.operations.length) {
-        if (data.operations.some(op => op.executions.some(exec => exec.state === 'pending' || exec.state === 'running'))) {
-          return 'in-progress';
+        const aggregate = data.operations.map(aggregateOperationState);
+        const isFinished = aggregate.every(_ => _.isFinished);
+        const hasFailures = aggregate.some(_ => _.hasFailures);
+        if (isFinished)  {
+          return hasFailures ? 'failed' : 'success';
         } else {
-          return 'finished';
+          return 'in-progress' + (hasFailures ? ' (with failures)' : '');
         }
       } else {
         return 'waiting-for-approval';
