@@ -24,10 +24,6 @@ import scala.concurrent.duration._
 import scala.concurrent.{Await, Future, TimeoutException}
 import scala.util.Try
 
-trait WithInjectedRequest {
-  val request: Request
-}
-
 trait RequestWithId {
   val id: String
 }
@@ -36,7 +32,7 @@ trait RequestWithId {
 private case class GetWithId(@RouteParam @NotEmpty id: String) extends RequestWithId
 
 private case class ProductPost(@NotEmpty name: String,
-                               @Inject request: Request) extends WithInjectedRequest
+                               @Inject request: Request)
 
 private case class ExecutionTracePut(@RouteParam @NotEmpty id: String,
                                      @NotEmpty state: String,
