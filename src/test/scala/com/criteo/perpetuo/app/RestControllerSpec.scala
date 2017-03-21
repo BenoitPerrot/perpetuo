@@ -14,7 +14,7 @@ import com.twitter.finatra.http.test.EmbeddedHttpServer
 import com.twitter.finatra.json.modules.FinatraJacksonModule
 import com.twitter.inject.server.FeatureTest
 import spray.json.DefaultJsonProtocol._
-import spray.json.{JsArray, JsString, _}
+import spray.json.{JsArray, JsObject, JsString, _}
 
 import scala.collection.mutable
 import scala.concurrent.Await
@@ -100,9 +100,18 @@ class RestControllerSpec extends FeatureTest with TestDb {
     creationDate
   }
 
-  private def deepGetDepReq(): Seq[Map[String, JsValue]] = {
-    server.httpGet(
+  private def deepGetDepReq(where: Seq[Map[String, JsValue]] = Seq(), orderBy: Seq[Map[String, JsValue]] = Seq(), limit: Option[Int] = None, offset: Option[Int] = None): Seq[Map[String, JsValue]] = {
+    val q = JsObject(
+      Map(
+        "where" -> where.toJson,
+        "orderBy" -> orderBy.toJson
+      )
+        ++ limit.map { i => Map("limit" -> i.toJson) }.getOrElse(Map())
+        ++ offset.map { i => Map("offset" -> i.toJson) }.getOrElse(Map())
+    )
+    server.httpPost(
       path = "/api/unstable/deployment-requests",
+      postBody = q.compactPrint,
       andExpect = Ok
     ).contentString.parseJson.asInstanceOf[JsArray].elements.map(_.asJsObject.fields)
   }
@@ -456,6 +465,105 @@ class RestControllerSpec extends FeatureTest with TestDb {
           )
         )
       ) shouldEqual wasDelayed("operations")
+    }
+
+    "paginate" in {
+      val allDepReqs = deepGetDepReq()
+      allDepReqs.length should be > 2
+
+      val firstDepReqs = deepGetDepReq(limit = Some(2))
+      firstDepReqs.length shouldEqual 2
+
+      val lastDepReqs = deepGetDepReq(offset = Some(2))
+      lastDepReqs.length shouldEqual (allDepReqs.length - 2)
+    }
+
+    "reject too large limits" in {
+      server.httpPost(
+        path = s"/api/unstable/deployment-requests",
+        postBody = JsObject("limit" -> JsNumber(2097)).compactPrint,
+        andExpect = BadRequest
+      ).contentString should include("`limit` shall be lower than")
+    }
+
+    "filter" in {
+      val allDepReqs = deepGetDepReq()
+      allDepReqs.length should be > 2
+
+      val depReqsForUnkownProduct = deepGetDepReq(where = Seq(Map("field" -> "productName".toJson, "equals" -> "unknown product".toJson)))
+      depReqsForUnkownProduct.isEmpty shouldBe true
+
+      val depReqsForSingleProduct = deepGetDepReq(where = Seq(Map("field" -> "productName".toJson, "equals" -> "my product".toJson)))
+      depReqsForSingleProduct.length should(be > 0 and be < allDepReqs.length)
+      depReqsForSingleProduct.map(_("productName").asInstanceOf[JsString].value == "my product").reduce(_ && _) shouldBe true
+    }
+
+    "reject unknown field names in filters" in {
+      server.httpPost(
+        path = s"/api/unstable/deployment-requests",
+        postBody = JsObject("where" -> JsArray(Vector(JsObject("field" -> JsString("pouet"), "equals" -> JsString("42"))))).compactPrint,
+        andExpect = BadRequest
+      ).contentString should include("Cannot filter on `pouet`")
+    }
+
+    "reject unknown filter tests" in {
+      server.httpPost(
+        path = s"/api/unstable/deployment-requests",
+        postBody = JsObject("where" -> JsArray(Vector(JsObject("field" -> JsString("productName"), "like" -> JsString("foo"))))).compactPrint,
+        andExpect = BadRequest
+      ).contentString should include("Filters tests must be `equals`")
+    }
+
+    "sort by individual fields" in {
+      deepGetDepReq().length should be > 2
+
+      def isSorted[ValueType, T <: { val value: ValueType }](deploymentRequests: Seq[Map[String, JsValue]], key: String, absoluteMin: ValueType, isOrdered: (ValueType, ValueType) => Boolean): Boolean = {
+        deploymentRequests
+          .foldLeft((absoluteMin, true)) { (lastResult, deploymentRequest) =>
+            val value = deploymentRequest(key).asInstanceOf[T].value
+            (value, isOrdered(lastResult._1, value))
+          }
+          ._2
+      }
+
+      Seq(false, true).foreach { descending =>
+
+        Seq("creationDate").foreach { key =>
+          val sortedDepReqs = deepGetDepReq(orderBy = Seq(Map("field" -> key.toJson, "desc" -> descending.toJson)))
+          sortedDepReqs.isEmpty shouldBe false
+          isSorted[BigDecimal, JsNumber](if (descending) sortedDepReqs.reverse else sortedDepReqs, key, BigDecimal.valueOf(-1), _ <= _) shouldBe true
+        }
+
+        Seq("productName", "creator", "version").foreach { key =>
+          val sortedDepReqs = deepGetDepReq(orderBy = Seq(Map("field" -> key.toJson, "desc" -> descending.toJson)))
+          sortedDepReqs.isEmpty shouldBe false
+          isSorted[String, JsString](if (descending) sortedDepReqs.reverse else sortedDepReqs, key, "", _ <= _) shouldBe true
+        }
+      }
+    }
+
+    "sort by several fields" in {
+      deepGetDepReq().length should be > 2
+
+      val sortedDepReqs = deepGetDepReq(orderBy = Seq(Map("field" -> "productName".toJson), Map("field" -> "creationDate".toJson)))
+      sortedDepReqs.isEmpty shouldBe false
+      sortedDepReqs
+        .foldLeft(("", BigDecimal(-1), true)) { (lastResult, deploymentRequest) =>
+          val (lastProductName, lastCreationDate, lastP) = lastResult
+          val productName = deploymentRequest("productName").asInstanceOf[JsString].value
+          val creationDate = deploymentRequest("creationDate").asInstanceOf[JsNumber].value
+          // For the right branch of the ||: productName == lastProductName is paranoid, as productName < lastProductName should not be true
+          (productName, creationDate, lastP && (lastProductName < productName || (productName == lastProductName && lastCreationDate <= creationDate)))
+        }
+        ._3 shouldBe true
+    }
+
+    "reject unknown field names for sort" in {
+      server.httpPost(
+        path = s"/api/unstable/deployment-requests",
+        postBody = JsObject("orderBy" -> JsArray(JsObject("field" -> "pouet".toJson))).compactPrint,
+        andExpect = BadRequest
+      ).contentString should include("Cannot sort by `pouet`")
     }
   }
 

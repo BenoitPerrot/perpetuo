@@ -39,6 +39,10 @@ private case class ExecutionTracePut(@RouteParam @NotEmpty id: String,
                                      logHref: String = "",
                                      targetStatus: Map[String, Any] = Map()) extends RequestWithId
 
+private case class SortingFilteringPost(orderBy: Seq[Map[String, Any]] = Seq(),
+                                        where: Seq[Map[String, Any]] = Seq(),
+                                        limit: Int = 20,
+                                        offset: Int = 0)
 
 /**
   * Controller that handles deployment requests as a REST API.
@@ -234,9 +238,23 @@ class RestController @Inject()(val execution: Execution)
 
   get("/api/unstable/deployment-requests") { _: Request =>
     timeBoxed(
-      execution.dbBinding.deepQueryDeploymentRequests(),
+      execution.dbBinding.deepQueryDeploymentRequests(where = Seq(), orderBy = Seq(), limit = 20, offset = 0),
       5.seconds
     )
+  }
+  post("/api/unstable/deployment-requests") { r: SortingFilteringPost =>
+    timeBoxed(
+      {
+        if (1000 < r.limit) {
+          throw BadRequestException("`limit` shall be lower than 1000")
+        }
+        try {
+          execution.dbBinding.deepQueryDeploymentRequests(r.where, r.orderBy, r.limit, r.offset)
+        } catch {
+          case e: IllegalArgumentException => throw BadRequestException(e.getMessage)
+        }
+      },
+      5.seconds)
   }
 
   // Be sure to capture invalid calls to APIs
