@@ -59,7 +59,7 @@ class RestControllerSpec extends FeatureTest with TestDb {
 
   private val logHrefHistory: mutable.Map[Int, JsValue] = mutable.Map()
 
-  private def product(name: String, expectedError: Option[(String, Status)] = None) = {
+  private def createProduct(name: String, expectedError: Option[(String, Status)] = None) = {
     val ans = server.httpPost(
       path = s"/api/products",
       headers = Map("Cookie" -> s"jwt=$knownUserJWT"),
@@ -155,12 +155,12 @@ class RestControllerSpec extends FeatureTest with TestDb {
   "The Product's entry-points" should {
 
     "return 201 when creating a Product" in {
-      product("my product")
-      product("my other product")
+      createProduct("my product")
+      createProduct("my other product")
     }
 
     "properly reject already used names" in {
-      product("my product", Some("Name `my product` is already used", Conflict))
+      createProduct("my product", Some("Name `my product` is already used", Conflict))
     }
 
     "return the list of all known product names" in {
