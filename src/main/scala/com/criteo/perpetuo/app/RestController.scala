@@ -91,6 +91,7 @@ class RestController @Inject()(val execution: Execution)
   }
 
   post("/api/products") { r: ProductPost =>
+    // todo: give the right to Jenkins only?
     authenticate(r.request.user) { user: User =>
       timeBoxed(
         execution.dbBinding.insert(r.name)
@@ -115,6 +116,7 @@ class RestController @Inject()(val execution: Execution)
   )
 
   post("/api/deployment-requests") { r: Request =>
+    // todo: give the permission to Jenkins only when start=true
     authenticate(r.user) { user: User =>
       timeBoxed(
         {
@@ -144,6 +146,7 @@ class RestController @Inject()(val execution: Execution)
   }
 
   put("/api/deployment-requests/:id")(
+    // todo: give the permission to Jenkins and escalation only when in production
     withLongId(
       execution.dbBinding.findDeploymentRequestByIdWithProduct(_).map(_.map { req =>
         // done asynchronously
@@ -230,6 +233,7 @@ class RestController @Inject()(val execution: Execution)
   }
 
   put("/api/execution-traces/:id") {
+    // todo: give the permission to Rundeck only
     withIdAndRequest(
       putExecutionTrace,
       3.seconds
