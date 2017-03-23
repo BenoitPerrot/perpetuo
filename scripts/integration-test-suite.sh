@@ -133,7 +133,7 @@ api_query deployment-requests?start=true -d '{
 
     function rundeck_completes_the_job() {
         api_query execution-traces/by-deployment-request/${id2} | \
-            expects '"state":"completed"' | \
+            expects '"state":"initFailed"' | \
             expects '"logHref":"http://'
     }
     10_tries_with_sleep .8 rundeck_completes_the_job
