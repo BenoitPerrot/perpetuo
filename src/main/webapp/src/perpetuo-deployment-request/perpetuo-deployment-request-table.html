@@ -1,6 +1,7 @@
 <link rel="import" href="../../bower_components/polymer/polymer.html">
 
 <link rel="import" href="../perpetuo-deployment-request/perpetuo-deployment-request-entry.html">
+<link rel="import" href="../perpetuo-up-down-none/perpetuo-up-down-none.html">
 
 <dom-module id="perpetuo-deployment-request-table">
   <style>
@@ -21,19 +22,16 @@
     border-bottom: solid 1px #ddd;
     margin-bottom: 1em;
   }
-  span {
-    display: inline-block;
-  }
-  span.product-name {
+  .product-name {
     width: 30%;
   }
-  span.version {
+  .version {
     width: 10%;
   }
-  span.target {
+  .target {
     width: 10%;
   }
-  span.creation-date {
+  .creation-date {
     width: 20em;
     text-align: center;
   }
@@ -47,10 +45,10 @@
   <template>
     <div class="table">
       <div class="row heading">
-        <span class="product-name">Product</span>
-        <span class="version">Version</span>
+        <perpetuo-up-down-none class="product-name" key="productName" label="Product" on-state-changed="updateOrder"></perpetuo-up-down-none>
+        <perpetuo-up-down-none inverted class="version" key="version" label="Version" on-state-changed="updateOrder"></perpetuo-up-down-none>
         <span class="target">Target</span>
-        <span class="creation-date">Creation Date</span>
+        <perpetuo-up-down-none inverted class="creation-date" key="creationDate" label="Creation Date" on-state-changed="updateOrder"></perpetuo-up-down-none>
         <div class="state">
           <span>State</span>
         </div>
@@ -65,8 +63,29 @@
     is: 'perpetuo-deployment-request-table',
 
     properties: {
-      data: { type: Array, value: () => [] }
+      data: { type: Array, value: () => [] },
+      indices: { type: Object, value: () => new Object() }
     },
+
+    created() {
+      this.order = [];
+    },
+
+    updateOrder(e) {
+      const toggle = e.target;
+      if (toggle.state === 0) {
+        this.order.splice(toggle.i - 1, 1);
+        toggle.i = null;
+      } else if (toggle.i === null) {
+        this.order.push(toggle);
+      }
+
+      this.order.forEach((element, i) => {
+        element.i = i + 1;
+      });
+
+      this.ownerDocument.client.deploymentRequestOrder = this.order.map(_ => { return { field: _.getAttribute('key'), desc: _.state < 0 } });
+    }
   });
   </script>
 </dom-module>
