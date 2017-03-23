@@ -44,7 +44,7 @@ class DbBinding @Inject()(val dbContext: DbContext)
       }
     }
 
-    val filteredThenSorted = orderBy.reverse.foldLeft(filtered) { (queries, spec) =>
+    val filteredThenSorted = orderBy.reverse.foldLeft(filtered.sortBy (_._1.id)) { (queries, spec) =>
       val descending = try spec.getOrElse("desc", false).asInstanceOf[Boolean].value catch { case e: ClassCastException => throw new IllegalArgumentException("Orders `desc` must be true or false") }
       val fieldName = spec.getOrElse("field", throw new IllegalArgumentException(s"Orders must specify ̀`field`"))
       fieldName match {
