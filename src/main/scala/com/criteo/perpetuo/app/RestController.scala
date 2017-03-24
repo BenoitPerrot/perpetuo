@@ -120,7 +120,7 @@ class RestController @Inject()(val execution: Execution)
       timeBoxed(
         {
           val attrs = try {
-            parse(r.contentString)
+            parse(r.contentString, user.name)
           }
           catch {
             case e: ParsingException => throw BadRequestException(e.getMessage)

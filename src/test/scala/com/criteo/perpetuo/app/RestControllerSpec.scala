@@ -288,7 +288,7 @@ class RestControllerSpec extends FeatureTest with TestDb {
         "version" -> JsString("v2097"),
         "target" -> JsString("to everywhere"),
         "comment" -> JsString("hello world"),
-        "creator" -> JsString("anonymous"),
+        "creator" -> JsString("qabot"),
         "creationDate" -> T
       ) shouldEqual values1
     }

@@ -8,7 +8,7 @@ import spray.json.{JsArray, JsObject, JsString, JsValue, _}
 
 
 object DeploymentRequestParser {
-  def parse(jsonInput: String): DeploymentRequestAttrs =
+  def parse(jsonInput: String, userName: String): DeploymentRequestAttrs =
     jsonInput.parseJson match {
       case body: JsObject =>
         val fields = body.fields
@@ -25,7 +25,7 @@ object DeploymentRequestParser {
           readStr("version"),
           targetExpr.compactPrint,
           readStr("comment", Some("")),
-          "anonymous",
+          userName,
           new Timestamp(System.currentTimeMillis)
         )
         attrs.parsedTarget // validate the target
