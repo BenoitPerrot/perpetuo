@@ -62,15 +62,15 @@ class RestController @Inject()(val execution: Execution)
       case e: TimeoutException => throw HttpException(HttpStatus.GatewayTimeout, e.getMessage)
     }
 
-  private def timeBoxed[T](view: => Future[T], maxDuration: Duration): com.twitter.util.Future[T] =
+  private def timeBoxed[T](view: => Future[T], maxDuration: Duration): TwitterFuture[T] =
     futurePool {
       await(view, maxDuration)
     }
 
-  private def withLongId[T](view: Long => Future[Option[T]], maxDuration: Duration): RequestWithId => com.twitter.util.Future[Option[T]] =
+  private def withLongId[T](view: Long => Future[Option[T]], maxDuration: Duration): RequestWithId => TwitterFuture[Option[T]] =
     withIdAndRequest[RequestWithId, T]({ case (id, _) => view(id) }, maxDuration)
 
-  private def withIdAndRequest[I <: WithId, O](view: (Long, I) => Future[Option[O]], maxDuration: Duration): I => com.twitter.util.Future[Option[O]] =
+  private def withIdAndRequest[I <: WithId, O](view: (Long, I) => Future[Option[O]], maxDuration: Duration): I => TwitterFuture[Option[O]] =
     request => futurePool {
       Try(request.id.toLong).toOption.map(view(_, request)).flatMap(await(_, maxDuration))
     }
