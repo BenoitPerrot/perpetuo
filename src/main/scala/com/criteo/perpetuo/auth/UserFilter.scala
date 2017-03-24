@@ -23,8 +23,7 @@ class UserFilter @Inject() (jwtEncoder: JWTEncoder) extends SimpleFilter[Request
   private def setUser(request: Request) = {
     request.ctx.update(UserFilter.UserField,
       request.cookies.get(UserFilter.cookieName)
-        .map(jwt => User.fromJWT(jwtEncoder, jwt.value))
-        .getOrElse(Some(User.anonymous)))
+        .flatMap(jwt => User.fromJWT(jwtEncoder, jwt.value)))
   }
 
   override def apply(request: Request, service: Service[Request, Response]): Future[Response] = {

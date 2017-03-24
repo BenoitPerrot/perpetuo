@@ -51,10 +51,9 @@ class UserFilterSpec extends FeatureTest {
       )
     }
 
-    "decorate requests with the anonymous user when the JWT cookie is not set" in {
+    "fail when the JWT cookie is not set" in {
       server.httpGet("/username-from-jwt-cookie",
-        andExpect = Ok,
-        withBody = User.anonymous.name
+        andExpect = Unauthorized
       )
     }
 
