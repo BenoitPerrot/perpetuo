@@ -80,7 +80,7 @@ class RestController @Inject()(val execution: Execution)
     user
       .flatMap { u: User => if (u != User.anonymous) Some(u) else None }
       .map(callback)
-      .getOrElse(TwitterFuture(Some(response.forbidden)))
+      .getOrElse(TwitterFuture(Some(response.unauthorized)))
   }
 
   get("/api/products") { _: Request =>

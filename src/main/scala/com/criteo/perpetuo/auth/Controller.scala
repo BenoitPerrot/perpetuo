@@ -13,7 +13,7 @@ case class TokenRequest(token: String)
 class Controller @Inject()(identityProvider: IdentityProvider, jwtEncoder: JWTEncoder) extends BaseController {
 
   get("/api/auth/identity") { r: Request =>
-    r.user.map(user => response.ok.plain(user)).getOrElse(response.forbidden)
+    r.user.map(user => response.ok.plain(user)).getOrElse(response.unauthorized)
   }
 
   post("/api/auth/identify") { request: TokenRequest =>

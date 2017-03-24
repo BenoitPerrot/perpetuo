@@ -1,12 +1,12 @@
 package com.criteo.perpetuo.auth
 
 import com.criteo.perpetuo.app.{AppConfig, AuthModule}
-import com.twitter.finagle.http.Status.{Forbidden, Ok}
+import com.twitter.finagle.http.Status.{Ok, Unauthorized}
 import com.twitter.finagle.http.{Request, Response}
+import com.twitter.finatra.http.HttpServer
 import com.twitter.finatra.http.filters.{CommonFilters, LoggingMDCFilter, TraceIdMDCFilter}
 import com.twitter.finatra.http.routing.HttpRouter
 import com.twitter.finatra.http.test.EmbeddedHttpServer
-import com.twitter.finatra.http.HttpServer
 import com.twitter.inject.server.FeatureTest
 
 /**
@@ -54,7 +54,7 @@ class ControllerSpec extends FeatureTest {
     "reject invalid token" in {
       server.httpGet("/api/auth/identity",
         headers = Map("Cookie" -> "jwt=DEADBEEF"),
-        andExpect = Forbidden
+        andExpect = Unauthorized
       )
     }
   }

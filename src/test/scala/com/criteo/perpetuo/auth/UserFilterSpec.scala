@@ -2,7 +2,7 @@ package com.criteo.perpetuo.auth
 
 import com.criteo.perpetuo.app.{AppConfig, AuthModule}
 import com.criteo.perpetuo.auth.UserFilter._
-import com.twitter.finagle.http.Status.{Forbidden, Ok}
+import com.twitter.finagle.http.Status.{Ok, Unauthorized}
 import com.twitter.finagle.http.{Request, Response}
 import com.twitter.finatra.http.filters.{CommonFilters, LoggingMDCFilter, TraceIdMDCFilter}
 import com.twitter.finatra.http.routing.HttpRouter
@@ -32,7 +32,7 @@ class UserFilterSpec extends FeatureTest {
         .filter[UserFilter]
         .add(new BaseController() {
           get("/username-from-jwt-cookie") { r: Request =>
-            r.user.map(u => response.ok.plain(u.name)).getOrElse(response.forbidden)
+            r.user.map(u => response.ok.plain(u.name)).getOrElse(response.unauthorized)
           }
         })
     }
@@ -61,7 +61,7 @@ class UserFilterSpec extends FeatureTest {
     "fail when the JWT cookie is invalid" in {
       server.httpGet("/username-from-jwt-cookie",
         headers = Map("Cookie" -> "jwt=DEADBEEF"),
-        andExpect = Forbidden
+        andExpect = Unauthorized
       )
     }
   }
