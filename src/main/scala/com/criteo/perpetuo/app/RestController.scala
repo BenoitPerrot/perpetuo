@@ -24,12 +24,13 @@ import scala.concurrent.duration._
 import scala.concurrent.{Await, Future, TimeoutException}
 import scala.util.Try
 
-trait RequestWithId {
+trait WithId {
   val id: String
 }
 
 @JsonIgnoreBody
-private case class GetWithId(@RouteParam @NotEmpty id: String) extends RequestWithId
+private case class RequestWithId(@RouteParam @NotEmpty id: String,
+                                 @Inject request: Request) extends WithId
 
 private case class ProductPost(@NotEmpty name: String,
                                @Inject request: Request)
@@ -37,7 +38,7 @@ private case class ProductPost(@NotEmpty name: String,
 private case class ExecutionTracePut(@RouteParam @NotEmpty id: String,
                                      @NotEmpty state: String,
                                      logHref: String = "",
-                                     targetStatus: Map[String, Any] = Map()) extends RequestWithId
+                                     targetStatus: Map[String, Any] = Map()) extends WithId
 
 private case class SortingFilteringPost(orderBy: Seq[Map[String, Any]] = Seq(),
                                         where: Seq[Map[String, Any]] = Seq(),
@@ -66,10 +67,10 @@ class RestController @Inject()(val execution: Execution)
       await(view, maxDuration)
     }
 
-  private def withLongId[T](view: Long => Future[Option[T]], maxDuration: Duration): GetWithId => com.twitter.util.Future[Option[T]] =
-    withIdAndRequest[GetWithId, T]({ case (id, _) => view(id) }, maxDuration)
+  private def withLongId[T](view: Long => Future[Option[T]], maxDuration: Duration): RequestWithId => com.twitter.util.Future[Option[T]] =
+    withIdAndRequest[RequestWithId, T]({ case (id, _) => view(id) }, maxDuration)
 
-  private def withIdAndRequest[I <: RequestWithId, O](view: (Long, I) => Future[Option[O]], maxDuration: Duration): I => com.twitter.util.Future[Option[O]] =
+  private def withIdAndRequest[I <: WithId, O](view: (Long, I) => Future[Option[O]], maxDuration: Duration): I => com.twitter.util.Future[Option[O]] =
     request => futurePool {
       Try(request.id.toLong).toOption.map(view(_, request)).flatMap(await(_, maxDuration))
     }
