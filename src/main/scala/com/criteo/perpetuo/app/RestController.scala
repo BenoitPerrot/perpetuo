@@ -76,8 +76,8 @@ class RestController @Inject()(val execution: Execution)
       Try(request.id.toLong).toOption.map(view(_, request)).flatMap(await(_, maxDuration))
     }
 
-  def authenticate(user: Option[User])(callback: (User => TwitterFuture[Option[Response]])): TwitterFuture[Option[Response]] = {
-    user
+  def authenticate(r: Request)(callback: (User => TwitterFuture[Option[Response]])): TwitterFuture[Option[Response]] = {
+    r.user
       .flatMap { u: User => if (u != User.anonymous) Some(u) else None }
       .map(callback)
       .getOrElse(TwitterFuture(Some(response.unauthorized)))
@@ -92,7 +92,7 @@ class RestController @Inject()(val execution: Execution)
 
   post("/api/products") { r: ProductPost =>
     // todo: give the right to Jenkins only?
-    authenticate(r.request.user) { user: User =>
+    authenticate(r.request) { user: User =>
       timeBoxed(
         execution.dbBinding.insert(r.name)
           .recover {
@@ -117,7 +117,7 @@ class RestController @Inject()(val execution: Execution)
 
   post("/api/deployment-requests") { r: Request =>
     // todo: give the permission to Jenkins only when start=true
-    authenticate(r.user) { user: User =>
+    authenticate(r) { user: User =>
       timeBoxed(
         {
           val attrs = try {
@@ -157,7 +157,7 @@ class RestController @Inject()(val execution: Execution)
 
   put("/api/deployment-requests/:id") { r: RequestWithId =>
     // todo: give the permission to Jenkins and escalation only when in production
-    authenticate(r.request.user) { user: User =>
+    authenticate(r.request) { user: User =>
       withIdAndRequest(putDeploymentRequest, 2.seconds)(r)
     }
   }
