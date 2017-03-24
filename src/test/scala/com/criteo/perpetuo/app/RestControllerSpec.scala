@@ -27,8 +27,10 @@ import scala.concurrent.duration._
 class RestControllerSpec extends FeatureTest with TestDb {
 
   val authModule = new AuthModule(AppConfig.under("auth"))
-  val knownUser = User("knownUser")
-  val knownUserJWT = knownUser.toJWT(authModule.jwtEncoder)
+  val deployUser = User("qabot")
+  val deployUserJWT = deployUser.toJWT(authModule.jwtEncoder)
+  val stdUser = User("stdUser")
+  val stdUserJWT = stdUser.toJWT(authModule.jwtEncoder)
 
   var controller: RestController = _
 
@@ -62,7 +64,7 @@ class RestControllerSpec extends FeatureTest with TestDb {
   private def createProduct(name: String, expectedError: Option[(String, Status)] = None) = {
     val ans = server.httpPost(
       path = s"/api/products",
-      headers = Map("Cookie" -> s"jwt=$knownUserJWT"),
+      headers = Map("Cookie" -> s"jwt=$deployUserJWT"),
       andExpect = expectedError.map(_._2).getOrElse(Created),
       postBody = JsObject("name" -> JsString(name)).compactPrint
     ).contentString
@@ -85,7 +87,7 @@ class RestControllerSpec extends FeatureTest with TestDb {
   private def requestDeployment(body: String, expectsMessage: Option[String], start: Boolean): JsObject = {
     val ans = server.httpPost(
       path = s"/api/deployment-requests?start=$start",
-      headers = Map("Cookie" -> s"jwt=$knownUserJWT"),
+      headers = Map("Cookie" -> s"jwt=$deployUserJWT"),
       andExpect = if (expectsMessage.isDefined) BadRequest else Created,
       postBody = body
     ).contentString
@@ -119,7 +121,7 @@ class RestControllerSpec extends FeatureTest with TestDb {
   private def httpPut(path: String, body: JsValue, expect: Status) =
     server.httpPut(
       path = path,
-      headers = Map("Cookie" -> s"jwt=$knownUserJWT"),
+      headers = Map("Cookie" -> s"jwt=$stdUserJWT"),
       putBody = body.compactPrint,
       andExpect = expect
     )
@@ -174,6 +176,15 @@ class RestControllerSpec extends FeatureTest with TestDb {
       server.httpPost(
         path = s"/api/products",
         andExpect = Unauthorized,
+        postBody = JsObject("name" -> JsString("this project will never be created")).compactPrint
+      )
+    }
+
+    "respond 403 if the user is not allowed to do the operation" in {
+      server.httpPost(
+        path = s"/api/products",
+        headers = Map("Cookie" -> s"jwt=$stdUserJWT"),
+        andExpect = Forbidden,
         postBody = JsObject("name" -> JsString("this project will never be created")).compactPrint
       )
     }

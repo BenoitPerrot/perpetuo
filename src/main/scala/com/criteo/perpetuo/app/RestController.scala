@@ -54,6 +54,7 @@ class RestController @Inject()(val execution: Execution)
 
   private val futurePool = FuturePools.unboundedPool("RequestFuturePool")
   private val dispatcher = TargetDispatcher.fromConfig
+  private val deployBotName = "qabot"
 
   private def await[T](future: Future[T], maxDuration: Duration): T =
     try {
@@ -90,8 +91,7 @@ class RestController @Inject()(val execution: Execution)
   }
 
   post("/api/products") { r: ProductPost =>
-    // todo: give the right to Jenkins only?
-    authenticate(r.request) { case user =>
+    authenticate(r.request) { case user if user.name == deployBotName =>
       timeBoxed(
         execution.dbBinding.insert(r.name)
           .recover {
@@ -115,8 +115,8 @@ class RestController @Inject()(val execution: Execution)
   )
 
   post("/api/deployment-requests") { r: Request =>
-    // todo: give the permission to Jenkins only when start=true
-    authenticate(r) { case user =>
+    val autoStart = r.getBooleanParam("start", default = false)
+    authenticate(r) { case user if user.name == deployBotName || !autoStart =>
       timeBoxed(
         {
           val attrs = try {
@@ -129,7 +129,7 @@ class RestController @Inject()(val execution: Execution)
           // first, log the user's general intent
           val futureDepReq = execution.dbBinding.insert(attrs)
 
-          if (r.getBooleanParam("start", default = false)) {
+          if (autoStart) {
             val asyncStart = futureDepReq.flatMap(execution.startOperation(dispatcher, _, Operation.deploy))
 
             asyncStart.onFailure { case e => logger.error("Transaction failed to start: " + e.getMessage + "\n" + e.getStackTrace.mkString("\n")) }
@@ -155,8 +155,8 @@ class RestController @Inject()(val execution: Execution)
   }
 
   put("/api/deployment-requests/:id") { r: RequestWithId =>
-    // todo: give the permission to Jenkins and escalation only when in production
-    authenticate(r.request) { case user =>
+    // todo: also give permission to escalation in production
+    authenticate(r.request) { case user if user.name == deployBotName || AppConfig.env != "prod" =>
       withIdAndRequest(putDeploymentRequest, 2.seconds)(r)
     }
   }

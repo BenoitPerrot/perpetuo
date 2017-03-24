@@ -23,8 +23,8 @@ function api_query() {
 
     # Ensure the response output is written on a single line ended with a newline.
     # In case of error, let the error go on stderr, and copy the error in a dedicated file.
-    # The JWT specifies the user "itester", and is encoded with the secret "itest-jwt-secret"
-    echo $(curl -sfS --cookie "jwt=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJuYW1lIjoiaXRlc3RlciJ9.d2zfrMvLn5ENbLpdQBEOHnKJcJuf9X8GBOQbP71XQ1U" -H 'Content-Type: application/json' "http://localhost:${PORT}/api/$@") | \
+    # The JWT specifies the user "qabot", and is encoded with the secret "itest-jwt-secret"
+    echo $(curl -sfS --cookie "jwt=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJuYW1lIjoicWFib3QifQ.uvI7EGBgJS6uJ2H998av6ROGi_9qXp2xw0uOtDlG2KY" -H 'Content-Type: application/json' "http://localhost:${PORT}/api/$@") | \
         tee ${out_tmp_file} 2> ${err_tmp_file} \
         || { cat ${err_tmp_file} 1>&2; }
 }
