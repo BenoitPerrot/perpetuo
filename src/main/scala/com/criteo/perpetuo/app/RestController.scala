@@ -75,13 +75,11 @@ class RestController @Inject()(val execution: Execution)
       Try(request.id.toLong).toOption.map(view(_, request)).flatMap(await(_, maxDuration))
     }
 
-  def authenticate(user: Option[User])(callback: (User => TwitterFuture[Response])): TwitterFuture[Response] = {
+  def authenticate(user: Option[User])(callback: (User => TwitterFuture[Option[Response]])): TwitterFuture[Option[Response]] = {
     user
-      .flatMap({ user: User => if (user != User.anonymous) Some(user) else None })
-      .map { user: User =>
-        callback(user)
-      }
-      .getOrElse(TwitterFuture(response.forbidden))
+      .flatMap { u: User => if (u != User.anonymous) Some(u) else None }
+      .map(callback)
+      .getOrElse(TwitterFuture(Some(response.forbidden)))
   }
 
   get("/api/products") { _: Request =>
@@ -103,7 +101,7 @@ class RestController @Inject()(val execution: Execution)
               // * if SQLServer: Cannot insert duplicate key row in object 'dbo.product' with unique index 'ix_product_name'
               throw ConflictException(s"Name `${r.name}` is already used")
           }
-          .map(_ => response.created.nothing),
+          .map(_ => Some(response.created.nothing)),
         2.seconds
       )
     }
@@ -139,7 +137,7 @@ class RestController @Inject()(val execution: Execution)
 
           futureDepReq
             .recover { case e: UnknownProduct => throw BadRequestException(s"Product `${e.productName}` could not be found") }
-            .map { depReq => response.created.json(Map("id" -> depReq.id)) }
+            .map { depReq => Some(response.created.json(Map("id" -> depReq.id))) }
         },
         2.seconds
       )
