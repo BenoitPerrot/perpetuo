@@ -16,7 +16,7 @@ class RundeckInvokerSpec extends Test {
     object RundeckInvokerMock extends RundeckInvoker("host-example", 4242, name = "rundeck", marathonEnv = "Athens") {
       override protected val client: (Request) => Future[Response] = request => {
         request.uri shouldEqual s"/api/$apiVersion/job/deploy-to-marathon/executions?authtoken=$authToken"
-        request.contentString shouldEqual """{"argString":"-MARATHON_USER 'Pheidippides' -MARATHON_PASSWORD 'Nenikekamen!' -environment Athens -callback-url 'http://somewhere/api/execution-traces/42' -product-name 'MyBeautifulProject' -product-version 'the 42nd version' -target \"{\\\"abc\\\": [\\\"def\\\", 42], \\\"ghi\\\": 51.3}\""}"""
+        request.contentString shouldEqual """{"argString":"-environment Athens -callback-url 'http://somewhere/api/execution-traces/42' -product-name 'MyBeautifulProject' -product-version 'the 42nd version' -target \"{\\\"abc\\\": [\\\"def\\\", 42], \\\"ghi\\\": 51.3}\""}"""
         val resp = Response(Status(statusCode))
         resp.write(content)
         Future.value(resp)

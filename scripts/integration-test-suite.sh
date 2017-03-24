@@ -76,8 +76,6 @@ then
     start_temporarily "Perpetuo" "Startup complete, server ready" java \
         -Dtokens.rundeck="${RD_TEST_TOKEN}" \
         -Dauth.jwt.secret="itest-jwt-secret" \
-        -Dmarathon.user="Pheidippides" \
-        -Dmarathon.password="Nenikekamen!" \
         -Dhttp.port=${PORT} \
         -DselfUrl="http://localhost:${PORT}" \
         -jar ${perpetuo_jar} \

@@ -31,8 +31,6 @@ class RundeckInvoker(val host: String,
 
   // authentication
   protected val authToken: String = AppConfig.under("tokens").get(name)
-  protected val marathonUser: String = AppConfig.get("marathon.user")
-  protected val marathonPassword: String = AppConfig.get("marathon.password")
 
   // Rundeck's API
   private def authenticated(path: String) = s"$path?authtoken=$authToken"
@@ -73,9 +71,7 @@ class RundeckInvoker(val host: String,
     val body = Map(
       // before version 18 of Rundeck, we can't pass options in a structured way
       "argString" -> (
-        s"-MARATHON_USER '$marathonUser' " + // todo: remove it (we currently know there is no " in the user name...)
-          s"-MARATHON_PASSWORD '$marathonPassword' " + // todo: remove it (we currently know there is no " in the password...)
-          s"-environment $marathonEnv " + // todo: remove it
+          s"-environment $marathonEnv " + // todo: remove it?
           s"-callback-url '${callbackUrl(executionId)}' " +
           s"-product-name '$productName' " +
           s"-product-version '$version' " +
