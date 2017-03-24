@@ -116,6 +116,14 @@ class RestControllerSpec extends FeatureTest with TestDb {
     ).contentString.parseJson.asInstanceOf[JsArray].elements.map(_.asJsObject.fields)
   }
 
+  private def httpPut(path: String, body: JsValue, expect: Status) =
+    server.httpPut(
+      path = path,
+      headers = Map("Cookie" -> s"jwt=$knownUserJWT"),
+      putBody = body.compactPrint,
+      andExpect = expect
+    )
+
   private def updateExecTrace(execId: Int, state: String, logHref: Option[String],
                               targetStatus: Option[Map[String, JsValue]] = None,
                               expectedTargetStatus: Map[String, (String, String)]) = {
@@ -131,10 +139,10 @@ class RestControllerSpec extends FeatureTest with TestDb {
     ).collect {
       case (k, v) if v.isDefined => k -> v.get
     }
-    val ret = server.httpPut(
-      path = s"/api/execution-traces/$execId",
-      putBody = params.toJson.compactPrint,
-      andExpect = NoContent
+    val ret = httpPut(
+      s"/api/execution-traces/$execId",
+      params.toJson,
+      NoContent
     )
     ret.contentLength shouldEqual Some(0)
 
@@ -218,10 +226,10 @@ class RestControllerSpec extends FeatureTest with TestDb {
     "start a deployment that was not started yet" in {
       val id = requestDeployment("my product", "not ready yet", "par".toJson, None, None, start = false)
         .fields("id").asInstanceOf[JsNumber].value
-      server.httpPut(
-        path = s"/api/deployment-requests/$id",
-        andExpect = Ok,
-        putBody = ""
+      httpPut(
+        s"/api/deployment-requests/$id",
+        "".toJson,
+        Ok
       ).contentString.parseJson.asJsObject shouldEqual JsObject("id" -> id.toJson)
     }
   }
@@ -357,26 +365,26 @@ class RestControllerSpec extends FeatureTest with TestDb {
     }
 
     "return 404 on non-integral ID" in {
-      server.httpPut(
-        path = s"/api/execution-traces/abc",
-        putBody = Map("state" -> "conflicting").toJson.compactPrint,
-        andExpect = NotFound
+      httpPut(
+        s"/api/execution-traces/abc",
+        Map("state" -> "conflicting").toJson,
+        NotFound
       )
     }
 
     "return 404 if trying to update an unknown execution trace" in {
-      server.httpPut(
-        path = s"/api/execution-traces/12345",
-        putBody = Map("state" -> "conflicting").toJson.compactPrint,
-        andExpect = NotFound
+      httpPut(
+        s"/api/execution-traces/12345",
+        Map("state" -> "conflicting").toJson,
+        NotFound
       )
     }
 
     "return 400 if the target status is badly formatted and not update the state" in {
-      server.httpPut(
-        path = s"/api/execution-traces/1",
-        putBody = JsObject("state" -> "conflicting".toJson, "targetStatus" -> Vector("par", "am5").toJson).compactPrint,
-        andExpect = BadRequest
+      httpPut(
+        s"/api/execution-traces/1",
+        JsObject("state" -> "conflicting".toJson, "targetStatus" -> Vector("par", "am5").toJson),
+        BadRequest
       ).contentString should include("targetStatus: Unable to parse")
 
       updateExecTrace(
@@ -386,26 +394,26 @@ class RestControllerSpec extends FeatureTest with TestDb {
     }
 
     "return 400 if no state is provided" in {
-      server.httpPut(
-        path = s"/api/execution-traces/1",
-        putBody = JsObject("targetStatus" -> Map("par" -> "success").toJson).compactPrint,
-        andExpect = BadRequest
+      httpPut(
+        s"/api/execution-traces/1",
+        JsObject("targetStatus" -> Map("par" -> "success").toJson),
+        BadRequest
       ).contentString should include("state: field is required")
     }
 
     "return 400 if the provided state is unknown" in {
-      server.httpPut(
-        path = s"/api/execution-traces/1",
-        putBody = Map("state" -> "what?").toJson.compactPrint,
-        andExpect = BadRequest
+      httpPut(
+        s"/api/execution-traces/1",
+        Map("state" -> "what?").toJson,
+        BadRequest
       ).contentString should include("Unknown state `what?`")
     }
 
     "return 400 if a provided target status is unknown and not update the state" in {
-      server.httpPut(
-        path = s"/api/execution-traces/1",
-        putBody = JsObject("state" -> "conflicting".toJson, "targetStatus" -> Map("par" -> "foobar").toJson).compactPrint,
-        andExpect = BadRequest
+      httpPut(
+        s"/api/execution-traces/1",
+        JsObject("state" -> "conflicting".toJson, "targetStatus" -> Map("par" -> "foobar").toJson),
+        BadRequest
       ).contentString should include("Unknown target status `foobar`")
 
       updateExecTrace(

@@ -38,7 +38,8 @@ private case class ProductPost(@NotEmpty name: String,
 private case class ExecutionTracePut(@RouteParam @NotEmpty id: String,
                                      @NotEmpty state: String,
                                      logHref: String = "",
-                                     targetStatus: Map[String, Any] = Map()) extends WithId
+                                     targetStatus: Map[String, Any] = Map(),
+                                     @Inject request: Request) extends WithId
 
 private case class SortingFilteringPost(orderBy: Seq[Map[String, Any]] = Seq(),
                                         where: Seq[Map[String, Any]] = Seq(),
@@ -144,19 +145,22 @@ class RestController @Inject()(val execution: Execution)
     }
   }
 
-  put("/api/deployment-requests/:id")(
-    // todo: give the permission to Jenkins and escalation only when in production
-    withLongId(
-      execution.dbBinding.findDeploymentRequestByIdWithProduct(_).map(_.map { req =>
-        // done asynchronously
-        execution.startOperation(dispatcher, req, Operation.deploy)
+  private def putDeploymentRequest(id: Long, r: RequestWithId) = {
+    execution.dbBinding.findDeploymentRequestByIdWithProduct(id).map(_.map { req =>
+      // done asynchronously
+      execution.startOperation(dispatcher, req, Operation.deploy)
 
-        // returned synchronously
-        Map("id" -> req.id)
-      }),
-      2.seconds
-    )
-  )
+      // returned synchronously
+      response.ok.json(Map("id" -> req.id))
+    })
+  }
+
+  put("/api/deployment-requests/:id") { r: RequestWithId =>
+    // todo: give the permission to Jenkins and escalation only when in production
+    authenticate(r.request.user) { user: User =>
+      withIdAndRequest(putDeploymentRequest, 2.seconds)(r)
+    }
+  }
 
   get("/api/execution-traces/by-deployment-request/:id")(
     withLongId(id =>
