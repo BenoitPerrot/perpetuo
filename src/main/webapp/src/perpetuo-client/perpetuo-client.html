@@ -28,6 +28,10 @@ this.Perpetuo.Client = this.Perpetuo.Client || (function () {
   return class Client {
     constructor(host) {
       this.host = host;
+
+      this.deploymentRequestOffset = 0;
+      this.deploymentRequestLimit = 5;
+      this.hasMoreDeploymentRequests = undefined; // Unknown until first request
     }
 
     redirectToAuthorizeURL(win) {
@@ -52,9 +56,19 @@ this.Perpetuo.Client = this.Perpetuo.Client || (function () {
     }
 
     fetchDeploymentRequests() {
-      const options = { orderBy: this.deploymentRequestOrder || [] };
+      const options = {
+        orderBy: this.deploymentRequestOrder || [],
+        limit: this.deploymentRequestLimit + 1, // Ask for one more element to know if more are available
+        offset: this.deploymentRequestOffset
+      };
       return jsonFetch('/api/unstable/deployment-requests', { method: 'POST', body: JSON.stringify(options) })
-        .then(_ => _.json()).then(deploymentRequests => deploymentRequests.map(_ => Object.assign(_, { productType: 'mesos' }))); // TODO: have the productType in the backend);
+        .then(_ => _.json()).then(deploymentRequests => {
+          this.hasMoreDeploymentRequests = deploymentRequests.length == options.limit;
+          if (this.hasMoreDeploymentRequests) {
+            deploymentRequests.pop();
+          }
+          return deploymentRequests.map(_ => Object.assign(_, { productType: 'mesos' })) // TODO: have the productType in the backend
+        });
     }
     createDeploymentRequest(productName, version, target, comment) {
       return jsonFetch('/api/deployment-requests', { method: 'POST', body: JSON.stringify({

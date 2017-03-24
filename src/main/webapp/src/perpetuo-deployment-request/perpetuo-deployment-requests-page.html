@@ -52,7 +52,7 @@
       </paper-tabs>
     </div>
     <iron-pages selected="{{selected}}">
-      <perpetuo-deployment-request-table id="deploymentRequestTable"></perpetuo-deployment-request-table>
+      <perpetuo-deployment-request-table id="deploymentRequestTable" on-page-changed="onPageChanged"></perpetuo-deployment-request-table>
       <perpetuo-deployment-request-creation-form on-close="onCreationFormClose"></perpetuo-deployment-request-creation-form>
     </iron-pages>
   </template>
@@ -65,11 +65,18 @@
     },
 
     attached() {
-      this.deploymentRequestsListener = deploymentRequests => { this.$.deploymentRequestTable.data = deploymentRequests; }
+      this.deploymentRequestsListener = deploymentRequests => {
+        this.$.deploymentRequestTable.data = deploymentRequests;
+        this.$.deploymentRequestTable.hasNextPage = this.ownerDocument.client.hasMoreDeploymentRequests;
+      }
       this.ownerDocument.client.addDeploymentRequestsListener(this.deploymentRequestsListener);
     },
     detached() {
       this.ownerDocument.client.removeDeploymentRequestsListener(this.deploymentRequestsListener);
+    },
+
+    onPageChanged() {
+      this.ownerDocument.client.deploymentRequestOffset = (this.$.deploymentRequestTable.page - 1) * this.ownerDocument.client.deploymentRequestLimit;
     },
 
     onCreationFormClose() {
