@@ -169,6 +169,16 @@ class RestControllerSpec extends FeatureTest with TestDb {
   }
 
 
+  "Any protected route" should {
+    "respond 401 if the user is not logged in" in {
+      server.httpPost(
+        path = s"/api/products",
+        andExpect = Unauthorized,
+        postBody = JsObject("name" -> JsString("this project will never be created")).compactPrint
+      )
+    }
+  }
+
   "The Product's entry-points" should {
 
     "return 201 when creating a Product" in {
