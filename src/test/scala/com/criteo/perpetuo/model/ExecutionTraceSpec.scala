@@ -30,7 +30,7 @@ class ExecutionTraceSpec extends FunSuite with ScalaFutures
     Await.result(
       for {
         product <- insert("perpetuo-app")
-        request <- insert(new DeploymentRequestAttrs(product.name, "v42", "*", "No fear", "c.norris", new Timestamp(123456789)))
+        request <- insert(new DeploymentRequestAttrs(product.name, Version("v42"), "*", "No fear", "c.norris", new Timestamp(123456789)))
         deployId <- addToDeploymentRequest(request.id, Operation.deploy)
         execIds <- addToOperationTrace(deployId, 1)
         execTraces <- dbContext.db.run(executionTraceQuery.result)

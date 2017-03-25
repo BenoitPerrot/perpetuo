@@ -1,6 +1,7 @@
 package com.criteo.perpetuo.executors
 
 import com.criteo.perpetuo.model.Operation.Operation
+import com.criteo.perpetuo.model.Version
 import com.twitter.inject.Test
 
 import scala.concurrent.Future
@@ -11,7 +12,7 @@ class ExecutorInvokerSpec extends Test {
     override def getExecutionDetailsUrlIfApplicable(logHref: String): Option[String] =
       Some(logHref).filter(_.contains(substring)).map(_ + s", because $substring!")
 
-    override def trigger(operation: Operation, executionId: Long, productName: String, version: String, rawTarget: String, initiator: String): Option[Future[String]] = None
+    override def trigger(operation: Operation, executionId: Long, productName: String, version: Version, rawTarget: String, initiator: String): Option[Future[String]] = None
   }
 
   // Register two different ways of interpreting log hrefs

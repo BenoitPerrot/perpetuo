@@ -1,6 +1,6 @@
 package com.criteo.perpetuo.dao
 
-import com.criteo.perpetuo.model.{DeploymentRequest, DeploymentRequestAttrs}
+import com.criteo.perpetuo.model.{DeploymentRequest, DeploymentRequestAttrs, Version}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
@@ -8,7 +8,7 @@ import scala.concurrent.Future
 
 private[dao] case class DeploymentRequestRecord(id: Option[Long],
                                                 productId: Int,
-                                                version: String,
+                                                version: Version,
                                                 target: String,
                                                 comment: String, // Not an `Option` because it's easier to consider that no comment <=> empty
                                                 creator: String,
@@ -27,7 +27,7 @@ trait DeploymentRequestBinder extends TableBinder {
     // The intent
     def productId = column[Int]("product_id")
     protected def fk = foreignKey(productId, productQuery)(_.id)
-    def version = column[String]("version", O.SqlType("nchar(64)"))
+    def version = column[Version]("version", O.SqlType("nchar(64)"))
     def target = column[String]("target", O.SqlType("nvarchar(max)"))
 
     // The details

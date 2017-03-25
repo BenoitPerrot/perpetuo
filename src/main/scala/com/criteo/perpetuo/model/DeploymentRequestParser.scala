@@ -22,7 +22,7 @@ object DeploymentRequestParser {
         val targetExpr = read("target")
         val attrs = new DeploymentRequestAttrs(
           readStr("productName"),
-          readStr("version"),
+          Version(readStr("version")),
           targetExpr.compactPrint,
           readStr("comment", Some("")),
           userName,

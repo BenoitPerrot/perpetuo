@@ -24,7 +24,7 @@ class DeploymentRequestSpec extends FunSuite with ScalaFutures
     Await.result(
       for {
         product <- insert("perpetuo-app")
-        request <- insert(new DeploymentRequestAttrs(product.name, "v42", "*", "No fear", "c.norris", new Timestamp(123456789)))
+        request <- insert(new DeploymentRequestAttrs(product.name, Version("v42"), "*", "No fear", "c.norris", new Timestamp(123456789)))
         requests <- dbContext.db.run(deploymentRequestQuery.result)
         lookup <- findDeploymentRequestByIdWithProduct(request.id)
       } yield {

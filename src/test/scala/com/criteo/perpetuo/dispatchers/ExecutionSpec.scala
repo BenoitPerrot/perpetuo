@@ -7,7 +7,7 @@ import com.criteo.perpetuo.dao._
 import com.criteo.perpetuo.executors.{DummyInvoker, ExecutorInvoker}
 import com.criteo.perpetuo.model.DeploymentRequestParser._
 import com.criteo.perpetuo.model.Operation.Operation
-import com.criteo.perpetuo.model.{DeploymentRequestAttrs, Operation, Product}
+import com.criteo.perpetuo.model.{DeploymentRequestAttrs, Operation, Product, Version}
 import com.twitter.inject.Test
 import spray.json.DefaultJsonProtocol._
 import spray.json.{JsObject, _}
@@ -32,7 +32,7 @@ class ExecutionSpec extends Test with TestDb {
   }
 
   object DummyInvokerWithLogHref extends DummyInvoker("DummyWithLogHref") {
-    override def trigger(operation: Operation, executionId: Long, productName: String, version: String, rawTarget: String, initiator: String): Option[Future[String]] = {
+    override def trigger(operation: Operation, executionId: Long, productName: String, version: Version, rawTarget: String, initiator: String): Option[Future[String]] = {
       assert(super.trigger(operation, executionId, productName, version, rawTarget, initiator).isEmpty)
       Some(Future.successful(s"#${dummyCounter.next}"))
     }
@@ -41,7 +41,7 @@ class ExecutionSpec extends Test with TestDb {
   private val product: Product = Await.result(execution.dbBinding.insert("perpetuo-app"), 1.second)
 
   private def getExecutions(dispatcher: TargetDispatcher): Future[Seq[(Long, Option[String])]] = {
-    val req = new DeploymentRequestAttrs(product.name, "v42", """"*"""", "No fear", "c.norris", new Timestamp(123456789))
+    val req = new DeploymentRequestAttrs(product.name, Version("v42"), """"*"""", "No fear", "c.norris", new Timestamp(123456789))
 
     val depReq = execution.dbBinding.insert(req)
     val asyncStart = depReq.flatMap(execution.startOperation(dispatcher, _, Operation.deploy))
@@ -65,7 +65,7 @@ class ExecutionSpec extends Test with TestDb {
 
   implicit class ComplexDispatchTest(private val target: TargetExpr) {
     private val rawTarget = target.toJson.compactPrint
-    private val request = new DeploymentRequestAttrs(product.name, "v42", rawTarget, "No fear", "c.norris", new Timestamp(123456789))
+    private val request = new DeploymentRequestAttrs(product.name, Version("v42"), rawTarget, "No fear", "c.norris", new Timestamp(123456789))
     private val depReq = execution.dbBinding.insert(request)
 
     private def parse(it: Iterable[(ExecutorInvoker, String)]): Iterable[(ExecutorInvoker, TargetExpr)] =

@@ -4,7 +4,7 @@ import java.sql.Timestamp
 
 import com.criteo.perpetuo.TestDb
 import com.criteo.perpetuo.auth.{User, UserFilter}
-import com.criteo.perpetuo.model.DeploymentRequestAttrs
+import com.criteo.perpetuo.model.{DeploymentRequestAttrs, Version}
 import com.twitter.finagle.http.Status._
 import com.twitter.finagle.http.{Request, Response, Status}
 import com.twitter.finatra.http.HttpServer
@@ -226,9 +226,9 @@ class RestControllerSpec extends FeatureTest with TestDb {
 
     "handle a complex target expression" in {
       requestDeployment("my product", "42", Seq("here", "and", "there").toJson, Some(""))
-      requestDeployment("my product", "42", Map("select" -> "here").toJson, Some(""))
-      requestDeployment("my product", "42", Map("select" -> Seq("here", "and", "there")).toJson, Some(""))
-      requestDeployment("my product", "42", Seq(Map("select" -> Seq("here", "and", "there"))).toJson, Some(""))
+      requestDeployment("my product", "042", Map("select" -> "here").toJson, Some(""))
+      requestDeployment("my product", "0042", Map("select" -> Seq("here", "and", "there")).toJson, Some(""))
+      requestDeployment("my product", "420", Seq(Map("select" -> Seq("here", "and", "there"))).toJson, Some(""))
     }
 
     "properly reject bad targets" in {
@@ -325,7 +325,7 @@ class RestControllerSpec extends FeatureTest with TestDb {
     }
 
     "not fail when the existing DeploymentRequest doesn't have execution traces yet" in {
-      val attrs = new DeploymentRequestAttrs("my product", "v", "\"t\"", "c", "c", new Timestamp(System.currentTimeMillis))
+      val attrs = new DeploymentRequestAttrs("my product", Version("v"), "\"t\"", "c", "c", new Timestamp(System.currentTimeMillis))
       val depReq = Await.result(controller.execution.dbBinding.insert(attrs), 1.second)
       val traces = server.httpGet(
         path = s"/api/execution-traces/by-deployment-request/${depReq.id}",
@@ -447,6 +447,13 @@ class RestControllerSpec extends FeatureTest with TestDb {
   }
 
   "Deep query" should {
+    "display correctly formatted versions" in {
+      val depReqs = deepGetDepReq()
+      depReqs.map(_ ("version").asInstanceOf[JsString].value) shouldEqual Vector(
+        "v21", "buggy", "42", "42", "42", "420", "not ready yet", "v2097", "v"
+      )
+    }
+
     "return the right executions in a valid JSON" in {
       val depReqs = deepGetDepReq()
 
@@ -557,16 +564,18 @@ class RestControllerSpec extends FeatureTest with TestDb {
 
       Seq(false, true).foreach { descending =>
 
-        Seq("creationDate").foreach { key =>
-          val sortedDepReqs = deepGetDepReq(orderBy = Seq(Map("field" -> key.toJson, "desc" -> descending.toJson)))
-          sortedDepReqs.isEmpty shouldBe false
-          isSorted[BigDecimal, JsNumber](if (descending) sortedDepReqs.reverse else sortedDepReqs, key, BigDecimal.valueOf(-1), _ <= _) shouldBe true
-        }
-
-        Seq("productName", "creator", "version").foreach { key =>
-          val sortedDepReqs = deepGetDepReq(orderBy = Seq(Map("field" -> key.toJson, "desc" -> descending.toJson)))
-          sortedDepReqs.isEmpty shouldBe false
-          isSorted[String, JsString](if (descending) sortedDepReqs.reverse else sortedDepReqs, key, "", _ <= _) shouldBe true
+        val sortNumbers = isSorted[BigDecimal, JsNumber](_: Seq[Map[String, JsValue]], _: String, BigDecimal.valueOf(-1), _ <= _)
+        val sortStrings = isSorted[String, JsString](_: Seq[Map[String, JsValue]], _: String, "", _ <= _)
+        val sortVersions = isSorted[String, JsString](_: Seq[Map[String, JsValue]], _: String, "", Version(_).value <= Version(_).value)
+        Map(
+          "creationDate" -> sortNumbers,
+          "productName" -> sortStrings,
+          "creator" -> sortStrings,
+          "version" -> sortVersions
+        ).foreach { case (fieldName, isSorted) =>
+            val sortedDepReqs = deepGetDepReq(orderBy = Seq(Map("field" -> fieldName.toJson, "desc" -> descending.toJson)))
+            sortedDepReqs.isEmpty shouldBe false
+            isSorted(if (descending) sortedDepReqs.reverse else sortedDepReqs, fieldName) shouldBe true
         }
       }
     }

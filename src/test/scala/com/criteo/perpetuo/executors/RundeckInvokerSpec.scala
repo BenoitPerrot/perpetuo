@@ -1,6 +1,6 @@
 package com.criteo.perpetuo.executors
 
-import com.criteo.perpetuo.model.Operation
+import com.criteo.perpetuo.model.{Operation, Version}
 import com.twitter.finagle.http.{Request, Response, Status}
 import com.twitter.inject.Test
 import com.twitter.util.Future
@@ -16,7 +16,7 @@ class RundeckInvokerSpec extends Test {
     object RundeckInvokerMock extends RundeckInvoker("host-example", 4242, name = "rundeck", marathonEnv = "Athens") {
       override protected val client: (Request) => Future[Response] = request => {
         request.uri shouldEqual s"/api/$apiVersion/job/deploy-to-marathon/executions?authtoken=$authToken"
-        request.contentString shouldEqual """{"argString":"-MARATHON_USER 'Pheidippides' -MARATHON_PASSWORD 'Nenikekamen!' -environment Athens -callback-url 'http://somewhere/api/execution-traces/42' -product-name 'MyBeautifulProject' -product-version 'the last version' -target \"{\\\"abc\\\": [\\\"def\\\", 42], \\\"ghi\\\": 51.3}\""}"""
+        request.contentString shouldEqual """{"argString":"-MARATHON_USER 'Pheidippides' -MARATHON_PASSWORD 'Nenikekamen!' -environment Athens -callback-url 'http://somewhere/api/execution-traces/42' -product-name 'MyBeautifulProject' -product-version 'the 42nd version' -target \"{\\\"abc\\\": [\\\"def\\\", 42], \\\"ghi\\\": 51.3}\""}"""
         val resp = Response(Status(statusCode))
         resp.write(content)
         Future.value(resp)
@@ -26,7 +26,7 @@ class RundeckInvokerSpec extends Test {
       Operation.deploy,
       42,
       "MyBeautifulProject",
-      "the last version",
+      Version("the 042nd version"),
       """{"abc": ["def", 42], "ghi": 51.3}""",
       "guy next door"
     )

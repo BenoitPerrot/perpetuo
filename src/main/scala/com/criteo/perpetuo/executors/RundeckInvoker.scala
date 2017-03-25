@@ -4,6 +4,7 @@ import java.net.InetSocketAddress
 
 import com.criteo.perpetuo.app.AppConfig
 import com.criteo.perpetuo.model.Operation.Operation
+import com.criteo.perpetuo.model.Version
 import com.twitter.conversions.time._
 import com.twitter.finagle.builder.ClientBuilder
 import com.twitter.finagle.http.{Fields, _}
@@ -55,7 +56,7 @@ class RundeckInvoker(val host: String,
 
   override def toString: String = name
 
-  override def trigger(operation: Operation, executionId: Long, productName: String, version: String, rawTarget: String, initiator: String): Some[ScalaFuture[String]] = {
+  override def trigger(operation: Operation, executionId: Long, productName: String, version: Version, rawTarget: String, initiator: String): Some[ScalaFuture[String]] = {
     // todo: while we only deal with marathon target, we directly give the select dimension, and formatted differently
     val degenerateTarget = Try(
       rawTarget.parseJson
@@ -67,7 +68,7 @@ class RundeckInvoker(val host: String,
       .getOrElse(rawTarget) // todo: remove it
 
     assert(!productName.contains("'"))
-    assert(!version.contains("'"))
+    assert(!version.value.contains("'"))
     val escapedTarget = degenerateTarget.toJson.compactPrint
     val body = Map(
       // before version 18 of Rundeck, we can't pass options in a structured way

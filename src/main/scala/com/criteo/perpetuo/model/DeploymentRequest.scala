@@ -21,7 +21,7 @@ trait ParsedTarget {
 
 
 class DeploymentRequestAttrs(val productName: String,
-                             val version: String,
+                             val version: Version,
                              val target: String,
                              val comment: String,
                              val creator: String,
@@ -30,7 +30,7 @@ class DeploymentRequestAttrs(val productName: String,
 
 case class DeploymentRequest(id: Long,
                              product: Product,
-                             version: String,
+                             version: Version,
                              target: String,
                              comment: String,
                              creator: String,
