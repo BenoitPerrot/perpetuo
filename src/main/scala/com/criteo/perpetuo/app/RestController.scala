@@ -38,7 +38,7 @@ private case class ProductPost(@NotEmpty name: String,
 private case class ExecutionTracePut(@RouteParam @NotEmpty id: String,
                                      @NotEmpty state: String,
                                      logHref: String = "",
-                                     targetStatus: Map[String, Any] = Map(),
+                                     targetStatus: Map[String, Map[String, String]] = Map(),
                                      @Inject request: Request) extends WithId
 
 private case class SortingFilteringPost(orderBy: Seq[Map[String, Any]] = Seq(),
@@ -196,9 +196,7 @@ class RestController @Inject()(val execution: Execution)
     val statusMap =
       try {
         r.targetStatus.map { // don't use mapValues, as it gives a view (lazy generation, incompatible with error management here)
-          case (k, s: String) => (k, TargetAtomStatus(Status.fromString(s), ""))
-          case (k, obj: Map[String, String]) => (k, Status.targetMapJsonFormat.read(obj.toJson)) // yes it's crazy to use spray's case class deserializer
-          case unknown => throw BadRequestException(s"Expected an object as `targetStatus`, got $unknown")
+          case (k, obj) => (k, Status.targetMapJsonFormat.read(obj.toJson)) // yes it's crazy to use spray's case class deserializer
         }
       } catch {
         case e: DeserializationException => throw BadRequestException(e.getMessage)

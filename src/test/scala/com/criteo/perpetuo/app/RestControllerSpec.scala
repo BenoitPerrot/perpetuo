@@ -364,7 +364,7 @@ class RestControllerSpec extends FeatureTest with TestDb {
     "update one record's execution state and target status on a PUT" in {
       updateExecTrace(
         2, "initFailed", None,
-        targetStatus = Some(Map("par" -> "success".toJson)),
+        targetStatus = Some(Map("par" -> Map("code" -> "success", "detail" -> "").toJson)),
         expectedTargetStatus = Map("par" -> ("success", ""))
       )
     }
@@ -372,7 +372,7 @@ class RestControllerSpec extends FeatureTest with TestDb {
     "update one record's execution state, log href and target status (partially) on a PUT" in {
       updateExecTrace(
         2, "conflicting", Some("http://"),
-        targetStatus = Some(Map("am5" -> "notDone".toJson)),
+        targetStatus = Some(Map("am5" -> Map("code" -> "notDone", "detail" -> "").toJson)),
         expectedTargetStatus = Map("par" -> ("success", ""), "am5" -> ("notDone", ""))
       )
     }
@@ -430,10 +430,10 @@ class RestControllerSpec extends FeatureTest with TestDb {
       ).contentString should include("Unknown state `what?`")
     }
 
-    "return 400 if a provided target status is unknown and not update the state" in {
+    "return 400 and not update the state if a provided target status is unknown" in {
       httpPut(
         s"/api/execution-traces/1",
-        JsObject("state" -> "conflicting".toJson, "targetStatus" -> Map("par" -> "foobar").toJson),
+        JsObject("state" -> "conflicting".toJson, "targetStatus" -> Map("par" -> Map("code" -> "foobar", "detail" -> "")).toJson),
         BadRequest
       ).contentString should include("Unknown target status `foobar`")
 
