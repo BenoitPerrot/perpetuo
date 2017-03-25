@@ -37,7 +37,7 @@ function run_tests() {
     while true
     do
         status=0
-        ./integration-test-suite.sh && echo || { status=$?; echo "  FAILED (${status})"; }
+        ./integration-test-suite.sh && echo || { status=$?; echo "  FAILED (exited ${status})"; }
 
         if [[ -t 0 && -t 1 ]] # interactive mode, in a tty with no pipes in input and output
         then

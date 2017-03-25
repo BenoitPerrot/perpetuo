@@ -5,7 +5,7 @@ import javax.inject.{Inject, Singleton}
 import com.criteo.perpetuo.dao._
 import com.criteo.perpetuo.executors.ExecutorInvoker
 import com.criteo.perpetuo.model.Operation.Operation
-import com.criteo.perpetuo.model.{DeploymentRequest, DeploymentRequestAttrs, ExecutionState, Operation}
+import com.criteo.perpetuo.model.{DeploymentRequest, ExecutionState}
 import com.twitter.inject.Logging
 import spray.json._
 

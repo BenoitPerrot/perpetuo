@@ -3,7 +3,6 @@ package com.criteo.perpetuo.dao
 import com.criteo.perpetuo.TestUtils._
 import com.twitter.inject.Test
 import freeslick.MSSQLServerProfile
-import slick.driver.JdbcDriver
 
 
 class SchemaSpec extends Test {
