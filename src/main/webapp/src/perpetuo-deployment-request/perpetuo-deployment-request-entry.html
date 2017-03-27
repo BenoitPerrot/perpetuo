@@ -89,7 +89,7 @@
       </div>
     </div>
     <template is="dom-if" if="[[expanded]]">
-      <p class="comment">[[data.comment]]</p>
+      <p class="comment" hidden$="[[!data.comment]]">[[data.comment]]</p>
       <ul class="operations">
         <template is="dom-repeat" items="[[data.operations]]">
           <li>
