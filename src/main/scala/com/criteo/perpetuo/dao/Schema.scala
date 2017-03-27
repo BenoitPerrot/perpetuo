@@ -3,7 +3,6 @@ package com.criteo.perpetuo.dao
 import javax.inject.{Inject, Singleton}
 
 import com.criteo.perpetuo.app.RawJson
-import slick.lifted.ColumnOrdered
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
@@ -39,13 +38,17 @@ class DbBinding @Inject()(val dbContext: DbContext)
       val value = spec.getOrElse("equals", throw new IllegalArgumentException(s"Filters tests must be `equals`"))
       val fieldName = spec.getOrElse("field", throw new IllegalArgumentException(s"Filters must specify ̀`field`"))
       fieldName match {
-        case "productName" => try queries.filter(_._2.name === value.asInstanceOf[String]) catch { case e: ClassCastException => throw new IllegalArgumentException("Filters on `productName` must test against a string value") }
+        case "productName" => try queries.filter(_._2.name === value.asInstanceOf[String]) catch {
+          case _: ClassCastException => throw new IllegalArgumentException("Filters on `productName` must test against a string value")
+        }
         case _ => throw new IllegalArgumentException(s"Cannot filter on `$fieldName`")
       }
     }
 
-    val filteredThenSorted = orderBy.foldRight(filtered.sortBy (_._1.id)) { (spec, queries) =>
-      val descending = try spec.getOrElse("desc", false).asInstanceOf[Boolean].value catch { case e: ClassCastException => throw new IllegalArgumentException("Orders `desc` must be true or false") }
+    val filteredThenSorted = orderBy.foldRight(filtered.sortBy(_._1.id)) { (spec, queries) =>
+      val descending = try spec.getOrElse("desc", false).asInstanceOf[Boolean].value catch {
+        case _: ClassCastException => throw new IllegalArgumentException("Orders `desc` must be true or false")
+      }
       val fieldName = spec.getOrElse("field", throw new IllegalArgumentException(s"Orders must specify ̀`field`"))
       fieldName match {
         case "creationDate" => queries.sortBy(if (descending) _._1.creationDate.desc else _._1.creationDate.asc)

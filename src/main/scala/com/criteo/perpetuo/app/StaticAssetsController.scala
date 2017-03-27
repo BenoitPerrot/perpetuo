@@ -18,7 +18,7 @@ class StaticAssetsController() extends Controller {
     }
   })
 
-  get("/:*") { request: Request =>
+  get("/:*") { _: Request =>
     response.ok.file("index.html")
   }
 
