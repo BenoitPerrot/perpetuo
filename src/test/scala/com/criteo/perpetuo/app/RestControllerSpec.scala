@@ -226,7 +226,7 @@ class RestControllerSpec extends FeatureTest with TestDb {
 
     "handle a complex target expression" in {
       requestDeployment("my product", "42", Seq("here", "and", "there").toJson, Some(""))
-      requestDeployment("my product", "042", Map("select" -> "here").toJson, Some(""))
+      requestDeployment("my product", " 10402", Map("select" -> "here").toJson, Some(""))
       requestDeployment("my product", "0042", Map("select" -> Seq("here", "and", "there")).toJson, Some(""))
       requestDeployment("my product", "420", Seq(Map("select" -> Seq("here", "and", "there"))).toJson, Some(""))
     }
@@ -239,6 +239,10 @@ class RestControllerSpec extends FeatureTest with TestDb {
       requestDeployment("my product", "b", Seq(JsObject()).toJson, None, Some("must contain a field `select`"))
       requestDeployment("my product", "b", Seq(Map("select" -> 42)).toJson, None, Some("non-empty JSON string or array"))
       requestDeployment("my product", "b", Seq(Map("select" -> Seq(42))).toJson, None, Some("a JSON string in"))
+    }
+
+    "properly reject bad version" in {
+      requestDeployment("my product", "x" * 65, "to everywhere".toJson, Some("my comment"), Some("Version must be up to 64-character long"))
     }
 
   }
@@ -450,7 +454,7 @@ class RestControllerSpec extends FeatureTest with TestDb {
     "display correctly formatted versions" in {
       val depReqs = deepGetDepReq()
       depReqs.map(_ ("version").asInstanceOf[JsString].value) shouldEqual Vector(
-        "v21", "buggy", "42", "42", "42", "420", "not ready yet", "v2097", "v"
+        "v21", "buggy", "42", " 10402", "42", "420", "not ready yet", "v2097", "v"
       )
     }
 

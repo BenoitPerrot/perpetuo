@@ -16,8 +16,21 @@ class VersionSpec extends Test {
   }
 
   "Creating a Version" should {
-    "be forbidden if the representation contains too long numbers" in {
-      an[IllegalArgumentException] shouldBe thrownBy(Version("12345678901234"))
+    "be forbidden if the input is too long" in {
+      an[IllegalArgumentException] shouldBe thrownBy(Version("x" * 65))
+    }
+
+    "take the input as-is if it contains too long numbers" in {
+      Version("abc-12345678901234-def").value shouldEqual "abc-12345678901234-def"
+    }
+
+    "take the input as-is if it contains too many numbers" in {
+      Version("a1b2c3d4e5").value shouldEqual "a1b2c3d4e5"
+    }
+
+    "accept a sha-1" in {
+      // it's already covered by tests above, but it makes the idea clear
+      Version("b19cd1527b508127949da6c2861617b0c978ce1f").value shouldEqual "b19cd1527b508127949da6c2861617b0c978ce1f"
     }
   }
 

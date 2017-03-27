@@ -27,7 +27,7 @@ trait DeploymentRequestBinder extends TableBinder {
     // The intent
     def productId = column[Int]("product_id")
     protected def fk = foreignKey(productId, productQuery)(_.id)
-    def version = column[Version]("version", O.SqlType("nchar(64)"))
+    def version = column[Version]("version", O.SqlType(s"nchar(${Version.maxSize})"))
     def target = column[String]("target", O.SqlType("nvarchar(max)"))
 
     // The details

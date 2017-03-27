@@ -20,9 +20,12 @@ object DeploymentRequestParser {
         }
 
         val targetExpr = read("target")
+        val version = try Version(readStr("version")) catch {
+          case e: IllegalArgumentException => throw new ParsingException(e.getMessage)
+        }
         val attrs = new DeploymentRequestAttrs(
           readStr("productName"),
-          Version(readStr("version")),
+          version,
           targetExpr.compactPrint,
           readStr("comment", Some("")),
           userName,
