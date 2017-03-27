@@ -89,6 +89,19 @@ else
 fi
 
 
+### helpers
+
+function is_started() {
+  dep_id=$1
+  function rundeck_answers_a_permalink() {
+      api_query execution-traces/by-deployment-request/${dep_id} | \
+          expects '"state":"running"' | \
+          expects '"logHref":"http://'
+  }
+  10_tries_with_sleep .2 rundeck_answers_a_permalink
+}
+
+
 ### scenarios
 
 # delayed start
@@ -104,6 +117,10 @@ api_query deployment-requests -d '{
     # no execution
     api_query execution-traces/by-deployment-request/${id1} | \
         expects '\[]' -x
+
+    api_query deployment-requests/${id1} -X PUT
+
+    is_started ${id1}
 }
 
 
@@ -124,12 +141,7 @@ api_query deployment-requests?start=true -d '{
     }
     10_tries_with_sleep .1 trigger_executions
 
-    function rundeck_answers_a_permalink() {
-        api_query execution-traces/by-deployment-request/${id2} | \
-            expects '"state":"running"' | \
-            expects '"logHref":"http://'
-    }
-    10_tries_with_sleep .2 rundeck_answers_a_permalink
+    is_started ${id2}
 
     function rundeck_completes_the_job() {
         api_query execution-traces/by-deployment-request/${id2} | \
