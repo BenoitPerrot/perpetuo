@@ -1,7 +1,6 @@
 <link rel="import" href="../../bower_components/polymer/polymer.html">
 
 <link rel="import" href="../../bower_components/paper-button/paper-button.html">
-<link rel="import" href="../../bower_components/paper-card/paper-card.html">
 <link rel="import" href="../../bower_components/paper-material/paper-material.html">
 
 <dom-module id="perpetuo-deployment-request-entry">
@@ -10,6 +9,7 @@
     display: flex;
     flex-direction: column;
     margin-bottom: 5px;
+    border-bottom: solid 1px #ddd;
   }
 
   div.heading {
@@ -18,7 +18,6 @@
     padding: 0.5em 2em;
     cursor: pointer;
     height: 50px;
-    border-bottom: solid 1px #ddd;
   }
 
   span {
@@ -75,45 +74,43 @@
   }
   </style>
   <template>
-    <paper-card>
-      <div class="heading" on-tap="toggle">
-        <span class="product-name"><iron-icon icon="[[expanderIcon(expanded)]]"></iron-icon>[[data.productName]]</span>
-        <span class="version">[[data.version]]</span>
-        <span class="target">[[data.target]]</span>
-        <span class="creation-date">[[unixTimestampToISODate(data.creationDate)]]</span>
-        <div class$="state [[state]]">
-          <template is="dom-if" if="[[isWaitingForApproval(state)]]">
-            <paper-button on-tap="onStartTap" raised>Start!</paper-button>
-          </template>
-          <template is="dom-if" if="[[!isWaitingForApproval(state)]]">
-            <paper-material>[[state]]</paper-material>
-          </template>
-        </div>
+    <div class="heading" on-tap="toggle">
+      <span class="product-name"><iron-icon icon="[[expanderIcon(expanded)]]"></iron-icon>[[data.productName]]</span>
+      <span class="version">[[data.version]]</span>
+      <span class="target">[[data.target]]</span>
+      <span class="creation-date">[[unixTimestampToISODate(data.creationDate)]]</span>
+      <div class$="state [[state]]">
+        <template is="dom-if" if="[[isWaitingForApproval(state)]]">
+          <paper-button on-tap="onStartTap" raised>Start!</paper-button>
+        </template>
+        <template is="dom-if" if="[[!isWaitingForApproval(state)]]">
+          <paper-material>[[state]]</paper-material>
+        </template>
       </div>
-      <template is="dom-if" if="[[expanded]]">
-        <p class="comment">[[data.comment]]</p>
-        <ul class="operations">
-          <template is="dom-repeat" items="[[data.operations]]">
-            <li>
-              <span>[[item.type]]</span>
-              <table>
-                <template is="dom-repeat" items="[[arrayifyTargetStatus(item.targetStatus)]]">
-                  <tr><td>[[item.targetAtom]]</td><td>[[item.code]]</td><td>[[item.detail]]</td></tr>
-                </template>
-              </table>
-              <ul class="executions">
-                <template is="dom-repeat" items="[[item.executions]]">
-                  <li>
-                    <span>[[item.state]]</span>
-                    <a href$="[[item.logHref]]">Logs...</a>
-                  </li>
-                </template>
-              </ul>
-            </li>
-          </template>
-        </ul>
-      </template>
-    </paper-card>
+    </div>
+    <template is="dom-if" if="[[expanded]]">
+      <p class="comment">[[data.comment]]</p>
+      <ul class="operations">
+        <template is="dom-repeat" items="[[data.operations]]">
+          <li>
+            <span>[[item.type]]</span>
+            <table>
+              <template is="dom-repeat" items="[[arrayifyTargetStatus(item.targetStatus)]]">
+                <tr><td>[[item.targetAtom]]</td><td>[[item.code]]</td><td>[[item.detail]]</td></tr>
+              </template>
+            </table>
+            <ul class="executions">
+              <template is="dom-repeat" items="[[item.executions]]">
+                <li>
+                  <span>[[item.state]]</span>
+                  <a href$="[[item.logHref]]">Logs...</a>
+                </li>
+              </template>
+            </ul>
+          </li>
+        </template>
+      </ul>
+    </template>
   </template>
   <script>
   function arrayifyTargetStatus(targetStatusMap) {
