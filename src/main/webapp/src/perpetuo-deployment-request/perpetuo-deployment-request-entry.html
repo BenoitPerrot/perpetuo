@@ -1,6 +1,7 @@
 <link rel="import" href="../../bower_components/polymer/polymer.html">
 
 <link rel="import" href="../../bower_components/paper-button/paper-button.html">
+<link rel="import" href="../../bower_components/paper-icon-button/paper-icon-button.html">
 <link rel="import" href="../../bower_components/paper-material/paper-material.html">
 
 <dom-module id="perpetuo-deployment-request-entry">
@@ -15,8 +16,7 @@
   div.heading {
     display: flex;
     align-items: center;
-    padding: 0.5em 2em;
-    cursor: pointer;
+    padding: 0.5em 0;
     height: 50px;
   }
 
@@ -74,8 +74,9 @@
   }
   </style>
   <template>
-    <div class="heading" on-tap="toggle">
-      <span class="product-name"><iron-icon icon="[[expanderIcon(expanded)]]"></iron-icon>[[data.productName]]</span>
+    <div class="heading">
+      <paper-icon-button icon="[[expanderIcon(expanded, hasMore)]]" disabled="[[!hasMore]]" on-tap="toggle"></paper-icon-button>
+      <span class="product-name">[[data.productName]]</span>
       <span class="version">[[data.version]]</span>
       <span class="target">[[data.target]]</span>
       <span class="creation-date">[[unixTimestampToISODate(data.creationDate)]]</span>
@@ -133,15 +134,16 @@
     properties: {
       data: { type: Object, value: () => {} },
       state: { type: String, computed: 'computeState(data)' },
-      expanded: { type: Boolean, value: false }
+      expanded: { type: Boolean, value: false },
+      hasMore: { type: Boolean, computed: 'computeHasMore(data)' }
     },
 
     toggle() {
       this.expanded = !this.expanded;
       console.log(this.data);
     },
-    expanderIcon(expanded) {
-      return expanded ? 'expand-more' : 'chevron-right';
+    expanderIcon(expanded, hasMore) {
+      return hasMore ? (expanded ? 'expand-less' : 'expand-more') : '';
     },
 
     unixTimestampToISODate(unixTimestamp) {
@@ -168,6 +170,10 @@
     },
     isWaitingForApproval(state) {
       return state === 'waiting-for-approval';
+    },
+
+    computeHasMore(data) {
+      return data.comment || 0 < data.operations.length;
     },
 
     onStartTap() {
