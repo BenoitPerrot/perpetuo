@@ -1,16 +1,24 @@
 <link rel="import" href="../../bower_components/polymer/polymer.html">
-<link rel="import" href="../../bower_components/paper-dropdown-menu/paper-dropdown-menu.html">
+<link rel="import" href="../../bower_components/paper-input/paper-input.html">
 <link rel="import" href="../../bower_components/paper-listbox/paper-listbox.html">
 
 <dom-module is="perpetuo-list-editor">
+  <style>
+    :host {
+      display: flex;
+      flex-direction: row;
+    }
+    paper-listbox {
+      cursor: pointer;
+    }
+  </style>
   <template>
-    <paper-dropdown-menu style="width: 30%;" label="[[label]]" no-animations>
-      <paper-listbox class="dropdown-content" on-selected-changed="choose">
-        <template is="dom-repeat" items="[[choices]]">
-          <paper-item>[[item.name]]</paper-item>
-        </template>
-      </paper-listbox>
-    </paper-dropdown-menu>
+    <paper-input style="width: 30%;" label="[[label]]" on-value-changed="narrowDown" no-animations></paper-input>
+    <paper-listbox on-selected-changed="choose">
+      <template is="dom-repeat" items="[[shown]]">
+        <paper-item>[[item]]</paper-item>
+      </template>
+    </paper-listbox>
   </template>
   <script>
   Polymer({
@@ -18,12 +26,20 @@
 
     properties: {
       label: String,
-      choices: {type: Array, value: () => []},
+      choices: {type: Array, observer: 'narrowDown'},
+      shown: {type: Array, value: () => [], notify: true},
       chosen: {type: Array, value: () => [], notify: true},
     },
 
+    narrowDown(e) {
+      if (this.choices && this.choices.length) {
+        const words = e.target.value.toLowerCase().split(' ');
+        this.shown = this.choices.filter(c => words.every(w => c.toLowerCase().includes(w)));
+      }
+    },
+
     choose(e) {
-      this.chosen = [this.choices[e.detail.value].name];
+      this.chosen = [this.shown[e.detail.value]];
     },
   });
   </script>
