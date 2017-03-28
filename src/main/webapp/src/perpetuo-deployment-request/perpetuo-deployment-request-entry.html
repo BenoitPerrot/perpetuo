@@ -1,5 +1,6 @@
 <link rel="import" href="../../bower_components/polymer/polymer.html">
 
+<link rel="import" href="../../bower_components/iron-collapse/iron-collapse.html">
 <link rel="import" href="../../bower_components/paper-button/paper-button.html">
 <link rel="import" href="../../bower_components/paper-icon-button/paper-icon-button.html">
 <link rel="import" href="../../bower_components/paper-material/paper-material.html">
@@ -91,7 +92,7 @@
         </template>
       </div>
     </div>
-    <template is="dom-if" if="[[expanded]]">
+    <iron-collapse opened="[[expanded]]">
       <p class="comment" hidden$="[[!data.comment]]">[[data.comment]]</p>
       <ul class="operations">
         <template is="dom-repeat" items="[[data.operations]]">
@@ -113,7 +114,7 @@
           </li>
         </template>
       </ul>
-    </template>
+    </iron-collapse>
   </template>
   <script>
   function arrayifyTargetStatus(targetStatusMap) {
