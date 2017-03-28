@@ -85,6 +85,9 @@
     created() {
       this.order = [];
     },
+    attached() {
+      this.$$('[key=creationDate]').state = -1;
+    },
 
     updateOrder(e) {
       const toggle = e.target;
