@@ -37,14 +37,16 @@
     width: 10%;
   }
   span.target {
+    width: 20%;
+  }
+  span.creator {
     width: 10%;
   }
   span.creation-date {
-    width: 20em;
-    text-align: center;
+    width: 20%;
   }
   div.state {
-    flex: 1;
+    width: 10%;
     display: flex;
     justify-content: flex-end;
   }
@@ -75,10 +77,10 @@
   </style>
   <template>
     <div class="heading">
-      <paper-icon-button icon="[[expanderIcon(expanded, hasMore)]]" disabled="[[!hasMore]]" on-tap="toggle"></paper-icon-button>
-      <span class="product-name">[[data.productName]]</span>
+      <span class="product-name">[[data.productName]]<paper-icon-button icon="[[expanderIcon(expanded, hasMore)]]" disabled="[[!hasMore]]" on-tap="toggle"></paper-icon-button></span>
       <span class="version">[[data.version]]</span>
       <span class="target">[[data.target]]</span>
+      <span class="creator">[[data.creator]]</span>
       <span class="creation-date">[[unixTimestampToISODate(data.creationDate)]]</span>
       <div class$="state [[state]]">
         <template is="dom-if" if="[[isWaitingForApproval(state)]]">

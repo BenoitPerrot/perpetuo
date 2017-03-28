@@ -20,7 +20,7 @@
     flex: 1;
     display: flex;
     align-items: center;
-    padding: 0.5em 2em;
+    padding: 0.5em 0;
     border-bottom: solid 1px #ddd;
     margin-bottom: 1em;
   }
@@ -31,17 +31,19 @@
     width: 10%;
   }
   .target {
+    width: 20%;
+  }
+  .creator {
     width: 10%;
   }
   .creation-date {
-    width: 20em;
+    width: 20%;
     text-align: center;
   }
   div.state {
-    flex: 1;
+    width: 10%;
     display: flex;
     justify-content: flex-end;
-    padding-right: 1.5em;
   }
   </style>
   <template>
@@ -50,6 +52,7 @@
         <perpetuo-up-down-none class="product-name" key="productName" label="Product" on-state-changed="updateOrder"></perpetuo-up-down-none>
         <perpetuo-up-down-none inverted class="version" key="version" label="Version" on-state-changed="updateOrder"></perpetuo-up-down-none>
         <span class="target">Target</span>
+        <span class="creator">Creator</span>
         <perpetuo-up-down-none inverted class="creation-date" key="creationDate" label="Creation Date" on-state-changed="updateOrder"></perpetuo-up-down-none>
         <div class="state">
           <span>State</span>
