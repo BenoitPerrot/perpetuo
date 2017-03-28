@@ -6,6 +6,7 @@ set -o pipefail
 cd $(dirname $0)/..
 
 PORT=$((8989 - ${EXECUTOR_NUMBER:-0}))
+ADMIN_PORT=$((9990 - ${EXECUTOR_NUMBER:-0}))
 query_tmp_file=$(mktemp)
 out_tmp_file=$(mktemp)
 err_tmp_file=$(mktemp)
@@ -79,7 +80,8 @@ then
         -Dmarathon.password="Nenikekamen!" \
         -Dhttp.port=${PORT} \
         -DselfUrl="http://localhost:${PORT}" \
-        -jar ${perpetuo_jar}
+        -jar ${perpetuo_jar} \
+        -admin.port=:${ADMIN_PORT}
     echo
 
     api_query products -d '{"name": "itest-project"}'
