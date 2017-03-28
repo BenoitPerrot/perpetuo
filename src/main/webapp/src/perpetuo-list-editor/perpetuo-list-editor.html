@@ -1,0 +1,30 @@
+<link rel="import" href="../../bower_components/polymer/polymer.html">
+<link rel="import" href="../../bower_components/paper-dropdown-menu/paper-dropdown-menu.html">
+<link rel="import" href="../../bower_components/paper-listbox/paper-listbox.html">
+
+<dom-module is="perpetuo-list-editor">
+  <template>
+    <paper-dropdown-menu style="width: 30%;" label="[[label]]" no-animations>
+      <paper-listbox class="dropdown-content" on-selected-changed="choose">
+        <template is="dom-repeat" items="[[choices]]">
+          <paper-item>[[item.name]]</paper-item>
+        </template>
+      </paper-listbox>
+    </paper-dropdown-menu>
+  </template>
+  <script>
+  Polymer({
+    is: 'perpetuo-list-editor',
+
+    properties: {
+      label: String,
+      choices: {type: Array, value: () => []},
+      chosen: {type: Array, value: () => [], notify: true},
+    },
+
+    choose(e) {
+      this.chosen = [this.choices[e.detail.value].name];
+    },
+  });
+  </script>
+</dom-module>

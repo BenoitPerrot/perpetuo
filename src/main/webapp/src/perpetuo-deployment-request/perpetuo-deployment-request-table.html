@@ -3,6 +3,7 @@
 <link rel="import" href="../../bower_components/paper-icon-button/paper-icon-button.html">
 
 <link rel="import" href="../perpetuo-deployment-request/perpetuo-deployment-request-entry.html">
+<link rel="import" href="../perpetuo-list-editor/perpetuo-list-editor.html">
 <link rel="import" href="../perpetuo-up-down-none/perpetuo-up-down-none.html">
 
 <dom-module id="perpetuo-deployment-request-table">
@@ -47,6 +48,7 @@
   }
   </style>
   <template>
+    <perpetuo-list-editor key="productName" label="Filter by product" choices="[[products]]" on-chosen-changed="updateFilter"></perpetuo-list-editor>
     <div class="table">
       <div class="row heading">
         <perpetuo-up-down-none class="product-name" key="productName" label="Product" on-state-changed="updateOrder"></perpetuo-up-down-none>
@@ -76,6 +78,7 @@
     properties: {
       data: { type: Array, value: () => [] },
       indices: { type: Object, value: () => new Object() },
+      products: { type: Array, value: () => [] },
 
       page: { type: Number, value: 1, observer: 'onPageChanged', notify: true },
       hasPreviousPage: { type: Boolean, computed: 'computeHasPreviousPage(page)' },
@@ -87,6 +90,20 @@
     },
     attached() {
       this.$$('[key=creationDate]').state = -1;
+      this.productsListener = products => {
+        this.products = products
+      };
+      this.ownerDocument.client.addProductsListener(this.productsListener);
+    },
+    detached() {
+      this.ownerDocument.client.removeProductsListener(this.productsListener);
+    },
+
+    updateFilter(e) {
+      const fieldName = e.target.getAttribute('key');
+      this.ownerDocument.client.deploymentRequestFilters = e.target.chosen.map(v => {
+        return {'field': fieldName, 'equals': v}
+      });
     },
 
     updateOrder(e) {

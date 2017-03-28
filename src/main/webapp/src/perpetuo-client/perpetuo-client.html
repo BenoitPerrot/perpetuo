@@ -57,6 +57,7 @@ this.Perpetuo.Client = this.Perpetuo.Client || (function () {
 
     fetchDeploymentRequests() {
       const options = {
+        where: this.deploymentRequestFilters || [],
         orderBy: this.deploymentRequestOrder || [],
         limit: this.deploymentRequestLimit + 1, // Ask for one more element to know if more are available
         offset: this.deploymentRequestOffset
