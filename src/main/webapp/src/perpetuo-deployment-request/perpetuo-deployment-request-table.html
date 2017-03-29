@@ -10,6 +10,23 @@
   <style>
   :host {
     display: flex;
+    flex-direction: row;
+    padding: 0 24px;
+  }
+
+  .main {
+    flex: 1;
+    flex-direction: column;
+  }
+  .toolbox {
+    flex: .2;
+  }
+  .filters {
+    position: fixed;
+  }
+
+  perpetuo-list-editor {
+    display: flex;
     flex-direction: column;
   }
 
@@ -48,27 +65,33 @@
   }
   </style>
   <template>
-    <perpetuo-list-editor key="productName" label="Filter by product" choices="[[productNames]]" on-chosen-changed="updateFilter"></perpetuo-list-editor>
-    <div class="table">
-      <div class="row heading">
-        <perpetuo-up-down-none class="product-name" key="productName" label="Product" on-state-changed="updateOrder"></perpetuo-up-down-none>
-        <perpetuo-up-down-none inverted class="version" key="version" label="Version" on-state-changed="updateOrder"></perpetuo-up-down-none>
-        <span class="target">Target</span>
-        <span class="creator">Creator</span>
-        <perpetuo-up-down-none inverted class="creation-date" key="creationDate" label="Creation Date" on-state-changed="updateOrder"></perpetuo-up-down-none>
-        <div class="state">
-          <span>State</span>
-        </div>
+    <div class="toolbox">
+      <div class="filters">
+        <perpetuo-list-editor key="productName" label="Filter by product" choices="[[productNames]]" on-chosen-changed="updateFilter"></perpetuo-list-editor>
       </div>
-      <template is="dom-repeat" items="[[data]]">
-        <perpetuo-deployment-request-entry data="[[item]]"></perpetuo-deployment-request-entry>
-      </template>
     </div>
-    <div>
-      <paper-icon-button icon="first-page" on-tap="onFirstPageTap" disabled="[[!hasPreviousPage]]"></paper-icon-button>
-      <paper-icon-button icon="chevron-left" on-tap="onPreviousPageTap" disabled="[[!hasPreviousPage]]"></paper-icon-button>
-      <span>[[page]]</span>
-      <paper-icon-button icon="chevron-right" on-tap="onNextPageTap" disabled="[[!hasNextPage]]"></paper-icon-button>
+    <div class="main">
+      <div class="table">
+        <div class="row heading">
+          <perpetuo-up-down-none class="product-name" key="productName" label="Product" on-state-changed="updateOrder"></perpetuo-up-down-none>
+          <perpetuo-up-down-none inverted class="version" key="version" label="Version" on-state-changed="updateOrder"></perpetuo-up-down-none>
+          <span class="target">Target</span>
+          <span class="creator">Creator</span>
+          <perpetuo-up-down-none inverted class="creation-date" key="creationDate" label="Creation Date" on-state-changed="updateOrder"></perpetuo-up-down-none>
+          <div class="state">
+            <span>State</span>
+          </div>
+        </div>
+        <template is="dom-repeat" items="[[data]]">
+          <perpetuo-deployment-request-entry data="[[item]]"></perpetuo-deployment-request-entry>
+        </template>
+      </div>
+      <div>
+        <paper-icon-button icon="first-page" on-tap="onFirstPageTap" disabled="[[!hasPreviousPage]]"></paper-icon-button>
+        <paper-icon-button icon="chevron-left" on-tap="onPreviousPageTap" disabled="[[!hasPreviousPage]]"></paper-icon-button>
+        <span>[[page]]</span>
+        <paper-icon-button icon="chevron-right" on-tap="onNextPageTap" disabled="[[!hasNextPage]]"></paper-icon-button>
+      </div>
     </div>
   </template>
   <script>

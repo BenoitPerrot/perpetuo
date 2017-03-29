@@ -1,24 +1,38 @@
 <link rel="import" href="../../bower_components/polymer/polymer.html">
+<link rel="import" href="../../bower_components/iron-dropdown/iron-dropdown.html">
+<link rel="import" href="../../bower_components/paper-icon-button/paper-icon-button.html">
 <link rel="import" href="../../bower_components/paper-input/paper-input.html">
 <link rel="import" href="../../bower_components/paper-listbox/paper-listbox.html">
 
 <dom-module is="perpetuo-list-editor">
   <style>
-    :host {
-      display: flex;
-      flex-direction: row;
-    }
-    paper-listbox {
-      cursor: pointer;
-    }
+  paper-listbox {
+    cursor: pointer;
+  }
+
+  .removable-item {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+  }
   </style>
   <template>
-    <paper-input style="width: 30%;" label="[[label]]" on-value-changed="narrowDown" no-animations></paper-input>
-    <paper-listbox on-selected-changed="choose">
-      <template is="dom-repeat" items="[[shown]]">
-        <paper-item>[[item]]</paper-item>
-      </template>
-    </paper-listbox>
+    <paper-input id="search" label="[[label]]" on-value-changed="narrowDown" no-animations></paper-input>
+    <div>
+      <iron-dropdown id="dropdown" no-auto-focus>
+        <paper-listbox id="listbox" class="dropdown-content" on-selected-changed="select">
+          <template is="dom-repeat" items="[[filteredChoices]]">
+            <paper-item>[[item]]</paper-item>
+          </template>
+        </paper-listbox>
+      </iron-dropdown>
+    </div>
+    <template is="dom-repeat" items="[[chosen]]">
+      <div class="removable-item">
+        <paper-icon-button icon="close" title="Remove element" on-tap="removeElement" index="[[index]]"></paper-icon-button>
+        <div>[[item]]</div>
+      </div>
+    </template>
   </template>
   <script>
   Polymer({
@@ -27,20 +41,44 @@
     properties: {
       label: String,
       choices: {type: Array, observer: 'narrowDown'},
-      shown: {type: Array, value: () => [], notify: true},
+      filteredChoices: {type: Array, notify: true},
       chosen: {type: Array, value: () => [], notify: true},
     },
 
     narrowDown(e) {
       if (this.choices && this.choices.length) {
-        const words = e.target.value.toLowerCase().split(' ');
-        this.shown = this.choices.filter(c => words.every(w => c.toLowerCase().includes(w)));
+        const text = e.target.value;
+        if (!text || text.length === 0)
+          this.$.dropdown.close();
+        else {
+          const words = text.toLowerCase().split(' ');
+          this.filteredChoices = this.choices.filter(c => words.every(w => c.toLowerCase().includes(w)));
+          if (0 < this.filteredChoices.length) {
+            if (1 < this.filteredChoices.length)
+              this.$.dropdown.open();
+            else
+              this.addElement(this.filteredChoices[0]);
+          }
+        }
       }
     },
 
-    choose(e) {
-      this.chosen = [this.shown[e.detail.value]];
+    select(e) {
+      if (e.detail.value !== null) {
+        this.addElement(this.filteredChoices[e.detail.value]);
+        this.$.search.value = '';
+      }
     },
+
+    addElement(value) {
+      this.chosen = [value];
+      this.$.listbox.select(null);
+      this.$.dropdown.close();
+    },
+
+    removeElement(e) {
+      this.splice('chosen', e.currentTarget.index, 1);
+    }
   });
   </script>
 </dom-module>
