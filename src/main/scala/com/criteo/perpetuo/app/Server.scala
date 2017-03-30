@@ -20,10 +20,13 @@ object CustomServerModules {
   * While developing, you probably want finatra to load assets directly from the file system to allow a faster
   * development cycle (indeed, by default, assets will be served as resources, meaning that the server must be
   * stopped then recompiled before any modified asset is actually served). To do that, just add the following
-  * option to the command line: -local.doc.root=src/main/webapp
+  * options to the command line:
+  *   -DselfUrl=http://localhost:8989 -Dtokens.rundeck=user_token -Dauth.jwt.secret=itest-jwt-secret
+  *   -local.doc.root=src/main/webapp
   *
-  * Notably in IntelliJ, "Edit the run/debug Configurations", set the "Working Directory" to the actual root of the project
-  * (and *not* to the root of the workspace), and add the option above in the "Program Arguments" field.
+  * Notably in IntelliJ, "Edit the run/debug Configurations", set the "Working Directory" to the actual root of
+  * the project (and *not* to the root of the workspace), and add the "-D" options above in the "VM options" field
+  * and the other one in the "Program arguments" field.
   */
 class Server extends HttpServer {
 
