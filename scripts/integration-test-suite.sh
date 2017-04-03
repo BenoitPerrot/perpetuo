@@ -148,5 +148,5 @@ api_query deployment-requests?start=true -d '{
             expects '"state":"initFailed"' | \
             expects '"logHref":"http://'
     }
-    10_tries_with_sleep .8 rundeck_completes_the_job
+    10_tries_with_sleep 1.5 rundeck_completes_the_job
 }
