@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 set -eu
 
+if [ "${1:-}" == "begin" ]
+then
+    rm -rf $(dirname $0)/../sandbox
+fi
+
 if [ "${1:-}" == "end" ]
 then
     m2_link=/tmp/m2_$(echo ${WORKSPACE} | sha1sum | cut -c-40)
