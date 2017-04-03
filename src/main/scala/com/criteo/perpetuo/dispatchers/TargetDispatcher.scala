@@ -5,9 +5,6 @@ import com.criteo.perpetuo.executors.ExecutorInvoker
 
 
 trait TargetDispatcher {
-  /**
-    * the abstract method to define in subclasses: the dispatcher
-    */
   def assign(selectWord: String): Set[ExecutorInvoker]
 }
 
