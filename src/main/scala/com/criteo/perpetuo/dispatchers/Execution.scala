@@ -35,7 +35,7 @@ class Execution @Inject()(val dbBinding: DbBinding) extends Logging {
       Future.traverse(_) {
         case ((executor, rawTarget), execId) =>
           // log the execution
-          logger.debug(s"Triggering $operation job for execution #$execId of ${deploymentRequest.product.name} v. ${deploymentRequest.version}")
+          logger.debug(s"Triggering $operation job for execution #$execId of ${deploymentRequest.product.name} v. ${deploymentRequest.version} on $executor")
           // trigger the execution
           executor.trigger(
             operation, execId,
