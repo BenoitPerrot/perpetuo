@@ -53,7 +53,7 @@ class RestController @Inject()(val execution: Execution)
   extends BaseController {
 
   private val futurePool = FuturePools.unboundedPool("RequestFuturePool")
-  private val dispatcher = TargetDispatcher.fromConfig
+  private val dispatcher = TargetDispatcher.fromGroovy
   private val deployBotName = "qabot"
 
   private def await[T](future: Future[T], maxDuration: Duration): T =

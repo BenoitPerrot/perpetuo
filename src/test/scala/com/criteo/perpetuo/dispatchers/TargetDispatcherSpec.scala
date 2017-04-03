@@ -88,17 +88,12 @@ class TargetDispatcherSpec extends Test {
 
 
   "Loading a dispatcher by name" should {
-    "be possible" in {
-      TargetDispatcher.fromName("com.criteo.perpetuo.dispatchers.DummyTargetDispatcher")
-    }
-
     "fail when the upper POSet doesn't have a strict order" in {
       val exc = intercept[AssertionError] {
-        TargetDispatcher.fromName("com.criteo.perpetuo.dispatchers.TestCyclicDispatcher")
+        TestCyclicDispatcher
       }
       exc.getMessage should (include("there is a cycle in") and include("toto") and include("tutu"))
     }
-
   }
 
 }

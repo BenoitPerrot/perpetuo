@@ -1,7 +1,9 @@
 package com.criteo.perpetuo.dispatchers
 
 import com.criteo.perpetuo.executors.ExecutorInvoker
+import groovy.lang.Closure
 
+import scala.collection.JavaConverters._
 import scala.collection.mutable
 
 
@@ -89,5 +91,12 @@ class ExecutorsByPoset(val executorMap: Map[String, ExecutorInvoker],
     getParents(selectWord).filterNot(executorMap.contains).foreach(
       addInGraph(graph, _, cache, updatedExecutors, updatedCycle)
     )
+  }
+}
+
+
+object ExecutorsByPoset { // for an easier access from Groovy scripts
+  def apply(executorMap: java.util.Map[String, ExecutorInvoker], getParents: Closure[java.lang.Iterable[String]]): ExecutorsByPoset = {
+    new ExecutorsByPoset(executorMap.asScala.toMap, getParents.call(_).asScala)
   }
 }

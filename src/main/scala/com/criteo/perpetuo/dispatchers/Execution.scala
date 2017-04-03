@@ -38,7 +38,7 @@ class Execution @Inject()(val dbBinding: DbBinding) extends Logging {
           logger.debug(s"Triggering $operation job for execution #$execId of ${deploymentRequest.product.name} v. ${deploymentRequest.version} on $executor")
           // trigger the execution
           executor.trigger(
-            operation, execId,
+            operation.toString, execId,
             deploymentRequest.product.name, deploymentRequest.version,
             rawTarget,
             deploymentRequest.creator

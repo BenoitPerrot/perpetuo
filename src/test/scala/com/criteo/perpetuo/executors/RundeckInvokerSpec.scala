@@ -1,7 +1,8 @@
 package com.criteo.perpetuo.executors
 
+import com.criteo.perpetuo.dispatchers.TargetDispatcher
 import com.criteo.perpetuo.model.{Operation, Version}
-import com.twitter.finagle.http.{Request, Response, Status}
+import com.twitter.finagle.http.{Response, Status}
 import com.twitter.inject.Test
 import com.twitter.util.Future
 
@@ -11,19 +12,21 @@ import scala.concurrent.duration._
 
 
 class RundeckInvokerSpec extends Test {
-
   private def testWhenResponseIs(statusCode: Int, content: String) = {
-    object RundeckInvokerMock extends RundeckInvoker("host-example", 4242, name = "rundeck", marathonEnv = "Athens") {
-      override protected val client: (Request) => Future[Response] = request => {
-        request.uri shouldEqual s"/api/$apiVersion/job/deploy-to-marathon/executions?authtoken=$authToken"
-        request.contentString shouldEqual """{"argString":"-environment Athens -callback-url 'http://somewhere/api/execution-traces/42' -product-name 'MyBeautifulProject' -product-version 'the 42nd version' -target \"{\\\"abc\\\": [\\\"def\\\", 42], \\\"ghi\\\": 51.3}\""}"""
-        val resp = Response(Status(statusCode))
-        resp.write(content)
-        Future.value(resp)
-      }
+    val cls = TargetDispatcher.loadClassFromGroovy()
+    val constructor = cls.getConstructors.filter(_.getParameterCount == 1).head
+    val dispatcher = constructor.newInstance("local").asInstanceOf[TargetDispatcher]
+    val rundeckInvoker = dispatcher.assign("foo").head.asInstanceOf[HttpInvoker]
+    assert(rundeckInvoker.getClass.getSimpleName == "RundeckInvoker")
+    rundeckInvoker.client = request => {
+      request.uri shouldEqual s"/api/16/job/deploy-to-marathon/executions?authtoken=my-super-secret-token"
+      request.contentString shouldEqual """{"argString":"-environment preprod -callback-url 'http://somewhere/api/execution-traces/42' -product-name 'MyBeautifulProject' -product-version 'the 42nd version' -target \"{\\\"abc\\\": [\\\"def\\\", 42], \\\"ghi\\\": 51.3}\""}"""
+      val resp = Response(Status(statusCode))
+      resp.write(content)
+      Future.value(resp)
     }
-    val logHref = RundeckInvokerMock.trigger(
-      Operation.deploy,
+    val logHref = rundeckInvoker.trigger(
+      Operation.deploy.toString,
       42,
       "MyBeautifulProject",
       Version("the 042nd version"),
@@ -66,7 +69,7 @@ class RundeckInvokerSpec extends Test {
       "the request cannot be satisfied" in {
         Await.result(
           testWhenResponseIs(400, """{"error": true, "message": "Intelligible error"}""").recover {
-            case err: Exception => err.getMessage should endWith("""Bad Request: "Intelligible error"""")
+            case err: Exception => err.getMessage should endWith("""Bad Request: Intelligible error""")
           },
           1.second
         )
