@@ -148,5 +148,15 @@ api_query deployment-requests?start=true -d '{
             expects '"state":"initFailed"' | \
             expects '"logHref":"http://'
     }
-    10_tries_with_sleep 1.5 rundeck_completes_the_job
+    10_tries_with_sleep .8 rundeck_completes_the_job || {
+        base_url=$(grep -oE 'http://[^"]+' ${out_tmp_file} |
+                   sed s_project/integration-tests/execution/show_api/16/execution_)
+        url="${base_url}/output?authtoken=${RD_TEST_TOKEN}"
+        sleep 1 # seems Rundeck logs are not immediately available...
+        echo
+        echo "  Rundeck execution logs:"
+        curl -sS "${url}" -H "Accept: text/plain"
+        echo
+        false
+    }
 }
