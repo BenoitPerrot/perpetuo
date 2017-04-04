@@ -83,7 +83,7 @@
       <span class="version">[[data.version]]</span>
       <span class="target">[[data.target]]</span>
       <span class="creator">[[data.creator]]</span>
-      <span class="creation-date">[[unixTimestampToISODate(data.creationDate)]]</span>
+      <span class="creation-date">[[data.dateString]]</span>
       <div class$="state [[state]]">
         <template is="dom-if" if="[[isWaitingForApproval(state)]]">
           <paper-button on-tap="onStartTap" raised>Start!</paper-button>
@@ -147,10 +147,6 @@
     },
     expanderIcon(expanded, hasMore) {
       return hasMore ? (expanded ? 'expand-less' : 'expand-more') : '';
-    },
-
-    unixTimestampToISODate(unixTimestamp) {
-      return new Date(unixTimestamp * 1000).toISOString().replace('T', ' ').replace(/\..*/, '');
     },
 
     arrayifyTargetStatus(_) {

@@ -1,6 +1,7 @@
 <link rel="import" href="../../bower_components/polymer/polymer.html">
 <link rel="import" href="../../bower_components/iron-icons/iron-icons.html">
 <link rel="import" href="../../bower_components/paper-icon-button/paper-icon-button.html">
+<link rel="import" href="../../bower_components/paper-radio-group/paper-radio-group.html">
 
 <link rel="import" href="../perpetuo-deployment-request/perpetuo-deployment-request-entry.html">
 <link rel="import" href="../perpetuo-list-editor/perpetuo-list-editor.html">
@@ -21,7 +22,8 @@
   .toolbox {
     flex: .2;
   }
-  .filters {
+
+  .toolbox > div {
     position: fixed;
   }
 
@@ -66,7 +68,11 @@
   </style>
   <template>
     <div class="toolbox">
-      <div class="filters">
+      <div>
+        <paper-radio-group selected="{{dateFormat}}">
+          <paper-radio-button name="timestampToUTCDate">Time in UTC</paper-radio-button>
+          <paper-radio-button name="timestampToLocalDate">Local time</paper-radio-button>
+        </paper-radio-group>
         <perpetuo-list-editor key="productName" label="Filter by product" choices="[[productNames]]" on-chosen-changed="updateFilter"></perpetuo-list-editor>
       </div>
     </div>
@@ -99,7 +105,8 @@
     is: 'perpetuo-deployment-request-table',
 
     properties: {
-      data: {type: Array, value: () => []},
+      data: {type: Array, observer: 'onDateFormatChanged'},
+      dateFormat: {type: String, value: 'timestampToUTCDate'},
       indices: {type: Object, value: () => new Object()},
       productNames: {type: Array, value: () => []},
 
@@ -127,6 +134,21 @@
       this.ownerDocument.client.deploymentRequestFilters = e.target.chosen.map(v => {
         return {'field': fieldName, 'equals': v};
       });
+    },
+
+    onDateFormatChanged() {
+        const f = this.get(this.dateFormat);
+        this.data.forEach(obj => obj.dateString = f(obj.creationDate));
+    },
+
+    timestampToUTCDate(unixTimestamp) {
+      return new Date(unixTimestamp * 1000).toISOString().replace('T', ' ').replace(/-0/g, '-').split('.')[0];
+    },
+
+    timestampToLocalDate(unixTimestamp) {
+      const date = new Date(unixTimestamp * 1000);
+      const time = date.toTimeString().split(' ')[0];
+      return date.getFullYear() + '-' + (date.getMonth() + 1) + '-' + date.getDate() + ' ' + time;
     },
 
     updateOrder(e) {
