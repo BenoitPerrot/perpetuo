@@ -45,9 +45,9 @@
       chosen: {type: Array, value: () => [], notify: true},
     },
 
-    narrowDown(e) {
+    narrowDown() {
       if (this.choices && this.choices.length) {
-        const text = e.target.value;
+        const text = this.$.search.value;
         if (!text || text.length === 0)
           this.$.dropdown.close();
         else {
