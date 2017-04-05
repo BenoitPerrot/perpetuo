@@ -17,10 +17,8 @@
     }
     </style>
     <p class="not-selectable" style="margin: auto 0">[[label]]</p>
-    <div style="display: flex; flex-direction: column; align-items: center;">
-      <iron-icon icon="[[computeIcon(state)]]"></iron-icon>
-      <span class="not-selectable" style="font-size: 10px; min-height: 1.1em; margin-top: -7px;">[[i]]</span>
-    </div>
+    <iron-icon icon="[[computeIcon(state)]]"></iron-icon>
+    <span class="not-selectable" style="font-size: 10px; min-height: 1.1em; align-self: flex-end;">[[i]]</span>
     <paper-ripple></paper-ripple>
   </template>
   <script>
@@ -43,7 +41,7 @@
       }
     },
     computeIcon(state) {
-      return { 'down': 'arrow-drop-down', 'none': '', 'up': 'arrow-drop-up' } [state];
+      return { 'down': 'arrow-downward', 'none': '', 'up': 'arrow-upward' } [state];
     },
   });
   </script>
