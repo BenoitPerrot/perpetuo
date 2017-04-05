@@ -28,7 +28,7 @@
     is: 'perpetuo-up-down-none',
     properties: {
       label: String,
-      state: { type: Number, value: 0, notify: true },
+      state: { type: String, value: 'none', notify: true, reflectToAttribute: true },
       i: { type: Number, value: null },
       inverted: { type: Boolean, value: false }
     },
@@ -36,15 +36,14 @@
       'tap': 'onTap'
     },
     onTap() {
-      this.state = this.state + (this.inverted ? -1 : 1);
-      if (1 < this.state) {
-        this.state = -1;
-      } else if (this.state < -1) {
-        this.state = 1;
+      if (this.inverted) {
+        this.state = {'down': 'up', 'up': 'none', 'none': 'down'} [this.state];
+      } else {
+        this.state = {'down': 'none', 'none': 'up', 'up': 'down'} [this.state];
       }
     },
     computeIcon(state) {
-      return state === 1 ? 'arrow-drop-up' : state === -1 ? 'arrow-drop-down' : '';
+      return { 'down': 'arrow-drop-down', 'none': '', 'up': 'arrow-drop-up' } [state];
     },
   });
   </script>
