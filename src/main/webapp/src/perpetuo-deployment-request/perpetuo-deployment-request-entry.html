@@ -81,6 +81,7 @@
   div.operations {
     display: flex;
     flex-direction: column;
+    padding: 0 0 1em 1em;
   }
   </style>
   <template>
@@ -103,7 +104,9 @@
       <p class="comment" hidden$="[[!data.comment]]">[[data.comment]]</p>
       <div class="operations">
         <template is="dom-repeat" items="[[data.operations]]">
-          <perpetuo-deployment-operation data="[[item]]"></perpetuo-deployment-operation>
+          <paper-card>
+            <perpetuo-deployment-operation data="[[item]]"></perpetuo-deployment-operation>
+          </paper-card>
         </template>
       </div>
     </iron-collapse>
