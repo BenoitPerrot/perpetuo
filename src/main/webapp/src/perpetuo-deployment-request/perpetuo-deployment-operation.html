@@ -1,5 +1,9 @@
 <link rel="import" href="../../bower_components/polymer/polymer.html">
 
+<link rel="import" href="../../bower_components/iron-pages/iron-pages.html">
+<link rel="import" href="../../bower_components/paper-tabs/paper-tabs.html">
+<link rel="import" href="../../bower_components/paper-tabs/paper-tab.html">
+
 <script>
 function arrayifyTargetStatus(targetStatusMap) {
   return Object.keys(targetStatusMap).map(targetAtom => {
@@ -10,27 +14,50 @@ function arrayifyTargetStatus(targetStatusMap) {
 </script>
 
 <dom-module id="perpetuo-deployment-operation">
+  <style>
+  :host {
+    display: flex;
+    flex-direction: column;
+    --paper-tabs-container: {
+      display: table;
+    }
+    --paper-tabs-selection-bar-color: #007acc;
+    --paper-tab-ink: #007acc;
+    --paper-tab-content: {
+      text-transform: uppercase;
+      font-size: 12px;
+    }
+  }
+  </style>
   <template>
     <span>[[type]]</span>
-    <table>
-      <template is="dom-repeat" items="[[targetStatus]]">
-        <tr><td>[[item.targetAtom]]</td><td>[[item.code]]</td><td>[[item.detail]]</td></tr>
-      </template>
-    </table>
-    <ul class="executions">
-      <template is="dom-repeat" items="[[executions]]">
-        <li>
+    <paper-tabs selected="{{selected}}">
+      <paper-tab>Summary</paper-tab>
+      <paper-tab>Logs</paper-tab>
+    </paper-tabs>
+    <iron-pages selected="{{selected}}">
+      <table>
+        <template is="dom-repeat" items="[[targetStatus]]">
+          <tr><td>[[item.targetAtom]]</td><td>[[item.code]]</td><td>[[item.detail]]</td></tr>
+        </template>
+      </table>
+      <ul class="executions">
+        <template is="dom-repeat" items="[[executions]]">
+          <li>
           <span>[[item.state]]</span>
           <a hidden$="[[!item.logHref]]" href$="[[item.logHref]]">Logs...</a>
-        </li>
-      </template>
-    </ul>
+          </li>
+        </template>
+      </ul>
+    </iron-pages>
   </template>
   <script>
   Polymer({
     is: 'perpetuo-deployment-operation',
 
     properties: {
+      selected: { type: Number, value: 0 },
+
       data: { type: Object, value: () => {}, observer: 'onDataChanged' },
 
       targetStatus: { type: Array, value: () => [] },
