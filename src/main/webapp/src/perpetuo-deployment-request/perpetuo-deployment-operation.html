@@ -1,0 +1,48 @@
+<link rel="import" href="../../bower_components/polymer/polymer.html">
+
+<script>
+function arrayifyTargetStatus(targetStatusMap) {
+  return Object.keys(targetStatusMap).map(targetAtom => {
+    const targetAtomStatus = targetStatusMap[targetAtom];
+    return { targetAtom: targetAtom, code: targetAtomStatus.code, detail: targetAtomStatus.detail };
+  });
+}
+</script>
+
+<dom-module id="perpetuo-deployment-operation">
+  <template>
+    <span>[[type]]</span>
+    <table>
+      <template is="dom-repeat" items="[[targetStatus]]">
+        <tr><td>[[item.targetAtom]]</td><td>[[item.code]]</td><td>[[item.detail]]</td></tr>
+      </template>
+    </table>
+    <ul class="executions">
+      <template is="dom-repeat" items="[[executions]]">
+        <li>
+          <span>[[item.state]]</span>
+          <a hidden$="[[!item.logHref]]" href$="[[item.logHref]]">Logs...</a>
+        </li>
+      </template>
+    </ul>
+  </template>
+  <script>
+  Polymer({
+    is: 'perpetuo-deployment-operation',
+
+    properties: {
+      data: { type: Object, value: () => {}, observer: 'onDataChanged' },
+
+      targetStatus: { type: Array, value: () => [] },
+      type: { type: String },
+      executions: { type: Array, value: () => [] }
+    },
+
+    onDataChanged(data) {
+      this.targetStatus = arrayifyTargetStatus(data.targetStatus);
+      this.type = data.type;
+      this.executions = data.executions;
+    },
+  });
+  </script>
+</dom-module>

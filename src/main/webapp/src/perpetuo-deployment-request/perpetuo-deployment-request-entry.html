@@ -4,6 +4,7 @@
 <link rel="import" href="../../bower_components/paper-button/paper-button.html">
 <link rel="import" href="../../bower_components/paper-icon-button/paper-icon-button.html">
 <link rel="import" href="../../bower_components/paper-material/paper-material.html">
+<link rel="import" href="../perpetuo-deployment-request/perpetuo-deployment-operation.html">
 
 <dom-module id="perpetuo-deployment-request-entry">
   <style>
@@ -97,34 +98,12 @@
       <p class="comment" hidden$="[[!data.comment]]">[[data.comment]]</p>
       <ul class="operations">
         <template is="dom-repeat" items="[[data.operations]]">
-          <li>
-            <span>[[item.type]]</span>
-            <table>
-              <template is="dom-repeat" items="[[arrayifyTargetStatus(item.targetStatus)]]">
-                <tr><td>[[item.targetAtom]]</td><td>[[item.code]]</td><td>[[item.detail]]</td></tr>
-              </template>
-            </table>
-            <ul class="executions">
-              <template is="dom-repeat" items="[[item.executions]]">
-                <li>
-                  <span>[[item.state]]</span>
-                  <a hidden$="[[!item.logHref]]" href$="[[item.logHref]]">Logs...</a>
-                </li>
-              </template>
-            </ul>
-          </li>
+          <li><perpetuo-deployment-operation data="[[item]]"></perpetuo-deployment-operation></li>
         </template>
       </ul>
     </iron-collapse>
   </template>
   <script>
-  function arrayifyTargetStatus(targetStatusMap) {
-    return Object.keys(targetStatusMap).map(targetAtom => {
-      const targetAtomStatus = targetStatusMap[targetAtom];
-      return { targetAtom: targetAtom, code: targetAtomStatus.code, detail: targetAtomStatus.detail };
-    });
-  }
-
   function aggregateOperationState(operation) {
     const isFinished = operation.executions.every(_ => _.state !== 'pending' && _.state !== 'running');
     const hasFailures = operation.executions.some(_ => _.state === 'initFailed') ||
@@ -147,10 +126,6 @@
     },
     expanderIcon(expanded, hasMore) {
       return hasMore ? (expanded ? 'expand-less' : 'expand-more') : '';
-    },
-
-    arrayifyTargetStatus(_) {
-      return arrayifyTargetStatus(_);
     },
 
     computeState(data) {
