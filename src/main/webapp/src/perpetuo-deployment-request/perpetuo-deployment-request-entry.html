@@ -77,6 +77,11 @@
     border: solid 1px #ddd;
     padding-left: 1em;
   }
+
+  div.operations {
+    display: flex;
+    flex-direction: column;
+  }
   </style>
   <template>
     <div class="heading">
@@ -96,11 +101,11 @@
     </div>
     <iron-collapse opened="[[expanded]]">
       <p class="comment" hidden$="[[!data.comment]]">[[data.comment]]</p>
-      <ul class="operations">
+      <div class="operations">
         <template is="dom-repeat" items="[[data.operations]]">
-          <li><perpetuo-deployment-operation data="[[item]]"></perpetuo-deployment-operation></li>
+          <perpetuo-deployment-operation data="[[item]]"></perpetuo-deployment-operation>
         </template>
-      </ul>
+      </div>
     </iron-collapse>
   </template>
   <script>
