@@ -1,6 +1,8 @@
 <link rel="import" href="../../bower_components/polymer/polymer.html">
 
 <link rel="import" href="../../bower_components/paper-button/paper-button.html">
+<link rel="import" href="../../bower_components/paper-dialog-behavior/paper-dialog-behavior.html">
+<link rel="import" href="../../bower_components/paper-dialog-behavior/paper-dialog-shared-styles.html">
 <link rel="import" href="../../bower_components/paper-dropdown-menu/paper-dropdown-menu.html">
 <link rel="import" href="../../bower_components/paper-input/paper-input.html">
 <link rel="import" href="../../bower_components/paper-input/paper-textarea.html">
@@ -45,7 +47,8 @@
   }
   </style>
   <template>
-    <p class="header">New Deployment Request</p>
+    <style include="paper-dialog-shared-styles"></style>
+    <h2>New Deployment Request</h2>
     <div class="product-name-version">
       <paper-dropdown-menu id="productSelector" label="Product" no-animations>
         <paper-listbox id="productSelector_" class="dropdown-content">
@@ -58,8 +61,8 @@
     </div>
     <paper-input id="targetSelector" style="width:45%" label="Target"></paper-input>
     <paper-textarea id="commentEditor" label="Comment"></paper-textarea>
-    <div class="footer">
-      <paper-button id="cancel" raised on-tap="onCancelTap">Cancel</paper-button>
+    <div class="buttons">
+      <paper-button dialog-dismiss id="cancel" raised>Cancel</paper-button>
       <paper-button raised on-tap="clear">Clear</paper-button>
       <paper-button id="create" raised on-tap="onCreateTap">Create</paper-button>
     </div>
@@ -71,6 +74,10 @@
     properties: {
       products: { type: Array, value: () => [] }
     },
+
+    behaviors: [
+      Polymer.PaperDialogBehavior
+    ],
 
     attached() {
       this.productsListener = products => { this.products = products };
@@ -87,10 +94,10 @@
                                                         this.$.commentEditor.value)
           .then(r => {
             if (r.ok) {
-              this.fire('close');
               this.clear();
             }
-          });
+            this.close();
+          })
     },
     clear() {
       this.$.productSelector_.selected = null;
@@ -98,9 +105,6 @@
       this.$.targetSelector.value = '';
       this.$.commentEditor.value = '';
     },
-    onCancelTap() {
-      this.fire('close');
-    }
   });
   </script>
 </dom-module>

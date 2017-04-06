@@ -1,8 +1,6 @@
 <link rel="import" href="../../bower_components/polymer/polymer.html">
 
-<link rel="import" href="../../bower_components/iron-pages/iron-pages.html">
-<link rel="import" href="../../bower_components/paper-tabs/paper-tab.html">
-<link rel="import" href="../../bower_components/paper-tabs/paper-tabs.html">
+<link rel="import" href="../../bower_components/iron-overlay-behavior/iron-overlay-backdrop.html">
 
 <link rel="import" href="../perpetuo-deployment-request/perpetuo-deployment-request-table.html">
 <link rel="import" href="../perpetuo-deployment-request/perpetuo-deployment-request-creation-form.html">
@@ -17,18 +15,6 @@
     flex: 1;
   }
 
-  iron-pages {
-    display: flex;
-  }
-
-  perpetuo-deployment-request-table {
-    width: 100%;
-  }
-  perpetuo-deployment-request-creation-form {
-    flex: 1;
-    padding: 1em;
-  }
-
   #deployment-requester {
     margin: 1em;
   }
@@ -38,10 +24,9 @@
     <div>
       <paper-button raised id="deployment-requester" on-tap="openCreationForm">Request Deployment</paper-button>
     </div>
-    <iron-pages selected="{{selected}}">
-      <perpetuo-deployment-request-table id="deploymentRequestTable" on-page-changed="onPageChanged"></perpetuo-deployment-request-table>
-      <perpetuo-deployment-request-creation-form on-close="onCreationFormClose"></perpetuo-deployment-request-creation-form>
-    </iron-pages>
+    <perpetuo-deployment-request-table id="deploymentRequestTable" on-page-changed="onPageChanged"></perpetuo-deployment-request-table>
+    <perpetuo-deployment-request-creation-form id="creationForm" no-cancel-on-outside-click on-opened-changed="onOpenedChanged"></perpetuo-deployment-request-creation-form>
+    <iron-overlay-backdrop id="backdrop"></iron-overlay-backdrop>
   </template>
   <script>
   Polymer({
@@ -63,15 +48,15 @@
     },
 
     openCreationForm() {
-      this.selected = 1;
+      this.$.creationForm.open();
     },
 
     onPageChanged() {
       this.ownerDocument.client.deploymentRequestOffset = (this.$.deploymentRequestTable.page - 1) * this.ownerDocument.client.deploymentRequestLimit;
     },
 
-    onCreationFormClose() {
-      this.selected = 0;
+    onOpenedChanged(e) {
+      this.$.backdrop.opened = e.detail.value;
     },
   });
   </script>
