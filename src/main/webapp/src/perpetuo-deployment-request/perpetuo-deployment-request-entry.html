@@ -32,6 +32,9 @@
     padding-right: 40px;
     box-sizing: border-box;
   }
+  span.product-name > span {
+    cursor: pointer;
+  }
   span.product-name > paper-icon-button {
     margin-right: -40px;
   }
@@ -86,7 +89,7 @@
   </style>
   <template>
     <div class="heading">
-      <span class="product-name">[[data.productName]]<paper-icon-button icon="[[expanderIcon(expanded, hasMore)]]" disabled="[[!hasMore]]" on-tap="toggle"></paper-icon-button></span>
+      <span class="product-name"><span on-tap="toggle">[[data.productName]]</span><paper-icon-button icon="[[expanderIcon(expanded, hasMore)]]" disabled="[[!hasMore]]" on-tap="toggle"></paper-icon-button></span>
       <span class="version">[[data.version]]</span>
       <span class="target">[[data.target]]</span>
       <span class="creator">[[data.creator]]</span>
