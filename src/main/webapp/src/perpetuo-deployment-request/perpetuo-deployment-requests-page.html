@@ -21,20 +21,6 @@
     display: flex;
   }
 
-  .page-header {
-    background-color: #f1f1f1;
-  }
-  .page-header paper-tabs {
-    --paper-tabs-selection-bar-color: #007acc;
-  }
-  .page-header paper-tab {
-    --paper-tab-ink: #007acc;
-    --paper-tab-content: {
-      text-transform: uppercase;
-      font-size: 12px;
-    }
-  }
-
   perpetuo-deployment-request-table {
     width: 100%;
   }
@@ -42,13 +28,15 @@
     flex: 1;
     padding: 1em;
   }
+
+  #deployment-requester {
+    margin: 1em;
+  }
+
   </style>
   <template>
-    <div class="page-header">
-      <paper-tabs selected="{{selected}}" scrollable>
-        <paper-tab>All</paper-tab>
-        <paper-tab>New...</paper-tab>
-      </paper-tabs>
+    <div>
+      <paper-button raised id="deployment-requester" on-tap="openCreationForm">Request Deployment</paper-button>
     </div>
     <iron-pages selected="{{selected}}">
       <perpetuo-deployment-request-table id="deploymentRequestTable" on-page-changed="onPageChanged"></perpetuo-deployment-request-table>
@@ -72,6 +60,10 @@
     },
     detached() {
       this.ownerDocument.client.removeDeploymentRequestsListener(this.deploymentRequestsListener);
+    },
+
+    openCreationForm() {
+      this.selected = 1;
     },
 
     onPageChanged() {
