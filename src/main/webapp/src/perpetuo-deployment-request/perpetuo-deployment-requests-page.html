@@ -9,7 +9,7 @@
   <style>
   :host {
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
   }
   :host > * {
     flex: 1;
@@ -19,12 +19,35 @@
     margin: 1em;
   }
 
+  .toolbox {
+    flex: .2;
+    padding-left: 24px;
+  }
+
+  perpetuo-list-editor {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .main {
+    flex: 1;
+    flex-direction: column;
+  }
   </style>
   <template>
-    <div>
-      <paper-button raised id="deployment-requester" on-tap="openCreationForm">Request Deployment</paper-button>
+    <div class="toolbox">
+      <div>
+        <paper-button raised id="deployment-requester" on-tap="openCreationForm">Request Deployment</paper-button>
+        <paper-radio-group selected="{{dateFormat}}">
+          <paper-radio-button name="timestampToUTCDate">Time in UTC</paper-radio-button>
+          <paper-radio-button name="timestampToLocalDate">Local time</paper-radio-button>
+        </paper-radio-group>
+        <perpetuo-list-editor key="productName" label="Filter by product" choices="[[productNames]]" on-chosen-changed="updateFilter"></perpetuo-list-editor>
+      </div>
     </div>
-    <perpetuo-deployment-request-table id="deploymentRequestTable" on-page-changed="onPageChanged"></perpetuo-deployment-request-table>
+    <div class="main">
+      <perpetuo-deployment-request-table id="deploymentRequestTable" date-format="[[dateFormat]]" on-page-changed="onPageChanged"></perpetuo-deployment-request-table>
+    </div>
     <perpetuo-deployment-request-creation-form id="creationForm" no-cancel-on-outside-click on-opened-changed="onOpenedChanged"></perpetuo-deployment-request-creation-form>
     <iron-overlay-backdrop id="backdrop"></iron-overlay-backdrop>
   </template>
@@ -33,7 +56,10 @@
     is: 'perpetuo-deployment-requests-page',
 
     properties: {
-      selected: { type: Number, value: 0 }
+      selected: { type: Number, value: 0 },
+
+      dateFormat: {type: String, value: 'timestampToUTCDate'},
+      productNames: {type: Array, value: () => []},
     },
 
     attached() {
@@ -42,9 +68,14 @@
         this.$.deploymentRequestTable.hasNextPage = this.ownerDocument.client.hasMoreDeploymentRequests;
       }
       this.ownerDocument.client.addDeploymentRequestsListener(this.deploymentRequestsListener);
+      this.productsListener = products => {
+        this.productNames = products.map(_ => _.name)
+      };
+      this.ownerDocument.client.addProductsListener(this.productsListener);
     },
     detached() {
       this.ownerDocument.client.removeDeploymentRequestsListener(this.deploymentRequestsListener);
+      this.ownerDocument.client.removeProductsListener(this.productsListener);
     },
 
     openCreationForm() {
@@ -58,6 +89,14 @@
     onOpenedChanged(e) {
       this.$.backdrop.opened = e.detail.value;
     },
+
+    updateFilter(e) {
+      const fieldName = e.target.getAttribute('key');
+      this.ownerDocument.client.deploymentRequestFilters = e.target.chosen.map(v => {
+        return {'field': fieldName, 'equals': v};
+      });
+    },
+
   });
   </script>
 </dom-module>

@@ -11,25 +11,8 @@
   <style>
   :host {
     display: flex;
-    flex-direction: row;
+    flex-direction: column;
     padding: 0 24px;
-  }
-
-  .main {
-    flex: 1;
-    flex-direction: column;
-  }
-  .toolbox {
-    flex: .2;
-  }
-
-  .toolbox > div {
-    position: fixed;
-  }
-
-  perpetuo-list-editor {
-    display: flex;
-    flex-direction: column;
   }
 
   .table {
@@ -77,37 +60,26 @@
   }
   </style>
   <template>
-    <div class="toolbox">
-      <div>
-        <paper-radio-group selected="{{dateFormat}}">
-          <paper-radio-button name="timestampToUTCDate">Time in UTC</paper-radio-button>
-          <paper-radio-button name="timestampToLocalDate">Local time</paper-radio-button>
-        </paper-radio-group>
-        <perpetuo-list-editor key="productName" label="Filter by product" choices="[[productNames]]" on-chosen-changed="updateFilter"></perpetuo-list-editor>
-      </div>
-    </div>
-    <div class="main">
-      <div class="table">
-        <div class="row heading">
-          <perpetuo-up-down-none class="product-name" key="productName" label="Product" on-state-changed="updateOrder"></perpetuo-up-down-none>
-          <perpetuo-up-down-none inverted class="version" key="version" label="Version" on-state-changed="updateOrder"></perpetuo-up-down-none>
-          <span class="target">Target</span>
-          <span class="creator">Creator</span>
-          <perpetuo-up-down-none inverted class="creation-date" key="creationDate" label="Creation Date" on-state-changed="updateOrder"></perpetuo-up-down-none>
-          <div class="state">
-            <span>State</span>
-          </div>
+    <div class="table">
+      <div class="row heading">
+        <perpetuo-up-down-none class="product-name" key="productName" label="Product" on-state-changed="updateOrder"></perpetuo-up-down-none>
+        <perpetuo-up-down-none inverted class="version" key="version" label="Version" on-state-changed="updateOrder"></perpetuo-up-down-none>
+        <span class="target">Target</span>
+        <span class="creator">Creator</span>
+        <perpetuo-up-down-none inverted class="creation-date" key="creationDate" label="Creation Date" on-state-changed="updateOrder"></perpetuo-up-down-none>
+        <div class="state">
+          <span>State</span>
         </div>
-        <template is="dom-repeat" items="[[data]]">
-          <perpetuo-deployment-request-entry data="[[item]]"></perpetuo-deployment-request-entry>
-        </template>
       </div>
-      <div>
-        <paper-icon-button icon="first-page" on-tap="onFirstPageTap" disabled="[[!hasPreviousPage]]"></paper-icon-button>
-        <paper-icon-button icon="chevron-left" on-tap="onPreviousPageTap" disabled="[[!hasPreviousPage]]"></paper-icon-button>
-        <span>[[page]]</span>
-        <paper-icon-button icon="chevron-right" on-tap="onNextPageTap" disabled="[[!hasNextPage]]"></paper-icon-button>
-      </div>
+      <template is="dom-repeat" items="[[data]]">
+        <perpetuo-deployment-request-entry data="[[item]]"></perpetuo-deployment-request-entry>
+      </template>
+    </div>
+    <div>
+      <paper-icon-button icon="first-page" on-tap="onFirstPageTap" disabled="[[!hasPreviousPage]]"></paper-icon-button>
+      <paper-icon-button icon="chevron-left" on-tap="onPreviousPageTap" disabled="[[!hasPreviousPage]]"></paper-icon-button>
+      <span>[[page]]</span>
+      <paper-icon-button icon="chevron-right" on-tap="onNextPageTap" disabled="[[!hasNextPage]]"></paper-icon-button>
     </div>
   </template>
   <script>
@@ -118,7 +90,6 @@
       data: {type: Array, observer: 'onDateFormatChanged'},
       dateFormat: {type: String, value: 'timestampToUTCDate'},
       indices: {type: Object, value: () => new Object()},
-      productNames: {type: Array, value: () => []},
 
       page: {type: Number, value: 1, observer: 'onPageChanged', notify: true},
       hasPreviousPage: {type: Boolean, computed: 'computeHasPreviousPage(page)'},
@@ -130,20 +101,6 @@
     },
     attached() {
       this.$$('[key=creationDate]').state = 'down';
-      this.productsListener = products => {
-        this.productNames = products.map(_ => _.name)
-      };
-      this.ownerDocument.client.addProductsListener(this.productsListener);
-    },
-    detached() {
-      this.ownerDocument.client.removeProductsListener(this.productsListener);
-    },
-
-    updateFilter(e) {
-      const fieldName = e.target.getAttribute('key');
-      this.ownerDocument.client.deploymentRequestFilters = e.target.chosen.map(v => {
-        return {'field': fieldName, 'equals': v};
-      });
     },
 
     onDateFormatChanged() {
