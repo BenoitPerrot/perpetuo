@@ -39,6 +39,10 @@
     background: #26a69a;
     color: #fff;
   }
+  #cancel {
+    background-color: #f44336;
+    color: #fff;
+  }
   </style>
   <template>
     <p class="header">New Deployment Request</p>
@@ -55,8 +59,9 @@
     <paper-input id="targetSelector" style="width:45%" label="Target"></paper-input>
     <paper-textarea id="commentEditor" label="Comment"></paper-textarea>
     <div class="footer">
-      <paper-button id="create" raised on-tap="onCreateTap">Create</paper-button>
+      <paper-button id="cancel" raised on-tap="onCancelTap">Cancel</paper-button>
       <paper-button raised on-tap="clear">Clear</paper-button>
+      <paper-button id="create" raised on-tap="onCreateTap">Create</paper-button>
     </div>
   </template>
   <script>
@@ -92,6 +97,9 @@
       this.$.versionSelector.value = '';
       this.$.targetSelector.value = '';
       this.$.commentEditor.value = '';
+    },
+    onCancelTap() {
+      this.fire('close');
     }
   });
   </script>
