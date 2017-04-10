@@ -2,7 +2,7 @@ package com.criteo.perpetuo.dao
 
 import com.criteo.perpetuo.model.Operation.Operation
 import com.criteo.perpetuo.model.{Operation, OperationTrace, Status, TargetAtomStatus}
-import spray.json.{JsNumber, JsObject, _}
+import spray.json._
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future

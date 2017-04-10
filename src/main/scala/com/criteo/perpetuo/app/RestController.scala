@@ -13,9 +13,9 @@ import com.twitter.finagle.http.{Request, Response, Status => HttpStatus}
 import com.twitter.finatra.http.exceptions.{BadRequestException, ConflictException, HttpException}
 import com.twitter.finatra.http.{Controller => BaseController}
 import com.twitter.finatra.request._
-import com.twitter.util.{Future => TwitterFuture}
 import com.twitter.finatra.utils.FuturePools
 import com.twitter.finatra.validation._
+import com.twitter.util.{Future => TwitterFuture}
 import spray.json.JsonParser.ParsingException
 import spray.json._
 
