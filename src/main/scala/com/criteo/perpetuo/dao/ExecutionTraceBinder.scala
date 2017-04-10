@@ -58,8 +58,7 @@ trait ExecutionTraceBinder extends TableBinder {
       executionTraceQuery join operationTraceQuery on (_.operationTraceId === _.id) filter (_._1.id === executionTraceId)
     ).result).map(_.headOption.map {
       case (exec, op) =>
-        val operationTrace = OperationTrace(op.id.get, op.deploymentRequestId, op.operation, op.targetStatus)
-        ExecutionTrace(exec.id.get, operationTrace, exec.logHref, exec.state)
+        ExecutionTrace(exec.id.get, op.toOperationTrace, exec.logHref, exec.state)
     })
   }
 

@@ -1,7 +1,7 @@
 package com.criteo.perpetuo.dao
 
 import com.criteo.perpetuo.model.Operation.Operation
-import com.criteo.perpetuo.model.{Operation, Status, TargetAtomStatus}
+import com.criteo.perpetuo.model.{Operation, OperationTrace, Status, TargetAtomStatus}
 import spray.json.{JsNumber, JsObject, _}
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -11,7 +11,11 @@ import scala.concurrent.Future
 private[dao] case class OperationTraceRecord(id: Option[Long],
                                              deploymentRequestId: Long,
                                              operation: Operation,
-                                             targetStatus: Status.TargetMap = Map())
+                                             targetStatus: Status.TargetMap = Map()) {
+  def toOperationTrace: OperationTrace = {
+    OperationTrace(id.get, deploymentRequestId, operation, targetStatus)
+  }
+}
 
 
 trait OperationTraceBinder extends TableBinder {
@@ -51,8 +55,10 @@ trait OperationTraceBinder extends TableBinder {
     dbContext.db.run((operationTraceQuery returning operationTraceQuery.map(_.id)) += operationTrace)
   }
 
-  def findOperationTraceRecordsByDeploymentRequest(deploymentRequestId: Long): Future[Seq[OperationTraceRecord]] = {
-    dbContext.db.run(operationTraceQuery.filter(_.deploymentRequestId === deploymentRequestId).sortBy(_.id).result)
+  def findOperationTracesByDeploymentRequest(deploymentRequestId: Long): Future[Seq[OperationTrace]] = {
+    dbContext.db.run(operationTraceQuery.filter(_.deploymentRequestId === deploymentRequestId).sortBy(_.id).result).map(
+      _.map(_.toOperationTrace)
+    )
   }
 
   def updateOperationTrace(id: Long, targetStatus: Status.TargetMap): Future[Boolean] = {
