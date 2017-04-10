@@ -17,7 +17,7 @@ class Schema(val dbContext: DbContext)
 
   import dbContext.driver.api._
 
-  val all = productQuery.schema ++ deploymentRequestQuery.schema ++ operationTraceQuery.schema ++ executionTraceQuery.schema
+  val all: dbContext.driver.DDL = productQuery.schema ++ deploymentRequestQuery.schema ++ operationTraceQuery.schema ++ executionTraceQuery.schema
 
   def createTables(): Unit = {
     Await.result(dbContext.db.run(all.create), 2.seconds)
