@@ -52,7 +52,7 @@ trait OperationTraceBinder extends TableBinder {
   }
 
   def findOperationTraceRecordsByDeploymentRequest(deploymentRequestId: Long): Future[Seq[OperationTraceRecord]] = {
-    dbContext.db.run(operationTraceQuery.filter(_.deploymentRequestId === deploymentRequestId).result)
+    dbContext.db.run(operationTraceQuery.filter(_.deploymentRequestId === deploymentRequestId).sortBy(_.id).result)
   }
 
   def updateOperationTrace(id: Long, targetStatus: Status.TargetMap): Future[Boolean] = {

@@ -4,7 +4,7 @@ import javax.inject.{Inject, Singleton}
 
 import com.criteo.perpetuo.app.RawJson
 
-import scala.collection.mutable
+import scala.collection.{SortedMap, mutable}
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
@@ -78,9 +78,9 @@ class DbBinding @Inject()(val dbContext: DbContext)
         joinLeft executionTraceQuery on (_._2.map(_.id) === _.operationTraceId)).result)
       .map {
         groupByDeploymentRequestId(_).values.map { case (req, product, opAndExecs) =>
-          val perOperationId = opAndExecs.collect {
+          val perOperationId = SortedMap(opAndExecs.collect {
             case (op, exec) if op.isDefined => (op.get, exec)
-          }.groupBy(_._1.id)
+          }.groupBy(_._1.id.get).toStream: _*)
 
           Map(
             "id" -> req.id,
