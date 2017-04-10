@@ -56,6 +56,7 @@ class RestControllerSpec extends FeatureTest with TestDb {
 
 
   object T extends JsNumber(0) {
+    override def toString(): String = "?"
     override def equals(o: Any): Boolean = true
   }
 
