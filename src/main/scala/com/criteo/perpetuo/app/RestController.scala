@@ -256,7 +256,7 @@ class RestController @Inject()(val execution: Execution)
                 Map(
                   "id" -> trace.id.get,
                   "type" -> trace.operation.toString,
-                  "targetStatus" -> trace.targetStatus.mapValues(s => Map("code" -> s.code.toString, "detail" -> s.detail))
+                  "targetStatus" -> trace.targetStatus
                 )
               )
             )

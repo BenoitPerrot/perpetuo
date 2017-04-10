@@ -15,6 +15,7 @@ object CustomJacksonModule extends FinatraJacksonModule {
       addSerializer(RawJsonSerializer)
       addSerializer(TimestampSerializer)
       addSerializer(VersionSerializer)
+      addSerializer(EnumSerializer)
     }
   )
 
@@ -42,5 +43,12 @@ object TimestampSerializer extends StdSerializer[java.sql.Timestamp](classOf[jav
 object VersionSerializer extends StdSerializer[Version](classOf[Version]) {
   def serialize(version: Version, jgen: JsonGenerator, provider: SerializerProvider) {
     jgen.writeString(version.toString)
+  }
+}
+
+
+object EnumSerializer extends StdSerializer[Enumeration#Value](classOf[Enumeration#Value]) {
+  def serialize(value: Enumeration#Value, jgen: JsonGenerator, provider: SerializerProvider) {
+    jgen.writeString(value.toString)
   }
 }
