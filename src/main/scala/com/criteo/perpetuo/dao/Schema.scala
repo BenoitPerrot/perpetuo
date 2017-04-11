@@ -3,6 +3,7 @@ package com.criteo.perpetuo.dao
 import javax.inject.{Inject, Singleton}
 
 import com.criteo.perpetuo.app.RawJson
+import com.criteo.perpetuo.model.ExecutionTrace
 
 import scala.collection.{SortedMap, mutable}
 import scala.collection.mutable.ArrayBuffer
@@ -59,13 +60,14 @@ class DbBinding @Inject()(val dbContext: DbContext)
       }
     }
 
-    type StableMap = mutable.LinkedHashMap[Long, (DeploymentRequestRecord, ProductRecord, ArrayBuffer[(Option[OperationTraceRecord], Option[ExecutionTraceRecord])])]
+    type StableMap = mutable.LinkedHashMap[Long, (DeploymentRequestRecord, ProductRecord, ArrayBuffer[ExecutionTrace])]
 
     def groupByDeploymentRequestId(x: Seq[(((DeploymentRequestRecord, ProductRecord), Option[OperationTraceRecord]), Option[ExecutionTraceRecord])]): StableMap = {
       x.foldLeft(new StableMap()) { case (result, (((deploymentRequest, product), operationTrace), executionTrace)) =>
-        result.getOrElseUpdate(deploymentRequest.id.get, {
+        val execs = result.getOrElseUpdate(deploymentRequest.id.get, {
           (deploymentRequest, product, ArrayBuffer())
-        })._3.append((operationTrace, executionTrace))
+        })._3
+        executionTrace.foreach(e => execs.append(e.toExecutionTrace(operationTrace.get.toOperationTrace)))
         result
       }
     }
@@ -77,10 +79,8 @@ class DbBinding @Inject()(val dbContext: DbContext)
         joinLeft operationTraceQuery on (_._1.id === _.deploymentRequestId)
         joinLeft executionTraceQuery on (_._2.map(_.id) === _.operationTraceId)).result)
       .map {
-        groupByDeploymentRequestId(_).values.map { case (req, product, opAndExecs) =>
-          val perOperationId = SortedMap(opAndExecs.collect {
-            case (op, exec) if op.isDefined => (op.get, exec)
-          }.groupBy(_._1.id.get).toStream: _*)
+        groupByDeploymentRequestId(_).values.map { case (req, product, execs) =>
+          val sortedGroupsOfExecutions = SortedMap(execs.groupBy(_.operationTrace.id).toStream: _*).values
 
           Map(
             "id" -> req.id,
@@ -90,22 +90,13 @@ class DbBinding @Inject()(val dbContext: DbContext)
             "version" -> req.version,
             "target" -> RawJson(req.target),
             "productName" -> product.name,
-            "operations" -> perOperationId.values.map { opAndExecs =>
-              val (op, _) = opAndExecs.head
-              val execs = opAndExecs.collect {
-                case (_, exec) if exec.isDefined => exec.get
-              }
+            "operations" -> sortedGroupsOfExecutions.map { execs =>
+              val op = execs.head.operationTrace
               Map(
-                "id" -> op.id.get,
+                "id" -> op.id,
                 "type" -> op.operation.toString,
                 "targetStatus" -> op.targetStatus,
-                "executions" -> execs.map(exec =>
-                  Map(
-                    "id" -> exec.id.get,
-                    "logHref" -> exec.logHref,
-                    "state" -> exec.state.toString
-                  )
-                )
+                "executions" -> execs
               )
             }
           )
