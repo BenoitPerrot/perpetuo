@@ -165,23 +165,13 @@ class RestController @Inject()(val execution: Execution)
 
   get("/api/execution-traces/by-deployment-request/:id")(
     withLongId(id =>
-      execution.dbBinding.findExecutionTraceRecordsByDeploymentRequest(id).flatMap { traces =>
+      execution.dbBinding.findExecutionTracesByDeploymentRequest(id).flatMap { traces =>
         if (traces.isEmpty) {
           // if there is a deployment request with that ID, return the empty list, otherwise a 404
           execution.dbBinding.deploymentRequestExists(id).map(if (_) Some(traces) else None)
         }
         else
-          Future.successful(
-            Some(
-              traces.map(trace =>
-                Map(
-                  "id" -> trace.id.get,
-                  "logHref" -> trace.logHref,
-                  "state" -> trace.state.toString
-                )
-              )
-            )
-          )
+          Future.successful(Some(traces))
       },
       2.seconds
     )
@@ -213,7 +203,7 @@ class RestController @Inject()(val execution: Execution)
       executionUpdate.flatMap {
         if (_) {
           // the execution trace has been updated, so it must exist!
-          execution.dbBinding.findExecutionTraceByIdWithOperationTrace(id).map(_.get).flatMap { execTrace =>
+          execution.dbBinding.findExecutionTraceById(id).map(_.get).flatMap { execTrace =>
             val op = execTrace.operationTrace
             execution.dbBinding.updateOperationTrace(op.id, op.partialUpdate(statusMap))
               .map { updated =>
