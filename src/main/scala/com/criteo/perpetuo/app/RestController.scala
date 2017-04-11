@@ -5,6 +5,7 @@ import javax.inject.Inject
 
 import com.criteo.perpetuo.auth.User
 import com.criteo.perpetuo.auth.UserFilter._
+import com.criteo.perpetuo.config.AppConfig
 import com.criteo.perpetuo.dao.UnknownProduct
 import com.criteo.perpetuo.dispatchers.{Execution, TargetDispatcher}
 import com.criteo.perpetuo.model.DeploymentRequestParser.parse

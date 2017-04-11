@@ -4,6 +4,7 @@ import javax.sql.DataSource
 
 import com.criteo.datasource.DataSourceFactoryBuilder
 import com.criteo.ds.prm.{DataSourceProxymitySpecifier, DatasourceIntent}
+import com.criteo.perpetuo.config.AppConfig
 import com.criteo.perpetuo.dao.{DbContext, Schema}
 import com.criteo.perpetuo.dao.drivers.UrlBuilders._
 import com.criteo.perpetuo.dao.drivers.{DriverByName, InMemory}

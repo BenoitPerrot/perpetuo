@@ -3,7 +3,7 @@ package com.criteo.perpetuo.dispatchers
 import java.io.InputStream
 import javax.script.{ScriptEngine, ScriptEngineManager}
 
-import com.criteo.perpetuo.app.AppConfig
+import com.criteo.perpetuo.config.AppConfig
 import com.criteo.perpetuo.executors.ExecutorInvoker
 
 import scala.io.Source

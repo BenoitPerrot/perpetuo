@@ -2,7 +2,8 @@ package com.criteo.perpetuo.dao
 
 import java.util.UUID
 
-import com.criteo.perpetuo.app.{AppConfig, DbContextModule}
+import com.criteo.perpetuo.app.DbContextModule
+import com.criteo.perpetuo.config.AppConfig
 import com.criteo.perpetuo.dao.drivers.UrlBuilders._
 import com.criteo.perpetuo.dao.drivers.{FixedH2Driver, InMemory}
 import org.h2.jdbcx.JdbcConnectionPool

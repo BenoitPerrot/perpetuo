@@ -1,4 +1,4 @@
-package com.criteo.perpetuo.app
+package com.criteo.perpetuo.config
 
 import com.twitter.inject.Test
 import com.typesafe.config.ConfigException.Missing

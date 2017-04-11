@@ -3,6 +3,7 @@ package com.criteo.perpetuo.app
 import java.net.URL
 
 import com.criteo.perpetuo.auth.{IdentityProvider, JWTEncoder, OpenAmIdentityProvider}
+import com.criteo.perpetuo.config.AppConfig
 import com.google.inject.{Provides, Singleton}
 import com.twitter.inject.TwitterModule
 

@@ -1,4 +1,4 @@
-package com.criteo.perpetuo.app
+package com.criteo.perpetuo.config
 
 import com.typesafe.config.{Config, ConfigFactory, ConfigObject}
 

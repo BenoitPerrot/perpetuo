@@ -1,6 +1,6 @@
 package com.criteo.perpetuo.executors
 
-import com.criteo.perpetuo.app.AppConfig
+import com.criteo.perpetuo.config.AppConfig
 import com.criteo.perpetuo.model.Version
 import com.twitter.inject.Logging
 

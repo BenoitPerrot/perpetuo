@@ -1,6 +1,7 @@
 package com.criteo.perpetuo.auth
 
-import com.criteo.perpetuo.app.{AppConfig, AuthModule}
+import com.criteo.perpetuo.app.AuthModule
+import com.criteo.perpetuo.config.AppConfig
 import com.twitter.finagle.http.Status.{Ok, Unauthorized}
 import com.twitter.finagle.http.{Request, Response}
 import com.twitter.finatra.http.HttpServer

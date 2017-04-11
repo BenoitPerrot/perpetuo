@@ -1,4 +1,4 @@
-import com.criteo.perpetuo.app.AppConfig$
+import com.criteo.perpetuo.config.AppConfig$
 import com.criteo.perpetuo.dispatchers.ExecutorsByPoset
 import com.criteo.perpetuo.dispatchers.TargetDispatcherByPoset
 import com.criteo.perpetuo.executors.DummyInvoker

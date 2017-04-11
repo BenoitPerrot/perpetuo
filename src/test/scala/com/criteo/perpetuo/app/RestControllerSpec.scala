@@ -4,6 +4,7 @@ import java.sql.Timestamp
 
 import com.criteo.perpetuo.TestDb
 import com.criteo.perpetuo.auth.{User, UserFilter}
+import com.criteo.perpetuo.config.AppConfig
 import com.criteo.perpetuo.model.{DeploymentRequestAttrs, Version}
 import com.twitter.finagle.http.Status._
 import com.twitter.finagle.http.{Request, Response, Status}
