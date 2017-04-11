@@ -1,5 +1,6 @@
 package com.criteo.perpetuo.executors
 
+import com.criteo.perpetuo.config.Plugins
 import com.criteo.perpetuo.dispatchers.TargetDispatcher
 import com.criteo.perpetuo.model.{Operation, Version}
 import com.twitter.finagle.http.{Response, Status}
@@ -13,7 +14,7 @@ import scala.concurrent.duration._
 
 class RundeckInvokerSpec extends Test {
   private def testWhenResponseIs(statusCode: Int, content: String) = {
-    val cls = TargetDispatcher.loadClassFromGroovy()
+    val cls = Plugins.loadClassFromGroovy("plugins.dispatcher")
     val constructor = cls.getConstructors.filter(_.getParameterCount == 1).head
     val dispatcher = constructor.newInstance("local").asInstanceOf[TargetDispatcher]
     val rundeckInvoker = dispatcher.assign("foo").head.asInstanceOf[HttpInvoker]

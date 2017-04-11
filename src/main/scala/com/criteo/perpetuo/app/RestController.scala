@@ -5,9 +5,9 @@ import javax.inject.Inject
 
 import com.criteo.perpetuo.auth.User
 import com.criteo.perpetuo.auth.UserFilter._
-import com.criteo.perpetuo.config.AppConfig
+import com.criteo.perpetuo.config.{AppConfig, Plugins}
 import com.criteo.perpetuo.dao.UnknownProduct
-import com.criteo.perpetuo.dispatchers.{Execution, TargetDispatcher}
+import com.criteo.perpetuo.dispatchers.Execution
 import com.criteo.perpetuo.model.DeploymentRequestParser.parse
 import com.criteo.perpetuo.model._
 import com.twitter.finagle.http.{Request, Response, Status => HttpStatus}
@@ -54,7 +54,7 @@ class RestController @Inject()(val execution: Execution)
   extends BaseController {
 
   private val futurePool = FuturePools.unboundedPool("RequestFuturePool")
-  private val dispatcher = TargetDispatcher.fromGroovy
+  private val dispatcher = Plugins.dispatcher // force the load at application start
   private val deployBotName = "qabot"
   private val escalationTeamNames = List(
     "d.caroff", "e.peroumalnaik", "g.bourguignon", "m.runtz", "m.molongo",
