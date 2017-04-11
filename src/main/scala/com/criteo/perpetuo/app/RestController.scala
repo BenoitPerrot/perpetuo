@@ -55,6 +55,8 @@ class RestController @Inject()(val execution: Execution)
   private val futurePool = FuturePools.unboundedPool("RequestFuturePool")
   private val dispatcher = TargetDispatcher.fromGroovy
   private val deployBotName = "qabot"
+  private val escalationTeamNames = List("d.caroff", "e.peroumalnaik", "g.bourguignon", "m.runtz", "m.molongo",
+                                         "m.nguyen", "m.soltani", "s.guerrier", "t.zhuang")
 
   private def await[T](future: Future[T], maxDuration: Duration): T =
     try {
@@ -155,8 +157,8 @@ class RestController @Inject()(val execution: Execution)
   }
 
   put("/api/deployment-requests/:id") { r: RequestWithId =>
-    // todo: also give permission to escalation in production
-    authenticate(r.request) { case user if user.name == deployBotName || AppConfig.env != "prod" =>
+    // todo: Use AD group to give escalation team permissions to deploy in prod
+    authenticate(r.request) { case user if user.name == deployBotName || escalationTeamNames.contains(user.name) || AppConfig.env != "prod" =>
       withIdAndRequest(putDeploymentRequest, 2.seconds)(r)
     }
   }
