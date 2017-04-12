@@ -76,8 +76,8 @@
           <paper-icon-button icon="social:person" on-tap="onIdentityTap"></paper-icon-button><span>[[login]]</span>
         </app-toolbar>
       </app-header>
-      <iron-pages id="pageSelector" selected="[[routeData.page]]" attr-for-selected="route" on-iron-select="onPageSelected">
-        <div route="" title=""></div>
+      <iron-pages id="pageSelector" selected="[[routeData.page]]" fallback-selection="*" attr-for-selected="route" on-iron-select="onPageSelected">
+        <div route="*" title=""></div>
         <perpetuo-deployment-requests-page route="deployment-requests" title="Deployment Requests"></perpetuo-deployment-requests-page>
         <perpetuo-products-page route="products" title="Products"></perpetuo-products-page>
         <perpetuo-administration-page route="administration" title="Administration"></perpetuo-administration-page>
@@ -97,7 +97,7 @@
       is: 'perpetuo-app',
 
       properties: {
-        route: String,
+        route: Object,
         subroute: String,
         routeData: Object,
         activePageTitle: { type: String },
@@ -113,10 +113,12 @@
       onPageSelected() {
         const selectedPage = this.$.pageSelector.selectedItem;
         if (selectedPage) {
-          const title = selectedPage.getAttribute('title');
-          if (title) {
-            this.activePageTitle = title;
+          this.activePageTitle = selectedPage.getAttribute('title');
+          // TODO: show a Welcome page, and a 404-unknown page, instead of always redirecting to deployment-requests <<
+          if (!this.activePageTitle) {
+            this.route = { prefix: '', path: '/deployment-requests' };
           }
+          // >>
         }
       },
 
