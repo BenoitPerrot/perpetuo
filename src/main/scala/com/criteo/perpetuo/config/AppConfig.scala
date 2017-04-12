@@ -20,6 +20,8 @@ abstract class BaseAppConfig {
       case value => value
     }
   }.unwrapped().asInstanceOf[T]
+
+  def tryGet[T](path: String): Option[T] = if (effectiveConfig.hasPath(path)) Some(get(path)) else None
 }
 
 

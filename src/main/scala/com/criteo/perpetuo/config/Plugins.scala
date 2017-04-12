@@ -1,22 +1,24 @@
 package com.criteo.perpetuo.config
 
-import java.io.InputStream
+import java.io.InputStreamReader
 import javax.script.{ScriptEngine, ScriptEngineManager}
 
 import com.criteo.perpetuo.dispatchers.TargetDispatcher
 
-import scala.io.Source
-
 
 object Plugins {
+  lazy val dispatcher: TargetDispatcher = loadClassFromGroovy(AppConfig.get("plugins.dispatcher")).newInstance()
+  lazy val hooks: Hooks = AppConfig.tryGet("plugins.hooks")
+    .map(loadClassFromGroovy[Hooks](_: String).newInstance())
+    .getOrElse(new Hooks)
+
+
   private val factory = new ScriptEngineManager
   private val engine: ScriptEngine = factory.getEngineByName("groovy")
   assert(engine != null)
 
-  lazy val dispatcher: TargetDispatcher = loadClassFromGroovy("plugins.dispatcher").newInstance()
-
-  def loadClassFromGroovy[T](configPath: String): Class[T] = {
-    val stream: InputStream = getClass.getResourceAsStream(AppConfig.get(configPath))
-    engine.eval(Source.fromInputStream(stream).reader()).asInstanceOf[Class[T]]
+  def loadClassFromGroovy[T](scriptPath: String): Class[T] = {
+    val resource = getClass.getResource(scriptPath)
+    engine.eval(new InputStreamReader(resource.openStream())).asInstanceOf[Class[T]]
   }
 }

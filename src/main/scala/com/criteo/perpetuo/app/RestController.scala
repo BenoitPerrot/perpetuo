@@ -55,6 +55,7 @@ class RestController @Inject()(val execution: Execution)
 
   private val futurePool = FuturePools.unboundedPool("RequestFuturePool")
   private val dispatcher = Plugins.dispatcher // force the load at application start
+  private val hooks = Plugins.hooks // force the load at application start
   private val deployBotName = "qabot"
   private val escalationTeamNames = List(
     "d.caroff", "e.peroumalnaik", "g.bourguignon", "m.runtz", "m.molongo",
@@ -133,11 +134,13 @@ class RestController @Inject()(val execution: Execution)
 
           // first, log the user's general intent
           val futureDepReq = execution.dbBinding.insert(attrs)
+          // when the record is created, notify the corresponding hook
+          futureDepReq.foreach(hooks.onDeploymentRequestCreated)
 
           if (autoStart) {
-            val asyncStart = futureDepReq.flatMap(execution.startOperation(dispatcher, _, Operation.deploy))
-
+            val asyncStart = futureDepReq.flatMap(depReq => execution.startOperation(dispatcher, depReq, Operation.deploy).map(_ => depReq))
             asyncStart.onFailure { case e => logger.error("Transaction failed to start: " + e.getMessage + "\n" + e.getStackTrace.mkString("\n")) }
+            asyncStart.foreach(hooks.onDeploymentRequestStarted(_, immediately = true))
           }
 
           futureDepReq
@@ -153,6 +156,7 @@ class RestController @Inject()(val execution: Execution)
     execution.dbBinding.findDeploymentRequestByIdWithProduct(id).map(_.map { req =>
       // done asynchronously
       execution.startOperation(dispatcher, req, Operation.deploy)
+        .foreach(_ => hooks.onDeploymentRequestStarted(req, immediately = false))
 
       // returned synchronously
       response.ok.json(Map("id" -> req.id))
