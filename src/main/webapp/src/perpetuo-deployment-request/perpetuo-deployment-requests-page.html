@@ -68,16 +68,20 @@
     },
 
     attached() {
-      this.deploymentRequestsListener = deploymentRequests => {
-        this.$.deploymentRequestTable.data = deploymentRequests;
-        this.$.deploymentRequestTable.hasNextPage = this.ownerDocument.client.hasMoreDeploymentRequests;
-      }
-      this.ownerDocument.client.addDeploymentRequestsListener(this.deploymentRequestsListener);
-
       this.client.fetchProducts().then(products => { this.productNames = products.map(_ => _.name); });
+
+      const refreshDelay = 1000;
+      (function installRefresh() {
+        const reinstallRefresh = () => installRefresh.apply(this);
+        setTimeout(() => this.refresh().then(reinstallRefresh, reinstallRefresh), refreshDelay);
+      }).apply(this);
     },
-    detached() {
-      this.ownerDocument.client.removeDeploymentRequestsListener(this.deploymentRequestsListener);
+
+    refresh() {
+      return this.client.fetchDeploymentRequests().then(deploymentRequests => {
+        this.$.deploymentRequestTable.data = deploymentRequests;
+        this.$.deploymentRequestTable.hasNextPage = this.client.hasMoreDeploymentRequests;
+      });
     },
 
     openCreationForm() {
@@ -85,13 +89,13 @@
     },
 
     onOrderChanged(e) {
-      this.ownerDocument.client.deploymentRequestOrder = e.detail.order.map(_ => {
+      this.client.deploymentRequestOrder = e.detail.order.map(_ => {
         return {field: _.getAttribute('key'), desc: _.state === 'down'};
       });
     },
 
     onPageChanged() {
-      this.ownerDocument.client.deploymentRequestOffset = (this.$.deploymentRequestTable.page - 1) * this.ownerDocument.client.deploymentRequestLimit;
+      this.client.deploymentRequestOffset = (this.$.deploymentRequestTable.page - 1) * this.client.deploymentRequestLimit;
     },
 
     onOpenedChanged(e) {
@@ -100,7 +104,7 @@
 
     updateFilter(e) {
       const fieldName = e.target.getAttribute('key');
-      this.ownerDocument.client.deploymentRequestFilters = e.target.chosen.map(v => {
+      this.client.deploymentRequestFilters = e.target.chosen.map(v => {
         return {'field': fieldName, 'equals': v};
       });
     },

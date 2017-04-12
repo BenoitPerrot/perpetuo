@@ -126,22 +126,7 @@
       created() {
         this.client = new Perpetuo.Client();
 
-        this.client.deploymentRequestsListeners = [];
-        this.client.addDeploymentRequestsListener = f => { this.client.deploymentRequestsListeners.push(f) };
-        this.client.removeDeploymentRequestsListener = f => { this.client.deploymentRequestsListeners.splice(this.client.deploymentRequestsListeners.find(f), 1) };
-
-        const refreshDelay = 1000;
-        (function installRefresh() {
-          const reinstallRefresh = () => installRefresh.apply(this);
-          setTimeout(() => this.refresh().then(reinstallRefresh, reinstallRefresh), refreshDelay);
-        }).apply(this);
-
         this.ownerDocument.client = this.client;
-      },
-      refresh() {
-        return this.client.fetchDeploymentRequests().then(deploymentRequests => {
-          this.client.deploymentRequestsListeners.forEach(f => f(deploymentRequests));
-        });
       },
       // >>
 
