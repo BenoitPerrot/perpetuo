@@ -47,7 +47,7 @@
       </div>
     </div>
     <div class="main">
-      <perpetuo-deployment-request-table id="deploymentRequestTable" date-format="[[dateFormat]]" on-page-changed="onPageChanged"></perpetuo-deployment-request-table>
+      <perpetuo-deployment-request-table id="deploymentRequestTable" date-format="[[dateFormat]]" on-page-changed="onPageChanged" on-order-changed="onOrderChanged"></perpetuo-deployment-request-table>
     </div>
     <perpetuo-deployment-request-creation-form id="creationForm" no-cancel-on-outside-click on-opened-changed="onOpenedChanged"></perpetuo-deployment-request-creation-form>
     <iron-overlay-backdrop id="backdrop"></iron-overlay-backdrop>
@@ -82,6 +82,12 @@
 
     openCreationForm() {
       this.$.creationForm.open();
+    },
+
+    onOrderChanged(e) {
+      this.ownerDocument.client.deploymentRequestOrder = e.detail.order.map(_ => {
+        return {field: _.getAttribute('key'), desc: _.state === 'down'};
+      });
     },
 
     onPageChanged() {

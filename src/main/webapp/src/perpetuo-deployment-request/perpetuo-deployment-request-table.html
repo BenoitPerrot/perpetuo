@@ -131,9 +131,7 @@
         element.i = i + 1;
       });
 
-      this.ownerDocument.client.deploymentRequestOrder = this.order.map(_ => {
-        return {field: _.getAttribute('key'), desc: _.state === 'down'};
-      });
+      this.fire('order-changed', { order: this.order });
     },
 
     computeHasPreviousPage(page) {
