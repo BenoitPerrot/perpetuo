@@ -55,8 +55,10 @@ class RestController @Inject()(val execution: Execution)
   private val futurePool = FuturePools.unboundedPool("RequestFuturePool")
   private val dispatcher = TargetDispatcher.fromGroovy
   private val deployBotName = "qabot"
-  private val escalationTeamNames = List("d.caroff", "e.peroumalnaik", "g.bourguignon", "m.runtz", "m.molongo",
-                                         "m.nguyen", "m.soltani", "s.guerrier", "t.zhuang")
+  private val escalationTeamNames = List(
+    "d.caroff", "e.peroumalnaik", "g.bourguignon", "m.runtz", "m.molongo",
+    "m.nguyen", "m.soltani", "s.guerrier", "t.zhuang"
+  )
 
   private def await[T](future: Future[T], maxDuration: Duration): T =
     try {
