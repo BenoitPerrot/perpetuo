@@ -2,6 +2,7 @@
 
 <link rel="import" href="../../bower_components/iron-overlay-behavior/iron-overlay-backdrop.html">
 
+<link rel="import" href="../perpetuo-client/perpetuo-client.html">
 <link rel="import" href="../perpetuo-deployment-request/perpetuo-deployment-request-table.html">
 <link rel="import" href="../perpetuo-deployment-request/perpetuo-deployment-request-creation-form.html">
 
@@ -62,20 +63,21 @@
       productNames: {type: Array, value: () => []},
     },
 
+    created() {
+      this.client = new Perpetuo.Client();
+    },
+
     attached() {
       this.deploymentRequestsListener = deploymentRequests => {
         this.$.deploymentRequestTable.data = deploymentRequests;
         this.$.deploymentRequestTable.hasNextPage = this.ownerDocument.client.hasMoreDeploymentRequests;
       }
       this.ownerDocument.client.addDeploymentRequestsListener(this.deploymentRequestsListener);
-      this.productsListener = products => {
-        this.productNames = products.map(_ => _.name)
-      };
-      this.ownerDocument.client.addProductsListener(this.productsListener);
+
+      this.client.fetchProducts().then(products => { this.productNames = products.map(_ => _.name); });
     },
     detached() {
       this.ownerDocument.client.removeDeploymentRequestsListener(this.deploymentRequestsListener);
-      this.ownerDocument.client.removeProductsListener(this.productsListener);
     },
 
     openCreationForm() {

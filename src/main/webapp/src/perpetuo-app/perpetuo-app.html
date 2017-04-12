@@ -126,10 +126,6 @@
       created() {
         this.client = new Perpetuo.Client();
 
-        this.client.productsListeners = [];
-        this.client.addProductsListener = f => { this.client.productsListeners.push(f) };
-        this.client.removeProductsListener = f => { this.client.productsListeners.splice(this.client.productsListeners.find(f), 1) };
-
         this.client.deploymentRequestsListeners = [];
         this.client.addDeploymentRequestsListener = f => { this.client.deploymentRequestsListeners.push(f) };
         this.client.removeDeploymentRequestsListener = f => { this.client.deploymentRequestsListeners.splice(this.client.deploymentRequestsListeners.find(f), 1) };
@@ -143,14 +139,9 @@
         this.ownerDocument.client = this.client;
       },
       refresh() {
-        return Promise.all([
-          this.client.fetchProducts().then(products => {
-            this.client.productsListeners.forEach(f => f(products));
-          }),
-          this.client.fetchDeploymentRequests().then(deploymentRequests => {
-            this.client.deploymentRequestsListeners.forEach(f => f(deploymentRequests));
-          })
-        ]);
+        return this.client.fetchDeploymentRequests().then(deploymentRequests => {
+          this.client.deploymentRequestsListeners.forEach(f => f(deploymentRequests));
+        });
       },
       // >>
 

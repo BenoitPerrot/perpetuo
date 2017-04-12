@@ -9,6 +9,8 @@
 <link rel="import" href="../../bower_components/paper-item/paper-item.html">
 <link rel="import" href="../../bower_components/paper-listbox/paper-listbox.html">
 
+<link rel="import" href="../perpetuo-client/perpetuo-client.html">
+
 <dom-module id="perpetuo-deployment-request-creation-form">
   <style>
   :host {
@@ -80,18 +82,15 @@
     ],
 
     attached() {
-      this.productsListener = products => { this.products = products };
-      this.ownerDocument.client.addProductsListener(this.productsListener);
-    },
-    detached() {
-      this.ownerDocument.client.removeProductsListener(this.productsListener);
+      this.client = new Perpetuo.Client();
+      this.client.fetchProducts().then(products => { this.products = products });
     },
 
     onCreateTap() {
-      this.ownerDocument.client.createDeploymentRequest(this.$.productSelector.selectedItemLabel,
-                                                        this.$.versionSelector.value,
-                                                        this.$.targetSelector.value,
-                                                        this.$.commentEditor.value)
+      this.client.createDeploymentRequest(this.$.productSelector.selectedItemLabel,
+                                          this.$.versionSelector.value,
+                                          this.$.targetSelector.value,
+                                          this.$.commentEditor.value)
           .then(r => {
             if (r.ok) {
               this.clear();

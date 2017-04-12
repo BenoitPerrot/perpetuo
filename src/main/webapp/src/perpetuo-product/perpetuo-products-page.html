@@ -29,12 +29,9 @@
     is: 'perpetuo-products-page',
 
     attached() {
-      this.productsListener = products => { this.$.productTable.data = products };
-      this.ownerDocument.client.addProductsListener(this.productsListener);
-    },
-    detached() {
-      this.ownerDocument.client.removeProductsListener(this.productsListener);
-    },
+      this.client = new Perpetuo.Client();
+      this.client.fetchProducts().then(products => { this.$.productTable.data = products });
+    }
   });
   </script>
 </dom-module>
