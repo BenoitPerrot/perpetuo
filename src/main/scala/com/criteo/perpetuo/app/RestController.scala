@@ -138,9 +138,8 @@ class RestController @Inject()(val execution: Execution)
           futureDepReq.foreach(hooks.onDeploymentRequestCreated)
 
           if (autoStart) {
-            val asyncStart = futureDepReq.flatMap(depReq => execution.startOperation(dispatcher, depReq, Operation.deploy).map(_ => depReq))
-            asyncStart.onFailure { case e => logger.error("Transaction failed to start: " + e.getMessage + "\n" + e.getStackTrace.mkString("\n")) }
-            asyncStart.foreach(hooks.onDeploymentRequestStarted(_, immediately = true))
+            futureDepReq.flatMap(depReq => execution.startOperation(dispatcher, depReq, Operation.deploy).map(_ => depReq))
+              .foreach(hooks.onDeploymentRequestStarted(_, immediately = true))
           }
 
           futureDepReq
