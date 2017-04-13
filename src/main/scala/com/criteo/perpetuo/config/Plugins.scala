@@ -8,9 +8,7 @@ import com.criteo.perpetuo.dispatchers.TargetDispatcher
 
 object Plugins {
   lazy val dispatcher: TargetDispatcher = loadClassFromGroovy(AppConfig.get("plugins.dispatcher")).newInstance()
-  lazy val hooks: Hooks = AppConfig.tryGet("plugins.hooks")
-    .map(loadClassFromGroovy[Hooks](_: String).newInstance())
-    .getOrElse(new Hooks)
+  lazy val hooks: HookMethods = new HookMethods(AppConfig.tryGet("plugins.hooks").map(loadClassFromGroovy[Hooks](_: String).newInstance()))
 
 
   private val factory = new ScriptEngineManager
