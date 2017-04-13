@@ -11,7 +11,7 @@ class Hooks {
     */
   def onDeploymentRequestCreated(deploymentRequest: DeploymentRequest): Unit = {}
 
-  def onDeploymentRequestStarted(deploymentRequest: DeploymentRequest, immediately: Boolean): Unit = {}
+  def onDeploymentRequestStarted(deploymentRequest: DeploymentRequest, startedExecutions: Int, failedToStart: Int, immediately: Boolean): Unit = {}
 
 
   /** This logger is the one to use in the Groovy hook classes */

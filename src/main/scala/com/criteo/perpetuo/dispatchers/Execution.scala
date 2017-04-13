@@ -18,7 +18,11 @@ class Execution @Inject()(val dbBinding: DbBinding) extends Logging {
 
   import spray.json.DefaultJsonProtocol._
 
-  def startOperation(dispatcher: TargetDispatcher, deploymentRequest: DeploymentRequest, operation: Operation): Future[Int] = {
+  /**
+    * Start all relevant executions and return the numbers of successful
+    * and failed execution starts.
+    */
+  def startOperation(dispatcher: TargetDispatcher, deploymentRequest: DeploymentRequest, operation: Operation): Future[(Int, Int)] = {
     // infer dispatching
     val invocations = dispatch(dispatcher, deploymentRequest.parsedTarget).toSeq
 
@@ -48,20 +52,26 @@ class Execution @Inject()(val dbBinding: DbBinding) extends Logging {
             _.map(logHref =>
               dbBinding.updateExecutionTrace(execId, logHref, ExecutionState.running).map { updated =>
                 assert(updated)
-                s"`$logHref` succeeded"
+                (true, s"`$logHref` succeeded")
               }
             ).recover({
               // if triggering the job throws an error, mark the execution as failed at initialization
               case e: Throwable =>
                 dbBinding.updateExecutionTrace(execId, ExecutionState.initFailed).map { updated =>
                   assert(updated)
-                  s"failed (${e.getMessage})"
+                  (false, s"failed (${e.getMessage})")
                 }
             }).flatMap(x => x) // flatten doesn't exist on Future... :(
           ).getOrElse(
-            Future.successful("succeeded (but with an unknown log href)")
-          ).map(logExecution(_, execId, executor, rawTarget))
-      }.map(_.length)
+            Future.successful((true, "succeeded (but with an unknown log href)"))
+          ).map { case (succeeded, identifier) =>
+            logExecution(identifier, execId, executor, rawTarget)
+            succeeded
+          }
+      }.map { statuses =>
+        val successes = statuses.count(s => s)
+        (successes, statuses.length - successes)
+      }
     )
   }
 

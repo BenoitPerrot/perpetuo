@@ -138,8 +138,11 @@ class RestController @Inject()(val execution: Execution)
           futureDepReq.foreach(hooks.onDeploymentRequestCreated)
 
           if (autoStart) {
-            futureDepReq.flatMap(depReq => execution.startOperation(dispatcher, depReq, Operation.deploy).map(_ => depReq))
-              .foreach(hooks.onDeploymentRequestStarted(_, immediately = true))
+            futureDepReq.flatMap(depReq =>
+              execution.startOperation(dispatcher, depReq, Operation.deploy).map { case (started, failed) => (depReq, started, failed) }
+            ).foreach { case (depReq, started, failed) =>
+              hooks.onDeploymentRequestStarted(depReq, started, failed, immediately = true)
+            }
           }
 
           futureDepReq
@@ -155,7 +158,9 @@ class RestController @Inject()(val execution: Execution)
     execution.dbBinding.findDeploymentRequestByIdWithProduct(id).map(_.map { req =>
       // done asynchronously
       execution.startOperation(dispatcher, req, Operation.deploy)
-        .foreach(_ => hooks.onDeploymentRequestStarted(req, immediately = false))
+        .foreach { case (started, failed) =>
+          hooks.onDeploymentRequestStarted(req, started, failed, immediately = false)
+        }
 
       // returned synchronously
       response.ok.json(Map("id" -> req.id))
