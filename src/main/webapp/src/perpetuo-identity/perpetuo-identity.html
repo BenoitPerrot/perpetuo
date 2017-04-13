@@ -1,5 +1,7 @@
 <link rel="import" href="../../bower_components/polymer/polymer.html"/>
 
+<link rel="import" href="../perpetuo-client/perpetuo-client.html">
+
 <dom-module id="perpetuo-identity">
   <script>
   Polymer({
@@ -9,8 +11,12 @@
       login: { type: String, notify: true, readOnly: true }
     },
 
+    created() {
+      this.client = new Perpetuo.Client();
+    },
+
     attached() {
-      this.ownerDocument.client.fetchIdentity().then(login => {
+      this.client.fetchIdentity().then(login => {
         this._setLogin(login);
       });
     },
@@ -21,7 +27,7 @@
         return m.set(kv[0], kv[1]);
       }, new Map());
 
-      this.ownerDocument.client.identify(query.get('access_token')).then(() => {
+      this.client.identify(query.get('access_token')).then(() => {
         window.location.replace(decodeURIComponent(query.get('state')));
       });
     }
