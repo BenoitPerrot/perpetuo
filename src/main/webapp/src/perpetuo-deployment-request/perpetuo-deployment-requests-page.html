@@ -65,6 +65,10 @@
 
     created() {
       this.client = new Perpetuo.Client();
+      this.deploymentRequestFilters = [];
+      this.deploymentRequestOrder = [];
+      this.deploymentRequestOffset = 0;
+      this.deploymentRequestLimit = 20;
     },
 
     attached() {
@@ -78,7 +82,12 @@
     },
 
     refresh() {
-      return this.client.fetchDeploymentRequests().then(deploymentRequests => {
+      return this.client.fetchDeploymentRequests({
+        where: this.deploymentRequestFilters,
+        orderBy: this.deploymentRequestOrder,
+        offset: this.deploymentRequestOffset,
+        limit: this.deploymentRequestLimit
+      }).then(deploymentRequests => {
         this.$.deploymentRequestTable.data = deploymentRequests;
         this.$.deploymentRequestTable.hasNextPage = this.client.hasMoreDeploymentRequests;
       });
@@ -89,13 +98,13 @@
     },
 
     onOrderChanged(e) {
-      this.client.deploymentRequestOrder = e.detail.order.map(_ => {
+      this.deploymentRequestOrder = e.detail.order.map(_ => {
         return {field: _.getAttribute('key'), desc: _.state === 'down'};
       });
     },
 
     onPageChanged() {
-      this.client.deploymentRequestOffset = (this.$.deploymentRequestTable.page - 1) * this.client.deploymentRequestLimit;
+      this.deploymentRequestOffset = (this.$.deploymentRequestTable.page - 1) * this.deploymentRequestLimit;
     },
 
     onOpenedChanged(e) {
@@ -104,7 +113,7 @@
 
     updateFilter(e) {
       const fieldName = e.target.getAttribute('key');
-      this.client.deploymentRequestFilters = e.target.chosen.map(v => {
+      this.deploymentRequestFilters = e.target.chosen.map(v => {
         return {'field': fieldName, 'equals': v};
       });
     },

@@ -29,8 +29,6 @@ this.Perpetuo.Client = this.Perpetuo.Client || (function () {
     constructor(host) {
       this.host = host;
 
-      this.deploymentRequestOffset = 0;
-      this.deploymentRequestLimit = 20;
       this.hasMoreDeploymentRequests = undefined; // Unknown until first request
     }
 
@@ -55,16 +53,12 @@ this.Perpetuo.Client = this.Perpetuo.Client || (function () {
       return jsonFetch('/api/auth/identity').then(r => r.json()).then(o => o.name).catch(() => null);
     }
 
-    fetchDeploymentRequests() {
-      const options = {
-        where: this.deploymentRequestFilters || [],
-        orderBy: this.deploymentRequestOrder || [],
-        limit: this.deploymentRequestLimit + 1, // Ask for one more element to know if more are available
-        offset: this.deploymentRequestOffset
-      };
+    fetchDeploymentRequests(options) {
+      options = Object.assign({ where: [], orderBy: [], limit: 20, offset: 0 }, options);
+      options.limit = options.limit + 1; // Ask for one more element to know if more are available TODO: remove
       return jsonFetch('/api/unstable/deployment-requests', { method: 'POST', body: JSON.stringify(options) })
         .then(_ => _.json()).then(deploymentRequests => {
-          this.hasMoreDeploymentRequests = deploymentRequests.length == options.limit;
+          this.hasMoreDeploymentRequests = deploymentRequests.length == options.limit; // TODO: handle in caller
           if (this.hasMoreDeploymentRequests) {
             deploymentRequests.pop();
           }
