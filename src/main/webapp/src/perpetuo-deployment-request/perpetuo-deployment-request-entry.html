@@ -4,6 +4,8 @@
 <link rel="import" href="../../bower_components/paper-button/paper-button.html">
 <link rel="import" href="../../bower_components/paper-icon-button/paper-icon-button.html">
 <link rel="import" href="../../bower_components/paper-material/paper-material.html">
+
+<link rel="import" href="../perpetuo-client/perpetuo-client.html">
 <link rel="import" href="../perpetuo-deployment-request/perpetuo-deployment-operation.html">
 
 <dom-module id="perpetuo-deployment-request-entry">
@@ -162,7 +164,7 @@
     },
 
     onStartTap() {
-      this.ownerDocument.client.startDeploymentRequest(this.data.id);
+      new Perpetuo.Client().startDeploymentRequest(this.data.id);
     }
   });
   </script>
