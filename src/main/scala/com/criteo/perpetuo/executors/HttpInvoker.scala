@@ -19,7 +19,7 @@ abstract class HttpInvoker(val host: String,
                            val name: String) extends ExecutorInvoker {
 
   // to implement in concrete classes
-  protected def buildRequest(operationName: String, executionId: Long, productName: String, version: Version, rawTarget: String, initiator: String): Request
+  protected def buildRequest(operationName: String, executionId: Long, productName: String, version: String, target: String, initiator: String): Request
   protected def getLogHref(executorAnswer: String): String
   protected def tryExtractMessage(status: Int, content: String): Option[String]
 
@@ -43,11 +43,8 @@ abstract class HttpInvoker(val host: String,
   override def toString: String = name
 
   override def trigger(operationName: String, executionId: Long, productName: String, version: Version, target: TargetExpr, initiator: String): Some[ScalaFuture[String]] = {
-    assert(!productName.contains("'"))
-    assert(!version.value.contains("'"))
-
     // todo: while we only deal with marathon target, we directly give the select dimension, and formatted differently
-    val req = buildRequest(operationName, executionId, productName, version, Target.getSimpleSelectExpr(target), initiator)
+    val req = buildRequest(operationName, executionId, productName, version.toString, Target.getSimpleSelectExpr(target), initiator)
 
     // trigger the job and return a future to the execution's log href
     Some(ScalaFuture {

@@ -4,7 +4,6 @@ import com.criteo.perpetuo.dispatchers.TargetDispatcherByPoset
 import com.criteo.perpetuo.executors.DummyInvoker
 import com.criteo.perpetuo.executors.ExecutorInvoker
 import com.criteo.perpetuo.executors.HttpInvoker
-import com.criteo.perpetuo.model.Version
 import com.twitter.finagle.http.Fields
 import com.twitter.finagle.http.Message$
 import com.twitter.finagle.http.Method
@@ -84,12 +83,14 @@ class RundeckInvoker extends HttpInvoker {
 
 
     @Override
-    Request buildRequest(String operationName, long executionId, String productName, Version version, String rawTarget, String initiator) {
-        def escapedTarget = jsonBuilder.toJson(rawTarget)
+    Request buildRequest(String operationName, long executionId, String productName, String version, String target, String initiator) {
+        def escapedProductName = jsonBuilder.toJson(productName)
+        def escapedVersion = jsonBuilder.toJson(version.toString())
+        def escapedTarget = jsonBuilder.toJson(target)
         def body = [
                 // before version 18 of Rundeck, we can't pass options in a structured way
                 "argString": // todo: remove 'environment'?
-                        "-environment $marathonEnv -callback-url '${callbackUrl(executionId)}' -product-name '$productName' -product-version '$version' -target $escapedTarget"
+                        "-environment $marathonEnv -callback-url '${callbackUrl(executionId)}' -product-name $escapedProductName -product-version $escapedVersion -target $escapedTarget"
         ]
         body = new JsonBuilder(body).toString()
         def jsonType = Message$.MODULE$.ContentTypeJson

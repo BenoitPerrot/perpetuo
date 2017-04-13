@@ -22,7 +22,7 @@ class RundeckInvokerSpec extends Test {
     assert(rundeckInvoker.getClass.getSimpleName == "RundeckInvoker")
     rundeckInvoker.client = request => {
       request.uri shouldEqual s"/api/16/job/deploy-to-marathon/executions?authtoken=my-super-secret-token"
-      request.contentString shouldEqual """{"argString":"-environment preprod -callback-url 'http://somewhere/api/execution-traces/42' -product-name 'MyBeautifulProject' -product-version 'the 42nd version' -target \"a,b\""}"""
+      request.contentString shouldEqual """{"argString":"-environment preprod -callback-url 'http://somewhere/api/execution-traces/42' -product-name \"My\\\"Beautiful\\\"Project\" -product-version \"the 42nd version\" -target \"a,b\""}"""
       val resp = Response(Status(statusCode))
       resp.write(content)
       Future.value(resp)
@@ -30,7 +30,7 @@ class RundeckInvokerSpec extends Test {
     val logHref = rundeckInvoker.trigger(
       Operation.deploy.toString,
       42,
-      "MyBeautifulProject",
+      "My\"Beautiful\"Project",
       Version("the 042nd version"),
       Set(TargetTerm(Set(JsObject("abc" -> JsString("def"), "ghi" -> JsNumber(51.3))), Set("a", "b"))),
       "guy next door"
