@@ -122,16 +122,8 @@
         }
       },
 
-      // TODO: not the appropriate place; move this to a dedicated component? <<
-      created() {
-        this.client = new Perpetuo.Client();
-
-        this.ownerDocument.client = this.client;
-      },
-      // >>
-
       onIdentityTap() {
-        this.ownerDocument.client.redirectToAuthorizeURL(window);
+        new Perpetuo.Client().redirectToAuthorizeURL(window);
       }
     });
   </script>
