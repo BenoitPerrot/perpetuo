@@ -37,14 +37,14 @@ class Execution @Inject()(val dbBinding: DbBinding) extends Logging {
     ).flatMap(
       // and only then, for each execution to do:
       Future.traverse(_) {
-        case ((executor, rawTarget), execId) =>
+        case ((executor, target), execId) =>
           // log the execution
           logger.debug(s"Triggering $operation job for execution #$execId of ${deploymentRequest.product.name} v. ${deploymentRequest.version} on $executor")
           // trigger the execution
           executor.trigger(
             operation.toString, execId,
             deploymentRequest.product.name, deploymentRequest.version,
-            rawTarget,
+            target,
             deploymentRequest.creator
           ).map(
             // if that answers a log href, update the trace with it, and consider that the job
@@ -65,7 +65,7 @@ class Execution @Inject()(val dbBinding: DbBinding) extends Logging {
           ).getOrElse(
             Future.successful((true, "succeeded (but with an unknown log href)"))
           ).map { case (succeeded, identifier) =>
-            logExecution(identifier, execId, executor, rawTarget)
+            logExecution(identifier, execId, executor, target)
             succeeded
           }
       }.map { statuses =>
@@ -75,13 +75,13 @@ class Execution @Inject()(val dbBinding: DbBinding) extends Logging {
     )
   }
 
-  def dispatch(dispatcher: TargetDispatcher, target: TargetExpr): Iterable[(ExecutorInvoker, String)] =
+  def dispatch(dispatcher: TargetDispatcher, target: TargetExpr): Iterable[(ExecutorInvoker, TargetExpr)] =
     dispatchAlternatives(dispatcher, target).map {
       // return the shortest target expression for the executor
-      case (executor, expressions) => (executor, expressions.minBy(_.length))
+      case (executor, expressions) => (executor, expressions.minBy(_.toJson.compactPrint.length))
     }
 
-  def dispatchAlternatives(dispatcher: TargetDispatcher, target: TargetExpr): Iterable[(ExecutorInvoker, Set[String])] = {
+  def dispatchAlternatives(dispatcher: TargetDispatcher, target: TargetExpr): Iterable[(ExecutorInvoker, Set[TargetExpr])] = {
     def groupOn1[A, B](it: Iterable[(A, B)]): Iterable[(A, Set[B])] =
       it.groupBy(_._1).map { case (k, v) => (k, v.map(_._2).toSet) }
 
@@ -109,12 +109,11 @@ class Execution @Inject()(val dbBinding: DbBinding) extends Logging {
         groupOn2(groupOn1(execGroup)).map(TargetTerm.tupled), // either first by "select word" then grouping these words by common "tactics"
         groupOn2(groupOn2(execGroup)).map(_.swap).map(TargetTerm.tupled) // or first by tactic then grouping the tactics by common "select"
       )
-      // create the JSON rendering for both alternatives and return them both
-      (executor, alternatives.map(_.toJson.compactPrint).toSet)
+      (executor, alternatives.map(_.toSet).toSet)
     }
   }
 
-  protected def logExecution(identifier: String, execId: Long, executor: ExecutorInvoker, rawTarget: String): Unit = {
-    logger.debug(s"Triggering job $identifier for execution #$execId: $executor <- $rawTarget")
+  protected def logExecution(identifier: String, execId: Long, executor: ExecutorInvoker, target: TargetExpr): Unit = {
+    logger.debug(s"Triggering job $identifier for execution #$execId: $executor <- ${target.toJson.compactPrint}")
   }
 }

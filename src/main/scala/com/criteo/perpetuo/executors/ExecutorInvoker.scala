@@ -1,6 +1,7 @@
 package com.criteo.perpetuo.executors
 
 import com.criteo.perpetuo.config.AppConfig
+import com.criteo.perpetuo.dispatchers.TargetExpr
 import com.criteo.perpetuo.model.Version
 import com.twitter.inject.Logging
 
@@ -13,7 +14,7 @@ abstract class ExecutorInvoker {
 
   protected def callbackUrl(executionId: Long): String = s"${ExecutorInvoker.selfUrl}/api/execution-traces/$executionId"
 
-  def trigger(operationName: String, executionId: Long, productName: String, version: Version, rawTarget: String, initiator: String): Option[Future[String]]
+  def trigger(operationName: String, executionId: Long, productName: String, version: Version, target: TargetExpr, initiator: String): Option[Future[String]]
 
   def getExecutionDetailsUrlIfApplicable(logHref: String): Option[String] = None
 }
@@ -43,7 +44,7 @@ object ExecutorInvoker {
 class DummyInvoker(name: String) extends ExecutorInvoker with Logging {
   override def toString: String = name
 
-  override def trigger(operationName: String, executionId: Long, productName: String, version: Version, rawTarget: String, initiator: String): Option[Future[String]] = {
+  override def trigger(operationName: String, executionId: Long, productName: String, version: Version, target: TargetExpr, initiator: String): Option[Future[String]] = {
     logger.info(s"Hi, I'm $name! I will run operation #$executionId on behalf of: $initiator")
     None
   }

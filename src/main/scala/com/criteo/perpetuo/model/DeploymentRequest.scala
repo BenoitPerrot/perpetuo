@@ -19,6 +19,10 @@ trait ParsedTarget {
   }
 }
 
+object Target {
+  def getSimpleSelectExpr(target: TargetExpr): String = target.flatMap(_.select).mkString(",")
+}
+
 
 class DeploymentRequestAttrs(val productName: String,
                              val version: Version,

@@ -2,17 +2,16 @@ package com.criteo.perpetuo.executors
 
 import java.net.InetSocketAddress
 
-import com.criteo.perpetuo.model.Version
+import com.criteo.perpetuo.dispatchers.TargetExpr
+import com.criteo.perpetuo.model.{Target, Version}
 import com.twitter.conversions.time._
 import com.twitter.finagle.builder.ClientBuilder
 import com.twitter.finagle.http._
 import com.twitter.finagle.service.{Backoff, RetryPolicy}
 import com.twitter.util.{Await, Duration, Future => TwitterFuture, TimeoutException => TwitterTimeout, Try => TwitterTry}
-import spray.json._
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.{Future => ScalaFuture, TimeoutException => ScalaTimeout}
-import scala.util.Try
 
 
 abstract class HttpInvoker(val host: String,
@@ -43,21 +42,12 @@ abstract class HttpInvoker(val host: String,
 
   override def toString: String = name
 
-  override def trigger(operationName: String, executionId: Long, productName: String, version: Version, rawTarget: String, initiator: String): Some[ScalaFuture[String]] = {
-    // todo: while we only deal with marathon target, we directly give the select dimension, and formatted differently
-    val degenerateTarget = Try(
-      rawTarget.parseJson
-        .asInstanceOf[JsArray].elements.head
-        .asJsObject.fields("select")
-        .asInstanceOf[JsArray].elements
-        .map(_.asInstanceOf[JsString].value)
-        .mkString(","))
-      .getOrElse(rawTarget) // todo: remove it
-
+  override def trigger(operationName: String, executionId: Long, productName: String, version: Version, target: TargetExpr, initiator: String): Some[ScalaFuture[String]] = {
     assert(!productName.contains("'"))
     assert(!version.value.contains("'"))
 
-    val req = buildRequest(operationName, executionId, productName, version, degenerateTarget, initiator)
+    // todo: while we only deal with marathon target, we directly give the select dimension, and formatted differently
+    val req = buildRequest(operationName, executionId, productName, version, Target.getSimpleSelectExpr(target), initiator)
 
     // trigger the job and return a future to the execution's log href
     Some(ScalaFuture {

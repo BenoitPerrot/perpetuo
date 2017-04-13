@@ -24,16 +24,16 @@ class ExecutionSpec extends Test with TestDb {
   import TestSuffixDispatcher._
 
   private val dummyCounter = Stream.from(1).toIterator
-  private val execLogs: ConcurrentMap[ExecutorInvoker, String] = new TrieMap()
+  private val execLogs: ConcurrentMap[ExecutorInvoker, TargetExpr] = new TrieMap()
   private val execution = new Execution(new DbBinding(dbContext)) {
-    override protected def logExecution(identifier: String, execId: Long, executor: ExecutorInvoker, rawTarget: String): Unit = {
-      execLogs.put(executor, rawTarget).map(prev => fail(s"Logs say the executor has $rawTarget to do, but it already has $prev to do!"))
+    override protected def logExecution(identifier: String, execId: Long, executor: ExecutorInvoker, target: TargetExpr): Unit = {
+      execLogs.put(executor, target).map(prev => fail(s"Logs say the executor has ${target.toJson.compactPrint} to do, but it already has $prev to do!"))
     }
   }
 
   object DummyInvokerWithLogHref extends DummyInvoker("DummyWithLogHref") {
-    override def trigger(operationName: String, executionId: Long, productName: String, version: Version, rawTarget: String, initiator: String): Option[Future[String]] = {
-      assert(super.trigger(operationName, executionId, productName, version, rawTarget, initiator).isEmpty)
+    override def trigger(operationName: String, executionId: Long, productName: String, version: Version, target: TargetExpr, initiator: String): Option[Future[String]] = {
+      assert(super.trigger(operationName, executionId, productName, version, target, initiator).isEmpty)
       Some(Future.successful(s"#${dummyCounter.next}"))
     }
   }
@@ -68,16 +68,13 @@ class ExecutionSpec extends Test with TestDb {
     private val request = new DeploymentRequestAttrs(product.name, Version("v42"), rawTarget, "No fear", "c.norris", new Timestamp(123456789))
     private val depReq = execution.dbBinding.insert(request)
 
-    private def parse(it: Iterable[(ExecutorInvoker, String)]): Iterable[(ExecutorInvoker, TargetExpr)] =
-      it.map { case (exec, raw) => (exec, parseTargetExpression(raw.parseJson)) }
-
     def dispatchedAs(that: Iterable[(ExecutorInvoker, TargetExpr)]): Unit = {
-      parse(execution.dispatch(TestSuffixDispatcher, target)) should contain theSameElementsAs that
+      execution.dispatch(TestSuffixDispatcher, target) should contain theSameElementsAs that
 
       execLogs.clear()
       Await.result(
         depReq.flatMap(execution.startOperation(TestSuffixDispatcher, _, Operation.deploy).map(_ =>
-          parse(execLogs) should contain theSameElementsAs that
+          execLogs should contain theSameElementsAs that
         )),
         1.second
       )
@@ -212,10 +209,7 @@ class ExecutionSpec extends Test with TestDb {
         TargetTerm(Set(JsObject("ratio" -> JsNumber(0.05))), Set("oo-baz")),
         TargetTerm(Set(JsObject("ratio" -> JsNumber(0.05))), Set("foo-baz")),
         TargetTerm(select = Set("o-baz"))
-      )).map {
-        case (executor, representations) =>
-          (executor, representations.map(repr => parseTargetExpression(repr.parseJson)))
-      } should contain theSameElementsAs Map(
+      )) should contain theSameElementsAs Map(
         fooInvoker -> Alternatives(
           Set(
             TargetTerm(Set(JsObject("ratio" -> JsNumber(0.05), "foo" -> JsString("bar"))), Set("-baz")),
@@ -253,8 +247,6 @@ class ExecutionSpec extends Test with TestDb {
       val dispatchedTargets = execution
         .dispatch(DummyTargetDispatcher, targetWithDuplicates)
         .map(_._2)
-        .map(_.parseJson)
-        .map(parseTargetExpression)
       dispatchedTargets should contain theSameElementsAs Seq(
         Set(
           TargetTerm(Set(JsObject("foo" -> JsString("bar"), "bar" -> JsString("baz"))), Set("abc", "def", "ghi")),

@@ -1,11 +1,12 @@
 package com.criteo.perpetuo.executors
 
 import com.criteo.perpetuo.config.{AppConfig, Plugins}
-import com.criteo.perpetuo.dispatchers.TargetDispatcher
+import com.criteo.perpetuo.dispatchers.{TargetDispatcher, TargetTerm}
 import com.criteo.perpetuo.model.{Operation, Version}
 import com.twitter.finagle.http.{Response, Status}
 import com.twitter.inject.Test
 import com.twitter.util.Future
+import spray.json._
 
 import scala.concurrent.Await
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -21,7 +22,7 @@ class RundeckInvokerSpec extends Test {
     assert(rundeckInvoker.getClass.getSimpleName == "RundeckInvoker")
     rundeckInvoker.client = request => {
       request.uri shouldEqual s"/api/16/job/deploy-to-marathon/executions?authtoken=my-super-secret-token"
-      request.contentString shouldEqual """{"argString":"-environment preprod -callback-url 'http://somewhere/api/execution-traces/42' -product-name 'MyBeautifulProject' -product-version 'the 42nd version' -target \"{\\\"abc\\\": [\\\"def\\\", 42], \\\"ghi\\\": 51.3}\""}"""
+      request.contentString shouldEqual """{"argString":"-environment preprod -callback-url 'http://somewhere/api/execution-traces/42' -product-name 'MyBeautifulProject' -product-version 'the 42nd version' -target \"a,b\""}"""
       val resp = Response(Status(statusCode))
       resp.write(content)
       Future.value(resp)
@@ -31,7 +32,7 @@ class RundeckInvokerSpec extends Test {
       42,
       "MyBeautifulProject",
       Version("the 042nd version"),
-      """{"abc": ["def", 42], "ghi": 51.3}""",
+      Set(TargetTerm(Set(JsObject("abc" -> JsString("def"), "ghi" -> JsNumber(51.3))), Set("a", "b"))),
       "guy next door"
     )
     logHref shouldBe defined
