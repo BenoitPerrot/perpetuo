@@ -81,7 +81,7 @@
       }).apply(this);
     },
 
-    refresh() {
+    refresh(forced) {
       return this.client.fetchDeploymentRequests({
         where: this.deploymentRequestFilters,
         orderBy: this.deploymentRequestOrder,
@@ -90,6 +90,9 @@
       }).then(deploymentRequests => {
         this.$.deploymentRequestTable.data = deploymentRequests;
         this.$.deploymentRequestTable.hasNextPage = this.client.hasMoreDeploymentRequests;
+        if (forced) {
+          this.$.deploymentRequestTable.page = 1;
+        }
       });
     },
 
@@ -101,7 +104,7 @@
       this.deploymentRequestOrder = e.detail.order.map(_ => {
         return {field: _.getAttribute('key'), desc: _.state === 'down'};
       });
-      this.refresh();
+      this.refresh(true);
     },
 
     onPageChanged() {
@@ -118,7 +121,7 @@
       this.deploymentRequestFilters = e.target.chosen.map(v => {
         return {'field': fieldName, 'equals': v};
       });
-      this.refresh();
+      this.refresh(true);
     },
 
   });
