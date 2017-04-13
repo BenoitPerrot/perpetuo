@@ -101,10 +101,12 @@
       this.deploymentRequestOrder = e.detail.order.map(_ => {
         return {field: _.getAttribute('key'), desc: _.state === 'down'};
       });
+      this.refresh();
     },
 
     onPageChanged() {
       this.deploymentRequestOffset = (this.$.deploymentRequestTable.page - 1) * this.deploymentRequestLimit;
+      this.refresh();
     },
 
     onOpenedChanged(e) {
@@ -116,6 +118,7 @@
       this.deploymentRequestFilters = e.target.chosen.map(v => {
         return {'field': fieldName, 'equals': v};
       });
+      this.refresh();
     },
 
   });
