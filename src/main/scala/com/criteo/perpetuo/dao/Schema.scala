@@ -39,6 +39,9 @@ class DbBinding @Inject()(val dbContext: DbContext)
       val value = spec.getOrElse("equals", throw new IllegalArgumentException(s"Filters tests must be `equals`"))
       val fieldName = spec.getOrElse("field", throw new IllegalArgumentException(s"Filters must specify ̀`field`"))
       fieldName match {
+        case "id" => try queries.filter(_._1.id === value.asInstanceOf[Number].longValue) catch {
+          case _: NullPointerException | _: ClassCastException => throw new IllegalArgumentException("Filters on `id` must test against a number")
+        }
         case "productName" => try queries.filter(_._2.name === value.asInstanceOf[String]) catch {
           case _: ClassCastException => throw new IllegalArgumentException("Filters on `productName` must test against a string value")
         }

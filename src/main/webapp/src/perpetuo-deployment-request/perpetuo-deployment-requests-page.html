@@ -59,6 +59,8 @@
     properties: {
       selected: { type: Number, value: 0 },
 
+      deploymentRequestId: { type: String, observer: 'onDeploymentRequestIdChanged' },
+
       dateFormat: {type: String, value: 'timestampToUTCDate'},
       productNames: {type: Array, value: () => []},
     },
@@ -98,6 +100,11 @@
 
     openCreationForm() {
       this.$.creationForm.open();
+    },
+
+    onDeploymentRequestIdChanged(id) {
+      this.deploymentRequestFilters = id ? [ {'field': 'id', 'equals': parseInt(id)} ] : [];
+      this.refresh(true);
     },
 
     onOrderChanged(e) {

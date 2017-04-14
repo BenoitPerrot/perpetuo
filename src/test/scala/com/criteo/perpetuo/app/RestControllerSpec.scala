@@ -486,6 +486,15 @@ class RestControllerSpec extends FeatureTest with TestDb {
   }
 
   "Deep query" should {
+
+    "select single one" in {
+      val allDepReqs = deepGetDepReq()
+      allDepReqs.length should be > 2
+
+      val depReqsForSingle = deepGetDepReq(where = Seq(Map("field" -> JsString("id"), "equals" -> JsNumber(1))))
+      depReqsForSingle.length shouldBe 1
+    }
+
     "display correctly formatted versions" in {
       val depReqs = deepGetDepReq()
       depReqs.map(_ ("version").asInstanceOf[JsString].value) shouldEqual Vector(
