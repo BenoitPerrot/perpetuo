@@ -11,8 +11,9 @@
     <appender-ref ref="STDOUT"/>
   </root>
 
+  <logger name="freeslick.profile.utils" level="INFO"/>
   <logger name="groovyx.net.http" level="INFO"/>
   <logger name="org.apache" level="INFO"/>
-  <logger name="slick" level="WARN"/>
+  <logger name="slick" level="INFO"/>
 
 </configuration>
