@@ -135,7 +135,7 @@ class RestController @Inject()(val execution: Execution)
           // first, log the user's general intent
           val futureDepReq = execution.dbBinding.insert(attrs)
           // when the record is created, notify the corresponding hook
-          futureDepReq.foreach(hooks.onDeploymentRequestCreated)
+          futureDepReq.foreach(hooks.onDeploymentRequestCreated(_, immediateStart = autoStart))
 
           if (autoStart) {
             futureDepReq.flatMap(depReq =>

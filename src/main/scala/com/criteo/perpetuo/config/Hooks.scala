@@ -14,7 +14,7 @@ class Hooks {
   /**
     * Methods that can be overridden as hooks.
     */
-  def onDeploymentRequestCreated(deploymentRequest: DeploymentRequest): Unit = {}
+  def onDeploymentRequestCreated(deploymentRequest: DeploymentRequest, immediateStart: Boolean): Unit = {}
 
   def onDeploymentRequestStarted(deploymentRequest: DeploymentRequest, startedExecutions: Int, failedToStart: Int, immediately: Boolean): Unit = {}
 
@@ -34,8 +34,8 @@ class Hooks {
 private[config] class HookMethods(implementation: Option[Hooks]) extends Hooks {
   private val hooks: Hooks = implementation.getOrElse(new Hooks)
 
-  override def onDeploymentRequestCreated(deploymentRequest: DeploymentRequest): Unit =
-    wrap("onDeploymentRequestCreated", deploymentRequest)
+  override def onDeploymentRequestCreated(deploymentRequest: DeploymentRequest, immediateStart: Boolean): Unit =
+    wrap("onDeploymentRequestCreated", deploymentRequest, immediateStart)
 
   override def onDeploymentRequestStarted(deploymentRequest: DeploymentRequest, startedExecutions: Int, failedToStart: Int, immediately: Boolean): Unit =
     wrap("onDeploymentRequestStarted", deploymentRequest, startedExecutions, failedToStart, immediately)
