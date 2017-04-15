@@ -1,0 +1,70 @@
+<link rel="import" href="../../bower_components/polymer/polymer.html">
+
+<link rel="import" href="../../bower_components/paper-checkbox/paper-checkbox.html">
+<link rel="import" href="../../bower_components/paper-radio-button/paper-radio-button.html">
+<link rel="import" href="../../bower_components/paper-radio-group/paper-radio-group.html">
+
+<dom-module id="perpetuo-criteo-target-expression-editor">
+  <style>
+  :host {
+    display: flex;
+    flex-direction: column;
+  }
+  .dc-selector {
+    display: flex;
+    flex-direction: column;
+  }
+  .dc-free-selector {
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+    margin-left: 3em;
+  }
+  .dc-free-selector > paper-checkbox {
+    margin-bottom: 0.5em;
+  }
+  </style>
+  <template>
+    <p style="font-size:16px; margin:0 0 0.5em 0;">Target</p>
+    <paper-radio-group class="dc-selector" selected="{{dcSelectionMode}}">
+      <paper-radio-button name="allConfigured">All configured data centers</paper-radio-button>
+      <paper-radio-button name="freeSelection">Free selection</paper-radio-button>
+      <div class="dc-free-selector">
+        <paper-checkbox disabled="[[!isFreeSelectionMode]]" dc="par">Paris (par)</paper-checkbox>
+        <paper-checkbox disabled="[[!isFreeSelectionMode]]" dc="am5">Amsterdam (am5)</paper-checkbox>
+        <paper-checkbox disabled="[[!isFreeSelectionMode]]" dc="ny8">New York (ny8)</paper-checkbox>
+        <paper-checkbox disabled="[[!isFreeSelectionMode]]" dc="sv6">Sunnyvale (sv6)</paper-checkbox>
+        <paper-checkbox disabled="[[!isFreeSelectionMode]]" dc="va1">Ashburn (va1)</paper-checkbox>
+        <paper-checkbox disabled="[[!isFreeSelectionMode]]" dc="hk5">Hong Kong (hk5)</paper-checkbox>
+        <paper-checkbox disabled="[[!isFreeSelectionMode]]" dc="sh5">Shanghai (sh5)</paper-checkbox>
+        <paper-checkbox disabled="[[!isFreeSelectionMode]]" dc="ty5">Tokyo (ty5)</paper-checkbox>
+      </div>
+    </paper-radio-group>
+  </template>
+  <script>
+  Polymer({
+    is: 'perpetuo-criteo-target-expression-editor',
+
+    properties: {
+      dcSelectionMode: { type: String, value: 'allConfigured' },
+      isFreeSelectionMode: {type: Boolean, computed: 'computeIsFreeSelectionMode(dcSelectionMode)'},
+    },
+
+    computeIsFreeSelectionMode(dcSelectionMode) {
+      return dcSelectionMode === 'freeSelection';
+    },
+
+    get value() {
+      switch (this.dcSelectionMode) {
+        case 'allConfigured':
+          return '*';
+        case 'freeSelection':
+          return Array.from(this.querySelectorAll('.dc-free-selector > paper-checkbox[checked]'))
+                      .map(_ => _.getAttribute('dc'))
+                      .join(',');
+      }
+      throw 'Should not be there';
+    }
+  });
+  </script>
+</dom-module>
