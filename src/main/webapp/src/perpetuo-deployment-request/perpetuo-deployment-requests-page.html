@@ -36,9 +36,11 @@
   }
   </style>
   <template>
+    <perpetuo-identity id="identity" login="{{login}}"></perpetuo-identity>
+
     <div class="toolbox">
       <div>
-        <paper-button raised id="deployment-requester" on-tap="openCreationForm">Request Deployment</paper-button>
+        <paper-button raised id="deployment-requester" on-tap="onCreateTap">Request Deployment</paper-button>
         <paper-radio-group selected="{{dateFormat}}">
           <paper-radio-button name="timestampToUTCDate">Time in UTC</paper-radio-button>
           <paper-radio-button name="timestampToLocalDate">Local time</paper-radio-button>
@@ -57,6 +59,8 @@
     is: 'perpetuo-deployment-requests-page',
 
     properties: {
+      login: String,
+
       selected: { type: Number, value: 0 },
 
       deploymentRequestId: { type: String, observer: 'onDeploymentRequestIdChanged' },
@@ -98,8 +102,12 @@
       });
     },
 
-    openCreationForm() {
-      this.$.creationForm.open();
+    onCreateTap() {
+      if (this.login) {
+        this.$.creationForm.open();
+      } else {
+        this.$.identity.request();
+      }
     },
 
     onDeploymentRequestIdChanged(id) {
