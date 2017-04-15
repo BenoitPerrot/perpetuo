@@ -62,7 +62,7 @@
     }
     </style>
 
-    <perpetuo-identity login="{{login}}"></perpetuo-identity>
+    <perpetuo-identity id="identity" login="{{login}}"></perpetuo-identity>
 
     <app-location route="{{route}}"></app-location>
     <app-route route="{{route}}" pattern="/identify" data="{{routeData}}" tail="{{subroute}}" on-active-changed="onIdentifyActiveChanged"></app-route>
@@ -108,7 +108,7 @@
 
       onIdentifyActiveChanged(e) {
         if (e.detail.value) {
-          this.$$('perpetuo-identity').acknownledge();
+          this.$.identity.acknownledge();
         }
       },
 
@@ -125,7 +125,7 @@
       },
 
       onIdentityTap() {
-        this.$$('perpetuo-identity').request();
+        this.$.identity.request();
       }
     });
   </script>
