@@ -3,6 +3,12 @@
 <link rel="import" href="../perpetuo-client/perpetuo-client.html">
 
 <dom-module id="perpetuo-identity">
+  <style>
+  :host {
+    display: none;
+  }
+  </style>
+  <template></template>
   <script>
   Polymer({
     is: 'perpetuo-identity',
@@ -21,7 +27,7 @@
       });
     },
 
-    identify() {
+    acknownledge() {
       const query = window.location.hash.slice(1).split('&').reduce((m, p) => {
         const kv = p.split('=');
         return m.set(kv[0], kv[1]);
@@ -30,6 +36,10 @@
       this.client.identify(query.get('access_token')).then(() => {
         window.location.replace(decodeURIComponent(query.get('state')));
       });
+    },
+
+    request() {
+      this.client.redirectToAuthorizeURL(window);
     }
   })
   </script>

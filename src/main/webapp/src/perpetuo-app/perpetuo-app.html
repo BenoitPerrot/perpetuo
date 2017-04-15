@@ -108,7 +108,7 @@
 
       onIdentifyActiveChanged(e) {
         if (e.detail.value) {
-          this.$$('perpetuo-identity').identify();
+          this.$$('perpetuo-identity').acknownledge();
         }
       },
 
@@ -125,7 +125,7 @@
       },
 
       onIdentityTap() {
-        new Perpetuo.Client().redirectToAuthorizeURL(window);
+        this.$$('perpetuo-identity').request();
       }
     });
   </script>
