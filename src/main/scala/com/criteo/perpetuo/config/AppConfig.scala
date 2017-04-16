@@ -1,6 +1,6 @@
 package com.criteo.perpetuo.config
 
-import com.typesafe.config.{Config, ConfigFactory, ConfigObject}
+import com.typesafe.config.{Config, ConfigFactory, ConfigObject, ConfigValue}
 
 
 abstract class BaseAppConfig {
@@ -38,4 +38,11 @@ abstract class RootAppConfig extends BaseAppConfig {
 
 object AppConfig extends RootAppConfig {
   override protected lazy val config: Config = ConfigFactory.load("com/criteo/perpetuo/application.conf")
+
+  def withValue(path: String, value: ConfigValue): RootAppConfig = {
+    val newConfig = config.withValue(path, value)
+    new RootAppConfig {
+      override protected val config: Config = newConfig
+    }
+  }
 }

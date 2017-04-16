@@ -6,6 +6,7 @@ import com.criteo.perpetuo.model.{Operation, Version}
 import com.twitter.finagle.http.{Response, Status}
 import com.twitter.inject.Test
 import com.twitter.util.Future
+import com.typesafe.config.ConfigValueFactory
 import spray.json._
 
 import scala.concurrent.Await
@@ -15,9 +16,9 @@ import scala.concurrent.duration._
 
 class RundeckInvokerSpec extends Test {
   private def testWhenResponseIs(statusCode: Int, content: String) = {
-    val cls = Plugins.loadClassFromGroovy(AppConfig.get("plugins.dispatcher"))
-    val constructor = cls.getConstructors.filter(_.getParameterCount == 1).head
-    val dispatcher = constructor.newInstance("local").asInstanceOf[TargetDispatcher]
+    val testEnv = ConfigValueFactory.fromAnyRef("local")
+    val plugins = new Plugins(AppConfig.withValue("env", testEnv))
+    val dispatcher = plugins.instantiateFromGroovy[TargetDispatcher](AppConfig.get("plugins.dispatcher"))
     val rundeckInvoker = dispatcher.assign("foo").head.asInstanceOf[HttpInvoker]
     assert(rundeckInvoker.getClass.getSimpleName == "RundeckInvoker")
     rundeckInvoker.client = request => {

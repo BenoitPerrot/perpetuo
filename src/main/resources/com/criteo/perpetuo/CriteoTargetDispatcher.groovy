@@ -1,4 +1,4 @@
-import com.criteo.perpetuo.config.AppConfig$
+import com.criteo.perpetuo.config.RootAppConfig
 import com.criteo.perpetuo.dispatchers.ExecutorsByPoset
 import com.criteo.perpetuo.dispatchers.TargetDispatcherByPoset
 import com.criteo.perpetuo.executors.DummyInvoker
@@ -20,15 +20,12 @@ import scala.Some
 /* first, the class exposed to actually configure Perpetuo */
 
 class CriteoTargetDispatcher extends TargetDispatcherByPoset {
-    CriteoTargetDispatcher() {
-        super(getExecutors(AppConfig$.MODULE$.env))
+    CriteoTargetDispatcher(RootAppConfig appConfig) {
+        super(getExecutors(appConfig))
     }
 
-    CriteoTargetDispatcher(String env) {
-        super(getExecutors(env))
-    }
-
-    private static ExecutorsByPoset getExecutors(String env) {
+    private static ExecutorsByPoset getExecutors(RootAppConfig appConfig) {
+        def env = appConfig.env()
         Map<String, ExecutorInvoker> executorMap
         switch (env) {
             case 'test':
@@ -39,12 +36,12 @@ class CriteoTargetDispatcher extends TargetDispatcherByPoset {
             case 'local':
                 def rundeckPort = (System.getenv("RD_PORT") ?: "4440")
                 executorMap = [
-                        '*': new RundeckInvoker("localhost", rundeckPort as int, "preprod")
+                        '*': new RundeckInvoker("localhost", rundeckPort as int, "preprod", appConfig)
                 ]
                 break
             default:
                 executorMap = [
-                        '*': new RundeckInvoker("rundeck.central.criteo.${env}", 443, env)
+                        '*': new RundeckInvoker("rundeck.central.criteo.${env}", 443, env, appConfig)
                 ]
         }
 
@@ -56,18 +53,17 @@ class CriteoTargetDispatcher extends TargetDispatcherByPoset {
 class RundeckInvoker extends HttpInvoker {
     String host
     String marathonEnv
+    private String authToken
 
-    RundeckInvoker(String host, int port, String marathonEnv) {
+    RundeckInvoker(String host, int port, String marathonEnv, RootAppConfig appConfig) {
         super(host, port, 'rundeck')
         this.marathonEnv = marathonEnv
+        this.authToken = appConfig.under("tokens").get(name())
     }
 
     // how Rundeck is currently configured
     private static String jobName(String operationName) { "deploy-to-marathon" }
     private int apiVersion = 16
-
-    // authentication
-    private String authToken = AppConfig$.MODULE$.under("tokens").get(name())
 
     // Rundeck's API
     private String authenticated(String path) { "$path?authtoken=$authToken" }

@@ -6,17 +6,19 @@ import javax.script.{ScriptEngine, ScriptEngineManager}
 import com.criteo.perpetuo.dispatchers.TargetDispatcher
 
 
-object Plugins {
-  lazy val dispatcher: TargetDispatcher = loadClassFromGroovy(AppConfig.get("plugins.dispatcher")).newInstance()
-  lazy val hooks: HookMethods = new HookMethods(AppConfig.tryGet("plugins.hooks").map(loadClassFromGroovy[Hooks](_: String).newInstance()))
+class Plugins(appConfig: BaseAppConfig = AppConfig) {
+  lazy val dispatcher: TargetDispatcher = instantiateFromGroovy(AppConfig.get("plugins.dispatcher"))
+  lazy val hooks: HookMethods = new HookMethods(AppConfig.tryGet("plugins.hooks").map(instantiateFromGroovy[Hooks](_: String)))
 
 
   private val factory = new ScriptEngineManager
-  private val engine: ScriptEngine = factory.getEngineByName("groovy")
+  private val engine: ScriptEngine = factory.getEngineByName("groovy") // todo? use GroovyScriptEngine
   assert(engine != null)
 
-  def loadClassFromGroovy[T](scriptPath: String): Class[T] = {
+  def instantiateFromGroovy[T](scriptPath: String): T = {
     val resource = getClass.getResource(scriptPath)
-    engine.eval(new InputStreamReader(resource.openStream())).asInstanceOf[Class[T]]
+    val cls = engine.eval(new InputStreamReader(resource.openStream())).asInstanceOf[Class[T]]
+    val ctor = cls.getConstructor(classOf[RootAppConfig])
+    ctor.newInstance(appConfig)
   }
 }

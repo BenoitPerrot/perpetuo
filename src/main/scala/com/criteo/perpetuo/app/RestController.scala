@@ -54,8 +54,9 @@ class RestController @Inject()(val execution: Execution)
   extends BaseController {
 
   private val futurePool = FuturePools.unboundedPool("RequestFuturePool")
-  private val dispatcher = Plugins.dispatcher // force the load at application start
-  private val hooks = Plugins.hooks // force the load at application start
+  private val plugins = new Plugins()
+  plugins.dispatcher // force the load at application start (we must define those as lazy anyway)
+  plugins.hooks // force the load at application start
   private val deployBotName = "qabot"
   private val escalationTeamNames = List(
     "d.caroff", "e.peroumalnaik", "g.bourguignon", "m.runtz", "m.molongo",
@@ -135,13 +136,13 @@ class RestController @Inject()(val execution: Execution)
           // first, log the user's general intent
           val futureDepReq = execution.dbBinding.insert(attrs)
           // when the record is created, notify the corresponding hook
-          futureDepReq.foreach(hooks.onDeploymentRequestCreated(_, immediateStart = autoStart))
+          futureDepReq.foreach(plugins.hooks.onDeploymentRequestCreated(_, immediateStart = autoStart))
 
           if (autoStart) {
             futureDepReq.flatMap(depReq =>
-              execution.startOperation(dispatcher, depReq, Operation.deploy).map { case (started, failed) => (depReq, started, failed) }
+              execution.startOperation(plugins.dispatcher, depReq, Operation.deploy).map { case (started, failed) => (depReq, started, failed) }
             ).foreach { case (depReq, started, failed) =>
-              hooks.onDeploymentRequestStarted(depReq, started, failed, immediately = true)
+              plugins.hooks.onDeploymentRequestStarted(depReq, started, failed, immediately = true)
             }
           }
 
@@ -157,9 +158,9 @@ class RestController @Inject()(val execution: Execution)
   private def putDeploymentRequest(id: Long, r: RequestWithId) = {
     execution.dbBinding.findDeploymentRequestByIdWithProduct(id).map(_.map { req =>
       // done asynchronously
-      execution.startOperation(dispatcher, req, Operation.deploy)
+      execution.startOperation(plugins.dispatcher, req, Operation.deploy)
         .foreach { case (started, failed) =>
-          hooks.onDeploymentRequestStarted(req, started, failed, immediately = false)
+          plugins.hooks.onDeploymentRequestStarted(req, started, failed, immediately = false)
         }
 
       // returned synchronously
