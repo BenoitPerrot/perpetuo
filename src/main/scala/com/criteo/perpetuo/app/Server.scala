@@ -22,7 +22,7 @@ object CustomServerModules {
   * development cycle (indeed, by default, assets will be served as resources, meaning that the server must be
   * stopped then recompiled before any modified asset is actually served). To do that, just add the following
   * options to the command line:
-  *   -DselfUrl=http://localhost:8989 -Dtokens.rundeck=user_token -Dauth.jwt.secret=itest-jwt-secret
+  *   -DselfUrl=http://localhost:8989 -Dtokens.rundeck=user_token -Dauth.jwt.secret=itest-jwt-secret -Djira.user=qabot -Djira.password=***
   *   -local.doc.root=src/main/webapp
   *
   * Notably in IntelliJ, "Edit the run/debug Configurations", set the "Working Directory" to the actual root of
