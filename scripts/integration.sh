@@ -15,8 +15,7 @@ if [ -d ${sandbox_dir}/.git ]
 then
     cd ${sandbox_dir}
     git clean -f
-    git fetch -q origin master
-    git checkout -q FETCH_HEAD
+    git fetch -q origin master && git checkout -q FETCH_HEAD || true
 else
     rm -rf ${sandbox_dir}
     echo Fetching ${RUNDECK_REPO}
