@@ -3,10 +3,11 @@ package com.criteo.perpetuo.config
 import java.io.InputStreamReader
 import javax.script.{ScriptEngine, ScriptEngineManager}
 
+import com.criteo.perpetuo.dao.DbBinding
 import com.criteo.perpetuo.dispatchers.TargetDispatcher
 
 
-class Plugins(appConfig: BaseAppConfig = AppConfig) {
+class Plugins(dbBinding: DbBinding, appConfig: BaseAppConfig = AppConfig) {
   lazy val dispatcher: TargetDispatcher = instantiateFromGroovy(AppConfig.get("plugins.dispatcher"))
   lazy val hooks: HookMethods = new HookMethods(AppConfig.tryGet("plugins.hooks").map(instantiateFromGroovy[Hooks](_: String)))
 
@@ -18,7 +19,7 @@ class Plugins(appConfig: BaseAppConfig = AppConfig) {
   def instantiateFromGroovy[T](scriptPath: String): T = {
     val resource = getClass.getResource(scriptPath)
     val cls = engine.eval(new InputStreamReader(resource.openStream())).asInstanceOf[Class[T]]
-    val ctor = cls.getConstructor(classOf[RootAppConfig])
-    ctor.newInstance(appConfig)
+    val ctor = cls.getConstructor(classOf[DbBinding], classOf[RootAppConfig])
+    ctor.newInstance(dbBinding, appConfig)
   }
 }

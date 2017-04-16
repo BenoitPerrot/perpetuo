@@ -1,6 +1,8 @@
 package com.criteo.perpetuo.executors
 
+import com.criteo.perpetuo.TestDb
 import com.criteo.perpetuo.config.{AppConfig, Plugins}
+import com.criteo.perpetuo.dao.DbBinding
 import com.criteo.perpetuo.dispatchers.{TargetDispatcher, TargetTerm}
 import com.criteo.perpetuo.model.{Operation, Version}
 import com.twitter.finagle.http.{Response, Status}
@@ -14,10 +16,10 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 
 
-class RundeckInvokerSpec extends Test {
+class RundeckInvokerSpec extends Test with TestDb {
   private def testWhenResponseIs(statusCode: Int, content: String) = {
     val testEnv = ConfigValueFactory.fromAnyRef("local")
-    val plugins = new Plugins(AppConfig.withValue("env", testEnv))
+    val plugins = new Plugins(new DbBinding(dbContext), AppConfig.withValue("env", testEnv))
     val dispatcher = plugins.instantiateFromGroovy[TargetDispatcher](AppConfig.get("plugins.dispatcher"))
     val rundeckInvoker = dispatcher.assign("foo").head.asInstanceOf[HttpInvoker]
     assert(rundeckInvoker.getClass.getSimpleName == "RundeckInvoker")

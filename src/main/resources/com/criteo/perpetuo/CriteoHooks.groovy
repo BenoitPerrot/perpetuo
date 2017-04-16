@@ -2,6 +2,7 @@ package com.criteo.perpetuo
 
 import com.criteo.perpetuo.config.Hooks
 import com.criteo.perpetuo.config.RootAppConfig
+import com.criteo.perpetuo.dao.DbBinding
 import com.criteo.perpetuo.model.DeploymentRequest
 import com.criteo.perpetuo.model.Target
 import groovyx.net.http.HttpResponseException
@@ -11,9 +12,11 @@ import static groovyx.net.http.ContentType.JSON
 
 
 class CriteoHooks extends Hooks {
+    DbBinding dbBinding
     RootAppConfig appConfig
 
-    CriteoHooks(RootAppConfig appConfig) {
+    CriteoHooks(DbBinding dbBinding, RootAppConfig appConfig) {
+        this.dbBinding = dbBinding
         this.appConfig = appConfig
     }
 

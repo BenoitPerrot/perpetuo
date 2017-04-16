@@ -1,4 +1,5 @@
 import com.criteo.perpetuo.config.RootAppConfig
+import com.criteo.perpetuo.dao.DbBinding
 import com.criteo.perpetuo.dispatchers.ExecutorsByPoset
 import com.criteo.perpetuo.dispatchers.TargetDispatcherByPoset
 import com.criteo.perpetuo.executors.DummyInvoker
@@ -20,7 +21,7 @@ import scala.Some
 /* first, the class exposed to actually configure Perpetuo */
 
 class CriteoTargetDispatcher extends TargetDispatcherByPoset {
-    CriteoTargetDispatcher(RootAppConfig appConfig) {
+    CriteoTargetDispatcher(DbBinding dbBinding, RootAppConfig appConfig) {
         super(getExecutors(appConfig))
     }
 
