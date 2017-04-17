@@ -7,6 +7,8 @@ import com.criteo.perpetuo.model.DeploymentRequest
 import com.criteo.perpetuo.model.Target
 import groovyx.net.http.HttpResponseException
 import groovyx.net.http.RESTClient
+import scala.concurrent.Await
+import scala.concurrent.duration.Duration
 
 import static groovyx.net.http.ContentType.JSON
 
@@ -68,7 +70,16 @@ class CriteoHooks extends Hooks {
                         body: body
                 )
                 assert resp.status < 300
-                logger().info("Jira ticket created $suffix")
+
+                String ticket = resp.data.key
+                logger().info("Jira ticket created $suffix: $ticket")
+                def newComment = deploymentRequest.comment()
+                if (newComment)
+                    newComment += "\n"
+                newComment += "ticket: $url/browse/$ticket"
+                def update = dbBinding.updateDeploymentRequestComment(deploymentRequest.id(), newComment)
+                Boolean updated = Await.result(update, Duration.apply(5, "s"))
+                assert updated
             } catch (HttpResponseException e) {
                 logger().severe("Bad response from JIRA when creating ticket $suffix: ${e.response.status} ${e.getMessage()}: ${e.response.getData().toString()}")
             }

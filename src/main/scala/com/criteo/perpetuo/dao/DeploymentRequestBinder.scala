@@ -64,6 +64,15 @@ trait DeploymentRequestBinder extends TableBinder {
         case (req, prod) => DeploymentRequest(req.id.get, prod.toProduct, req.version, req.target, req.comment, req.creator, req.creationDate)
       })
   }
+
+  def updateDeploymentRequestComment(id: Long, comment: String): Future[Boolean] = {
+    dbContext.db.run(deploymentRequestQuery.filter(_.id === id).map(_.comment).update(comment))
+      .map {
+        count =>
+          assert(count <= 1)
+          count == 1
+      }
+  }
 }
 
 
