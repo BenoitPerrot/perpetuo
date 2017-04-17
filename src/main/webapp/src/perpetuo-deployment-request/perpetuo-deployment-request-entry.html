@@ -76,11 +76,15 @@
     background: repeating-linear-gradient(-45deg, #009688, #009688 10px, #26a69a 10px, #26a69a 20px);
   }
 
-  p.comment {
+  div.comment {
     margin: 0.5em 2em;
     background-color: #eee;
     border: solid 1px #ddd;
     padding-left: 1em;
+  }
+
+  div.comment > p {
+    margin: 0;
   }
 
   div.operations {
@@ -106,7 +110,10 @@
       </div>
     </div>
     <iron-collapse opened="[[expanded]]">
-      <p class="comment" hidden$="[[!data.comment]]">[[data.comment]]</p>
+      <div class="comment" hidden$="[[!data.comment]]">
+        <p hidden$="[[!comment.description]]">[[comment.description]]</p>
+        <p hidden$="[[!comment.ticket]]">JIRA: <a href="[[comment.ticket.url]]">[[comment.ticket.reference]]</a></p>
+      </div>
       <div class="operations">
         <template is="dom-repeat" items="[[data.operations]]">
           <paper-card>
@@ -131,7 +138,8 @@
       data: { type: Object, value: () => {} },
       state: { type: String, computed: 'computeState(data)' },
       expanded: { type: Boolean, value: false },
-      hasMore: { type: Boolean, computed: 'computeHasMore(data)' }
+      hasMore: { type: Boolean, computed: 'computeHasMore(data)' },
+      comment: { type: Object, computed: 'computeComment(data)' }
     },
 
     toggle() {
@@ -161,6 +169,14 @@
 
     computeHasMore(data) {
       return data.comment || 0 < data.operations.length;
+    },
+
+    computeComment(data) {
+      const fields = data.comment.split("ticket: ");
+      let ret = { description: fields[0] };
+      if (fields[1])
+        ret.ticket = { url: fields[1], reference: fields[1].split("/").splice(-1)[0] };
+      return ret;
     },
 
     onStartTap() {
