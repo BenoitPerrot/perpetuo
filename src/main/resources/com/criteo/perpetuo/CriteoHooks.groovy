@@ -23,15 +23,18 @@ class CriteoHooks extends Hooks {
     }
 
     @Override
-    void onDeploymentRequestCreated(DeploymentRequest deploymentRequest, boolean immediateStart) {
+    String onDeploymentRequestCreated(DeploymentRequest deploymentRequest, boolean immediateStart) {
         if (appConfig.env().endsWith("prod") && !immediateStart) {
             def productName = deploymentRequest.product().name()
             def version = deploymentRequest.version().toString()
             def target = Target.getSimpleSelectExpr(deploymentRequest.parsedTarget()).toUpperCase().replaceAll(",", ", ")
             def optComment = deploymentRequest.comment() ? "Initiator's comment: ${deploymentRequest.comment()}\n" : ""
+            def originator = appConfig.transition() ?
+                    "by Perpetuo" :
+                    "here: ${appConfig.get('selfUrl')}/deployment-requests/${deploymentRequest.id()}"
             def desc = """
                 Please deploy ${productName} to: ${target}
-                Request initiated here: ${appConfig.get("selfUrl")}/deployment-requests/${deploymentRequest.id()}
+                Request initiated $originator
                 ${optComment}-- Perpetuo""".stripMargin()
             def suffix = "for $productName #${deploymentRequest.version()}"
             def body = [
@@ -73,13 +76,19 @@ class CriteoHooks extends Hooks {
 
                 String ticket = resp.data.key
                 logger().info("Jira ticket created $suffix: $ticket")
-                def newComment = deploymentRequest.comment()
-                if (newComment)
-                    newComment += "\n"
-                newComment += "ticket: $url/browse/$ticket"
-                def update = dbBinding.updateDeploymentRequestComment(deploymentRequest.id(), newComment)
-                Boolean updated = Await.result(update, Duration.apply(5, "s"))
-                assert updated
+                String ticketUrl = "$url/browse/$ticket"
+
+                if (appConfig.transition()) {
+                    return ticketUrl
+                } else {
+                    def newComment = deploymentRequest.comment()
+                    if (newComment)
+                        newComment += "\n"
+                    newComment += "ticket: $ticketUrl"
+                    def update = dbBinding.updateDeploymentRequestComment(deploymentRequest.id(), newComment)
+                    Boolean updated = Await.result(update, Duration.apply(5, "s"))
+                    assert updated
+                }
             } catch (HttpResponseException e) {
                 logger().severe("Bad response from JIRA when creating ticket $suffix: ${e.response.status} ${e.getMessage()}: ${e.response.getData().toString()}")
             }

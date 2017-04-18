@@ -33,6 +33,9 @@ abstract class RootAppConfig extends BaseAppConfig {
   override lazy val env: String = config.getString("env")
 
   lazy val db: AppConfig = under("db")
+
+  // just to make clear what's impacted by the transition to Perpetuo usage
+  def transition: Boolean = env == "prod" // todo: remove it
 }
 
 

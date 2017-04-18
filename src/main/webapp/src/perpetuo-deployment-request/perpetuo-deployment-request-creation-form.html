@@ -93,12 +93,12 @@
                                           this.$.versionSelector.value,
                                           this.$.targetSelector.value,
                                           this.$.commentEditor.value)
-          .then(r => {
-            if (r.ok) {
-              this.clear();
-            }
-            this.close();
-          })
+        .then(r => {
+          if (r.ok) {
+            r.json().then(o => window.location.replace(o.ticketUrl));
+          }
+          this.close();
+        })
     },
     clear() {
       this.$.productSelector_.selected = null;

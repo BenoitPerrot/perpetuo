@@ -133,22 +133,35 @@ class RestController @Inject()(val execution: Execution)
             case e: ParsingException => throw BadRequestException(e.getMessage)
           }
 
-          // first, log the user's general intent
-          val futureDepReq = execution.dbBinding.insert(attrs)
-          // when the record is created, notify the corresponding hook
-          futureDepReq.foreach(plugins.hooks.onDeploymentRequestCreated(_, immediateStart = autoStart))
-
-          if (autoStart) {
-            futureDepReq.flatMap(depReq =>
-              execution.startOperation(plugins.dispatcher, depReq, Operation.deploy).map { case (started, failed) => (depReq, started, failed) }
-            ).foreach { case (depReq, started, failed) =>
-              plugins.hooks.onDeploymentRequestStarted(depReq, started, failed, immediately = true)
-            }
+          if (AppConfig.transition && !autoStart) {
+            execution.dbBinding.findProductByName(attrs.productName)
+              .map(_.map(DeploymentRequest(0, _, attrs.version, attrs.target, attrs.comment, attrs.creator, attrs.creationDate))
+                .getOrElse {
+                  throw BadRequestException(s"Product `${attrs.productName}` could not be found")
+                })
+              .flatMap(plugins.hooks.onDeploymentRequestCreated(_, immediateStart = autoStart))
+              .map(ticketUrl =>
+                Some(response.created.json(Map("ticketUrl" -> ticketUrl)))
+              )
           }
+          else {
+            // first, log the user's general intent
+            val futureDepReq = execution.dbBinding.insert(attrs)
+            // when the record is created, notify the corresponding hook
+            futureDepReq.foreach(plugins.hooks.onDeploymentRequestCreated(_, immediateStart = autoStart))
 
-          futureDepReq
-            .recover { case e: UnknownProduct => throw BadRequestException(s"Product `${e.productName}` could not be found") }
-            .map { depReq => Some(response.created.json(Map("id" -> depReq.id))) }
+            if (autoStart) {
+              futureDepReq.flatMap(depReq =>
+                execution.startOperation(plugins.dispatcher, depReq, Operation.deploy).map { case (started, failed) => (depReq, started, failed) }
+              ).foreach { case (depReq, started, failed) =>
+                plugins.hooks.onDeploymentRequestStarted(depReq, started, failed, immediately = true)
+              }
+            }
+
+            futureDepReq
+              .recover { case e: UnknownProduct => throw BadRequestException(s"Product `${e.productName}` could not be found") }
+              .map { depReq => Some(response.created.json(Map("id" -> depReq.id))) }
+          }
         },
         2.seconds
       )
