@@ -109,7 +109,7 @@
         </template>
       </div>
     </div>
-    <iron-collapse opened="[[expanded]]">
+    <iron-collapse opened="[[expanded]]" no-animation>
       <div class="comment" hidden$="[[!data.comment]]">
         <p hidden$="[[!comment.description]]">[[comment.description]]</p>
         <p hidden$="[[!comment.ticket]]">JIRA: <a href="[[comment.ticket.url]]">[[comment.ticket.reference]]</a></p>
@@ -137,7 +137,7 @@
     properties: {
       data: { type: Object, value: () => {} },
       state: { type: String, computed: 'computeState(data)' },
-      expanded: { type: Boolean, value: false },
+      expanded: { type: Boolean, notify: true },
       hasMore: { type: Boolean, computed: 'computeHasMore(data)' },
       comment: { type: Object, computed: 'computeComment(data)' }
     },

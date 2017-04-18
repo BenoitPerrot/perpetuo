@@ -72,7 +72,7 @@
         </div>
       </div>
       <template is="dom-repeat" items="[[data]]">
-        <perpetuo-deployment-request-entry data="[[item]]"></perpetuo-deployment-request-entry>
+        <perpetuo-deployment-request-entry data="[[item]]" expanded="[[isEntryExpanded(item.id)]]" on-expanded-changed="onEntryExpandedChanged"></perpetuo-deployment-request-entry>
       </template>
     </div>
     <div>
@@ -98,9 +98,22 @@
 
     created() {
       this.order = [];
+      this.expandedDeploymentRequests = new Set();
     },
     attached() {
       this.$$('[key=creationDate]').state = 'down';
+    },
+
+    isEntryExpanded(id) {
+      return this.expandedDeploymentRequests.has(id);
+    },
+
+    onEntryExpandedChanged(e) {
+      if (e.detail.value) {
+        this.expandedDeploymentRequests.add(e.srcElement.data.id);
+      } else {
+        this.expandedDeploymentRequests.delete(e.srcElement.data.id);
+      }
     },
 
     onDateFormatChanged() {
