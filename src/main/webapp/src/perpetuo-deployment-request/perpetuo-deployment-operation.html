@@ -30,6 +30,10 @@ function arrayifyTargetStatus(targetStatusMap) {
     }
   }
 
+  paper-tab[disabled] {
+    color: #757575;
+  }
+
   p {
     margin-top: 0;
     font-size: 20px;
@@ -69,7 +73,7 @@ function arrayifyTargetStatus(targetStatusMap) {
   <template>
     <p>Operation: [[type]]</p>
     <paper-tabs selected="{{selected}}">
-      <paper-tab>Summary</paper-tab>
+      <paper-tab id="summaryTab">Summary</paper-tab>
       <paper-tab>Logs</paper-tab>
     </paper-tabs>
     <iron-pages selected="{{selected}}">
@@ -109,6 +113,12 @@ function arrayifyTargetStatus(targetStatusMap) {
 
     onDataChanged(data) {
       this.targetStatus = arrayifyTargetStatus(data.targetStatus);
+      if (this.targetStatus.length === 0) {
+        this.selected = 1;
+        this.$.summaryTab.disabled = true;
+      } else {
+        this.$.summaryTab.disabled = false;
+      }
       this.type = data.type;
       this.executions = data.executions;
     },
