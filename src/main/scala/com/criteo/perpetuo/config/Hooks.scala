@@ -10,7 +10,14 @@ import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}
 
 
-class Hooks {
+trait ImplementableHooks {
+  def onDeploymentRequestCreated(deploymentRequest: DeploymentRequest, immediateStart: Boolean)
+
+  def onDeploymentRequestStarted(deploymentRequest: DeploymentRequest, startedExecutions: Int, failedToStart: Int, immediately: Boolean)
+}
+
+
+class Hooks extends ImplementableHooks {
   /**
     * Methods that can be overridden as hooks.
     */
@@ -22,7 +29,7 @@ class Hooks {
   /**
     * This logger is the one to use in the Groovy hook classes, and it should not be overridden
     */
-  protected val logger: Logger = Logger.getLogger("hooks")
+  val logger: Logger = Logger.getLogger("hooks")
 
   /**
     * Timeout applicable on each hook, in seconds; can be overridden in Groovy hook classes
@@ -31,20 +38,20 @@ class Hooks {
 }
 
 
-private[config] class HookMethods(implementation: Option[Hooks]) extends Hooks {
+private[config] class HooksTrigger(implementation: Option[Hooks]) extends ImplementableHooks {
   private val hooks: Hooks = implementation.getOrElse(new Hooks)
 
-  override def onDeploymentRequestCreated(deploymentRequest: DeploymentRequest, immediateStart: Boolean): Unit =
+  def onDeploymentRequestCreated(deploymentRequest: DeploymentRequest, immediateStart: Boolean): Unit =
     wrap("onDeploymentRequestCreated", deploymentRequest, immediateStart)
 
-  override def onDeploymentRequestStarted(deploymentRequest: DeploymentRequest, startedExecutions: Int, failedToStart: Int, immediately: Boolean): Unit =
+  def onDeploymentRequestStarted(deploymentRequest: DeploymentRequest, startedExecutions: Int, failedToStart: Int, immediately: Boolean): Unit =
     wrap("onDeploymentRequestStarted", deploymentRequest, startedExecutions, failedToStart, immediately)
 
   private def wrap(methodName: String, args: Any*): Unit = {
     val method = hooks.getClass.getMethods.filter(_.getName == methodName).head
     if (method.getDeclaringClass != classOf[Hooks]) {
       // there is a specific implementation for this hook, let's start it in a background thread after logging its name
-      logger.info(s"$methodName")
+      hooks.logger.info(s"$methodName")
       Future {
         try {
           Await.result(
@@ -63,5 +70,5 @@ private[config] class HookMethods(implementation: Option[Hooks]) extends Hooks {
   }
 
   private def logException(exc: Throwable, methodName: String) =
-    logger.severe(s"$methodName - ${exc.getMessage}\n${exc.getStackTrace.mkString("\n")}")
+    hooks.logger.severe(s"$methodName - ${exc.getMessage}\n${exc.getStackTrace.mkString("\n")}")
 }

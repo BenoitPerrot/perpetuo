@@ -9,7 +9,7 @@ import com.criteo.perpetuo.dispatchers.TargetDispatcher
 
 class Plugins(dbBinding: DbBinding, appConfig: BaseAppConfig = AppConfig) {
   lazy val dispatcher: TargetDispatcher = instantiateFromGroovy(AppConfig.get("plugins.dispatcher"))
-  lazy val hooks: HookMethods = new HookMethods(AppConfig.tryGet("plugins.hooks").map(instantiateFromGroovy[Hooks](_: String)))
+  lazy val hooks: HooksTrigger = new HooksTrigger(AppConfig.tryGet("plugins.hooks").map(instantiateFromGroovy[Hooks](_: String)))
 
 
   private val factory = new ScriptEngineManager
