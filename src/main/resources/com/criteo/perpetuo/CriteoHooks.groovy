@@ -14,6 +14,18 @@ import static groovyx.net.http.ContentType.JSON
 
 
 class CriteoHooks extends Hooks {
+    def targetMap = [
+        "sv6": "NA-SV6",
+        "ny8": "NA-NY8",
+        "va1": "NA-VA1",
+        "par": "EU-PAR",
+        "am5": "EU-AM5",
+        "hk5": "AS-HK5",
+        "sh5": "CN-SH5",
+        "ty5": "AS-TY5",
+        "*": "Worldwide"
+    ]
+
     DbBinding dbBinding
     RootAppConfig appConfig
 
@@ -27,13 +39,13 @@ class CriteoHooks extends Hooks {
         if (appConfig.env().endsWith("prod") && !immediateStart) {
             def productName = deploymentRequest.product().name()
             def version = deploymentRequest.version().toString()
-            def target = Target.getSimpleSelectExpr(deploymentRequest.parsedTarget()).toUpperCase().replaceAll(",", ", ")
+            def target = Target.getSimpleSelect(deploymentRequest.parsedTarget())
             def optComment = deploymentRequest.comment() ? "Initiator's comment: ${deploymentRequest.comment()}\n" : ""
             def originator = appConfig.transition() ?
                     "by Perpetuo" :
                     "here: ${appConfig.get('selfUrl')}/deployment-requests/${deploymentRequest.id()}"
             def desc = """
-                Please deploy ${productName} to: ${target}
+                Please deploy ${productName} to: ${target.join(', ').toUpperCase()}
                 Request initiated $originator
                 ${optComment}-- Perpetuo""".stripMargin()
             def suffix = "for $productName #${deploymentRequest.version()}"
@@ -47,6 +59,7 @@ class CriteoHooks extends Hooks {
                             "customfield_12500": version,
                             "customfield_12702": ["value": "False"],
                             "customfield_12703": ["value": "Worldwide"],
+                            "customfield_10922": target.collect { String dc -> ["value": targetMap[dc]] },
                             "customfield_15500": ["value": "False"],
                             "customfield_27000": ["value": "Mesos"],
                             "customfield_11107": productName,

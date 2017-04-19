@@ -20,7 +20,7 @@ trait ParsedTarget {
 }
 
 object Target {
-  def getSimpleSelectExpr(target: TargetExpr): String = target.flatMap(_.select).mkString(",")
+  def getSimpleSelect(target: TargetExpr): Iterable[String] = target.flatMap(_.select)
 }
 
 

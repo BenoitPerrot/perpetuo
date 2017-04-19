@@ -44,7 +44,7 @@ abstract class HttpInvoker(val host: String,
 
   override def trigger(operationName: String, executionId: Long, productName: String, version: Version, target: TargetExpr, initiator: String): Some[ScalaFuture[String]] = {
     // todo: while we only deal with marathon target, we directly give the select dimension, and formatted differently
-    val req = buildRequest(operationName, executionId, productName, version.toString, Target.getSimpleSelectExpr(target), initiator)
+    val req = buildRequest(operationName, executionId, productName, version.toString, Target.getSimpleSelect(target).mkString(","), initiator)
 
     // trigger the job and return a future to the execution's log href
     Some(ScalaFuture {
