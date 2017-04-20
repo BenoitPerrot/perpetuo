@@ -104,6 +104,13 @@ class RestControllerSpec extends FeatureTest with TestDb {
     creationDate
   }
 
+  private def deepGetDepReq(id: Long) = {
+    server.httpGet(
+      path = s"/api/unstable/deployment-requests/$id",
+      andExpect = Ok
+    ).contentString.parseJson.asInstanceOf[JsObject]
+  }
+
   private def deepGetDepReq(where: Seq[Map[String, JsValue]] = Seq(), orderBy: Seq[Map[String, JsValue]] = Seq(), limit: Option[Int] = None, offset: Option[Int] = None): Seq[Map[String, JsValue]] = {
     val q = JsObject(
       Map(
@@ -493,6 +500,14 @@ class RestControllerSpec extends FeatureTest with TestDb {
 
       val depReqsForSingle = deepGetDepReq(where = Seq(Map("field" -> JsString("id"), "equals" -> JsNumber(1))))
       depReqsForSingle.length shouldBe 1
+    }
+
+    "get single one" in {
+      val allDepReqs = deepGetDepReq()
+      allDepReqs.length should be > 2
+
+      val depReqsForSingle = deepGetDepReq(1)
+      depReqsForSingle.fields("id") shouldBe JsNumber(1)
     }
 
     "display correctly formatted versions" in {

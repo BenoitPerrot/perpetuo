@@ -33,6 +33,14 @@ class DbBinding @Inject()(val dbContext: DbContext)
 
   import dbContext.driver.api._
 
+  def deepQueryDeploymentRequests(id: Long): Future[Option[Map[String, Object]]] = {
+    deepQueryDeploymentRequests(
+      deploymentRequestQuery
+        filter { _.id === id }
+        join productQuery on (_.productId === _.id)
+    ).map { _.headOption }
+  }
+
   def deepQueryDeploymentRequests(where: Seq[Map[String, Any]], orderBy: Seq[Map[String, Any]], limit: Int, offset: Int): Future[Iterable[Map[String, Object]]] = {
 
     val filtered = where.foldLeft(this.deploymentRequestQuery join this.productQuery on (_.productId === _.id)) { (queries, spec) =>
@@ -63,6 +71,15 @@ class DbBinding @Inject()(val dbContext: DbContext)
       }
     }
 
+    deepQueryDeploymentRequests(
+      filteredThenSorted
+        drop offset
+        take limit
+    )
+  }
+
+  private def deepQueryDeploymentRequests(q: Query[(DeploymentRequestTable, ProductTable), (DeploymentRequestRecord, ProductRecord), scala.Seq]): Future[Iterable[Map[String, Object]]] = {
+
     type StableMap = mutable.LinkedHashMap[Long, (DeploymentRequestRecord, ProductRecord, ArrayBuffer[ExecutionTrace])]
 
     def groupByDeploymentRequestId(x: Seq[(((DeploymentRequestRecord, ProductRecord), Option[OperationTraceRecord]), Option[ExecutionTraceRecord])]): StableMap = {
@@ -75,10 +92,8 @@ class DbBinding @Inject()(val dbContext: DbContext)
       }
     }
 
-    dbContext.db.run((
-      filteredThenSorted
-        drop offset
-        take limit
+    dbContext.db.run(
+      (q
         joinLeft operationTraceQuery on (_._1.id === _.deploymentRequestId)
         joinLeft executionTraceQuery on (_._2.map(_.id) === _.operationTraceId)).result)
       .map {

@@ -277,6 +277,12 @@ class RestController @Inject()(val execution: Execution)
       5.seconds
     )
   }
+  get("/api/unstable/deployment-requests/:id")(
+    withLongId(
+      id => execution.dbBinding.deepQueryDeploymentRequests(id),
+      2.seconds
+    )
+  )
   post("/api/unstable/deployment-requests") { r: SortingFilteringPost =>
     timeBoxed(
       {
