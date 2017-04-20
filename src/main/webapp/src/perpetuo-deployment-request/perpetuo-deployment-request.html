@@ -1,0 +1,77 @@
+<link rel="import" href="../../bower_components/polymer/polymer.html">
+
+<link rel="import" href="../../bower_components/paper-card/paper-card.html">
+
+<link rel="import" href="../perpetuo-deployment-request/perpetuo-deployment-operation.html">
+
+<dom-module id="perpetuo-deployment-request">
+  <style>
+  :host {
+    display: flex;
+    flex-direction: column;
+  }
+  :host > h1 {
+    border-bottom: solid 1px #ddd;
+    padding-bottom: 0.5em;
+    font-weight: normal;
+  }
+
+  .version {
+    margin-left: 2em;
+  }
+
+  #general, #target, #operations {
+    padding: 24px 16px;
+  }
+
+  paper-card {
+    margin-bottom: 1em;
+  }
+  paper-card h1, paper-card h2 {
+    margin: 0;
+    font-weight: normal;
+  }
+  paper-card h1 {
+    font-size: 24px;
+  }
+
+  </style>
+  <template>
+    <h1><span class="product-name">[[data.productName]]</span><span class="version">[[data.version]]</span></h1>
+    <paper-card id="general">
+      <h1>General</h1>
+      <p>Requested by [[data.creator]] on [[timestampToDates(data.creationDate)]]</p>
+    </paper-card>
+    <paper-card id="target">
+      <h1>Deployment Target</h1>
+      <p>[[data.target]]</p>
+    </paper-card>
+    <template is="dom-repeat" items="[[data.operations]]">
+      <paper-card id="operations">
+        <perpetuo-deployment-operation index="[[index]]" data="[[item]]"></perpetuo-deployment-operation>
+      </paper-card>
+    </template>
+  </template>
+  <script>
+  Polymer({
+    is: 'perpetuo-deployment-request',
+
+    properties: {
+      data: { type: Object, value: () => {} },
+    },
+
+    timestampToDates(t) {
+      const date = new Date(t * 1000);
+
+      const localYMD = date.getFullYear() + '-' + (date.getMonth() + 1) + '-' + date.getDate();
+      const localTime = date.toTimeString().split(' ')[0];
+
+      const iso = date.toISOString().split('T');
+      const isoYMD = iso[0].replace(/-0/g, '-');
+      const isoTime = iso[1].split('.')[0];
+
+      return `${isoYMD} at ${isoTime} UTC (` + (localYMD !== isoYMD ? localYMD + ' ' : '') + localTime + ' local time)';
+    }
+  })
+  </script>
+</dom-module>

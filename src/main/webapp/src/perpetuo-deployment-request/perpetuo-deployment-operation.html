@@ -1,0 +1,54 @@
+<link rel="import" href="../../bower_components/polymer/polymer.html">
+
+<link rel="import" href="../perpetuo-deployment-request/perpetuo-target-status-table.html">
+<link rel="import" href="../perpetuo-deployment-request/perpetuo-deployment-execution-list.html">
+
+<dom-module id="perpetuo-deployment-operation">
+  <style>
+  :host {
+    display: flex;
+    flex-direction: column;
+  }
+
+  h1, h2 {
+    margin: 0;
+    font-weight: normal;
+  }
+  h1 {
+    font-size: 24px;
+  }
+  h2 {
+    font-size: 16px;
+    margin-top: 1em;
+  }
+  </style>
+  <template>
+    <h1>Operation #[[plusOne(index)]]: [[data.type]]</h1>
+    <h2>Summary</h2>
+    <perpetuo-target-status-table data="[[arrayifyTargetStatus(data.targetStatus)]]"></perpetuo-target-status-table>
+    <h2>Execution Logs</h2>
+    <perpetuo-deployment-execution-list data="[[data.executions]]"></perpetuo-deployment-execution-list>
+  </template>
+  <script>
+  Polymer({
+    is: 'perpetuo-deployment-operation',
+
+    properties: {
+      index: { type: Number },
+      data: { type: Object, value: () => {} },
+    },
+
+    plusOne(i) {
+      return i + 1;
+    },
+
+    arrayifyTargetStatus(targetStatusMap) {
+      return Object.keys(targetStatusMap).map(targetAtom => {
+        const targetAtomStatus = targetStatusMap[targetAtom];
+        return { targetAtom: targetAtom, code: targetAtomStatus.code, detail: targetAtomStatus.detail };
+      });
+    }
+
+  });
+  </script>
+</dom-module>

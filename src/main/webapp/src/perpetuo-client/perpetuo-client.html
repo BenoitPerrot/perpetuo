@@ -53,6 +53,10 @@ this.Perpetuo.Client = this.Perpetuo.Client || (function () {
       return jsonFetch('/api/auth/identity').then(r => r.json()).then(o => o.name).catch(() => null);
     }
 
+    fetchDeploymentRequest(id) {
+      return jsonFetch(`/api/unstable/deployment-requests/${id}`)
+        .then(_ => _.json());
+    }
     fetchDeploymentRequests(options) {
       options = Object.assign({ where: [], orderBy: [], limit: 20, offset: 0 }, options);
       options.limit = options.limit + 1; // Ask for one more element to know if more are available TODO: remove
