@@ -1,0 +1,23 @@
+<link rel="import" href="../../bower_components/polymer/polymer.html">
+
+<dom-module id="perpetuo-deployment-execution-list">
+  <template>
+    <ul>
+      <template is="dom-repeat" items="[[data]]">
+        <li>
+          <span>[[item.state]]</span>
+          <a hidden$="[[!item.logHref]]" href$="[[item.logHref]]">Logs...</a>
+        </li>
+      </template>
+    </ul>
+  </template>
+  <script>
+  Polymer({
+    is: 'perpetuo-deployment-execution-list',
+
+    properties: {
+      data: { type: Array, value: () => [] }
+    }
+  });
+  </script>
+</dom-module>

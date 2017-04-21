@@ -4,6 +4,9 @@
 <link rel="import" href="../../bower_components/paper-tabs/paper-tabs.html">
 <link rel="import" href="../../bower_components/paper-tabs/paper-tab.html">
 
+<link rel="import" href="../perpetuo-deployment-request/perpetuo-target-status-table.html">
+<link rel="import" href="../perpetuo-deployment-request/perpetuo-deployment-execution-list.html">
+
 <script>
 function arrayifyTargetStatus(targetStatusMap) {
   return Object.keys(targetStatusMap).map(targetAtom => {
@@ -40,35 +43,6 @@ function arrayifyTargetStatus(targetStatusMap) {
     color: hsl(0,0%,13%);
     text-transform: capitalize;
   }
-
-  .target-status {
-    width: 100%;
-    border-collapse: collapse;
-  }
-  .target-status th {
-    font-weight: 500;
-    color: #757575;
-    text-align: left;
-  }
-  .target-status td {
-    color: hsl(0,0%,13%);
-  }
-  .target-status tr {
-    height: 42px;
-    border-bottom: solid 1px #ddd;
-  }
-  .target-status tr :first-child {
-    padding-left: 24px;
-  }
-  .target-status tbody tr:last-of-type {
-    border: 0;
-  }
-  .target-status td:not(:last-child) {
-    padding-right: 56px;
-  }
-  .target-status tbody tr:hover {
-    background-color: #eee;
-  }
   </style>
   <template>
     <p>Operation: [[type]]</p>
@@ -77,24 +51,8 @@ function arrayifyTargetStatus(targetStatusMap) {
       <paper-tab>Logs</paper-tab>
     </paper-tabs>
     <iron-pages selected="{{selected}}">
-      <table class="target-status">
-        <thead>
-          <tr><th>Target</th><th>Status</th><th>Detail</th></tr>
-        </thead>
-        <tbody>
-          <template is="dom-repeat" items="[[targetStatus]]">
-            <tr><td>[[item.targetAtom]]</td><td>[[item.code]]</td><td>[[item.detail]]</td></tr>
-          </template>
-        </tbody>
-      </table>
-      <ul class="executions">
-        <template is="dom-repeat" items="[[executions]]">
-          <li>
-          <span>[[item.state]]</span>
-          <a hidden$="[[!item.logHref]]" href$="[[item.logHref]]">Logs...</a>
-          </li>
-        </template>
-      </ul>
+      <perpetuo-target-status-table data="[[targetStatus]]"></perpetuo-target-status-table>
+      <perpetuo-deployment-execution-list data="[[executions]]"></perpetuo-deployment-execution-list>
     </iron-pages>
   </template>
   <script>
