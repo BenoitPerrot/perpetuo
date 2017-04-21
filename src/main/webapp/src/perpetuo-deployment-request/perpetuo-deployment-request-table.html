@@ -110,9 +110,9 @@
 
     onEntryExpandedChanged(e) {
       if (e.detail.value) {
-        this.expandedDeploymentRequests.add(e.srcElement.data.id);
+        this.expandedDeploymentRequests.add(e.target.data.id);
       } else {
-        this.expandedDeploymentRequests.delete(e.srcElement.data.id);
+        this.expandedDeploymentRequests.delete(e.target.data.id);
       }
     },
 
