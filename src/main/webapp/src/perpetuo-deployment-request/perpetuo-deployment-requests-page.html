@@ -63,10 +63,10 @@
 
       selected: { type: Number, value: 0 },
 
-      deploymentRequestId: { type: String, observer: 'onDeploymentRequestIdChanged' },
-
       dateFormat: {type: String, value: 'timestampToUTCDate'},
       productNames: {type: Array, value: () => []},
+
+      route: { type: Object, observer: 'onRouteChanged' }
     },
 
     created() {
@@ -110,8 +110,12 @@
       }
     },
 
-    onDeploymentRequestIdChanged(id) {
-      this.deploymentRequestFilters = id ? [ {'field': 'id', 'equals': parseInt(id)} ] : [];
+    onRouteChanged(route) {
+      this.deploymentRequestFilters = [];
+      const m = route.path ? route.path.match(new RegExp('/(\\d+)')) : null;
+      if (m) {
+        this.deploymentRequestFilters.push({'field': 'id', 'equals': parseInt(m[1])});
+      }
       this.refresh(true);
     },
 

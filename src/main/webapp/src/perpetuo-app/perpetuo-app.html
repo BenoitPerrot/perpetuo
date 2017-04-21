@@ -67,7 +67,6 @@
     <app-location route="{{route}}"></app-location>
     <app-route route="{{route}}" pattern="/identify" data="{{routeData}}" tail="{{subroute}}" on-active-changed="onIdentifyActiveChanged"></app-route>
     <app-route route="{{route}}" pattern="/:page" data="{{routeData}}" tail="{{subroute}}"></app-route>
-    <app-route route="{{subroute}}" pattern="/:page" data="{{subrouteData}}"></app-route>
 
     <app-header-layout>
       <app-header reveals>
@@ -77,11 +76,11 @@
           <paper-icon-button icon="social:person" on-tap="onIdentityTap"></paper-icon-button><span>[[login]]</span>
         </app-toolbar>
       </app-header>
-      <iron-pages id="pageSelector" selected="[[routeData.page]]" fallback-selection="*" attr-for-selected="route" on-iron-select="onPageSelected">
-        <div route="*" title=""></div>
-        <perpetuo-deployment-requests-page route="deployment-requests" title="Deployment Requests" deployment-request-id="[[subrouteData.page]]"></perpetuo-deployment-requests-page>
-        <perpetuo-products-page route="products" title="Products"></perpetuo-products-page>
-        <perpetuo-administration-page route="administration" title="Administration"></perpetuo-administration-page>
+      <iron-pages id="pageSelector" selected="[[routeData.page]]" fallback-selection="*" attr-for-selected="page-route" on-iron-select="onPageSelected">
+        <div page-route="*" title=""></div>
+        <perpetuo-deployment-requests-page page-route="deployment-requests" title="Deployment Requests" route="{{subroute}}"></perpetuo-deployment-requests-page>
+        <perpetuo-products-page page-route="products" title="Products"></perpetuo-products-page>
+        <perpetuo-administration-page page-route="administration" title="Administration"></perpetuo-administration-page>
       </iron-pages>
     </app-header-layout>
     <app-drawer id="drawer" swipe-open>
@@ -101,7 +100,6 @@
         route: Object,
         subroute: Object,
         routeData: Object,
-        subrouteData: Object,
         activePageTitle: { type: String },
         login: String
       },
