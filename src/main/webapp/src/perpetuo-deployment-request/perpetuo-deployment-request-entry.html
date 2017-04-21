@@ -6,7 +6,7 @@
 <link rel="import" href="../../bower_components/paper-material/paper-material.html">
 
 <link rel="import" href="../perpetuo-client/perpetuo-client.html">
-<link rel="import" href="../perpetuo-deployment-request/perpetuo-deployment-operation.html">
+<link rel="import" href="../perpetuo-deployment-request/perpetuo-deployment-operation-condensed.html">
 
 <dom-module id="perpetuo-deployment-request-entry">
   <style>
@@ -124,7 +124,7 @@
       <div class="operations">
         <template is="dom-repeat" items="[[data.operations]]">
           <paper-card>
-            <perpetuo-deployment-operation data="[[item]]"></perpetuo-deployment-operation>
+            <perpetuo-deployment-operation-condensed data="[[item]]"></perpetuo-deployment-operation-condensed>
           </paper-card>
         </template>
       </div>
