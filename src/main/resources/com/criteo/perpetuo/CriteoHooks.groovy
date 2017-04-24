@@ -39,7 +39,7 @@ class CriteoHooks extends Hooks {
         if (appConfig.env().endsWith("prod") && !immediateStart) {
             def productName = deploymentRequest.product().name()
             def version = deploymentRequest.version().toString()
-            def target = Target.getSimpleSelect(deploymentRequest.parsedTarget())
+            def target = Target.getSimpleSelectForGroovy(deploymentRequest.parsedTarget())
             def optComment = deploymentRequest.comment() ? "Initiator's comment: ${deploymentRequest.comment()}\n" : ""
             def originator = appConfig.transition() ?
                     "by Perpetuo" :

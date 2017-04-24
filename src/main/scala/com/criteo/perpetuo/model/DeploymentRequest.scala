@@ -4,6 +4,8 @@ import com.criteo.perpetuo.app.RawJson
 import com.criteo.perpetuo.dispatchers.TargetExpr
 import spray.json._
 
+import scala.collection.JavaConverters._
+
 
 trait ParsedTarget {
   val target: String
@@ -21,6 +23,8 @@ trait ParsedTarget {
 
 object Target {
   def getSimpleSelect(target: TargetExpr): Iterable[String] = target.flatMap(_.select)
+
+  def getSimpleSelectForGroovy(target: TargetExpr): java.lang.Iterable[String] = target.flatMap(_.select).toIterable.asJava
 }
 
 
