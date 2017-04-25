@@ -15,15 +15,21 @@ import static groovyx.net.http.ContentType.JSON
 
 class CriteoHooks extends Hooks {
     def targetMap = [
-        "sv6": "NA-SV6",
-        "ny8": "NA-NY8",
-        "va1": "NA-VA1",
-        "par": "EU-PAR",
-        "am5": "EU-AM5",
-        "hk5": "AS-HK5",
-        "sh5": "CN-SH5",
-        "ty5": "AS-TY5",
-        "*": "Worldwide"
+            "sv6": "NA-SV6",
+            "ny8": "NA-NY8",
+            "va1": "NA-VA1",
+            "par": "EU-PAR",
+            "am5": "EU-AM5",
+            "hk5": "AS-HK5",
+            "sh5": "CN-SH5",
+            "ty5": "AS-TY5",
+            "*"  : "Worldwide"
+    ]
+    def dcByDcApps = [
+            "bidding-direct-bidder-app",
+            "bidding-direct-bidder-canary-app",
+            "imageproxy-app",
+            "videoproxy-app"
     ]
 
     DbBinding dbBinding
@@ -58,7 +64,7 @@ class CriteoHooks extends Hooks {
                             "customfield_11003": version,
                             "customfield_12500": version,
                             "customfield_12702": ["value": "False"],
-                            "customfield_12703": ["value": "Worldwide"],
+                            "customfield_12703": ["value": dcByDcApps.contains(productName) ? "DC by DC" : "Worldwide"],
                             "customfield_10922": target.collect { String dc -> ["value": targetMap[dc]] },
                             "customfield_15500": ["value": "False"],
                             "customfield_27000": ["value": "Mesos"],
