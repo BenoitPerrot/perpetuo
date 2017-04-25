@@ -82,7 +82,7 @@ class RundeckInvoker extends HttpInvoker {
     @Override
     Request buildRequest(String operationName, long executionId, String productName, String version, String target, String initiator) {
         def escapedProductName = jsonBuilder.toJson(productName)
-        def escapedVersion = jsonBuilder.toJson(version.toString())
+        def escapedVersion = jsonBuilder.toJson(version)
         def escapedTarget = jsonBuilder.toJson(target)
         def args = "-environment $marathonEnv -callback-url '${callbackUrl(executionId)}' -product-name $escapedProductName -product-version $escapedVersion -target $escapedTarget"
         def uploader = System.getenv("MARATHON_UPLOADER")
