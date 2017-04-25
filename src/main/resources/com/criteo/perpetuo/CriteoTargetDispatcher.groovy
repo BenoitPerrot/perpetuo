@@ -84,10 +84,13 @@ class RundeckInvoker extends HttpInvoker {
         def escapedProductName = jsonBuilder.toJson(productName)
         def escapedVersion = jsonBuilder.toJson(version.toString())
         def escapedTarget = jsonBuilder.toJson(target)
+        def args = "-environment $marathonEnv -callback-url '${callbackUrl(executionId)}' -product-name $escapedProductName -product-version $escapedVersion -target $escapedTarget"
+        def uploader = System.getenv("MARATHON_UPLOADER")
+        if (uploader)
+            args += " -uploader-version " + uploader
         def body = [
                 // before version 18 of Rundeck, we can't pass options in a structured way
-                "argString": // todo: remove 'environment'?
-                        "-environment $marathonEnv -callback-url '${callbackUrl(executionId)}' -product-name $escapedProductName -product-version $escapedVersion -target $escapedTarget"
+                "argString": args // todo: remove 'environment'?
         ]
         body = new JsonBuilder(body).toString()
         def jsonType = Message$.MODULE$.ContentTypeJson
