@@ -16,6 +16,7 @@ import scala.concurrent.{Await, Future}
 class Plugins(dbBinding: DbBinding, appConfig: BaseAppConfig = AppConfig) {
   lazy val dispatcher: TargetDispatcher = instantiateFromGroovy(AppConfig.get("plugins.dispatcher"))
   lazy val hooks: HooksTrigger = new HooksTrigger(AppConfig.tryGet("plugins.hooks").map(instantiateFromGroovy[Hooks]))
+  lazy val externalData: ExternalDataGetter = new ExternalDataGetter(AppConfig.tryGet("plugins.externalData").map(instantiateFromGroovy[ExternalData]))
 
 
   private val factory = new ScriptEngineManager

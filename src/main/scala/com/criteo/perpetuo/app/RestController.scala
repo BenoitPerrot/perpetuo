@@ -53,10 +53,13 @@ private case class SortingFilteringPost(orderBy: Seq[Map[String, Any]] = Seq(),
 class RestController @Inject()(val execution: Execution)
   extends BaseController {
 
-  private val futurePool = FuturePools.unboundedPool("RequestFuturePool")
   private val plugins = new Plugins(execution.dbBinding)
-  plugins.dispatcher // force the load at application start (we must define those as lazy anyway)
-  plugins.hooks // force the load at application start
+  // force the load of the plugins at application start (we must define those as lazy anyway)
+  plugins.dispatcher
+  plugins.hooks
+  plugins.externalData
+
+  private val futurePool = FuturePools.unboundedPool("RequestFuturePool")
   private val deployBotName = "qabot"
   private val escalationTeamNames = List(
     "d.caroff", "e.peroumalnaik", "g.bourguignon", "m.runtz", "m.molongo",
@@ -90,9 +93,18 @@ class RestController @Inject()(val execution: Execution)
       .getOrElse(TwitterFuture(Some(response.unauthorized)))
   }
 
-  get("/api/products") { _: Request =>
+  get("/api/products") { r: Request =>
     timeBoxed(
-      execution.dbBinding.getProductNames,
+      {
+        val getNames = execution.dbBinding.getProductNames
+        if (r.getBooleanParam("metadata")) {
+          getNames.map(names => plugins.externalData.forProducts(names).zip(names).map {
+            case (properties, name) => properties ++ Map("name" -> name)
+          })
+        }
+        else
+          getNames
+      },
       2.seconds
     )
   }
