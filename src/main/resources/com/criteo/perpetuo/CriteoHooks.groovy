@@ -1,5 +1,3 @@
-package com.criteo.perpetuo
-
 import com.criteo.perpetuo.config.Hooks
 import com.criteo.perpetuo.config.RootAppConfig
 import com.criteo.perpetuo.dao.DbBinding
@@ -51,9 +49,9 @@ class CriteoHooks extends Hooks {
                     "by Perpetuo" :
                     "here: ${appConfig.get('selfUrl')}/deployment-requests/${deploymentRequest.id()}"
             def desc = """
-                Please deploy ${productName} to: ${target.join(', ').toUpperCase()}
+                Please deploy $productName to: ${target.join(', ').toUpperCase()}
                 Request initiated $originator
-                ${optComment}-- Perpetuo""".stripMargin()
+                $optComment-- Perpetuo""".stripMargin()
             def suffix = "for $productName #${deploymentRequest.version()}"
             def body = [
                     "fields": [
