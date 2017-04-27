@@ -25,8 +25,26 @@ class Plugins(dbBinding: DbBinding, appConfig: BaseAppConfig = AppConfig) {
   def instantiateFromGroovy[T](scriptPath: String): T = {
     val resource = getClass.getResource(scriptPath)
     val cls = engine.eval(new InputStreamReader(resource.openStream())).asInstanceOf[Class[T]]
-    val ctor = cls.getConstructor(classOf[DbBinding], classOf[RootAppConfig])
-    ctor.newInstance(dbBinding, appConfig)
+    Seq( // supported instantiation parameters:
+      Seq(dbBinding, appConfig),
+      Seq()
+    )
+      .view // lazily:
+      .flatMap(instantiate(cls, _))
+      .headOption
+      .getOrElse {
+        throw new NoSuchMethodException("Every plugin must implement either a constructor taking a DbBinding and a RootAppConfig as parameters or a default constructor")
+      }
+  }
+
+  private def instantiate[T](cls: Class[T], args: Seq[AnyRef]): Option[T] = {
+    cls.getConstructors
+      .find { c =>
+        val types = c.getParameterTypes
+        types.length == args.length &&
+          types.zip(args).forall { case (t, o) => t.isInstance(o) }
+      }
+      .map(_.newInstance(args: _*).asInstanceOf[T])
   }
 }
 
