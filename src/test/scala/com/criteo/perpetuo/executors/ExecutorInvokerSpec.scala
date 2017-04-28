@@ -12,7 +12,7 @@ class ExecutorInvokerSpec extends Test {
     override def getExecutionDetailsUrlIfApplicable(logHref: String): Option[String] =
       Some(logHref).filter(_.contains(substring)).map(_ + s", because $substring!")
 
-    override def trigger(operationName: String, executionId: Long, productName: String, version: Version, target: TargetExpr, initiator: String): Option[Future[String]] = None
+    override def trigger(operationName: String, executionId: Long, productName: String, version: Version, target: TargetExpr, initiator: String): Future[Option[String]] = Future.successful(None)
   }
 
   // Register two different ways of interpreting log hrefs

@@ -41,33 +41,37 @@ class Execution @Inject()(val dbBinding: DbBinding) extends Logging {
           // log the execution
           logger.debug(s"Triggering $operation job for execution #$execId of ${deploymentRequest.product.name} v. ${deploymentRequest.version} on $executor")
           // trigger the execution
-          executor.trigger(
-            operation.toString, execId,
-            deploymentRequest.product.name, deploymentRequest.version,
-            target,
-            deploymentRequest.creator
-          ).map(
-            // if that answers a log href, update the trace with it, and consider that the job
-            // is running (i.e. already followable and not yet terminated, really)
-            _.map(logHref =>
-              dbBinding.updateExecutionTrace(execId, logHref, ExecutionState.running).map { updated =>
-                assert(updated)
-                (true, s"`$logHref` succeeded")
-              }
-            ).recover({
+          executor
+            .trigger(
+              operation.toString, execId,
+              deploymentRequest.product.name, deploymentRequest.version,
+              target,
+              deploymentRequest.creator
+            )
+            .flatMap(
+              // if that answers a log href, update the trace with it, and consider that the job
+              // is running (i.e. already followable and not yet terminated, really)
+              _.map(logHref =>
+                dbBinding.updateExecutionTrace(execId, logHref, ExecutionState.running).map { updated =>
+                  assert(updated)
+                  (true, s"`$logHref` succeeded")
+                }
+              ).getOrElse(
+                Future.successful((true, "succeeded (but with an unknown log href)"))
+              )
+            )
+            .recoverWith {
               // if triggering the job throws an error, mark the execution as failed at initialization
               case e: Throwable =>
                 dbBinding.updateExecutionTrace(execId, ExecutionState.initFailed).map { updated =>
                   assert(updated)
                   (false, s"failed (${e.getMessage})")
                 }
-            }).flatMap(x => x) // flatten doesn't exist on Future... :(
-          ).getOrElse(
-            Future.successful((true, "succeeded (but with an unknown log href)"))
-          ).map { case (succeeded, identifier) =>
-            logExecution(identifier, execId, executor, target)
-            succeeded
-          }
+            }
+            .map { case (succeeded, identifier) =>
+              logExecution(identifier, execId, executor, target)
+              succeeded
+            }
       }.map { statuses =>
         val successes = statuses.count(s => s)
         (successes, statuses.length - successes)

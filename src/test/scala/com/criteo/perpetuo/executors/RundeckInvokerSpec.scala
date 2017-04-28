@@ -30,14 +30,14 @@ class RundeckInvokerSpec extends Test with TestDb {
       resp.write(content)
       Future.value(resp)
     }
-    val logHref = rundeckInvoker.trigger(
+    val logHref = Await.result(rundeckInvoker.trigger(
       Operation.deploy.toString,
       42,
       "My\"Beautiful\"Project",
       Version("the 042nd version"),
       Set(TargetTerm(Set(JsObject("abc" -> JsString("def"), "ghi" -> JsNumber(51.3))), Set("a", "b"))),
       "guy next door"
-    )
+    ), 1.second)
     logHref shouldBe defined
     logHref.get
   }
@@ -45,39 +45,22 @@ class RundeckInvokerSpec extends Test with TestDb {
   "Rundeck's API" should {
     "be followed" when {
       "everything goes well" in {
-        Await.result(
-          testWhenResponseIs(200, """{"id": 123, "permalink": "http://rundeck/job/123/show"}""").map(
-            _ shouldEqual "http://rundeck/job/123/show"
-          ),
-          1.second
-        )
+        testWhenResponseIs(200, """{"id": 123, "permalink": "http://rundeck/job/123/show"}""") shouldEqual "http://rundeck/job/123/show"
       }
 
       "a connection problem occurs" in {
-        Await.result(
-          testWhenResponseIs(403, "<html>gibberish</html>").recover {
-            case err: Exception => err.getMessage shouldEqual "Rundeck answered: Forbidden"
-          },
-          1.second
-        )
+        val exc = the[Exception] thrownBy testWhenResponseIs(403, "<html>gibberish</html>")
+        exc.getMessage shouldEqual "Rundeck answered: Forbidden"
       }
 
       "an internal server error occurs" in {
-        Await.result(
-          testWhenResponseIs(500, "<html><p>Intelligible error</p></html>").recover {
-            case err: Exception => err.getMessage should endWith("Internal Server Error: Intelligible error")
-          },
-          1.second
-        )
+        val exc = the[Exception] thrownBy testWhenResponseIs(500, "<html><p>Intelligible error</p></html>")
+        exc.getMessage should endWith("Internal Server Error: Intelligible error")
       }
 
       "the request cannot be satisfied" in {
-        Await.result(
-          testWhenResponseIs(400, """{"error": true, "message": "Intelligible error"}""").recover {
-            case err: Exception => err.getMessage should endWith("""Bad Request: Intelligible error""")
-          },
-          1.second
-        )
+        val exc = the[Exception] thrownBy testWhenResponseIs(400, """{"error": true, "message": "Intelligible error"}""")
+        exc.getMessage should endWith("""Bad Request: Intelligible error""")
       }
     }
   }

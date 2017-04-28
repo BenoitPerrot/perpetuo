@@ -42,12 +42,12 @@ abstract class HttpInvoker(val host: String,
 
   override def toString: String = name
 
-  override def trigger(operationName: String, executionId: Long, productName: String, version: Version, target: TargetExpr, initiator: String): Some[ScalaFuture[String]] = {
+  override def trigger(operationName: String, executionId: Long, productName: String, version: Version, target: TargetExpr, initiator: String): ScalaFuture[Option[String]] = {
     // todo: while we only deal with marathon target, we directly give the select dimension, and formatted differently
     val req = buildRequest(operationName, executionId, productName, version.toString, Target.getSimpleSelect(target).mkString(","), initiator)
 
     // trigger the job and return a future to the execution's log href
-    Some(ScalaFuture {
+    ScalaFuture {
       // convert a twitter Future to a scala one, as well as the possibly induced timeout exception
       val response = try {
         Await.result(client(req), requestTimeout + 1.second)
@@ -58,12 +58,12 @@ abstract class HttpInvoker(val host: String,
       val content = response.contentString
       response.status match {
         case Status.Successful(_) =>
-          getLogHref(content)
+          Some(getLogHref(content))
         case s =>
           val embeddedDetail = extractMessage(response.statusCode, content)
           val detail = if (embeddedDetail.nonEmpty) s"${s.reason}: $embeddedDetail" else s.reason
           throw new Exception("Rundeck answered: " + detail)
       }
-    })
+    }
   }
 }
