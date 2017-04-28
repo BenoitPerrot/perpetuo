@@ -20,7 +20,7 @@ abstract class HttpInvoker(val host: String,
 
   // to implement in concrete classes
   protected def buildRequest(operationName: String, executionId: Long, productName: String, version: String, target: String, initiator: String): Request
-  protected def getLogHref(executorAnswer: String): String
+  protected def getLogHref(executorAnswer: String): String // answer "" if no log href can be known (e.g. delayed execution)
   protected def extractMessage(status: Int, content: String): String // answer "" if no message can be extracted
 
   // HTTP client
@@ -58,7 +58,8 @@ abstract class HttpInvoker(val host: String,
       val content = response.contentString
       response.status match {
         case Status.Successful(_) =>
-          Some(getLogHref(content))
+          val logHref = getLogHref(content)
+          if (logHref.nonEmpty) Some(logHref) else None
         case s =>
           val embeddedDetail = extractMessage(response.statusCode, content)
           val detail = if (embeddedDetail.nonEmpty) s"${s.reason}: $embeddedDetail" else s.reason
