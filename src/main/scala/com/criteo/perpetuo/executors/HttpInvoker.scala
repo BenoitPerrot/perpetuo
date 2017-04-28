@@ -21,7 +21,7 @@ abstract class HttpInvoker(val host: String,
   // to implement in concrete classes
   protected def buildRequest(operationName: String, executionId: Long, productName: String, version: String, target: String, initiator: String): Request
   protected def getLogHref(executorAnswer: String): String
-  protected def tryExtractMessage(status: Int, content: String): Option[String]
+  protected def extractMessage(status: Int, content: String): String // answer "" if no message can be extracted
 
   // HTTP client
   protected val ssl: Boolean = port == 443
@@ -60,8 +60,9 @@ abstract class HttpInvoker(val host: String,
         case Status.Successful(_) =>
           getLogHref(content)
         case s =>
-          val embeddedDetail = tryExtractMessage(response.statusCode, content)
-          throw new Exception("Rundeck answered: " + embeddedDetail.map(detail => s"${s.reason}: $detail").getOrElse(s.reason))
+          val embeddedDetail = extractMessage(response.statusCode, content)
+          val detail = if (embeddedDetail.nonEmpty) s"${s.reason}: $embeddedDetail" else s.reason
+          throw new Exception("Rundeck answered: " + detail)
       }
     })
   }

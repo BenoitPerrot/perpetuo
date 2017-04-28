@@ -13,9 +13,6 @@ import groovy.json.JsonBuilder
 import groovy.json.JsonException
 import groovy.json.JsonOutput
 import groovy.json.JsonSlurper
-import scala.None$
-import scala.Option
-import scala.Some
 
 
 /* first, the class exposed to actually configure Perpetuo */
@@ -110,14 +107,14 @@ class RundeckInvoker extends HttpInvoker {
     }
 
     @Override
-    Option<String> tryExtractMessage(int status, String content) {
+    String extractMessage(int status, String content) {
         try {
-            new Some((jsonSlurper.parseText(content) as Map).message as String)
+            (jsonSlurper.parseText(content) as Map).message
         } catch (JsonException ignored) {
             def matcher = content =~ errorInHtml
-            if (matcher.matches()) new Some(matcher[0][1]) else None$.MODULE$
+            matcher.matches() ? matcher[0][1] : ""
         } catch (Throwable ignored) {
-            None$.MODULE$
+            ""
         }
     }
 }
