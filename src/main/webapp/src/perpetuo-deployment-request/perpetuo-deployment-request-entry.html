@@ -100,7 +100,7 @@
   <template>
     <div class="heading">
       <span class="product-name"><paper-icon-button icon="[[expanderIcon(expanded, hasMore)]]" disabled="[[!hasMore]]" on-tap="toggle"></paper-icon-button><span on-tap="toggle">[[data.productName]]</span></span>
-      <span class="version">[[data.version]]</span>
+      <span class="version">[[shortVersion]]</span>
       <span class="target">[[data.target]]</span>
       <span class="creator">[[data.creator]]</span>
       <span class="creation-date">[[data.dateString]]</span>
@@ -144,6 +144,7 @@
       state: { type: String, computed: 'computeState(data)' },
       expanded: { type: Boolean, notify: true },
       hasMore: { type: Boolean, computed: 'computeHasMore(data)' },
+      shortVersion: { type: String, computed: 'computeShortVersion(data)' },
       comment: { type: Object, computed: 'computeComment(data)' }
     },
 
@@ -174,6 +175,10 @@
 
     computeHasMore(data) {
       return data.comment || 0 < data.operations.length;
+    },
+
+    computeShortVersion(data) {
+      return data.version.length > 1 ? data.version.slice(0, 7) + "..." : data.version
     },
 
     computeComment(data) {
