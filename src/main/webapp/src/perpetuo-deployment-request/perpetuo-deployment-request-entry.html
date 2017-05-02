@@ -178,7 +178,7 @@
     },
 
     computeShortVersion(data) {
-      return data.version.length > 1 ? data.version.slice(0, 7) + "..." : data.version
+      return data.version.length > 10 ? data.version.slice(0, 7) + "..." : data.version
     },
 
     computeComment(data) {
