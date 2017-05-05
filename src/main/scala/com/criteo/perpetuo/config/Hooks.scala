@@ -34,7 +34,7 @@ private[config] class HooksTrigger(implementation: Option[Hooks]) extends Plugin
   protected def inFuture[T](methodName: String, args: Any*): Future[T] = {
     // start every hook method in a background thread
     Future {
-      wrap(methodName, args: _*)
+      wrap[T](methodName, args: _*)
     }
   }
 }

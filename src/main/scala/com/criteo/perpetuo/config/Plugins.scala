@@ -72,11 +72,11 @@ abstract class PluginRunner[P <: Plugin](implementation: Option[P], base: P) {
       // there is a specific implementation for this plugin method, let's say it and start it, but time-boxed
       plugin.logger.info(s"$methodName")
       Await.result(Future {
-        invoke(method, args: _*)
+        invoke[T](method, args: _*)
       }, plugin.timeout_s.seconds)
     }
     else
-      invoke(method, args: _*)
+      invoke[T](method, args: _*)
   }
 
   private def invoke[T](method: Method, args: Any*): T =
