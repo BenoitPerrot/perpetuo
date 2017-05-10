@@ -127,6 +127,7 @@ api_query deployment-requests -d '{
 api_query deployment-requests?start=true -d '{
     "productName": "itest-project",
     "version": "v42",
+    "lastValidatedVersion": "v41",
     "target": ["par", "am5"]
 }' | expects '\{"id":[0-9]+}' -Ex | {
     read ans

@@ -162,7 +162,7 @@ class RestController @Inject()(val execution: Execution)
                 .getOrElse {
                   throw BadRequestException(s"Product `${attrs.productName}` could not be found")
                 })
-              .flatMap(plugins.hooks.onDeploymentRequestCreated(_, immediateStart = autoStart))
+              .flatMap(plugins.hooks.onDeploymentRequestCreated(_, immediateStart = autoStart, r.contentString))
               .map(ticketUrl =>
                 Some(response.created.json(Map("ticketUrl" -> ticketUrl)))
               )
@@ -171,7 +171,7 @@ class RestController @Inject()(val execution: Execution)
             // first, log the user's general intent
             val futureDepReq = execution.dbBinding.insert(attrs)
             // when the record is created, notify the corresponding hook
-            futureDepReq.foreach(plugins.hooks.onDeploymentRequestCreated(_, immediateStart = autoStart))
+            futureDepReq.foreach(plugins.hooks.onDeploymentRequestCreated(_, immediateStart = autoStart, r.contentString))
 
             if (autoStart) {
               futureDepReq.flatMap(depReq =>

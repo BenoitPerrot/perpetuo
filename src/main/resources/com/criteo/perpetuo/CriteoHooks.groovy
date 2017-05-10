@@ -37,7 +37,7 @@ class CriteoHooks extends Hooks {
     }
 
     @Override
-    String onDeploymentRequestCreated(DeploymentRequest deploymentRequest, boolean immediateStart) {
+    String onDeploymentRequestCreated(DeploymentRequest deploymentRequest, boolean immediateStart, String requestBody) {
         if (appConfig.env() != "preprod" && !immediateStart) {
             def productName = deploymentRequest.product().name()
             def version = deploymentRequest.version().toString()
@@ -54,6 +54,9 @@ class CriteoHooks extends Hooks {
             Map metadata = getReleaseMetadata().getOrDefault(productName, [:])
             def bools = [(true): "True", (false): "False"]
 
+            def requestJson = new JsonSlurper().parseText(requestBody)
+            def lastValidatedVersion = requestJson.getOrDefault("lastValidatedVersion", "")
+
             def body = [
                     "fields": [
                             "project"          : ["key": "MRM"],
@@ -61,7 +64,7 @@ class CriteoHooks extends Hooks {
                             "issuetype"        : ["name": "[MOAB] Release"],
                             "customfield_11006": ["value": "Mesos"],
                             "customfield_11003": version,
-                            "customfield_12500": version,
+                            "customfield_12500": lastValidatedVersion,
                             "customfield_12702": ["value": bools[metadata.getOrDefault("preprodNeededField", false)]],
                             "customfield_12703": ["value": metadata.getOrDefault("deployType", "Worldwide")],
                             "customfield_10922": target.collect { String dc -> ["value": targetMap[dc]] },

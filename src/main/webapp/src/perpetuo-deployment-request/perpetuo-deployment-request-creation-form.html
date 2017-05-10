@@ -66,6 +66,7 @@
         </div>
         <!-- TODO: Make this a _pluggable_ component -->
         <perpetuo-criteo-target-expression-editor id="targetSelector"></perpetuo-criteo-target-expression-editor>
+        <paper-input id="lastValidatedVersion" label="Last Validated Version"></paper-input>
         <paper-textarea id="commentEditor" label="Comment"></paper-textarea>
         <div class="buttons">
           <paper-button dialog-dismiss class="cancel" raised>Cancel</paper-button>
@@ -124,6 +125,7 @@
     create() {
       this.client.createDeploymentRequest(this.$.productSelector.selectedItemLabel,
                                           this.$.versionSelector.value,
+                                          this.$.lastValidatedVersion.value,
                                           this.$.targetSelector.value,
                                           this.$.commentEditor.value)
           .then(r => {
@@ -137,6 +139,7 @@
     clear() {
       this.$.productSelector_.selected = null;
       this.$.versionSelector.value = '';
+      this.$.lastValidatedVersion.value = '';
       this.$.targetSelector.value = '';
       this.$.commentEditor.value = '';
     },
