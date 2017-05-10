@@ -15,7 +15,7 @@ import groovy.json.JsonOutput
 import groovy.json.JsonSlurper
 
 
-/* first, the class exposed to actually configure Perpetuo */
+/* the "public" class to be loaded as the actual plugin must be the first statement after the imports */
 
 class CriteoTargetDispatcher extends TargetDispatcherByPoset {
     CriteoTargetDispatcher(DbBinding dbBinding, RootAppConfig appConfig) {

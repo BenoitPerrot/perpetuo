@@ -13,6 +13,8 @@ import scala.concurrent.duration.Duration
 import static groovyx.net.http.ContentType.JSON
 
 
+/* the "public" class to be loaded as the actual plugin must be the first statement after the imports */
+
 class CriteoHooks extends Hooks {
     def targetMap = [
             "sv6": "NA-SV6",

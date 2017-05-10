@@ -4,7 +4,7 @@ import groovyx.net.http.RESTClient
 import org.codehaus.groovy.runtime.metaclass.ConcurrentReaderHashMap
 
 
-/* first, the class exposed to actually configure Perpetuo */
+/* the "public" class to be loaded as the actual plugin must be the first statement after the imports */
 
 class CriteoExternalData extends ExternalData { // fixme: this only works with JMOAB for now
     final static int maxVersionsInThePast = 200 // don't bother reading further in the past
