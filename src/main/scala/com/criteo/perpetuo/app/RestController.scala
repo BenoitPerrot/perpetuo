@@ -33,6 +33,9 @@ trait WithId {
 private case class RequestWithId(@RouteParam @NotEmpty id: String,
                                  @Inject request: Request) extends WithId
 
+private case class RequestWithNameAndVersion(@RouteParam @NotEmpty name: String,
+                                             @RouteParam @NotEmpty version: String)
+
 private case class ProductPost(@NotEmpty name: String,
                                @Inject request: Request)
 
@@ -66,13 +69,16 @@ class RestController @Inject()(val execution: Execution)
     "m.nguyen", "m.soltani", "s.guerrier", "t.zhuang"
   )
 
-  private def await[T](future: Future[T], maxDuration: Duration): T =
+  private def handleTimeout[T](action: => T): T =
     try {
-      Await.result(future, maxDuration)
+      action
     }
     catch {
       case e: TimeoutException => throw HttpException(HttpStatus.GatewayTimeout, e.getMessage)
     }
+
+  private def await[T](future: Future[T], maxDuration: Duration): T =
+    handleTimeout(Await.result(future, maxDuration))
 
   private def timeBoxed[T](view: => Future[T], maxDuration: Duration): TwitterFuture[T] =
     futurePool {
@@ -93,18 +99,9 @@ class RestController @Inject()(val execution: Execution)
       .getOrElse(TwitterFuture(Some(response.unauthorized)))
   }
 
-  get("/api/products") { r: Request =>
+  get("/api/products") { _: Request =>
     timeBoxed(
-      {
-        val getNames = execution.dbBinding.getProductNames
-        if (r.getBooleanParam("metadata")) {
-          getNames.map(names => plugins.externalData.forProducts(names).zip(names).map {
-            case (properties, name) => properties ++ Map("name" -> name)
-          })
-        }
-        else
-          getNames
-      },
+      execution.dbBinding.getProductNames,
       2.seconds
     )
   }
@@ -124,6 +121,12 @@ class RestController @Inject()(val execution: Execution)
         2.seconds
       )
     }
+  }
+
+  post("/api/products/:name/validate-version/:version") { r: RequestWithNameAndVersion =>
+    handleTimeout(
+      Map("valid" -> plugins.externalData.validateVersion(r.name, r.version))
+    )
   }
 
   get("/api/deployment-requests/:id")(
