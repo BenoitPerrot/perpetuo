@@ -81,13 +81,12 @@ then
         -jar ${perpetuo_jar} \
         -admin.port=:${ADMIN_PORT}
     echo
-
-    api_query products -d '{"name": "itest-project"}'
 else
     echo "Perpetuo seems to run already. Using it."
-    api_query products -d '{"name": "itest-project"}' 2> /dev/null || true
 fi
 
+api_query products -d '{"name": "itest-project"}' 2> /dev/null || true
+api_query products -d '{"name": "angryboards-app"}' 2> /dev/null || true
 
 ### helpers
 
