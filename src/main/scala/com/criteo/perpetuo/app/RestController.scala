@@ -33,6 +33,8 @@ trait WithId {
 private case class RequestWithId(@RouteParam @NotEmpty id: String,
                                  @Inject request: Request) extends WithId
 
+private case class RequestWithName(@RouteParam @NotEmpty name: String)
+
 private case class RequestWithNameAndVersion(@RouteParam @NotEmpty name: String,
                                              @RouteParam @NotEmpty version: String)
 
@@ -121,6 +123,12 @@ class RestController @Inject()(val execution: Execution)
         2.seconds
       )
     }
+  }
+
+  post("/api/products/:name/last-version") { r: RequestWithName =>
+    handleTimeout(
+      plugins.externalData.lastValidVersion(r.name)
+    )
   }
 
   post("/api/products/:name/validate-version/:version") { r: RequestWithNameAndVersion =>

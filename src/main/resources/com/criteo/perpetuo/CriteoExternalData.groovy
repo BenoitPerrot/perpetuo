@@ -14,6 +14,24 @@ class CriteoExternalData extends ExternalData { // fixme: this only works with J
     final is_packaged = new IsPackaged()
 
     @Override
+    String lastValidVersion(String productName) {
+        def version = getLastVersion()
+        if (!version)
+            return ""
+
+        // if we have a MOAB number (there can't be a patch number on this one) and if it's not valid,
+        // let's find an older version that is valid
+        def deadline = System.currentTimeMillis() + timeout_s() * 1000 * 0.8 // consume max. 80% of the general timeout
+        def oldest = Math.max(0, version - maxVersionsInThePast)
+        while (version > oldest && System.currentTimeMillis() < deadline) {
+            if (validateVersion(productName, version as String))
+                return version as String
+            --version
+        }
+        return ""
+    }
+
+    @Override
     boolean validateVersion(String productName, String version) {
         Map<String, String> allRepos = repos.get(version)
         Set<String> allPackaged = is_packaged.get(version)
@@ -21,6 +39,19 @@ class CriteoExternalData extends ExternalData { // fixme: this only works with J
         return art != null && allRepos != null && allPackaged != null && art.collect {
             allRepos.get(it)
         }.every { it in allPackaged }
+    }
+
+    static Integer getLastVersion() {
+        // fixme: not acceptable in long term: it should take the product name as parameter
+        def client = new RESTClient("http://moab.criteois.lan")
+        try {
+            def resp = client.get(path: "/java/moabs/current/id")
+            assert resp.status == 200
+            return resp.data.text.trim() as Integer // it can't be a patched MOAB
+        } catch (HttpResponseException e) {
+            assert e.response.status == 404 // it's allowed to not have data about a product
+            return null
+        }
     }
 }
 
