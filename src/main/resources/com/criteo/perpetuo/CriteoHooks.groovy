@@ -36,7 +36,7 @@ class CriteoHooks extends Hooks {
 
     @Override
     String onDeploymentRequestCreated(DeploymentRequest deploymentRequest, boolean immediateStart) {
-        if (appConfig.env().endsWith("prod") && !immediateStart) {
+        if (appConfig.env() != "preprod" && !immediateStart) {
             def productName = deploymentRequest.product().name()
             def version = deploymentRequest.version().toString()
             def target = Target.getSimpleSelectForGroovy(deploymentRequest.parsedTarget())
