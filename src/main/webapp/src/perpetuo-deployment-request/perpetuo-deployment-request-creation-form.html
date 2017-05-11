@@ -40,11 +40,11 @@
     justify-content: flex-end;
     margin-top: 2em;
   }
-  #create {
+  .create {
     background: #26a69a;
     color: #fff;
   }
-  #cancel {
+  .cancel {
     background-color: #f44336;
     color: #fff;
   }
@@ -52,30 +52,44 @@
   <template>
     <style include="paper-dialog-shared-styles"></style>
     <h2>New Deployment Request</h2>
-    <div class="product-name-version">
-      <paper-dropdown-menu id="productSelector" label="Product" no-animations>
-        <paper-listbox id="productSelector_" class="dropdown-content">
-          <template is="dom-repeat" items="[[products]]">
-            <paper-item>[[item.name]]</paper-item>
-          </template>
-        </paper-listbox>
-      </paper-dropdown-menu>
-      <paper-input id="versionSelector" label="Version"></paper-input>
-    </div>
-    <!-- TODO: Make this a _pluggable_ component -->
-    <perpetuo-criteo-target-expression-editor id="targetSelector"></perpetuo-criteo-target-expression-editor>
-    <paper-textarea id="commentEditor" label="Comment"></paper-textarea>
-    <div class="buttons">
-      <paper-button dialog-dismiss id="cancel" raised>Cancel</paper-button>
-      <paper-button raised on-tap="clear">Clear</paper-button>
-      <paper-button id="create" raised on-tap="onCreateTap">Create</paper-button>
-    </div>
+    <iron-pages selected="[[state]]" attr-for-selected="state-name">
+      <iron-page state-name="declare-intent">
+        <div class="product-name-version">
+          <paper-dropdown-menu id="productSelector" label="Product" no-animations>
+            <paper-listbox id="productSelector_" class="dropdown-content">
+              <template is="dom-repeat" items="[[products]]">
+                <paper-item>[[item.name]]</paper-item>
+              </template>
+            </paper-listbox>
+          </paper-dropdown-menu>
+          <paper-input id="versionSelector" label="Version"></paper-input>
+        </div>
+        <!-- TODO: Make this a _pluggable_ component -->
+        <perpetuo-criteo-target-expression-editor id="targetSelector"></perpetuo-criteo-target-expression-editor>
+        <paper-textarea id="commentEditor" label="Comment"></paper-textarea>
+        <div class="buttons">
+          <paper-button dialog-dismiss class="cancel" raised>Cancel</paper-button>
+          <paper-button raised on-tap="clear">Clear</paper-button>
+          <paper-button class="create" raised on-tap="onTryCreateTap">Create</paper-button>
+        </div>
+      </iron-page>
+      <iron-page state-name="disregard-invalid">
+        <p style="color: red;">Requested version could not be validated.</p>
+        <p>Create deployment request anyway, or modify it?</p>
+        <div class="buttons">
+          <paper-button dialog-dismiss class="cancel" raised>Cancel</paper-button>
+          <paper-button raised on-tap="backToDeclareIntent">Modify</paper-button>
+          <paper-button class="create" raised on-tap="onCreateTap">Create</paper-button>
+        </div>
+      </iron-page>
+    </iron-pages>
   </template>
   <script>
   Polymer({
     is: 'perpetuo-deployment-request-creation-form',
 
     properties: {
+      state: { type: String, value: 'declare-intent' },
       products: { type: Array, value: () => [] }
     },
 
@@ -86,25 +100,49 @@
     attached() {
       this.client = new Perpetuo.Client();
       this.client.fetchProducts().then(products => { this.products = products });
+      this.addEventListener('opened-changed', e => {
+        if (e.detail.value) {
+          this.backToDeclareIntent();
+        }
+      });
+    },
+
+    onTryCreateTap() {
+      this.client.validateProductVersion(this.$.productSelector.selectedItemLabel, this.$.versionSelector.value).then(r => {
+        if (!r.valid) {
+          this.state = 'disregard-invalid';
+        } else {
+          this.create();
+        }
+      });
     },
 
     onCreateTap() {
+      this.create();
+    },
+
+    create() {
       this.client.createDeploymentRequest(this.$.productSelector.selectedItemLabel,
                                           this.$.versionSelector.value,
                                           this.$.targetSelector.value,
                                           this.$.commentEditor.value)
-        .then(r => {
-          if (r.ok) {
-            r.json().then(o => window.location.replace(o.ticketUrl));
-          }
-          this.close();
-        })
+          .then(r => {
+            if (r.ok) {
+              r.json().then(o => window.location.replace(o.ticketUrl));
+            }
+            this.close();
+          })
     },
+
     clear() {
       this.$.productSelector_.selected = null;
       this.$.versionSelector.value = '';
       this.$.targetSelector.value = '';
       this.$.commentEditor.value = '';
+    },
+
+    backToDeclareIntent() {
+      this.state = 'declare-intent';
     },
   });
   </script>

@@ -87,6 +87,9 @@ this.Perpetuo.Client = this.Perpetuo.Client || (function () {
     createProduct(productName) {
       return jsonFetch('/api/products', { method: 'POST', body: JSON.stringify({name: productName}) });
     }
+    validateProductVersion(productName, version) {
+      return jsonFetch(`/api/products/${productName}/validate-version/${version}`, { method: 'POST' }).then(_ => _.json());
+    }
   };
 } ());
 </script>
