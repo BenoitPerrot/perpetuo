@@ -3,6 +3,8 @@ import com.criteo.perpetuo.config.RootAppConfig
 import com.criteo.perpetuo.dao.DbBinding
 import com.criteo.perpetuo.model.DeploymentRequest
 import com.criteo.perpetuo.model.Target
+import groovy.json.JsonSlurper
+import groovyx.net.http.HTTPBuilder
 import groovyx.net.http.HttpResponseException
 import groovyx.net.http.RESTClient
 import scala.concurrent.Await
@@ -22,12 +24,6 @@ class CriteoHooks extends Hooks {
             "sh5": "CN-SH5",
             "ty5": "AS-TY5",
             "*"  : "Worldwide"
-    ]
-    def dcByDcApps = [
-            "bidding-direct-bidder-app",
-            "bidding-direct-bidder-canary-app",
-            "imageproxy-app",
-            "videoproxy-app"
     ]
 
     DbBinding dbBinding
@@ -52,7 +48,10 @@ class CriteoHooks extends Hooks {
                 Please deploy $productName to: ${target.join(', ').toUpperCase()}
                 Request initiated $originator
                 $optComment-- Perpetuo""".stripMargin()
-            def suffix = "for $productName #${deploymentRequest.version()}"
+
+            def metadata = getReleaseMetadata()
+            def deployType = metadata[productName]["deployType"]
+
             def body = [
                     "fields": [
                             "project"          : ["key": "MRM"],
@@ -62,7 +61,7 @@ class CriteoHooks extends Hooks {
                             "customfield_11003": version,
                             "customfield_12500": version,
                             "customfield_12702": ["value": "False"],
-                            "customfield_12703": ["value": dcByDcApps.contains(productName) ? "DC by DC" : "Worldwide"],
+                            "customfield_12703": ["value": deployType],
                             "customfield_10922": target.collect { String dc -> ["value": targetMap[dc]] },
                             "customfield_15500": ["value": "False"],
                             "customfield_27000": ["value": "Mesos"],
@@ -83,6 +82,7 @@ class CriteoHooks extends Hooks {
             def credentials = appConfig.get("jira.user") + ":" + appConfig.get("jira.password")
             client.setHeaders(Authorization: "Basic ${credentials.bytes.encodeBase64()}")
 
+            def suffix = "for $productName #$version"
             try {
                 def resp = client.post(
                         path: "/rest/api/2/issue",
@@ -110,5 +110,11 @@ class CriteoHooks extends Hooks {
                 logger().severe("Bad response from JIRA when creating ticket $suffix: ${e.response.status} ${e.getMessage()}: ${e.response.getData().toString()}")
             }
         }
+    }
+
+    static def getReleaseMetadata() {
+        def client = new HTTPBuilder()
+        StringReader resp = client.get(uri: "http://review.criteois.lan/gitweb?p=release/release-management.git;a=blob_plain;f=src/python/releaseManagement/jiraMoab/tlaVsAppObject.json")
+        return new JsonSlurper().parse(resp)
     }
 }
