@@ -49,8 +49,8 @@ class CriteoHooks extends Hooks {
                 Request initiated $originator
                 $optComment-- Perpetuo""".stripMargin()
 
-            def metadata = getReleaseMetadata()
-            def deployType = metadata[productName]["deployType"]
+            Map metadata = getReleaseMetadata().getOrDefault(productName, [:])
+            def bools = [(true): "True", (false): "False"]
 
             def body = [
                     "fields": [
@@ -60,11 +60,12 @@ class CriteoHooks extends Hooks {
                             "customfield_11006": ["value": "Mesos"],
                             "customfield_11003": version,
                             "customfield_12500": version,
-                            "customfield_12702": ["value": "False"],
-                            "customfield_12703": ["value": deployType],
+                            "customfield_12702": ["value": bools[metadata.getOrDefault("preprodNeededField", false)]],
+                            "customfield_12703": ["value": metadata.getOrDefault("deployType", "Worldwide")],
                             "customfield_10922": target.collect { String dc -> ["value": targetMap[dc]] },
-                            "customfield_15500": ["value": "False"],
+                            "customfield_15500": ["value": bools[metadata.getOrDefault("prodApprovalNeeded", false)]],
                             "customfield_27000": ["value": "Mesos"],
+                            "customfield_12800": metadata.getOrDefault("validation", []).collect { ["value": it] },
                             "customfield_11107": productName,
                             "reporter"         : ["name": deploymentRequest.creator()],
                             "description"      : desc
@@ -112,9 +113,9 @@ class CriteoHooks extends Hooks {
         }
     }
 
-    static def getReleaseMetadata() {
+    static Map getReleaseMetadata() {
         def client = new HTTPBuilder()
         StringReader resp = client.get(uri: "http://review.criteois.lan/gitweb?p=release/release-management.git;a=blob_plain;f=src/python/releaseManagement/jiraMoab/tlaVsAppObject.json")
-        return new JsonSlurper().parse(resp)
+        return new JsonSlurper().parse(resp) as Map
     }
 }
