@@ -35,8 +35,8 @@ class OperationTraceSpec extends FunSuite with ScalaFutures
       for {
         product <- insert("perpetuo-app")
         request <- insert(new DeploymentRequestAttrs(product.name, Version("v42"), "*", "No fear", "c.norris", new Timestamp(123456789)))
-        deployId <- addToDeploymentRequest(request.id, Operation.deploy)
-        revertId <- addToDeploymentRequest(request.id, Operation.revert)
+        deployId <- addToDeploymentRequest(request.id, Operation.deploy, "c.norris")
+        revertId <- addToDeploymentRequest(request.id, Operation.revert, "c.norris")
         traces <- dbContext.db.run(operationTraceQuery.result)
       } yield {
         assert(traces.length == 2)

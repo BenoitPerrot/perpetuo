@@ -168,7 +168,9 @@ class RestController @Inject()(val execution: Execution)
 
             if (autoStart) {
               futureDepReq.flatMap(depReq =>
-                execution.startOperation(plugins.dispatcher, depReq, Operation.deploy).map { case (started, failed) => (depReq, started, failed) }
+                execution.startOperation(plugins.dispatcher, depReq, Operation.deploy, user.name).map {
+                  case (started, failed) => (depReq, started, failed)
+                }
               ).foreach { case (depReq, started, failed) =>
                 plugins.hooks.onDeploymentRequestStarted(depReq, started, failed, immediately = true)
               }
@@ -184,23 +186,24 @@ class RestController @Inject()(val execution: Execution)
     }
   }
 
-  private def putDeploymentRequest(id: Long, r: RequestWithId) = {
-    execution.dbBinding.findDeploymentRequestByIdWithProduct(id).map(_.map { req =>
-      // done asynchronously
-      execution.startOperation(plugins.dispatcher, req, Operation.deploy)
-        .foreach { case (started, failed) =>
-          plugins.hooks.onDeploymentRequestStarted(req, started, failed, immediately = false)
-        }
-
-      // returned synchronously
-      response.ok.json(Map("id" -> req.id))
-    })
-  }
-
   put("/api/deployment-requests/:id") { r: RequestWithId =>
     // todo: Use AD group to give escalation team permissions to deploy in prod
     authenticate(r.request) { case user if user.name == deployBotName || escalationTeamNames.contains(user.name) || AppConfig.env != "prod" =>
-      withIdAndRequest(putDeploymentRequest, 2.seconds)(r)
+      withIdAndRequest(
+        (id, _: RequestWithId) => {
+          execution.dbBinding.findDeploymentRequestByIdWithProduct(id).map(_.map { req =>
+            // done asynchronously
+            execution.startOperation(plugins.dispatcher, req, Operation.deploy, user.name)
+              .foreach { case (started, failed) =>
+                plugins.hooks.onDeploymentRequestStarted(req, started, failed, immediately = false)
+              }
+
+            // returned synchronously
+            response.ok.json(Map("id" -> req.id))
+          })
+        },
+        2.seconds
+      )(r)
     }
   }
 

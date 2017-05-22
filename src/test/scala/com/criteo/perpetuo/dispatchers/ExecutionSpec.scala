@@ -46,7 +46,7 @@ class ExecutionSpec extends Test with TestDb {
     val req = new DeploymentRequestAttrs(product.name, Version("v42"), """"*"""", "No fear", "c.norris", new Timestamp(123456789))
 
     val depReq = execution.dbBinding.insert(req)
-    val asyncStart = depReq.flatMap(execution.startOperation(dispatcher, _, Operation.deploy))
+    val asyncStart = depReq.flatMap(execution.startOperation(dispatcher, _, Operation.deploy, "c.norris"))
     asyncStart.flatMap { case (successes, failures) =>
       depReq.map(_.id).flatMap(execution.dbBinding.findExecutionTracesByDeploymentRequest).map { traces =>
         val executions = traces.map(trace => {
@@ -75,7 +75,7 @@ class ExecutionSpec extends Test with TestDb {
 
       execLogs.clear()
       Await.result(
-        depReq.flatMap(execution.startOperation(TestSuffixDispatcher, _, Operation.deploy).map(_ =>
+        depReq.flatMap(execution.startOperation(TestSuffixDispatcher, _, Operation.deploy, "c.norris").map(_ =>
           execLogs should contain theSameElementsAs that
         )),
         1.second

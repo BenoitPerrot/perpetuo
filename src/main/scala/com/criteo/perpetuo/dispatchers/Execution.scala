@@ -22,12 +22,12 @@ class Execution @Inject()(val dbBinding: DbBinding) extends Logging {
     * Start all relevant executions and return the numbers of successful
     * and failed execution starts.
     */
-  def startOperation(dispatcher: TargetDispatcher, deploymentRequest: DeploymentRequest, operation: Operation): Future[(Int, Int)] = {
+  def startOperation(dispatcher: TargetDispatcher, deploymentRequest: DeploymentRequest, operation: Operation, userName: String): Future[(Int, Int)] = {
     // infer dispatching
     val invocations = dispatch(dispatcher, deploymentRequest.parsedTarget).toSeq
 
     // log the operation intent in the DB
-    dbBinding.addToDeploymentRequest(deploymentRequest.id, operation).flatMap(
+    dbBinding.addToDeploymentRequest(deploymentRequest.id, operation, userName).flatMap(
       // create as many traces, all at the same time
       dbBinding.addToOperationTrace(_, invocations.length).map {
         execIds =>
