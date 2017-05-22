@@ -677,4 +677,28 @@ class RestControllerSpec extends FeatureTest with TestDb {
     }
   }
 
+  "Creating a deployment request with a too long name" should {
+    "work but store a truncated user name" in {
+      val longUser = User("too-long-user-name/" * 42)
+      val longUserJWT = longUser.toJWT(authModule.jwtEncoder)
+
+      val id = server.httpPost(
+        path = s"/api/deployment-requests",
+        headers = Map("Cookie" -> s"jwt=$longUserJWT"),
+        andExpect = Created,
+        postBody = Map(
+          "productName" -> "my product",
+          "version" -> "v2097",
+          "target" -> "to everywhere"
+        ).toJson.compactPrint
+      ).contentString.parseJson.asJsObject.fields("id")
+
+      server.httpGet(
+        path = s"/api/deployment-requests/$id",
+        andExpect = Ok
+      ).contentString.parseJson.asJsObject.fields("creator").asInstanceOf[JsString].value shouldEqual
+        "too-long-user-name/too-long-user-name/too-long-user-name/too-lon"
+    }
+  }
+
 }

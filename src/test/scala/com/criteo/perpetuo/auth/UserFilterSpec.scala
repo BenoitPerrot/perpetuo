@@ -40,7 +40,9 @@ class UserFilterSpec extends FeatureTest {
   })
 
   val knownUser = User("knownUser")
+  val longUser = User("too-long-name-" * 42)
   val knownUserJWT = knownUser.toJWT(authModule.jwtEncoder)
+  val longUserJWT = longUser.toJWT(authModule.jwtEncoder)
 
   "The UserFilter" should {
 
@@ -52,17 +54,28 @@ class UserFilterSpec extends FeatureTest {
       )
     }
 
-    "fail when the JWT cookie is not set" in {
-      server.httpGet("/username-from-jwt-cookie",
-        andExpect = Unauthorized
-      )
+    "fail" when {
+      "the JWT cookie is not set" in {
+        server.httpGet("/username-from-jwt-cookie",
+          andExpect = Unauthorized
+        )
+      }
+      "the JWT cookie is invalid" in {
+        server.httpGet("/username-from-jwt-cookie",
+          headers = Map("Cookie" -> "jwt=DEADBEEF"),
+          andExpect = Unauthorized
+        )
+      }
     }
 
-    "fail when the JWT cookie is invalid" in {
-      server.httpGet("/username-from-jwt-cookie",
-        headers = Map("Cookie" -> "jwt=DEADBEEF"),
-        andExpect = Unauthorized
-      )
+    "not fail" when {
+      "the user name is too long (but it truncates it)" in {
+        server.httpGet("/username-from-jwt-cookie",
+          headers = Map("Cookie" -> s"jwt=$longUserJWT"),
+          andExpect = Ok,
+          withBody = longUser.name.take(User.maxSize)
+        )
+      }
     }
   }
 }
