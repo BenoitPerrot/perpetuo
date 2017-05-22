@@ -7,6 +7,8 @@ case class User(name: String) {
 }
 
 object User {
+  val maxSize: Int = 64
+
   def fromJWT(encoder: JWTEncoder, jwt: String): Option[User] = encoder.decode(jwt).map { json =>
     User(json.parseJson.asJsObject.fields("name").asInstanceOf[JsString].value)
   }

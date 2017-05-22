@@ -1,5 +1,6 @@
 package com.criteo.perpetuo.dao
 
+import com.criteo.perpetuo.auth.User
 import com.criteo.perpetuo.model.{DeploymentRequest, DeploymentRequestAttrs, Version}
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -32,7 +33,7 @@ trait DeploymentRequestBinder extends TableBinder {
 
     // The details
     def comment = column[String]("comment", O.SqlType("nvarchar(256)"))
-    def creator = column[String]("creator", O.SqlType("nchar(64)"))
+    def creator = column[String]("creator", O.SqlType(s"nchar(${User.maxSize})"))
     def creationDate = column[java.sql.Timestamp]("creation_date")
 
     def * = (id.?, productId, version, target, comment, creator, creationDate) <> (DeploymentRequestRecord.tupled, DeploymentRequestRecord.unapply)
