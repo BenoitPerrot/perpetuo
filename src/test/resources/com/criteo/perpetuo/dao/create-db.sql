@@ -19,6 +19,8 @@ CREATE TABLE "deployment_request" (
 )
 ALTER TABLE "deployment_request"
   ADD CONSTRAINT "pk_deployment_request" PRIMARY KEY ("id")
+CREATE INDEX "ix_deployment_request_creation_date"
+  ON "deployment_request"("creation_date")
 
 
 CREATE TABLE "operation_trace" (
@@ -32,6 +34,10 @@ CREATE TABLE "operation_trace" (
 )
 ALTER TABLE "operation_trace"
   ADD CONSTRAINT "pk_operation_trace" PRIMARY KEY ("id")
+CREATE INDEX "ix_operation_trace_closing_date"
+  ON "operation_trace"("closing_date")
+CREATE INDEX "ix_operation_trace_creation_date"
+  ON "operation_trace"("creation_date")
 
 
 CREATE TABLE "execution_trace" (
@@ -44,8 +50,6 @@ ALTER TABLE "execution_trace"
   ADD CONSTRAINT "pk_execution_trace" PRIMARY KEY ("id")
 CREATE UNIQUE INDEX "ix_execution_trace_log_href"
   ON "execution_trace" ("log_href")
-CREATE INDEX "ix_execution_trace_state"
-  ON "execution_trace" ("state")
 
 
 ALTER TABLE "deployment_request"

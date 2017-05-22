@@ -38,7 +38,6 @@ trait ExecutionTraceBinder extends TableBinder {
     protected def logHrefIdx = index(logHref, unique = true)
 
     def state = column[ExecutionState]("state")
-    protected def stateIdx = index(state)
 
     def * = (id.?, operationTraceId, logHref, state) <> (ExecutionTraceRecord.tupled, ExecutionTraceRecord.unapply)
   }
