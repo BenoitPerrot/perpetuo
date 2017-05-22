@@ -14,7 +14,8 @@ private[dao] case class OperationTraceRecord(id: Option[Long],
                                              operation: Operation,
                                              targetStatus: Status.TargetMap,
                                              creator: String,
-                                             creationDate: java.sql.Timestamp) {
+                                             creationDate: java.sql.Timestamp,
+                                             closingDate: Option[java.sql.Timestamp]) {
   def toOperationTrace: OperationTrace = {
     OperationTrace(id.get, deploymentRequestId, operation, targetStatus)
   }
@@ -51,14 +52,15 @@ trait OperationTraceBinder extends TableBinder {
     // todo: remove default values (they're for migration only)
     def creator = column[String]("creator", O.SqlType(s"nvarchar(${User.maxSize})"), O.Default("qabot"))
     def creationDate = column[java.sql.Timestamp]("creation_date", O.Default(new java.sql.Timestamp(0)))
+    def closingDate = column[Option[java.sql.Timestamp]]("closing_date", O.Default(Some(new java.sql.Timestamp(0))))
 
-    def * = (id.?, deploymentRequestId, operation, targetStatus, creator, creationDate) <> (OperationTraceRecord.tupled, OperationTraceRecord.unapply)
+    def * = (id.?, deploymentRequestId, operation, targetStatus, creator, creationDate, closingDate) <> (OperationTraceRecord.tupled, OperationTraceRecord.unapply)
   }
 
   val operationTraceQuery = TableQuery[OperationTraceTable]
 
   def addToDeploymentRequest(requestId: Long, operation: Operation, creator: String): Future[Long] = {
-    val operationTrace = OperationTraceRecord(None, requestId, operation, Map(), creator, new java.sql.Timestamp(System.currentTimeMillis))
+    val operationTrace = OperationTraceRecord(None, requestId, operation, Map(), creator, new java.sql.Timestamp(System.currentTimeMillis), None)
     dbContext.db.run((operationTraceQuery returning operationTraceQuery.map(_.id)) += operationTrace)
   }
 
