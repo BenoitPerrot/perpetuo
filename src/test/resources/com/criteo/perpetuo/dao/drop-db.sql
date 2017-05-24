@@ -4,6 +4,10 @@ ALTER TABLE "execution_trace"
   DROP CONSTRAINT "fk_execution_trace_execution_specification_id"
 ALTER TABLE "execution_trace"
   DROP CONSTRAINT "fk_execution_trace_operation_trace_id"
+ALTER TABLE "target_status"
+  DROP CONSTRAINT "fk_target_status_execution_specification_id"
+ALTER TABLE "target_status"
+  DROP CONSTRAINT "fk_target_status_operation_trace_id"
 ALTER TABLE "execution_specification"
   DROP CONSTRAINT "fk_execution_specification_operation_trace_id"
 ALTER TABLE "operation_trace"
@@ -20,6 +24,11 @@ DROP TABLE "lock"
 ALTER TABLE "execution_trace"
   DROP CONSTRAINT "pk_execution_trace"
 DROP TABLE "execution_trace"
+
+
+ALTER TABLE "target_status"
+  DROP CONSTRAINT "pk_target_status"
+DROP TABLE "target_status"
 
 
 ALTER TABLE "execution_specification"

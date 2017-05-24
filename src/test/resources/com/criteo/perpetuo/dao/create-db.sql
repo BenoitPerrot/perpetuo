@@ -27,7 +27,7 @@ CREATE TABLE "operation_trace" (
   "id"                    BIGINT        NOT NULL IDENTITY,
   "deployment_request_id" BIGINT        NOT NULL,
   "operation"             SMALLINT      NOT NULL,
-  "target_status"         NVARCHAR(MAX) NOT NULL,
+  "target_status"         NVARCHAR(MAX) DEFAULT '{}' NOT NULL,
   "creator"               NVARCHAR(64)  DEFAULT 'qabot' NOT NULL,
   "creation_date"         DATETIME      DEFAULT(CONVERT(DATETIME,{TS '1970-01-01 00:00:00.0'})) NOT NULL,
   "closing_date"          DATETIME      DEFAULT(CONVERT(DATETIME,{TS '1970-01-01 00:00:00.0'}))
@@ -48,6 +48,16 @@ CREATE TABLE "execution_specification" (
 )
 ALTER TABLE "execution_specification"
   ADD CONSTRAINT "pk_execution_specification" PRIMARY KEY ("id")
+
+
+CREATE TABLE "target_status" (
+  "operation_trace_id"         BIGINT         NOT NULL,
+  "execution_specification_id" BIGINT         NOT NULL,
+  "code"                       SMALLINT       NOT NULL,
+  "detail"                     NVARCHAR(1024) NOT NULL
+)
+ALTER TABLE "target_status"
+  ADD CONSTRAINT "pk_target_status" PRIMARY KEY ("operation_trace_id", "execution_specification_id")
 
 
 CREATE TABLE "execution_trace" (
@@ -81,6 +91,14 @@ ALTER TABLE "operation_trace"
   ON DELETE NO ACTION
 ALTER TABLE "execution_specification"
   ADD CONSTRAINT "fk_execution_specification_operation_trace_id" FOREIGN KEY ("operation_trace_id") REFERENCES "operation_trace" ("id")
+  ON UPDATE NO ACTION
+  ON DELETE NO ACTION
+ALTER TABLE "target_status"
+  ADD CONSTRAINT "fk_target_status_execution_specification_id" FOREIGN KEY ("execution_specification_id") REFERENCES "execution_specification" ("id")
+  ON UPDATE NO ACTION
+  ON DELETE NO ACTION
+ALTER TABLE "target_status"
+  ADD CONSTRAINT "fk_target_status_operation_trace_id" FOREIGN KEY ("operation_trace_id") REFERENCES "operation_trace" ("id")
   ON UPDATE NO ACTION
   ON DELETE NO ACTION
 ALTER TABLE "execution_trace"
