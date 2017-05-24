@@ -3,7 +3,7 @@ package com.criteo.perpetuo.model
 import java.sql.Timestamp
 
 import com.criteo.perpetuo.TestDb
-import com.criteo.perpetuo.dao.{DeploymentRequestBinder, ExecutionTraceBinder, OperationTraceBinder, ProductBinder}
+import com.criteo.perpetuo.dao._
 import org.junit.runner.RunWith
 import org.scalatest.FunSuite
 import org.scalatest.concurrent._
@@ -17,7 +17,7 @@ import scala.concurrent.duration._
 @RunWith(classOf[JUnitRunner])
 class ExecutionTraceSpec extends FunSuite with ScalaFutures
   with ExecutionTraceBinder
-  with OperationTraceBinder with DeploymentRequestBinder with ProductBinder
+  with ExecutionSpecificationBinder with OperationTraceBinder with DeploymentRequestBinder with ProductBinder
   with TestDb {
 
   import dbContext.driver.api._
@@ -37,7 +37,7 @@ class ExecutionTraceSpec extends FunSuite with ScalaFutures
       } yield {
         assert(execTraces.length == 1)
         assert(execTraces.head.id.get == execIds.head)
-        assert(execTraces.head.operationTraceId == deployId)
+        assert(execTraces.head.operationTraceId.get == deployId)
         assert(execTraces.head.logHref.isEmpty)
         assert(execTraces.head.state == ExecutionState.pending)
       },

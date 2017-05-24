@@ -8,9 +8,10 @@ import scala.concurrent.Future
 
 
 private[dao] case class ExecutionTraceRecord(id: Option[Long],
-                                             operationTraceId: Long,
+                                             operationTraceId: Option[Long],
                                              logHref: Option[String] = None,
-                                             state: ExecutionState = ExecutionState.pending) {
+                                             state: ExecutionState = ExecutionState.pending,
+                                             executionSpecificationId: Option[Long] = None) {
   def toExecutionTrace(operationTrace: OperationTrace): ExecutionTrace = {
     ExecutionTrace(id.get, operationTrace, logHref, state)
   }
@@ -18,7 +19,7 @@ private[dao] case class ExecutionTraceRecord(id: Option[Long],
 
 
 trait ExecutionTraceBinder extends TableBinder {
-  this: OperationTraceBinder with DbContextProvider =>
+  this: ExecutionSpecificationBinder with OperationTraceBinder with DbContextProvider =>
 
   import dbContext.driver.api._
 
@@ -31,21 +32,24 @@ trait ExecutionTraceBinder extends TableBinder {
     def id = column[Long]("id", O.AutoInc)
     protected def pk = primaryKey(id)
 
-    def operationTraceId = column[Long]("operation_trace_id")
-    protected def fk = foreignKey(operationTraceId, operationTraceQuery)(_.id)
+    def operationTraceId = column[Option[Long]]("operation_trace_id", O.Default(None))
+    protected def oldFk = foreignKey(operationTraceId, operationTraceQuery)(_.id) // fixme: for the transition only, remove it
 
     def logHref = column[Option[String]]("log_href", O.SqlType("nvarchar(1024)"))
     protected def logHrefIdx = index(logHref, unique = true)
 
     def state = column[ExecutionState]("state")
 
-    def * = (id.?, operationTraceId, logHref, state) <> (ExecutionTraceRecord.tupled, ExecutionTraceRecord.unapply)
+    def executionSpecificationId = column[Option[Long]]("execution_specification_id", O.Default(None))
+    protected def fk = foreignKey(executionSpecificationId, executionSpecificationQuery)(_.id)
+
+    def * = (id.?, operationTraceId, logHref, state, executionSpecificationId) <> (ExecutionTraceRecord.tupled, ExecutionTraceRecord.unapply)
   }
 
   val executionTraceQuery = TableQuery[ExecutionTraceTable]
 
   def addToOperationTrace(traceId: Long, numberOfTraces: Int): Future[Seq[Long]] = {
-    val execTrace = ExecutionTraceRecord(None, traceId)
+    val execTrace = ExecutionTraceRecord(None, Some(traceId))
     dbContext.db.run((executionTraceQuery returning executionTraceQuery.map(_.id)) ++= List.fill(numberOfTraces)(execTrace))
   }
 

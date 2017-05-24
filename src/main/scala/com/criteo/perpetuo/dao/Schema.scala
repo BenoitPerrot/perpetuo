@@ -13,12 +13,12 @@ import scala.concurrent.{Await, Future}
 
 
 class Schema(val dbContext: DbContext)
-  extends LockBinder with ExecutionTraceBinder with OperationTraceBinder with DeploymentRequestBinder with ProductBinder
+  extends LockBinder with ExecutionTraceBinder with ExecutionSpecificationBinder with OperationTraceBinder with DeploymentRequestBinder with ProductBinder
     with DbContextProvider {
 
   import dbContext.driver.api._
 
-  val all: dbContext.driver.DDL = productQuery.schema ++ deploymentRequestQuery.schema ++ operationTraceQuery.schema ++ executionTraceQuery.schema ++ lockQuery.schema
+  val all: dbContext.driver.DDL = productQuery.schema ++ deploymentRequestQuery.schema ++ operationTraceQuery.schema ++ executionSpecificationQuery.schema ++ executionTraceQuery.schema ++ lockQuery.schema
 
   def createTables(): Unit = {
     Await.result(dbContext.db.run(all.create), 2.seconds)
@@ -28,7 +28,7 @@ class Schema(val dbContext: DbContext)
 
 @Singleton
 class DbBinding @Inject()(val dbContext: DbContext)
-  extends ExecutionTraceBinder with OperationTraceBinder with DeploymentRequestBinder with ProductBinder
+  extends ExecutionTraceBinder with ExecutionSpecificationBinder with OperationTraceBinder with DeploymentRequestBinder with ProductBinder
     with DbContextProvider {
 
   import dbContext.driver.api._
