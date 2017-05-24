@@ -34,7 +34,7 @@ ALTER TABLE "operation_trace"
 CREATE TABLE "execution_trace" (
   "id"                 BIGINT   NOT NULL IDENTITY,
   "operation_trace_id" BIGINT   NOT NULL,
-  "log_href"           NVARCHAR(128),
+  "log_href"           NVARCHAR(1024),
   "state"              SMALLINT NOT NULL
 )
 ALTER TABLE "execution_trace"
