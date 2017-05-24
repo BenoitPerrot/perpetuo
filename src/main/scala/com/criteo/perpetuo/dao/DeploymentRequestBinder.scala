@@ -28,12 +28,12 @@ trait DeploymentRequestBinder extends TableBinder {
     // The intent
     def productId = column[Int]("product_id")
     protected def fk = foreignKey(productId, productQuery)(_.id)
-    def version = column[Version]("version", O.SqlType(s"nchar(${Version.maxSize})"))
+    def version = column[Version]("version", O.SqlType(s"nvarchar(${Version.maxSize})"))
     def target = column[String]("target", O.SqlType("nvarchar(max)"))
 
     // The details
     def comment = column[String]("comment", O.SqlType("nvarchar(256)"))
-    def creator = column[String]("creator", O.SqlType(s"nchar(${User.maxSize})"))
+    def creator = column[String]("creator", O.SqlType(s"nvarchar(${User.maxSize})"))
     def creationDate = column[java.sql.Timestamp]("creation_date")
 
     def * = (id.?, productId, version, target, comment, creator, creationDate) <> (DeploymentRequestRecord.tupled, DeploymentRequestRecord.unapply)

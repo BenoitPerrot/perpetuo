@@ -23,7 +23,7 @@ trait ProductBinder extends TableBinder {
     def id = column[Int]("id", O.AutoInc)
     protected def pk = primaryKey(id)
 
-    def name = column[String]("name", O.SqlType("nchar(128)"))
+    def name = column[String]("name", O.SqlType("nvarchar(128)")) // the name is not the pk, in order to easily support renaming without losing history
     protected def nameIdx = index(name, unique = true)
 
     def * = (id.?, name) <> (ProductRecord.tupled, ProductRecord.unapply)

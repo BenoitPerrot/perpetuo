@@ -1,6 +1,6 @@
 CREATE TABLE "product" (
-  "id"   INTEGER    NOT NULL IDENTITY,
-  "name" NCHAR(128) NOT NULL
+  "id"   INTEGER       NOT NULL IDENTITY,
+  "name" NVARCHAR(128) NOT NULL
 )
 ALTER TABLE "product"
   ADD CONSTRAINT "pk_product" PRIMARY KEY("id")
@@ -11,10 +11,10 @@ CREATE UNIQUE INDEX "ix_product_name"
 CREATE TABLE "deployment_request" (
   "id"            BIGINT        NOT NULL IDENTITY,
   "product_id"    INTEGER       NOT NULL,
-  "version"       NCHAR(64)     NOT NULL,
+  "version"       NVARCHAR(64)  NOT NULL,
   "target"        NVARCHAR(MAX) NOT NULL,
   "comment"       NVARCHAR(256) NOT NULL,
-  "creator"       NCHAR(64)     NOT NULL,
+  "creator"       NVARCHAR(64)  NOT NULL,
   "creation_date" DATETIME      NOT NULL
 )
 ALTER TABLE "deployment_request"
@@ -34,7 +34,7 @@ ALTER TABLE "operation_trace"
 CREATE TABLE "execution_trace" (
   "id"                 BIGINT   NOT NULL IDENTITY,
   "operation_trace_id" BIGINT   NOT NULL,
-  "log_href"           NCHAR(128),
+  "log_href"           NVARCHAR(128),
   "state"              SMALLINT NOT NULL
 )
 ALTER TABLE "execution_trace"
