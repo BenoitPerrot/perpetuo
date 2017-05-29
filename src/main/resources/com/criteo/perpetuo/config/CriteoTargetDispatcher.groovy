@@ -51,12 +51,12 @@ class CriteoTargetDispatcher extends TargetDispatcherByPoset {
 
 class RundeckInvoker extends HttpInvoker {
     String host
-    String marathonEnv
+    String envParam
     private String authToken
 
-    RundeckInvoker(String host, int port, String marathonEnv, RootAppConfig appConfig) {
+    RundeckInvoker(String host, int port, String envParam, RootAppConfig appConfig) {
         super(host, port, 'rundeck')
-        this.marathonEnv = marathonEnv
+        this.envParam = envParam
         this.authToken = appConfig.under("tokens").get(name())
     }
 
@@ -82,7 +82,7 @@ class RundeckInvoker extends HttpInvoker {
         def escapedProductName = jsonBuilder.toJson(productName)
         def escapedVersion = jsonBuilder.toJson(version)
         def escapedTarget = jsonBuilder.toJson(target)
-        def args = "-environment $marathonEnv -callback-url '${callbackUrl(executionId)}' -product-name $escapedProductName -product-version $escapedVersion -target $escapedTarget"
+        def args = "-environment $envParam -callback-url '${callbackUrl(executionId)}' -product-name $escapedProductName -product-version $escapedVersion -target $escapedTarget"
         def uploader = System.getenv("MARATHON_UPLOADER")
         if (uploader)
             args += " -uploader-version " + uploader
