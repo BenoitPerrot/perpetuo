@@ -57,11 +57,6 @@ class RestController @Inject()(val execution: Execution)
   extends BaseController {
 
   private val plugins = new Plugins(execution.dbBinding)
-  // force the load of the plugins at application start (we must define those as lazy anyway)
-  plugins.dispatcher
-  plugins.hooks
-  plugins.externalData
-
   private val futurePool = FuturePools.unboundedPool("RequestFuturePool")
   private val deployBotName = "qabot"
   private val escalationTeamNames = List(
