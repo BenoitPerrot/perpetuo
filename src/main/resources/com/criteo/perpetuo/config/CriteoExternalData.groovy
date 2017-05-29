@@ -10,7 +10,7 @@ import org.codehaus.groovy.runtime.metaclass.ConcurrentReaderHashMap
 class CriteoExternalData extends ExternalData { // fixme: this only works with JMOAB for now
     final static int maxVersionsInThePast = 200 // don't bother reading further in the past
 
-    final artifacts = new Artifacts()
+    final manifest = new Manifest()
     final repos = new Repos()
     final is_packaged = new IsPackaged()
 
@@ -34,12 +34,13 @@ class CriteoExternalData extends ExternalData { // fixme: this only works with J
 
     @Override
     boolean validateVersion(String productName, String version) {
+        Map<String, ?> manifest = manifest.get(productName)
         Map<String, String> allRepos = repos.get(version)
         Set<String> allPackaged = is_packaged.get(version)
-        def art = artifacts.get(productName)
-        return art != null && allRepos != null && allPackaged != null && art.collect {
-            allRepos.get(it)
-        }.every { it in allPackaged }
+        return manifest != null && allRepos != null && allPackaged != null &&
+                manifest.get('artifacts').collect {
+                    allRepos.get(it.get('groupId') + ':' + it.get('artifactId'))
+                }.every { it in allPackaged }
     }
 
     static Integer getLastVersion() {
@@ -88,16 +89,14 @@ abstract class Cache<T> extends ConcurrentReaderHashMap {
 }
 
 
-class Artifacts extends Cache<List<String>> {
+class Manifest extends Cache<Map<String, ?>> {
     @Override
-    List<String> fetch(String productName) {
+    Map<String, ?> fetch(String productName) {
         def client = new RESTClient("http://moab.criteois.lan")
         try {
             def resp = client.get(path: "/products/$productName/manifest.json")
             assert resp.status == 200
-            return resp.data.get('artifacts').collect {
-                it.get('groupId') + ':' + it.get('artifactId')
-            }
+            return resp.data
         } catch (HttpResponseException e) {
             assert e.response.status == 404 // it's not an error to not have data (yet?) about a product
             return null
