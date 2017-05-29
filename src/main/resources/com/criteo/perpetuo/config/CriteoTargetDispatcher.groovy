@@ -1,4 +1,5 @@
-import com.criteo.perpetuo.config.RootAppConfig
+package com.criteo.perpetuo.config
+
 import com.criteo.perpetuo.dao.DbBinding
 import com.criteo.perpetuo.dispatchers.ExecutorsByPoset
 import com.criteo.perpetuo.dispatchers.TargetDispatcherByPoset

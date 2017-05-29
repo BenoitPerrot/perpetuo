@@ -1,4 +1,5 @@
-import com.criteo.perpetuo.config.ExternalData
+package com.criteo.perpetuo.config
+
 import groovyx.net.http.HttpResponseException
 import groovyx.net.http.RESTClient
 import org.codehaus.groovy.runtime.metaclass.ConcurrentReaderHashMap

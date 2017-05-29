@@ -1,5 +1,5 @@
-import com.criteo.perpetuo.config.Hooks
-import com.criteo.perpetuo.config.RootAppConfig
+package com.criteo.perpetuo.config
+
 import com.criteo.perpetuo.dao.DbBinding
 import com.criteo.perpetuo.model.DeploymentRequest
 import com.criteo.perpetuo.model.Target
