@@ -74,7 +74,7 @@ trait Plugin {
   /**
     * Timeout applicable on each plugin method, in seconds; can be overridden in Groovy classes
     */
-  val timeout_s: Int = 30
+  val timeout_s: Int
 }
 
 

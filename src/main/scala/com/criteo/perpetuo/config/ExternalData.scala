@@ -13,7 +13,7 @@ class ExternalData extends BaseExternalData with Plugin {
 
   def validateVersion(productName: String, version: String): Boolean = false
 
-  override val timeout_s = 5
+  val timeout_s = 5
 }
 
 

@@ -21,6 +21,8 @@ class Hooks extends BaseHooks[String] with Plugin {
   def onDeploymentRequestCreated(deploymentRequest: DeploymentRequest, immediateStart: Boolean, requestBody: String): String = null
 
   def onDeploymentRequestStarted(deploymentRequest: DeploymentRequest, startedExecutions: Int, failedToStart: Int, immediately: Boolean): Unit = {}
+
+  val timeout_s = 30
 }
 
 
