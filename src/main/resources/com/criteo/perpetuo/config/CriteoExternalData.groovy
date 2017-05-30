@@ -10,9 +10,9 @@ import org.codehaus.groovy.runtime.metaclass.ConcurrentReaderHashMap
 class CriteoExternalData extends ExternalData { // fixme: this only works with JMOAB for now
     final static int maxVersionsInThePast = 200 // don't bother reading further in the past
 
-    final manifest = new Manifest()
-    final repos = new Repos()
-    final is_packaged = new IsPackaged()
+    static final manifest = new Manifest()
+    static final repos = new Repos()
+    static final is_packaged = new IsPackaged()
 
     @Override
     String lastValidVersion(String productName) {
