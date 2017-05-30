@@ -2,25 +2,27 @@ package com.criteo.perpetuo.config
 
 import java.io.InputStreamReader
 import java.lang.reflect.{InvocationTargetException, Method}
+import java.util
 import java.util.logging.Logger
 import javax.script.{ScriptEngine, ScriptEngineManager}
 
 import com.criteo.perpetuo.dao.DbBinding
 import com.criteo.perpetuo.dispatchers.TargetDispatcher
 
+import scala.collection.JavaConverters._
+import scala.collection.mutable
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}
 
 
 class Plugins(dbBinding: DbBinding, appConfig: BaseAppConfig = AppConfig) {
-  private val factory = new ScriptEngineManager
-  private val engine: ScriptEngine = factory.getEngineByName("groovy") // todo? use GroovyScriptEngine
+  private val engine: ScriptEngine = new ScriptEngineManager().getEngineByName("groovy") // todo? use GroovyScriptEngine
   assert(engine != null)
 
-  def instantiateFromGroovy[T](scriptPath: String): T = {
+  def instantiateFromGroovy(scriptPath: String): AnyRef = {
     val resource = getClass.getResource(scriptPath)
-    val cls = engine.eval(new InputStreamReader(resource.openStream())).asInstanceOf[Class[T]]
+    val cls = engine.eval(new InputStreamReader(resource.openStream())).asInstanceOf[Class[AnyRef]]
     Seq( // supported instantiation parameters:
       Seq(dbBinding, appConfig),
       Seq()
@@ -33,20 +35,27 @@ class Plugins(dbBinding: DbBinding, appConfig: BaseAppConfig = AppConfig) {
       }
   }
 
-  private def instantiate[T](cls: Class[T], args: Seq[AnyRef]): Option[T] = {
+  private def instantiate(cls: Class[AnyRef], args: Seq[AnyRef]): Option[AnyRef] = {
     cls.getConstructors
       .find { c =>
         val types = c.getParameterTypes
         types.length == args.length &&
           types.zip(args).forall { case (t, o) => t.isInstance(o) }
       }
-      .map(_.newInstance(args: _*).asInstanceOf[T])
+      .map(_.newInstance(args: _*).asInstanceOf[AnyRef])
   }
 
+  // load the plugins in the declared order, because one plugin might use what has been defined by another
+  private val tempInstances: mutable.Map[String, AnyRef] = mutable.Map(AppConfig
+    .get[util.ArrayList[util.HashMap[String, String]]]("plugins")
+    .asScala.map(_.asScala)
+    .map(obj => obj("name") -> instantiateFromGroovy(obj("path"))): _*)
 
-  val dispatcher: TargetDispatcher = instantiateFromGroovy(AppConfig.get("plugins.dispatcher"))
-  val hooks: HooksTrigger = new HooksTrigger(AppConfig.tryGet("plugins.hooks").map(instantiateFromGroovy[Hooks]))
-  val externalData: ExternalDataGetter = new ExternalDataGetter(AppConfig.tryGet("plugins.externalData").map(instantiateFromGroovy[ExternalData]))
+
+  val dispatcher: TargetDispatcher = tempInstances.remove("dispatcher").get.asInstanceOf[TargetDispatcher]
+  val externalData: ExternalDataGetter = new ExternalDataGetter(tempInstances.remove("externalData").map(_.asInstanceOf[ExternalData]))
+  val hooks: HooksTrigger = new HooksTrigger(tempInstances.remove("hooks").map(_.asInstanceOf[Hooks]))
+  assert(tempInstances.isEmpty, s"Unused plugin(s): ${tempInstances.keys.mkString(", ")}")
 }
 
 
