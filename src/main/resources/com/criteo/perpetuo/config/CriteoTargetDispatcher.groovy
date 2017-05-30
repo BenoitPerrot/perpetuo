@@ -61,14 +61,14 @@ class RundeckInvoker extends HttpInvoker {
     }
 
     // how Rundeck is currently configured
-    private static String jobName(String operationName) { "deploy-to-marathon" }
+    private static String jobName(String productType, String operationName) { "deploy-to-$productType" }
     private int apiVersion = 16
 
     // Rundeck's API
     private String authenticated(String path) { "$path?authtoken=$authToken" }
 
-    private String runPath(String operationName) {
-        authenticated("/api/$apiVersion/job/${jobName(operationName)}/executions")
+    private String runPath(String productType, String operationName) {
+        authenticated("/api/$apiVersion/job/${jobName(productType, operationName)}/executions")
     }
     private def errorInHtml = /.+<p>(.+)<\/p>.+/
 
@@ -79,11 +79,13 @@ class RundeckInvoker extends HttpInvoker {
 
     @Override
     Request buildRequest(String operationName, long executionId, String productName, String version, String target, String initiator) {
+        String productType = CriteoExternalData.manifest.get(productName)?.get('type') ?: 'marathon' // fixme: only accept active products here (https://jira.criteois.com/browse/DREDD-309)
+
         def escapedProductName = jsonBuilder.toJson(productName)
         def escapedVersion = jsonBuilder.toJson(version)
         def escapedTarget = jsonBuilder.toJson(target)
         def args = "-environment $envParam -callback-url '${callbackUrl(executionId)}' -product-name $escapedProductName -product-version $escapedVersion -target $escapedTarget"
-        def uploader = System.getenv("MARATHON_UPLOADER")
+        def uploader = System.getenv("${productType.toUpperCase()}_UPLOADER")
         if (uploader)
             args += " -uploader-version " + uploader
         def body = [
@@ -93,7 +95,7 @@ class RundeckInvoker extends HttpInvoker {
         body = new JsonBuilder(body).toString()
         def jsonType = Message$.MODULE$.ContentTypeJson
 
-        Request req = Request.apply(Method.Post$.MODULE$, runPath(operationName))
+        Request req = Request.apply(Method.Post$.MODULE$, runPath(productType, operationName))
         def headers = req.headerMap()
         headers[Fields.Host()] = host()
         headers[Fields.ContentType()] = jsonType
