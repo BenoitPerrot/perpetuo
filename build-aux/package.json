@@ -4,6 +4,6 @@
 
     "dependencies": {},
     "devDependencies": {
-        "polymer-cli": "0.18.0-pre.10"
+        "polymer-cli": "1.1.0"
     }
 }
