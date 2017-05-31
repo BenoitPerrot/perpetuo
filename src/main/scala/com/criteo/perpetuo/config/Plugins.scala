@@ -1,7 +1,6 @@
 package com.criteo.perpetuo.config
 
 import java.io.InputStreamReader
-import java.lang.reflect.{InvocationTargetException, Method}
 import java.util.logging.Logger
 import javax.script.{ScriptEngine, ScriptEngineManager}
 
@@ -81,33 +80,25 @@ trait Plugin {
 abstract class PluginRunner[P <: Plugin](implementation: Option[P], base: P) {
   protected val plugin: P = implementation.getOrElse(base)
 
-  protected def wrap[T](methodName: String, args: Any*): T = {
+  protected def wrap[T](toCallOnPlugin: P => T, name: String = null): T = {
+    val methodName = if (name == null) Thread.currentThread.getStackTrace()(2).getMethodName else name
     val method = plugin.getClass.getMethods.filter(_.getName == methodName).head
-    if (method.getDeclaringClass != base.getClass) {
-      // there is a specific implementation for this plugin method, let's say it and start it, but time-boxed
-      plugin.logger.info(s"$methodName")
-      Await.result(Future {
-        invoke[T](method, args: _*)
-      }, plugin.timeout_s.seconds)
-    }
-    else
-      invoke[T](method, args: _*)
-  }
-
-  private def invoke[T](method: Method, args: Any*): T =
     try {
-      val res = try {
-        method.invoke(plugin, args.map(_.asInstanceOf[AnyRef]): _*)
+      if (method.getDeclaringClass != base.getClass) {
+        // there is a specific implementation for this plugin method, let's say it and start it, but time-boxed
+        plugin.logger.info(methodName)
+        Await.result(Future {
+          toCallOnPlugin(plugin)
+        }, plugin.timeout_s.seconds)
       }
-      catch {
-        case e: InvocationTargetException => throw e.getCause // redirect to the real error
-      }
-      res.asInstanceOf[T]
+      else
+        toCallOnPlugin(plugin)
     }
     catch {
       case e: Throwable =>
         // to know which hook is failing, we prefix the trace
-        plugin.logger.severe(s"${method.getName} - ${e.getMessage}\n${e.getStackTrace.mkString("\n")}")
-        throw e // fixme: this is only as long as we return something (it's very temporary)
+        plugin.logger.severe(s"$methodName - ${e.getMessage}\n${e.getStackTrace.mkString("\n")}")
+        throw e
     }
+  }
 }

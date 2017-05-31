@@ -19,8 +19,8 @@ class ExternalData extends BaseExternalData with Plugin {
 
 private[config] class ExternalDataGetter(implementation: Option[ExternalData]) extends PluginRunner(implementation, new ExternalData) with BaseExternalData {
   def lastValidVersion(productName: String): String =
-    wrap("lastValidVersion", productName)
+    wrap(_.lastValidVersion(productName))
 
   def validateVersion(productName: String, version: String): Boolean =
-    wrap("validateVersion", productName, version)
+    wrap(_.validateVersion(productName, version))
 }

@@ -28,15 +28,8 @@ class Hooks extends BaseHooks[String] with Plugin {
 
 private[config] class HooksTrigger(implementation: Option[Hooks]) extends PluginRunner(implementation, new Hooks) with BaseHooks[Future[String]] {
   override def onDeploymentRequestCreated(deploymentRequest: DeploymentRequest, immediateStart: Boolean, requestBody: String): Future[String] =
-    inFuture("onDeploymentRequestCreated", deploymentRequest, immediateStart, requestBody)
+    Future { wrap(_.onDeploymentRequestCreated(deploymentRequest, immediateStart, requestBody), name = "onDeploymentRequestCreated") }
 
   def onDeploymentRequestStarted(deploymentRequest: DeploymentRequest, startedExecutions: Int, failedToStart: Int, immediately: Boolean): Unit =
-    inFuture("onDeploymentRequestStarted", deploymentRequest, startedExecutions, failedToStart, immediately)
-
-  protected def inFuture[T](methodName: String, args: Any*): Future[T] = {
-    // start every hook method in a background thread
-    Future {
-      wrap[T](methodName, args: _*)
-    }
-  }
+    Future { wrap(_.onDeploymentRequestStarted(deploymentRequest, startedExecutions, failedToStart, immediately), name = "onDeploymentRequestStarted") }
 }
