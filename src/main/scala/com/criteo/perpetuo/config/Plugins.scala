@@ -2,7 +2,6 @@ package com.criteo.perpetuo.config
 
 import java.io.InputStreamReader
 import java.lang.reflect.{InvocationTargetException, Method}
-import java.util
 import java.util.logging.Logger
 import javax.script.{ScriptEngine, ScriptEngineManager}
 
@@ -10,10 +9,10 @@ import com.criteo.perpetuo.dao.DbBinding
 import com.criteo.perpetuo.dispatchers.TargetDispatcher
 
 import scala.collection.JavaConverters._
-import scala.collection.mutable
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}
+import scala.reflect._
 
 
 class Plugins(dbBinding: DbBinding, appConfig: BaseAppConfig = AppConfig) {
@@ -46,16 +45,23 @@ class Plugins(dbBinding: DbBinding, appConfig: BaseAppConfig = AppConfig) {
   }
 
   // load the plugins in the declared order, because one plugin might use what has been defined by another
-  private val tempInstances: mutable.Map[String, AnyRef] = mutable.Map(AppConfig
-    .get[util.ArrayList[util.HashMap[String, String]]]("plugins")
-    .asScala.map(_.asScala)
-    .map(obj => obj("name") -> instantiateFromGroovy(obj("path"))): _*)
+  private var tempInstances: Seq[AnyRef] =
+    AppConfig
+      .get[java.util.ArrayList[String]]("plugins").asScala
+      .map(instantiateFromGroovy)
+
+  private def extractInstance[T: ClassTag]: Option[T] = {
+    val (selected, rejected) = tempInstances.partition(classTag[T].runtimeClass.isInstance)
+    assert(selected.length <= 1, s"Expected to find at most one instance of ${classTag[T].runtimeClass.getName}, found instances of: ${selected.map(_.getClass.getName).mkString(", ")}")
+    tempInstances = rejected
+    selected.headOption.map(_.asInstanceOf[T])
+  }
 
 
-  val dispatcher: TargetDispatcher = tempInstances.remove("dispatcher").get.asInstanceOf[TargetDispatcher]
-  val externalData: ExternalDataGetter = new ExternalDataGetter(tempInstances.remove("externalData").map(_.asInstanceOf[ExternalData]))
-  val hooks: HooksTrigger = new HooksTrigger(tempInstances.remove("hooks").map(_.asInstanceOf[Hooks]))
-  assert(tempInstances.isEmpty, s"Unused plugin(s): ${tempInstances.keys.mkString(", ")}")
+  val dispatcher: TargetDispatcher = extractInstance[TargetDispatcher].get
+  val externalData: ExternalDataGetter = new ExternalDataGetter(extractInstance[ExternalData])
+  val hooks: HooksTrigger = new HooksTrigger(extractInstance[Hooks])
+  assert(tempInstances.isEmpty, s"Unused plugin(s): ${tempInstances.map(_.getClass.getName).mkString(", ")}")
 }
 
 
