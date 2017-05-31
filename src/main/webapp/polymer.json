@@ -1,9 +1,0 @@
-{
-    "entrypoint": "index.html",
-    "shell": "src/perpetuo-app/perpetuo-app.html",
-    "sources": [
-        "src/**/*",
-        "logo-32x32.png",
-        "manifest.json"
-    ]
-}
