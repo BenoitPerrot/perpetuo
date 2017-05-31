@@ -10,6 +10,7 @@ class StaticAssetsController() extends Controller {
 
   Array(
     "/manifest.json",
+    "/logo-32x32.png",
     "/src/:*",
     "/bower_components/:*"
   ).foreach(uri => {
