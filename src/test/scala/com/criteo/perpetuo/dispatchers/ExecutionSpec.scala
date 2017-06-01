@@ -11,11 +11,13 @@ import spray.json.DefaultJsonProtocol._
 import spray.json.{JsObject, _}
 
 import scala.collection.JavaConverters._
+import scala.collection.TraversableOnce
 import scala.collection.concurrent.{TrieMap, Map => ConcurrentMap}
 import scala.collection.immutable.Stream
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}
+import scala.reflect.{ClassTag, classTag}
 
 
 object TestTargetDispatcher extends TargetDispatcher {
@@ -82,7 +84,7 @@ class ExecutionSpec extends Test with TestDb {
   }
 
   implicit class SimpleDispatchTest(private val select: Select) {
-    def dispatchedAs(that: Iterable[(ExecutorInvoker, Select)]): Unit = {
+    def dispatchedAs(that: Map[ExecutorInvoker, Select]): Unit = {
       Set(TargetTerm(select = select)) dispatchedAs that.map { case (e, s) => (e, Set(TargetTerm(select = s))) }
     }
   }
@@ -92,11 +94,11 @@ class ExecutionSpec extends Test with TestDb {
     private val request = new DeploymentRequestAttrs(product.name, Version("v42"), rawTarget, "No fear", "c.norris", new Timestamp(123456789))
     private val depReq = execution.dbBinding.insert(request)
 
-    def dispatchedAs(that: Iterable[(ExecutorInvoker, TargetExpr)]): Unit = {
+    def dispatchedAs(that: Map[ExecutorInvoker, TargetExpr]): Unit = {
       execLogs.clear()
       Await.result(
         depReq.flatMap(execution.startOperation(TestTargetDispatcher, _, Operation.deploy, "c.norris").map(_ =>
-          execLogs should contain theSameElementsAs that
+          assertEqual(execLogs, that)
         )),
         1.second
       )
@@ -224,28 +226,31 @@ class ExecutionSpec extends Test with TestDb {
 
     "be dispatched as short target expressions" in {
       val Alternatives = Set
-      execution.dispatchAlternatives(TestTargetDispatcher, Set(
-        TargetTerm(Set(JsObject("ratio" -> JsNumber(0.05), "foo" -> JsString("bar"))), Set("ab")),
-        TargetTerm(Set(JsObject("ratio" -> JsNumber(0.05))), Set("assault")),
-        TargetTerm(Set(JsObject("ratio" -> JsNumber(0.05))), Set("appendix")),
-        TargetTerm(Set(JsObject("ratio" -> JsNumber(0.05))), Set("alpha")),
-        TargetTerm(select = Set("alpha"))
-      )) should contain theSameElementsAs Map(
-        aInvoker -> Alternatives(
-          Set(
-            TargetTerm(Set(JsObject("ratio" -> JsNumber(0.05), "foo" -> JsString("bar"))), Set("ab")),
-            TargetTerm(Set(JsObject("ratio" -> JsNumber(0.05))), Set("assault", "appendix", "alpha")),
-            TargetTerm(select = Set("alpha"))
+      assertEqual(
+        execution.dispatchAlternatives(TestTargetDispatcher, Set(
+          TargetTerm(Set(JsObject("ratio" -> JsNumber(0.05), "foo" -> JsString("bar"))), Set("ab")),
+          TargetTerm(Set(JsObject("ratio" -> JsNumber(0.05))), Set("assault")),
+          TargetTerm(Set(JsObject("ratio" -> JsNumber(0.05))), Set("appendix")),
+          TargetTerm(Set(JsObject("ratio" -> JsNumber(0.05))), Set("alpha")),
+          TargetTerm(select = Set("alpha"))
+        )).toMap,
+        Map(
+          aInvoker -> Alternatives(
+            Set(
+              TargetTerm(Set(JsObject("ratio" -> JsNumber(0.05), "foo" -> JsString("bar"))), Set("ab")),
+              TargetTerm(Set(JsObject("ratio" -> JsNumber(0.05))), Set("assault", "appendix", "alpha")),
+              TargetTerm(select = Set("alpha"))
+            ),
+            Set(
+              TargetTerm(Set(JsObject("ratio" -> JsNumber(0.05), "foo" -> JsString("bar"))), Set("ab")),
+              TargetTerm(Set(JsObject("ratio" -> JsNumber(0.05))), Set("assault", "appendix")),
+              TargetTerm(Set(JsObject("ratio" -> JsNumber(0.05)), JsObject()), Set("alpha"))
+            )
           ),
-          Set(
-            TargetTerm(Set(JsObject("ratio" -> JsNumber(0.05), "foo" -> JsString("bar"))), Set("ab")),
-            TargetTerm(Set(JsObject("ratio" -> JsNumber(0.05))), Set("assault", "appendix")),
-            TargetTerm(Set(JsObject("ratio" -> JsNumber(0.05)), JsObject()), Set("alpha"))
-          )
-        ),
-        bInvoker -> Alternatives( // there is only one possible representation for such a simple expression
-          Set(
-            TargetTerm(Set(JsObject("ratio" -> JsNumber(0.05), "foo" -> JsString("bar"))), Set("ab"))
+          bInvoker -> Alternatives( // there is only one possible representation for such a simple expression
+            Set(
+              TargetTerm(Set(JsObject("ratio" -> JsNumber(0.05), "foo" -> JsString("bar"))), Set("ab"))
+            )
           )
         )
       )
@@ -268,12 +273,50 @@ class ExecutionSpec extends Test with TestDb {
       val dispatchedTargets = execution
         .dispatch(DummyTargetDispatcher, targetWithDuplicates)
         .map(_._2)
-      dispatchedTargets should contain theSameElementsAs Seq(
+      assertEqual(dispatchedTargets, Seq(
         Set(
           TargetTerm(Set(JsObject("foo" -> JsString("bar"), "bar" -> JsString("baz"))), Set("abc", "def", "ghi")),
           TargetTerm(Set(JsObject("foo" -> JsString("bar2")), JsObject("foo2" -> JsString("bar"))), Set("ghi"))
         )
-      )
+      ))
     }
+  }
+
+  private def assertEqual(challenger: Any, expected: Any, path: String = "root"): Unit = {
+    challenger match {
+      case cMap: scala.collection.Map[Any, Any] =>
+        val eMap = as[scala.collection.Map[Any, Any]](expected, path)
+        assertEqualSets(cMap.keySet, eMap.keySet, path)
+        cMap.foreach { case (k, v) => assertEqual(v, eMap(k), s"$path/$k") }
+      case cSet: scala.collection.Set[Any] =>
+        assertEqualSets(cSet, as[scala.collection.Set[Any]](expected, path), path)
+      case cTuple: scala.Product =>
+        assertEqual(cTuple.productIterator, as[scala.Product](expected, path).productIterator, path)
+      case cIt: TraversableOnce[Any] =>
+        val lc = cIt.toSeq
+        val le = as[TraversableOnce[Any]](expected, path).toSeq
+        val common = lc.zip(le).zipWithIndex.takeWhile { case ((c, e), i) =>
+          assertEqual(c, e, s"$path[$i]")
+          true
+        }.size
+        val cSuffix = lc.drop(common)
+        val eSuffix = le.drop(common)
+        Predef.assert(cSuffix.isEmpty, s"Unexpected elements in the iterable at $path from element $common: ${cSuffix.mkString(", ")}")
+        Predef.assert(eSuffix.isEmpty, s"Missing elements in the iterable at $path from element $common: ${eSuffix.mkString(", ")}")
+      case _ =>
+        Predef.assert(challenger == expected, s"Expected $expected, found $challenger at $path")
+    }
+  }
+
+  private def as[T: ClassTag](c: Any, path: String): T = {
+    assert(classTag[T].runtimeClass.isInstance(c), s"Expected a ${classTag[T].runtimeClass.getName} at $path, got $c (of type ${c.getClass.getName})")
+    c.asInstanceOf[T]
+  }
+
+  private def assertEqualSets(l: scala.collection.Set[Any], r: scala.collection.Set[Any], path: String): Unit = {
+    Predef.assert(l == r,
+      if (l.diff(r).nonEmpty) s"Unexpected element(s) in $path: ${l.diff(r).mkString(", ")}"
+      else s"Missing element(s) in $path: ${r.diff(l).mkString(", ")}"
+    )
   }
 }
