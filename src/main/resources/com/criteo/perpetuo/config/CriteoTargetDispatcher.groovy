@@ -1,8 +1,7 @@
 package com.criteo.perpetuo.config
 
 import com.criteo.perpetuo.dao.DbBinding
-import com.criteo.perpetuo.dispatchers.ExecutorsByPoset
-import com.criteo.perpetuo.dispatchers.TargetDispatcherByPoset
+import com.criteo.perpetuo.dispatchers.TargetDispatcher
 import com.criteo.perpetuo.executors.DummyInvoker
 import com.criteo.perpetuo.executors.ExecutorInvoker
 import com.criteo.perpetuo.executors.HttpInvoker
@@ -18,33 +17,27 @@ import groovy.json.JsonSlurper
 
 /* the "public" class to be loaded as the actual plugin must be the first statement after the imports */
 
-class CriteoTargetDispatcher extends TargetDispatcherByPoset {
-    CriteoTargetDispatcher(DbBinding dbBinding, RootAppConfig appConfig) {
-        super(getExecutors(appConfig))
-    }
+class CriteoTargetDispatcher extends TargetDispatcher {
+    ExecutorInvoker invoker
 
-    private static ExecutorsByPoset getExecutors(RootAppConfig appConfig) {
+    CriteoTargetDispatcher(DbBinding dbBinding, RootAppConfig appConfig) {
         def env = appConfig.env()
-        Map<String, ExecutorInvoker> executorMap
         switch (env) {
             case 'test':
-                executorMap = [
-                        '*': new DummyInvoker("test invoker")
-                ]
+                invoker = new DummyInvoker("test invoker")
                 break
             case 'local':
                 def rundeckPort = (System.getenv("RD_PORT") ?: "4440")
-                executorMap = [
-                        '*': new RundeckInvoker("localhost", rundeckPort as int, "preprod", appConfig)
-                ]
+                invoker = new RundeckInvoker("localhost", rundeckPort as int, "preprod", appConfig)
                 break
             default:
-                executorMap = [
-                        '*': new RundeckInvoker("rundeck.central.criteo.${env}", 443, env, appConfig)
-                ]
+                invoker = new RundeckInvoker("rundeck.central.criteo.${env}", 443, env, appConfig)
         }
+    }
 
-        ExecutorsByPoset.apply(executorMap, { _ -> ['*'] })
+    @Override
+    Iterable<ExecutorInvoker> assign(String targetAtom) {
+        return [invoker]
     }
 }
 

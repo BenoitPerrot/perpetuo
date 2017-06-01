@@ -5,13 +5,12 @@ import java.sql.Timestamp
 import com.criteo.perpetuo.TestDb
 import com.criteo.perpetuo.dao._
 import com.criteo.perpetuo.executors.{DummyInvoker, ExecutorInvoker}
-import com.criteo.perpetuo.model.DeploymentRequestParser._
-import com.criteo.perpetuo.model.Operation.Operation
 import com.criteo.perpetuo.model.{DeploymentRequestAttrs, Operation, Product, Version}
 import com.twitter.inject.Test
 import spray.json.DefaultJsonProtocol._
 import spray.json.{JsObject, _}
 
+import scala.collection.JavaConverters._
 import scala.collection.concurrent.{TrieMap, Map => ConcurrentMap}
 import scala.collection.immutable.Stream
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -19,9 +18,32 @@ import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}
 
 
+object TestTargetDispatcher extends TargetDispatcher {
+  val aInvoker = new DummyInvoker("A's invoker")
+  val bInvoker = new DummyInvoker("B's invoker")
+  val cInvoker = new DummyInvoker("C's invoker")
+
+  override protected def fromTargetWordToAtoms(productName: String, productVersion: String, targetWord: String): java.lang.Iterable[String] = {
+    // the atomic targets are the input word split on dashes
+    java.util.Arrays.stream(targetWord.split("-")).iterator.asScala.filter(!_.isEmpty).toSeq.asJava
+  }
+
+  def assign(targetAtom: String): java.lang.Iterable[ExecutorInvoker] = {
+    // associate executors to target words wrt the latter's characters
+    val invokers: Set[ExecutorInvoker] = targetAtom.flatMap {
+      case 'a' => Some(aInvoker)
+      case 'b' => Some(bInvoker)
+      case 'c' => Some(cInvoker)
+      case _ => None
+    }.toSet
+    invokers.asJava
+  }
+}
+
+
 class ExecutionSpec extends Test with TestDb {
 
-  import TestSuffixDispatcher._
+  import TestTargetDispatcher._
 
   private val dummyCounter = Stream.from(1).toIterator
   private val execLogs: ConcurrentMap[ExecutorInvoker, TargetExpr] = new TrieMap()
@@ -71,11 +93,9 @@ class ExecutionSpec extends Test with TestDb {
     private val depReq = execution.dbBinding.insert(request)
 
     def dispatchedAs(that: Iterable[(ExecutorInvoker, TargetExpr)]): Unit = {
-      execution.dispatch(TestSuffixDispatcher, target) should contain theSameElementsAs that
-
       execLogs.clear()
       Await.result(
-        depReq.flatMap(execution.startOperation(TestSuffixDispatcher, _, Operation.deploy, "c.norris").map(_ =>
+        depReq.flatMap(execution.startOperation(TestTargetDispatcher, _, Operation.deploy, "c.norris").map(_ =>
           execLogs should contain theSameElementsAs that
         )),
         1.second
@@ -105,29 +125,28 @@ class ExecutionSpec extends Test with TestDb {
   "A complex execution" should {
 
     "call the right executor when available for each exact target word" in {
-      Set("foo-baz", "foo-foo-baz", "bar-baz") dispatchedAs Map(
-        fooInvoker -> Set("foo-baz"),
-        fooFooInvoker -> Set("foo-foo-baz"),
-        barInvoker -> Set("bar-baz")
+      Set("a", "c") dispatchedAs Map(
+        aInvoker -> Set("a"),
+        cInvoker -> Set("c")
       )
     }
 
-    "call the root set of pretty much all executors for all unknown targets" in {
-      val thrown = the[Exception] thrownBy execution.dispatch(TestSuffixDispatcher, Set(TargetTerm(select = Set("abc", "def"))))
-      thrown.getMessage should endWith("is not covered by executors; can't operate.")
-    }
-
-    "call the same executor in one shot when applicable" in {
-      Set("o-baz", "oo-baz") dispatchedAs Map(
-        fooInvoker -> Set("oo-baz", "o-baz")
+    "gather target words on executors" in {
+      Set("abc-ab", "cb") dispatchedAs Map(
+        aInvoker -> Set("abc", "ab"),
+        bInvoker -> Set("abc", "ab", "cb"),
+        cInvoker -> Set("abc", "cb")
       )
     }
 
-    "gather target words on executors when possible and still distribute unknown target words" in {
-      Set("o-baz", "-baz", "oo-baz") dispatchedAs Map(
-        fooInvoker -> Set("oo-baz", "-baz", "o-baz"),
-        barInvoker -> Set("-baz")
-      )
+    "raise if a target cannot be solved to atomic targets" in {
+      val thrown = the[IllegalArgumentException] thrownBy TestTargetDispatcher.expandTarget(null, Version(""), Set(TargetTerm(select = Set("ab", "-"))))
+      thrown.getMessage should endWith("Target word `-` doesn't resolve to any atomic target")
+    }
+
+    "raise if a target is not fully covered by executors" in {
+      val thrown = the[IllegalArgumentException] thrownBy TestTargetDispatcher.dispatchToExecutors("def")
+      thrown.getMessage should endWith("There is no executor for `def`")
     }
 
   }
@@ -137,7 +156,7 @@ class ExecutionSpec extends Test with TestDb {
 
     "be appropriately dispatched among impacted executors" in {
       Set(
-        TargetTerm(select = Set("o-baz", "-baz", "oo-baz")),
+        TargetTerm(select = Set("aa", "ab-a")),
         TargetTerm(
           Set(
             JsObject(
@@ -149,11 +168,11 @@ class ExecutionSpec extends Test with TestDb {
               "ratio" -> JsNumber(0.05)
             )
           ),
-          Set("bar-baz", "-baz", "foo-foo-baz")
+          Set("bb-ab", "cc")
         )
       ) dispatchedAs Map(
-        fooInvoker -> Set(
-          TargetTerm(select = Set("o-baz", "oo-baz")),
+        aInvoker -> Set(
+          TargetTerm(select = Set("aa", "a")),
           TargetTerm(
             Set(
               JsObject(),
@@ -166,11 +185,11 @@ class ExecutionSpec extends Test with TestDb {
                 "ratio" -> JsNumber(0.05)
               )
             ),
-            Set("-baz")
+            Set("ab")
           )
         ),
-        barInvoker -> Set(
-          TargetTerm(select = Set("-baz")),
+        bInvoker -> Set(
+          TargetTerm(select = Set("ab")),
           TargetTerm(
             Set(
               JsObject(
@@ -182,10 +201,10 @@ class ExecutionSpec extends Test with TestDb {
                 "ratio" -> JsNumber(0.05)
               )
             ),
-            Set("bar-baz", "-baz")
+            Set("bb", "ab")
           )
         ),
-        fooFooInvoker -> Set(
+        cInvoker -> Set(
           TargetTerm(
             Set(
               JsObject(
@@ -197,7 +216,7 @@ class ExecutionSpec extends Test with TestDb {
                 "ratio" -> JsNumber(0.05)
               )
             ),
-            Set("foo-foo-baz")
+            Set("cc")
           )
         )
       )
@@ -205,28 +224,28 @@ class ExecutionSpec extends Test with TestDb {
 
     "be dispatched as short target expressions" in {
       val Alternatives = Set
-      execution.dispatchAlternatives(TestSuffixDispatcher, Set(
-        TargetTerm(Set(JsObject("ratio" -> JsNumber(0.05), "foo" -> JsString("bar"))), Set("-baz")),
-        TargetTerm(Set(JsObject("ratio" -> JsNumber(0.05))), Set("o-baz")),
-        TargetTerm(Set(JsObject("ratio" -> JsNumber(0.05))), Set("oo-baz")),
-        TargetTerm(Set(JsObject("ratio" -> JsNumber(0.05))), Set("foo-baz")),
-        TargetTerm(select = Set("o-baz"))
+      execution.dispatchAlternatives(TestTargetDispatcher, Set(
+        TargetTerm(Set(JsObject("ratio" -> JsNumber(0.05), "foo" -> JsString("bar"))), Set("ab")),
+        TargetTerm(Set(JsObject("ratio" -> JsNumber(0.05))), Set("assault")),
+        TargetTerm(Set(JsObject("ratio" -> JsNumber(0.05))), Set("appendix")),
+        TargetTerm(Set(JsObject("ratio" -> JsNumber(0.05))), Set("alpha")),
+        TargetTerm(select = Set("alpha"))
       )) should contain theSameElementsAs Map(
-        fooInvoker -> Alternatives(
+        aInvoker -> Alternatives(
           Set(
-            TargetTerm(Set(JsObject("ratio" -> JsNumber(0.05), "foo" -> JsString("bar"))), Set("-baz")),
-            TargetTerm(Set(JsObject("ratio" -> JsNumber(0.05))), Set("o-baz" /*DIFF*/ , "oo-baz", "foo-baz")),
-            TargetTerm(select = Set("o-baz"))
+            TargetTerm(Set(JsObject("ratio" -> JsNumber(0.05), "foo" -> JsString("bar"))), Set("ab")),
+            TargetTerm(Set(JsObject("ratio" -> JsNumber(0.05))), Set("assault", "appendix", "alpha")),
+            TargetTerm(select = Set("alpha"))
           ),
           Set(
-            TargetTerm(Set(JsObject("ratio" -> JsNumber(0.05), "foo" -> JsString("bar"))), Set("-baz")),
-            TargetTerm(Set(JsObject("ratio" -> JsNumber(0.05))), Set("oo-baz", "foo-baz")),
-            TargetTerm(Set(JsObject("ratio" -> JsNumber(0.05)) /*DIFF*/ , JsObject()), Set("o-baz"))
+            TargetTerm(Set(JsObject("ratio" -> JsNumber(0.05), "foo" -> JsString("bar"))), Set("ab")),
+            TargetTerm(Set(JsObject("ratio" -> JsNumber(0.05))), Set("assault", "appendix")),
+            TargetTerm(Set(JsObject("ratio" -> JsNumber(0.05)), JsObject()), Set("alpha"))
           )
         ),
-        barInvoker -> Alternatives(// there is only one possible representation for such a simple expression
+        bInvoker -> Alternatives( // there is only one possible representation for such a simple expression
           Set(
-            TargetTerm(Set(JsObject("ratio" -> JsNumber(0.05), "foo" -> JsString("bar"))), Set("-baz"))
+            TargetTerm(Set(JsObject("ratio" -> JsNumber(0.05), "foo" -> JsString("bar"))), Set("ab"))
           )
         )
       )

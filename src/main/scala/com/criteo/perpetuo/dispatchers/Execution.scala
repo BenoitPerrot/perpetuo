@@ -23,8 +23,11 @@ class Execution @Inject()(val dbBinding: DbBinding) extends Logging {
     * and failed execution starts.
     */
   def startOperation(dispatcher: TargetDispatcher, deploymentRequest: DeploymentRequest, operation: Operation, userName: String): Future[(Int, Int)] = {
-    // infer dispatching
-    val invocations = dispatch(dispatcher, deploymentRequest.parsedTarget).toSeq
+    // target resolution
+    val expandedTarget = dispatcher.expandTarget(deploymentRequest.product.name, deploymentRequest.version, deploymentRequest.parsedTarget)
+
+    // execution dispatching
+    val invocations = dispatch(dispatcher, expandedTarget).toSeq
 
     // log the operation intent in the DB
     dbBinding.addToDeploymentRequest(deploymentRequest.id, operation, userName).flatMap(
@@ -100,7 +103,7 @@ class Execution @Inject()(val dbBinding: DbBinding) extends Logging {
     val allExpanded = groupOn2(targetExpanded).flatMap { case (selectWord, groupedTactics) =>
       // just to infer only once per unique select word the executors to call
       for {
-        executor <- dispatcher.assign(selectWord)
+        executor <- dispatcher.dispatchToExecutors(selectWord)
         tactics <- groupedTactics
         tactic <- tactics
       } yield (executor, (selectWord, tactic))

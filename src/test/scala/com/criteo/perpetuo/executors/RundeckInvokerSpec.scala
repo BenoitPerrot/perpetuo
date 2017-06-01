@@ -19,7 +19,7 @@ class RundeckInvokerSpec extends Test with TestDb {
   private def testWhenResponseIs(statusCode: Int, content: String) = {
     val testEnv = ConfigValueFactory.fromAnyRef("local")
     val plugins = new Plugins(new DbBinding(dbContext), AppConfig.withValue("env", testEnv))
-    val rundeckInvoker = plugins.dispatcher.assign("foo").head.asInstanceOf[HttpInvoker]
+    val rundeckInvoker = plugins.dispatcher.dispatchToExecutors("foo").head.asInstanceOf[HttpInvoker]
     assert(rundeckInvoker.getClass.getSimpleName == "RundeckInvoker")
     rundeckInvoker.client = request => {
       request.uri shouldEqual s"/api/16/job/deploy-to-marathon/executions?authtoken=my-super-secret-token"
