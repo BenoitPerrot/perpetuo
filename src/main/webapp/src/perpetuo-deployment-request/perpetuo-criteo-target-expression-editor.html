@@ -25,29 +25,51 @@
   }
   </style>
   <template>
-    <p style="font-size:16px; margin:0 0 0.5em 0;">Target</p>
-    <paper-radio-group class="dc-selector" selected="{{dcSelectionMode}}">
-      <paper-radio-button name="allConfigured">All configured data centers</paper-radio-button>
-      <paper-radio-button name="freeSelection">Free selection</paper-radio-button>
-      <div class="dc-free-selector">
-        <paper-checkbox disabled="[[!isFreeSelectionMode]]" dc="par">Paris (par)</paper-checkbox>
-        <paper-checkbox disabled="[[!isFreeSelectionMode]]" dc="am5">Amsterdam (am5)</paper-checkbox>
-        <paper-checkbox disabled="[[!isFreeSelectionMode]]" dc="ny8">New York (ny8)</paper-checkbox>
-        <paper-checkbox disabled="[[!isFreeSelectionMode]]" dc="sv6">Sunnyvale (sv6)</paper-checkbox>
-        <paper-checkbox disabled="[[!isFreeSelectionMode]]" dc="va1">Ashburn (va1)</paper-checkbox>
-        <paper-checkbox disabled="[[!isFreeSelectionMode]]" dc="hk5">Hong Kong (hk5)</paper-checkbox>
-        <paper-checkbox disabled="[[!isFreeSelectionMode]]" dc="sh5">Shanghai (sh5)</paper-checkbox>
-        <paper-checkbox disabled="[[!isFreeSelectionMode]]" dc="ty5">Tokyo (ty5)</paper-checkbox>
-      </div>
-    </paper-radio-group>
+    <template is="dom-if" if="[[productTypeEquals(productType, 'hadoop')]]">
+      <p style="font-size:16px; margin:0 0 0.5em 0;">Target: All configured gateways</p>
+    </template>
+    <template is="dom-if" if="[[productTypeEquals(productType, 'marathon')]]">
+      <p style="font-size:16px; margin:0 0 0.5em 0;">Target</p>
+      <paper-radio-group class="dc-selector" selected="{{dcSelectionMode}}">
+        <paper-radio-button name="allConfigured">All configured data centers</paper-radio-button>
+        <paper-radio-button name="freeSelection">Free selection</paper-radio-button>
+        <div class="dc-free-selector">
+          <paper-checkbox disabled="[[!isFreeSelectionMode]]" dc="par">Paris (par)</paper-checkbox>
+          <paper-checkbox disabled="[[!isFreeSelectionMode]]" dc="am5">Amsterdam (am5)</paper-checkbox>
+          <paper-checkbox disabled="[[!isFreeSelectionMode]]" dc="ny8">New York (ny8)</paper-checkbox>
+          <paper-checkbox disabled="[[!isFreeSelectionMode]]" dc="sv6">Sunnyvale (sv6)</paper-checkbox>
+          <paper-checkbox disabled="[[!isFreeSelectionMode]]" dc="va1">Ashburn (va1)</paper-checkbox>
+          <paper-checkbox disabled="[[!isFreeSelectionMode]]" dc="hk5">Hong Kong (hk5)</paper-checkbox>
+          <paper-checkbox disabled="[[!isFreeSelectionMode]]" dc="sh5">Shanghai (sh5)</paper-checkbox>
+          <paper-checkbox disabled="[[!isFreeSelectionMode]]" dc="ty5">Tokyo (ty5)</paper-checkbox>
+        </div>
+      </paper-radio-group>
+    </template>
   </template>
   <script>
   Polymer({
     is: 'perpetuo-criteo-target-expression-editor',
 
     properties: {
+      productName: { type: String, observer: 'onProductNameChanged' },
+      productType: String,
+
       dcSelectionMode: { type: String, value: 'allConfigured' },
       isFreeSelectionMode: {type: Boolean, computed: 'computeIsFreeSelectionMode(dcSelectionMode)'},
+    },
+
+    onProductNameChanged() {
+      if (this.productName) {
+        fetch(`http://moab.criteois.lan/products/${this.productName}/manifest.json`).then(_ => _.json()).then(productManifest => {
+          this.productType = productManifest.type;
+        });
+      } else {
+        this.productType = null;
+      }
+    },
+
+    productTypeEquals(productType, t) {
+      return this.productType === t;
     },
 
     computeIsFreeSelectionMode(dcSelectionMode) {
