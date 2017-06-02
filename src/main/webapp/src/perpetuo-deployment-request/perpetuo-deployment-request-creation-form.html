@@ -56,7 +56,7 @@
       <iron-page state-name="declare-intent">
         <div class="product-name-version">
           <paper-dropdown-menu id="productSelector" label="Product" no-animations>
-            <paper-listbox id="productSelector_" class="dropdown-content">
+            <paper-listbox id="productSelector_" class="dropdown-content" selected-item="{{selectedProductItem}}">
               <template is="dom-repeat" items="[[products]]">
                 <paper-item>[[item.name]]</paper-item>
               </template>
@@ -91,12 +91,18 @@
 
     properties: {
       state: { type: String, value: 'declare-intent' },
+      selectedProductItem: Object,
+      selectedProductName: { type: String, computed: 'computeSelectedProductName(selectedProductItem)' },
       products: { type: Array, value: () => [] }
     },
 
     behaviors: [
       Polymer.PaperDialogBehavior
     ],
+
+    computeSelectedProductName(selectedProductItem) {
+      return selectedProductItem ? selectedProductItem.innerText : null;
+    },
 
     attached() {
       this.client = new Perpetuo.Client();
@@ -109,7 +115,7 @@
     },
 
     onTryCreateTap() {
-      this.client.validateProductVersion(this.$.productSelector.selectedItemLabel, this.$.versionSelector.value).then(r => {
+      this.client.validateProductVersion(this.selectedProductName, this.$.versionSelector.value).then(r => {
         if (!r.valid) {
           this.state = 'disregard-invalid';
         } else {
@@ -123,7 +129,7 @@
     },
 
     create() {
-      this.client.createDeploymentRequest(this.$.productSelector.selectedItemLabel,
+      this.client.createDeploymentRequest(this.selectedProductName,
                                           this.$.versionSelector.value,
                                           this.$.lastValidatedVersion.value,
                                           this.$.targetSelector.value,
