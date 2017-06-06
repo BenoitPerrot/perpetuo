@@ -34,6 +34,14 @@
     width: 45%;
   }
 
+  :host #versionMessage {
+    margin: 0;
+    color: red;
+  }
+  :host[is-version-valid] #versionMessage {
+    visibility: hidden;
+  }
+
   .footer {
     display: flex;
     flex-direction: row;
@@ -52,45 +60,37 @@
   <template>
     <style include="paper-dialog-shared-styles"></style>
     <h2>New Deployment Request</h2>
-    <iron-pages selected="[[state]]" attr-for-selected="state-name">
-      <iron-page state-name="declare-intent">
-        <div class="product-name-version">
-          <paper-dropdown-menu id="productSelector" label="Product" no-animations>
-            <paper-listbox id="productSelector_" class="dropdown-content" selected-item="{{selectedProductItem}}">
-              <template is="dom-repeat" items="[[products]]">
-                <paper-item>[[item.name]]</paper-item>
-              </template>
-            </paper-listbox>
-          </paper-dropdown-menu>
+    <div>
+      <div class="product-name-version">
+        <paper-dropdown-menu id="productSelector" label="Product" no-animations>
+          <paper-listbox id="productSelector_" class="dropdown-content" selected-item="{{selectedProductItem}}">
+            <template is="dom-repeat" items="[[products]]">
+              <paper-item>[[item.name]]</paper-item>
+            </template>
+          </paper-listbox>
+        </paper-dropdown-menu>
+        <div>
           <paper-input id="versionSelector" label="Version"></paper-input>
+          <p id="versionMessage">Requested version could not be validated</p>
         </div>
-        <!-- TODO: Make this a _pluggable_ component -->
-        <perpetuo-criteo-target-expression-editor product-name="[[selectedProductName]]" id="targetSelector"></perpetuo-criteo-target-expression-editor>
-        <paper-input id="lastValidatedVersion" label="Last Validated Version"></paper-input>
-        <paper-textarea id="commentEditor" label="Comment"></paper-textarea>
-        <div class="buttons">
-          <paper-button dialog-dismiss class="cancel" raised>Cancel</paper-button>
-          <paper-button raised on-tap="clear">Clear</paper-button>
-          <paper-button class="create" raised on-tap="onTryCreateTap">Create</paper-button>
-        </div>
-      </iron-page>
-      <iron-page state-name="disregard-invalid">
-        <p style="color: red;">Requested version could not be validated.</p>
-        <p>Create deployment request anyway, or modify it?</p>
-        <div class="buttons">
-          <paper-button dialog-dismiss class="cancel" raised>Cancel</paper-button>
-          <paper-button raised on-tap="backToDeclareIntent">Modify</paper-button>
-          <paper-button class="create" raised on-tap="onCreateTap">Create</paper-button>
-        </div>
-      </iron-page>
-    </iron-pages>
+      </div>
+      <!-- TODO: Make this a _pluggable_ component -->
+      <perpetuo-criteo-target-expression-editor product-name="[[selectedProductName]]" id="targetSelector"></perpetuo-criteo-target-expression-editor>
+      <paper-input id="lastValidatedVersion" label="Last Validated Version"></paper-input>
+      <paper-textarea id="commentEditor" label="Comment"></paper-textarea>
+    </div>
+    <div class="buttons">
+      <paper-button dialog-dismiss class="cancel" raised>Cancel</paper-button>
+      <paper-button raised on-tap="clear">Clear</paper-button>
+      <paper-button dialog-confirm class="create" raised on-tap="create">Create</paper-button>
+    </div>
   </template>
   <script>
   Polymer({
     is: 'perpetuo-deployment-request-creation-form',
 
     properties: {
-      state: { type: String, value: 'declare-intent' },
+      isVersionValid: { type: Boolean, reflectToAttribute: true, value: true },
       selectedProductItem: Object,
       selectedProductName: { type: String, computed: 'computeSelectedProductName(selectedProductItem)' },
       products: { type: Array, value: () => [] }
@@ -107,25 +107,18 @@
     attached() {
       this.client = new Perpetuo.Client();
       this.client.fetchProducts().then(products => { this.products = products });
-      this.addEventListener('opened-changed', e => {
-        if (e.detail.value) {
-          this.backToDeclareIntent();
-        }
-      });
-    },
-
-    onTryCreateTap() {
-      this.client.validateProductVersion(this.selectedProductName, this.$.versionSelector.value).then(r => {
-        if (!r.valid) {
-          this.state = 'disregard-invalid';
+      this.$.versionSelector.addEventListener('value-changed', e => {
+        const v = e.detail.value;
+        if (v && this.selectedProductName) {
+          this.client.validateProductVersion(this.selectedProductName, v).then(r => {
+            if (v === this.$.versionSelector.value) { // Support out-of-order execution
+              this.isVersionValid = r.valid;
+            }
+          });
         } else {
-          this.create();
+          this.isVersionValid = true;
         }
       });
-    },
-
-    onCreateTap() {
-      this.create();
     },
 
     create() {
@@ -148,10 +141,6 @@
       this.$.lastValidatedVersion.value = '';
       this.$.targetSelector.value = '';
       this.$.commentEditor.value = '';
-    },
-
-    backToDeclareIntent() {
-      this.state = 'declare-intent';
     },
   });
   </script>
