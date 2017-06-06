@@ -22,7 +22,8 @@
     "paper-radio-group": "PolymerElements/paper-radio-group#^1.2.1",
     "paper-dialog-behavior": "PolymerElements/paper-dialog-behavior#^1.2.7",
     "iron-overlay-behavior": "PolymerElements/iron-overlay-behavior#^1.10.4",
-    "paper-checkbox": "PolymerElements/paper-checkbox#~1.4.2"
+    "paper-checkbox": "PolymerElements/paper-checkbox#~1.4.2",
+    "paper-dialog-scrollable": "PolymerElements/paper-dialog-scrollable#^2.1.0"
   },
   "devDependencies": {
     "web-component-tester": "^4.0.0",

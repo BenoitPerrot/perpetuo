@@ -3,6 +3,7 @@
 <link rel="import" href="../../bower_components/paper-button/paper-button.html">
 <link rel="import" href="../../bower_components/paper-dialog-behavior/paper-dialog-behavior.html">
 <link rel="import" href="../../bower_components/paper-dialog-behavior/paper-dialog-shared-styles.html">
+<link rel="import" href="../../bower_components/paper-dialog-scrollable/paper-dialog-scrollable.html">
 <link rel="import" href="../../bower_components/paper-dropdown-menu/paper-dropdown-menu.html">
 <link rel="import" href="../../bower_components/paper-input/paper-input.html">
 <link rel="import" href="../../bower_components/paper-input/paper-textarea.html">
@@ -60,7 +61,7 @@
   <template>
     <style include="paper-dialog-shared-styles"></style>
     <h2>New Deployment Request</h2>
-    <div>
+    <paper-dialog-scrollable>
       <div class="product-name-version">
         <paper-dropdown-menu id="productSelector" label="Product" no-animations>
           <paper-listbox id="productSelector_" class="dropdown-content" selected-item="{{selectedProductItem}}">
@@ -78,7 +79,7 @@
       <perpetuo-criteo-target-expression-editor product-name="[[selectedProductName]]" id="targetSelector"></perpetuo-criteo-target-expression-editor>
       <paper-input id="lastValidatedVersion" label="Last Validated Version"></paper-input>
       <paper-textarea id="commentEditor" label="Comment"></paper-textarea>
-    </div>
+    </paper-dialog-scrollable>
     <div class="buttons">
       <paper-button dialog-dismiss class="cancel" raised>Cancel</paper-button>
       <paper-button raised on-tap="clear">Clear</paper-button>
