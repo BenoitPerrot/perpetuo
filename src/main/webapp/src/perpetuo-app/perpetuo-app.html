@@ -78,7 +78,7 @@
       </app-header>
       <iron-pages id="pageSelector" selected="[[routeData.page]]" fallback-selection="*" attr-for-selected="page-route" on-iron-select="onPageSelected">
         <div page-route="*" title=""></div>
-        <perpetuo-deployment-requests-page page-route="deployment-requests" title="Deployment Requests" route="{{subroute}}"></perpetuo-deployment-requests-page>
+        <perpetuo-deployment-requests-page page-route="deployment-requests" title="Deployment Requests" route="{{subroute}}" on-create="onCreateDeploymentRequest"></perpetuo-deployment-requests-page>
         <perpetuo-products-page page-route="products" title="Products"></perpetuo-products-page>
         <perpetuo-administration-page page-route="administration" title="Administration"></perpetuo-administration-page>
       </iron-pages>
@@ -89,7 +89,7 @@
       <a href="/products"><paper-icon-item><iron-icon icon="folder-open" item-icon></iron-icon>Products</paper-icon-item></a>
       <a href="/administration"><paper-icon-item><iron-icon icon="settings" item-icon></iron-icon>Administration</paper-icon-item></a>
     </app-drawer>
-
+    <perpetuo-deployment-request-creation-form with-backdrop></perpetuo-deployment-request-creation-form>
   </template>
 
   <script>
@@ -124,6 +124,10 @@
 
       onIdentityTap() {
         this.$.identity.request();
+      },
+
+      onCreateDeploymentRequest() {
+        this.$$('perpetuo-deployment-request-creation-form').open();
       }
     });
   </script>
