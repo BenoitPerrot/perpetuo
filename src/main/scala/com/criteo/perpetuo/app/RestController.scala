@@ -126,7 +126,7 @@ class RestController @Inject()(val execution: Execution)
 
   post("/api/products/validate-version") { r: ProductPostWithVersion =>
     handleTimeout(
-      Map("valid" -> plugins.externalData.validateVersion(r.name, r.version))
+      plugins.externalData.validateVersion(r.name, r.version)
     )
   }
 
