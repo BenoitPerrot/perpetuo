@@ -37,9 +37,46 @@ class DbBinding @Inject()(val dbContext: DbContext)
     deepQueryDeploymentRequests(
       deploymentRequestQuery
         filter { _.id === id }
-        join productQuery on (_.productId === _.id)
+        join productQuery on (_.productId === _.id),
+      Seq()
     ).map { _.headOption }
   }
+
+  // TODO: find a cheap way to factor this - or find a more clever structure for the query
+  // (note that as after type erasure the two methods have the same signature, they must have different names) <<
+  def sortBy(q: Query[(DeploymentRequestTable, ProductTable), (DeploymentRequestRecord, ProductRecord), scala.Seq], order: Seq[Map[String, Any]]) = {
+    order.foldRight(q.sortBy(_._1.id)) { (spec, queries) =>
+      val descending = try spec.getOrElse("desc", false).asInstanceOf[Boolean].value catch {
+        case _: ClassCastException => throw new IllegalArgumentException("Orders `desc` must be true or false")
+      }
+      val fieldName = spec.getOrElse("field", throw new IllegalArgumentException(s"Orders must specify ̀`field`"))
+      fieldName match {
+        case "creationDate" => queries.sortBy(if (descending) _._1.creationDate.desc else _._1.creationDate.asc)
+        case "creator" => queries.sortBy(if (descending) _._1.creator.desc else _._1.creator.asc)
+        case "version" => queries.sortBy(if (descending) _._1.version.desc else _._1.version.asc)
+        case "productName" => queries.sortBy(if (descending) _._2.name.desc else _._2.name.asc)
+        case _ => throw new IllegalArgumentException(s"Cannot sort by `$fieldName`")
+      }
+    }
+  }
+
+  def sortAllBy(q: Query[(((DeploymentRequestTable, ProductTable), Rep[Option[OperationTraceTable]]), Rep[Option[ExecutionTraceTable]]), (((DeploymentRequestRecord, ProductRecord), Option[OperationTraceRecord]), Option[ExecutionTraceRecord]), scala.Seq],
+                order: Seq[Map[String, Any]]) = {
+    order.foldRight(q.sortBy(_._1._1._1.id)) { (spec, queries) =>
+      val descending = try spec.getOrElse("desc", false).asInstanceOf[Boolean].value catch {
+        case _: ClassCastException => throw new IllegalArgumentException("Orders `desc` must be true or false")
+      }
+      val fieldName = spec.getOrElse("field", throw new IllegalArgumentException(s"Orders must specify ̀`field`"))
+      fieldName match {
+        case "creationDate" => queries.sortBy(if (descending) _._1._1._1.creationDate.desc else _._1._1._1.creationDate.asc)
+        case "creator" => queries.sortBy(if (descending) _._1._1._1.creator.desc else _._1._1._1.creator.asc)
+        case "version" => queries.sortBy(if (descending) _._1._1._1.version.desc else _._1._1._1.version.asc)
+        case "productName" => queries.sortBy(if (descending) _._1._1._2.name.desc else _._1._1._2.name.asc)
+        case _ => throw new IllegalArgumentException(s"Cannot sort by `$fieldName`")
+      }
+    }
+  }
+  // >>
 
   def deepQueryDeploymentRequests(where: Seq[Map[String, Any]], orderBy: Seq[Map[String, Any]], limit: Int, offset: Int): Future[Iterable[Map[String, Object]]] = {
 
@@ -57,28 +94,15 @@ class DbBinding @Inject()(val dbContext: DbContext)
       }
     }
 
-    val filteredThenSorted = orderBy.foldRight(filtered.sortBy(_._1.id)) { (spec, queries) =>
-      val descending = try spec.getOrElse("desc", false).asInstanceOf[Boolean].value catch {
-        case _: ClassCastException => throw new IllegalArgumentException("Orders `desc` must be true or false")
-      }
-      val fieldName = spec.getOrElse("field", throw new IllegalArgumentException(s"Orders must specify ̀`field`"))
-      fieldName match {
-        case "creationDate" => queries.sortBy(if (descending) _._1.creationDate.desc else _._1.creationDate.asc)
-        case "creator" => queries.sortBy(if (descending) _._1.creator.desc else _._1.creator.asc)
-        case "version" => queries.sortBy(if (descending) _._1.version.desc else _._1.version.asc)
-        case "productName" => queries.sortBy(if (descending) _._2.name.desc else _._2.name.asc)
-        case _ => throw new IllegalArgumentException(s"Cannot sort by `$fieldName`")
-      }
-    }
-
     deepQueryDeploymentRequests(
-      filteredThenSorted
+      sortBy(filtered, orderBy)
         drop offset
-        take limit
+        take limit,
+      orderBy
     )
   }
 
-  private def deepQueryDeploymentRequests(q: Query[(DeploymentRequestTable, ProductTable), (DeploymentRequestRecord, ProductRecord), scala.Seq]): Future[Iterable[Map[String, Object]]] = {
+  private def deepQueryDeploymentRequests(q: Query[(DeploymentRequestTable, ProductTable), (DeploymentRequestRecord, ProductRecord), scala.Seq], order: Seq[Map[String, Any]]): Future[Iterable[Map[String, Object]]] = {
 
     type StableMap = mutable.LinkedHashMap[Long, (DeploymentRequestRecord, ProductRecord, ArrayBuffer[ExecutionTrace])]
 
@@ -92,10 +116,7 @@ class DbBinding @Inject()(val dbContext: DbContext)
       }
     }
 
-    dbContext.db.run(
-      (q
-        joinLeft operationTraceQuery on (_._1.id === _.deploymentRequestId)
-        joinLeft executionTraceQuery on (_._2.map(_.id) === _.operationTraceId)).result)
+    dbContext.db.run(sortAllBy(q joinLeft operationTraceQuery on (_._1.id === _.deploymentRequestId) joinLeft executionTraceQuery on (_._2.map(_.id) === _.operationTraceId), order).result)
       .map {
         groupByDeploymentRequestId(_).values.map { case (req, product, execs) =>
           val sortedGroupsOfExecutions = SortedMap(execs.groupBy(_.operationTrace.id).toStream: _*).values
