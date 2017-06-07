@@ -35,11 +35,11 @@
     width: 45%;
   }
 
-  :host #versionMessage {
+  :host .versionMessage {
     margin: 0;
     color: red;
   }
-  :host[is-version-valid] #versionMessage {
+  :host[is-version-valid] .versionMessage {
     visibility: hidden;
   }
 
@@ -72,7 +72,8 @@
         </paper-dropdown-menu>
         <div>
           <paper-input id="versionSelector" label="Version"></paper-input>
-          <p id="versionMessage">Requested version could not be validated</p>
+          <p class="versionMessage">Requested version could not be validated</p>
+          <p class="versionMessage">[[reason]]</p>
         </div>
       </div>
       <!-- TODO: Make this a _pluggable_ component -->
@@ -92,6 +93,7 @@
 
     properties: {
       isVersionValid: { type: Boolean, reflectToAttribute: true, value: true },
+      reason: { type: String },
       selectedProductItem: Object,
       selectedProductName: { type: String, computed: 'computeSelectedProductName(selectedProductItem)' },
       products: { type: Array, value: () => [] }
@@ -114,6 +116,9 @@
           this.client.validateProductVersion(this.selectedProductName, v).then(r => {
             if (v === this.$.versionSelector.value) { // Support out-of-order execution
               this.isVersionValid = r.valid;
+              if (!r.valid) {
+                this.reason = r.reason;
+              }
             }
           });
         } else {
