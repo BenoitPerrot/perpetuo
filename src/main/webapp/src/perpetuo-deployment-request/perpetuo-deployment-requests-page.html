@@ -47,12 +47,15 @@
           <div class="toolbox">
             <div>
               <paper-button raised id="deployment-requester" on-tap="onCreateTap">Request Deployment</paper-button>
-              <perpetuo-list-editor key="productName" label="Filter by product" choices="[[productNames]]" on-chosen-changed="updateFilter"></perpetuo-list-editor>
             </div>
           </div>
           <div class="main">
-            <perpetuo-deployment-request-table id="deploymentRequestTable" on-page-changed="onPageChanged" on-order-changed="onOrderChanged"></perpetuo-deployment-request-table>
+            <perpetuo-deployment-request-table></perpetuo-deployment-request-table>
           </div>
+        </div>
+        <div id="single">
+          <perpetuo-deployment-request></perpetuo-deployment-request>
+        </div>
       </iron-pages>
     </app-header-layout>
     <perpetuo-app-drawer id="drawer"></perpetuo-app-drawer>
@@ -66,8 +69,6 @@
       login: String,
 
       selected: { type: Number, value: 0 },
-
-      productNames: {type: Array, value: () => []},
 
       route: { type: Object }
     },
@@ -85,35 +86,6 @@
 
     created() {
       this.client = new Perpetuo.Client();
-      this.deploymentRequestFilters = [];
-      this.deploymentRequestOrder = [];
-      this.deploymentRequestOffset = 0;
-      this.deploymentRequestLimit = 20;
-    },
-
-    attached() {
-      this.client.fetchProducts().then(products => { this.productNames = products.map(_ => _.name); });
-
-      const refreshDelay = 1000;
-      (function installRefresh() {
-        const reinstallRefresh = () => installRefresh.apply(this);
-        setTimeout(() => this.refresh().then(reinstallRefresh, reinstallRefresh), refreshDelay);
-      }).apply(this);
-    },
-
-    refresh(forced) {
-      return this.client.fetchDeploymentRequests({
-        where: this.deploymentRequestFilters,
-        orderBy: this.deploymentRequestOrder,
-        offset: this.deploymentRequestOffset,
-        limit: this.deploymentRequestLimit
-      }).then(deploymentRequests => {
-        this.$.deploymentRequestTable.data = deploymentRequests;
-        this.$.deploymentRequestTable.hasNextPage = this.client.hasMoreDeploymentRequests;
-        if (forced) {
-          this.$.deploymentRequestTable.page = 1;
-        }
-      });
     },
 
     onCreateTap() {
@@ -122,30 +94,6 @@
       } else {
         this.$.identity.request();
       }
-    },
-
-    onOrderChanged(e) {
-      this.deploymentRequestOrder = e.detail.order.map(_ => {
-        return {field: _.getAttribute('key'), desc: _.state === 'down'};
-      });
-      this.refresh(true);
-    },
-
-    onPageChanged() {
-      this.deploymentRequestOffset = (this.$.deploymentRequestTable.page - 1) * this.deploymentRequestLimit;
-      this.refresh();
-    },
-
-    onOpenedChanged(e) {
-      this.$.backdrop.opened = e.detail.value;
-    },
-
-    updateFilter(e) {
-      const fieldName = e.target.getAttribute('key');
-      this.deploymentRequestFilters = e.target.chosen.map(v => {
-        return {'field': fieldName, 'equals': v};
-      });
-      this.refresh(true);
     },
 
     toggleDrawer() {

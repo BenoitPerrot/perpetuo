@@ -3,6 +3,7 @@
 <link rel="import" href="../../bower_components/paper-icon-button/paper-icon-button.html">
 <link rel="import" href="../../bower_components/paper-radio-group/paper-radio-group.html">
 
+<link rel="import" href="../perpetuo-client/perpetuo-client.html">
 <link rel="import" href="../perpetuo-deployment-request/perpetuo-deployment-request-entry.html">
 <link rel="import" href="../perpetuo-list-editor/perpetuo-list-editor.html">
 <link rel="import" href="../perpetuo-up-down-none/perpetuo-up-down-none.html">
@@ -70,7 +71,9 @@
         </div>
       </div>
       <div style="display: flex;">
-        <div class="product-name"></div>
+        <div class="product-name">
+          <perpetuo-list-editor key="productName" label="Filter" choices="[[productNames]]" on-chosen-changed="updateFilter"></perpetuo-list-editor>
+        </div>
         <div class="version"></div>
         <span class="target"></span>
         <span class="creator"></span>
@@ -103,6 +106,7 @@
       data: {type: Array, observer: 'convertTimestamp' },
       indices: {type: Object, value: () => new Object()},
 
+      productNames: {type: Array, value: () => []},
       timeZoneItem: Object,
       timestampConverter: { type: String, computed: 'computeTimestampConverter(timeZoneItem)', observer: 'convertTimestamp' },
 
@@ -116,11 +120,38 @@
     },
 
     created() {
+      this.client = new Perpetuo.Client();
       this.order = [];
       this.expandedDeploymentRequests = new Set();
+      this.deploymentRequestFilters = [];
+      this.deploymentRequestOrder = [];
+      this.deploymentRequestOffset = 0;
+      this.deploymentRequestLimit = 20;
     },
+
     attached() {
       this.$$('[key=creationDate]').state = 'down';
+      this.client.fetchProducts().then(products => { this.productNames = products.map(_ => _.name); });
+      const refreshDelay = 1000;
+      (function installRefresh() {
+        const reinstallRefresh = () => installRefresh.apply(this);
+        setTimeout(() => this.refresh().then(reinstallRefresh, reinstallRefresh), refreshDelay);
+      }).apply(this);
+    },
+
+    refresh(forced) {
+      return this.client.fetchDeploymentRequests({
+        where: this.deploymentRequestFilters,
+        orderBy: this.deploymentRequestOrder,
+        offset: this.deploymentRequestOffset,
+        limit: this.deploymentRequestLimit
+      }).then(deploymentRequests => {
+        this.data = deploymentRequests;
+        this.hasNextPage = this.client.hasMoreDeploymentRequests;
+        if (forced) {
+          this.page = 1;
+        }
+      });
     },
 
     isEntryExpanded(id) {
@@ -152,6 +183,14 @@
       return date.getFullYear() + '-' + (date.getMonth() + 1) + '-' + date.getDate() + ' ' + time;
     },
 
+    updateFilter(e) {
+      const fieldName = e.target.getAttribute('key');
+      this.deploymentRequestFilters = e.target.chosen.map(v => {
+        return {'field': fieldName, 'equals': v};
+      });
+      this.refresh(true);
+    },
+
     updateOrder(e) {
       const toggle = e.target;
       if (toggle.state === 'none') {
@@ -165,7 +204,10 @@
         element.i = i + 1;
       });
 
-      this.fire('order-changed', { order: this.order });
+      this.deploymentRequestOrder = this.order.map(_ => {
+        return {field: _.getAttribute('key'), desc: _.state === 'down'};
+      });
+      this.refresh(true);
     },
 
     computeHasPreviousPage(page) {
@@ -190,7 +232,10 @@
 
     onPageChanged() {
       this.hasNextPage = false; // Assume no more page
-    }
+      this.deploymentRequestOffset = (this.page - 1) * this.deploymentRequestLimit;
+      this.refresh();
+    },
+
   });
   </script>
 </dom-module>
