@@ -47,20 +47,12 @@
           <div class="toolbox">
             <div>
               <paper-button raised id="deployment-requester" on-tap="onCreateTap">Request Deployment</paper-button>
-              <paper-radio-group selected="{{dateFormat}}">
-                <paper-radio-button name="timestampToUTCDate">Time in UTC</paper-radio-button>
-                <paper-radio-button name="timestampToLocalDate">Local time</paper-radio-button>
-              </paper-radio-group>
               <perpetuo-list-editor key="productName" label="Filter by product" choices="[[productNames]]" on-chosen-changed="updateFilter"></perpetuo-list-editor>
             </div>
           </div>
           <div class="main">
-            <perpetuo-deployment-request-table id="deploymentRequestTable" date-format="[[dateFormat]]" on-page-changed="onPageChanged" on-order-changed="onOrderChanged"></perpetuo-deployment-request-table>
+            <perpetuo-deployment-request-table id="deploymentRequestTable" on-page-changed="onPageChanged" on-order-changed="onOrderChanged"></perpetuo-deployment-request-table>
           </div>
-        </div>
-        <div id="single">
-          <perpetuo-deployment-request></perpetuo-deployment-request>
-        </div>
       </iron-pages>
     </app-header-layout>
     <perpetuo-app-drawer id="drawer"></perpetuo-app-drawer>
@@ -75,7 +67,6 @@
 
       selected: { type: Number, value: 0 },
 
-      dateFormat: {type: String, value: 'timestampToUTCDate'},
       productNames: {type: Array, value: () => []},
 
       route: { type: Object }

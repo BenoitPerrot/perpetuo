@@ -25,7 +25,6 @@
     align-items: center;
     padding: 0.5em 0;
     border-bottom: solid 1px #ddd;
-    margin-bottom: 1em;
     color: #757575;
   }
   .row.heading perpetuo-up-down-none {
@@ -51,7 +50,6 @@
   }
   .creation-date {
     width: 20%;
-    text-align: center;
   }
   div.state {
     width: 10%;
@@ -71,6 +69,21 @@
           <span>State</span>
         </div>
       </div>
+      <div style="display: flex;">
+        <div class="product-name"></div>
+        <div class="version"></div>
+        <span class="target"></span>
+        <span class="creator"></span>
+        <div class="creation-date">
+          <paper-dropdown-menu label="Time Zone">
+            <paper-listbox class="dropdown-content" selected="0" selected-item="{{timeZoneItem}}">
+              <paper-item timestamp-converter="timestampToUTCDate">UTC +0</paper-item>
+              <paper-item timestamp-converter="timestampToLocalDate">Local</paper-item>
+            </paper-listbox>
+          </paper-dropdown-menu>
+        </div>
+        <div class="state"></div>
+      </div>
       <template is="dom-repeat" items="[[data]]">
         <perpetuo-deployment-request-entry data="[[item]]" expanded="[[isEntryExpanded(item.id)]]" on-expanded-changed="onEntryExpandedChanged"></perpetuo-deployment-request-entry>
       </template>
@@ -87,13 +100,19 @@
     is: 'perpetuo-deployment-request-table',
 
     properties: {
-      data: {type: Array, observer: 'onDateFormatChanged'},
-      dateFormat: {type: String, value: 'timestampToUTCDate'},
+      data: {type: Array, observer: 'convertTimestamp' },
       indices: {type: Object, value: () => new Object()},
+
+      timeZoneItem: Object,
+      timestampConverter: { type: String, computed: 'computeTimestampConverter(timeZoneItem)', observer: 'convertTimestamp' },
 
       page: {type: Number, value: 1, observer: 'onPageChanged', notify: true},
       hasPreviousPage: {type: Boolean, computed: 'computeHasPreviousPage(page)'},
       hasNextPage: Boolean,
+    },
+
+    computeTimestampConverter(timeZoneItem) {
+      return timeZoneItem ? timeZoneItem.getAttribute('timestamp-converter') : null;
     },
 
     created() {
@@ -116,9 +135,11 @@
       }
     },
 
-    onDateFormatChanged() {
-        const f = this.get(this.dateFormat);
+    convertTimestamp() {
+      if (this.data && this.timestampConverter) {
+        const f = this.get(this.timestampConverter);
         this.data.forEach(obj => obj.dateString = f(obj.creationDate));
+      }
     },
 
     timestampToUTCDate(unixTimestamp) {
