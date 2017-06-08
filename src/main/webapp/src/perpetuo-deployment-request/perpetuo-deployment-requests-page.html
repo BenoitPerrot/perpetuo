@@ -2,6 +2,7 @@
 
 <link rel="import" href="../../bower_components/app-layout/app-header/app-header.html">
 <link rel="import" href="../../bower_components/app-layout/app-header-layout/app-header-layout.html">
+<link rel="import" href="../../bower_components/paper-fab/paper-fab.html">
 
 <link rel="import" href="../perpetuo-app/perpetuo-app-drawer.html">
 <link rel="import" href="../perpetuo-app/perpetuo-app-toolbar.html">
@@ -12,27 +13,19 @@
 
 <dom-module id="perpetuo-deployment-requests-page">
   <style>
-  #deployment-requester {
-    margin: 1em;
+  :host {
+    padding: 0 24px;
   }
-
-  .toolbox {
-    flex: .2;
-    padding-left: 24px;
+  app-route {
+    display: none;
+  }
+  #pageSelector {
+    flex: 1;
   }
 
   perpetuo-list-editor {
     display: flex;
     flex-direction: column;
-  }
-
-  .main {
-    flex: 1;
-    flex-direction: column;
-  }
-
-  #single {
-    padding: 0 24px;
   }
   </style>
   <template>
@@ -43,15 +36,9 @@
         <perpetuo-app-toolbar on-drawer-toggle-tap="toggleDrawer" page-title="Deployment Requests"></perpetuo-app-toolbar>
       </app-header>
       <iron-pages id="pageSelector" selected="[[selectPage(route)]]" fallback-selection="single" attr-for-selected="id">
-        <div id="all" style="display: flex">
-          <div class="toolbox">
-            <div>
-              <paper-button raised id="deployment-requester" on-tap="onCreateTap">Request Deployment</paper-button>
-            </div>
-          </div>
-          <div class="main">
-            <perpetuo-deployment-request-table></perpetuo-deployment-request-table>
-          </div>
+        <div id="all">
+          <paper-fab icon="add" style="position:fixed; left: 20px; top: 100px; z-index:103; background: #ff8f1c;" on-tap="onCreateTap"></paper-fab>
+          <perpetuo-deployment-request-table style="margin-left: 40px;"></perpetuo-deployment-request-table>
         </div>
         <div id="single">
           <perpetuo-deployment-request></perpetuo-deployment-request>
