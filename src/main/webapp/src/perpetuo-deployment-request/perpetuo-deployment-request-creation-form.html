@@ -13,6 +13,66 @@
 <link rel="import" href="../perpetuo-deployment-request/perpetuo-criteo-target-expression-editor.html">
 <link rel="import" href="../perpetuo-client/perpetuo-client.html">
 
+<dom-module id="perpetuo-input-suggester">
+  <style>
+  :host {
+    --paper-item-selected-weight: normal;
+  }
+  </style>
+  <template>
+    <paper-input id="selector" label="Version" value="{{selection}}" on-focus="onFocus" on-focusout="onFocusOut"></paper-input>
+
+    <div id="suggester"
+         style="z-index: 103; position: absolute; overflow: auto; background:#fff; box-shadow: 0 2px 2px 0 rgba(0, 0, 0, 0.14), 0 1px 5px 0 rgba(0, 0, 0, 0.12), 0 3px 1px -2px rgba(0, 0, 0, 0.2);"
+         hidden>
+      <paper-listbox on-focusout="onFocusOut">
+        <template is="dom-repeat" items="[[highlight(suggestions, selection)]]">
+          <paper-item style="cursor:pointer" on-tap="selectSuggestion" on-focusout="onFocusOut"><span style="font-weight: bold">[[item.high]]</span><span>[[item.low]]</span></paper-item>
+        </template>
+      </paper-listbox>
+    </div>
+  </template>
+  <script>
+  Polymer({
+    is: 'perpetuo-input-suggester',
+
+    properties: {
+      selection: { type: String, notify: true },
+      suggestions: { type: Array, value: () => [] }
+    },
+
+    onFocus(e) {
+      this.$.suggester.hidden = false;
+    },
+
+    onFocusOut(e) {
+      if (e.relatedTarget) {
+        let parent = e.relatedTarget.parentElement;
+        while (parent && parent !== this) {
+          parent = parent.parentElement;
+        }
+        if (parent !== this) {
+          this.$.suggester.hidden = true;
+        }
+      } else {
+        this.$.suggester.hidden = true;
+      }
+    },
+
+    selectSuggestion(e) {
+      this.selection = e.model.item.full;
+    },
+
+    highlight(suggestions, selection) {
+      const x = suggestions.map(_ =>
+        _.startsWith(selection) ? { high: selection, low: _.substring(selection.length), full: _ } : null
+      ).filter(_ => _ !== null);
+      return x;
+    },
+  })
+  </script>
+</dom-module>
+
 <dom-module id="perpetuo-deployment-request-creation-form">
   <style>
   :host {
@@ -60,7 +120,7 @@
           </paper-listbox>
         </paper-dropdown-menu>
         <div>
-          <paper-input id="versionSelector" label="Version" value="{{selectedVersion}}"></paper-input>
+          <perpetuo-input-suggester suggestions="[[versionSuggestions]]" selection="{{selectedVersion}}"></perpetuo-input-suggester>
           <p class="versionMessage">Requested version could not be validated</p>
           <p class="versionMessage">[[reason]]</p>
         </div>
@@ -84,8 +144,9 @@
       isVersionValid: { type: Boolean, reflectToAttribute: true, value: true },
       reason: { type: String },
       selectedProductItem: Object,
-      selectedProductName: { type: String, computed: 'computeSelectedProductName(selectedProductItem)' },
+      selectedProductName: { type: String, computed: 'computeSelectedProductName(selectedProductItem)', observer: 'onSelectedProductNameChanged' },
       products: { type: Array, value: () => [] },
+      versionSuggestions: { type: Array, value: () => [] },
       selectedVersion: { type: String, notify: true, observer: 'onSelectedVersionChanged' }
     },
 
@@ -110,6 +171,17 @@
 
     computeSelectedProductName(selectedProductItem) {
       return selectedProductItem ? selectedProductItem.name : null;
+    },
+
+    onSelectedProductNameChanged(name) {
+      this.versionSuggestions = [];
+      if (name !== null) {
+        this.client.suggestProductVersions(name).then(_ => {
+          if (this.selectedProductName === name) { // Support out-of-order responses
+            this.versionSuggestions = _;
+          }
+        });
+      }
     },
 
     attached() {
