@@ -12,7 +12,7 @@ class CriteoExternalData extends ExternalData { // fixme: this only works with J
 
     static final manifest = new Manifest()
     static final repos = new Repos()
-    static final is_valid = new IsValid()
+    static final is_packaged = new IsPackaged()
 
     @Override
     String lastValidVersion(String productName) {
@@ -33,29 +33,14 @@ class CriteoExternalData extends ExternalData { // fixme: this only works with J
     }
 
     @Override
-    String validateVersion(String productName, String version) {
+    boolean validateVersion(String productName, String version) {
         Map<String, ?> manifest = manifest.get(productName)
         Map<String, String> allRepos = repos.get(version)
-        Map<String, ?> allValidation = is_valid.get(version)
-        if (manifest == null || allRepos == null || allValidation == null) {
-          """{"valid": true}"""
-        } else {
-            def listOfRequiredRepo = manifest.get('artifacts').collect {
-                allRepos.get(it.get('groupId') + ':' + it.get('artifactId'))
-            }
-            List<String> listOfReason = []
-            for (String repo: listOfRequiredRepo) {
-                def validation = allValidation.getOrDefault(repo, [:])
-                if (validation && !validation.valid) {
-                    listOfReason = listOfReason + ["${repo}: ${validation.reason}"]  // TODO: In case of blacklist, say why
-                }
-            }
-            if (listOfReason.empty) {
-                """{"valid": true}"""
-            } else {
-                """{"valid": false, "reason": "${listOfReason}"}"""
-            }
-        }
+        Set<String> allPackaged = is_packaged.get(version)
+        return manifest != null && allRepos != null && allPackaged != null &&
+                manifest.get('artifacts').collect {
+                    allRepos.get(it.get('groupId') + ':' + it.get('artifactId'))
+                }.every { it in allPackaged }
     }
 
     static Integer getLastVersion() {
@@ -140,15 +125,14 @@ class Repos extends Cache<Map<String, String>> { // repos per artifact
 }
 
 
-class IsValid extends Cache<Map<String, ?>> { // tells for each repo if it's successfully packaged
+class IsPackaged extends Cache<Set<String>> { // tells for each repo if it's successfully packaged
     @Override
-    Map<String, ?> fetch(String version) {
+    Set<String> fetch(String version) {
         def client = new RESTClient("http://moab.criteois.lan")
         try {
-            def resp = client.get(path: "/java/moabs/$version/product-validation.json")
+            def resp = client.get(path: "/java/moabs/$version/green-projects.txt")
             assert resp.status == 200
-
-            return resp.data.collectEntries { it }
+            return resp.data.text.split(',') as Set<String>
         } catch (HttpResponseException e) {
             assert e.response.status == 404 // it's allowed to not have data about this MOAB
             return null
