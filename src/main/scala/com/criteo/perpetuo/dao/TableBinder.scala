@@ -36,7 +36,12 @@ trait TableBinder {
       foreignKey(name, sourceColumns, targetTableQuery)(targetColumns)
     }
 
-    def index[C <: AnyRef](on: C, unique: Boolean = false)
+    def index[C <: AnyRef](on: C)
+                          (implicit shape: Shape[_ <: FlatShapeLevel, C, _, _]): Index = {
+      index(on, unique = false)
+    }
+
+    def index[C <: AnyRef](on: C, unique: Boolean)
                           (implicit shape: Shape[_ <: FlatShapeLevel, C, _, _]): Index = {
       val name = s"ix_${tableName}_${columnNames(on)}"
       index(name, on, unique)
