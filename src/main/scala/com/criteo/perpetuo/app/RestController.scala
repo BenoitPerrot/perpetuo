@@ -125,6 +125,12 @@ class RestController @Inject()(val execution: Execution)
     )
   }
 
+  post("/api/products/suggest-versions") { r: ProductPost =>
+    handleTimeout(
+      plugins.externalData.suggestVersions(r.name).asScala
+    )
+  }
+
   post("/api/products/validate-version") { r: ProductPostWithVersion =>
     def listOfErrors = handleTimeout(
       plugins.externalData.validateVersion(r.name, r.version)

@@ -58,6 +58,28 @@ class CriteoExternalData extends ExternalData { // fixme: this only works with J
         }
     }
 
+    @Override
+    java.util.List<String> suggestVersions(String productName) {
+        def l = []
+        try {
+            Map<String, ?> productManifest = fetchManifest(productName)
+
+            def requiredArtifactToLatestVersions = productManifest.get('artifacts').collectEntries { artifact ->
+                String groupId = artifact.get('groupId')
+                String artifactId = artifact.get('artifactId')
+                [ (artifact): fetchLatestVersions(groupId, artifactId) ]
+            }
+
+            l = requiredArtifactToLatestVersions.inject(null as List<String>) { suggestions, requiredArtifact, latestVersions ->
+                suggestions == null ? latestVersions : suggestions.findAll { latestVersions.contains(it) }
+            }
+
+        } catch (Exception e) {
+            System.err.println(e.getStackTrace())
+        }
+        return l
+    }
+
     static Integer getLastVersion() {
         // fixme: not acceptable in long term: it should take the product name as parameter
         def client = new RESTClient("http://moab.criteois.lan")
@@ -110,5 +132,14 @@ class CriteoExternalData extends ExternalData { // fixme: this only works with J
             assert e.response.status == 404 // it's allowed to not have data about this MOAB
             return null
         }
+    }
+
+    static List<String> fetchLatestVersions(String groupId, String artifactId) {
+        def client = new RESTClient("http://moab.criteois.lan")
+
+        def resp = client.get(path: "/tags/build/${groupId}/${artifactId}/latest.json")
+        assert resp.status == 200
+
+        return resp.data.collect { it['version'] }
     }
 }
