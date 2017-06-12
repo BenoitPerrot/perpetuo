@@ -119,12 +119,6 @@ class RestController @Inject()(val execution: Execution)
     }
   }
 
-  post("/api/products/last-version") { r: ProductPost =>
-    handleTimeout(
-      plugins.externalData.lastValidVersion(r.name)
-    )
-  }
-
   post("/api/products/suggest-versions") { r: ProductPost =>
     handleTimeout(
       plugins.externalData.suggestVersions(r.name).asScala
