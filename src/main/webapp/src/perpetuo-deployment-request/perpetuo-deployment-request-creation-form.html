@@ -52,10 +52,10 @@
     <h2>New Deployment Request</h2>
     <paper-dialog-scrollable>
       <div class="product-name-version">
-        <paper-dropdown-menu id="productSelector" label="Product" no-animations>
-          <paper-listbox id="productSelector_" class="dropdown-content" selected-item="{{selectedProductItem}}">
+        <paper-dropdown-menu label="Product" no-animations>
+          <paper-listbox id="productSelector" class="dropdown-content" selected-item="{{selectedProductItem}}">
             <template is="dom-repeat" items="[[products]]">
-              <paper-item>[[item.name]]</paper-item>
+              <paper-item name="[[item.name]]">[[item.name]]</paper-item>
             </template>
           </paper-listbox>
         </paper-dropdown-menu>
@@ -93,7 +93,7 @@
     ],
 
     computeSelectedProductName(selectedProductItem) {
-      return selectedProductItem ? selectedProductItem.innerText : null;
+      return selectedProductItem ? selectedProductItem.name : null;
     },
 
     attached() {
@@ -131,7 +131,7 @@
     },
 
     clear() {
-      this.$.productSelector_.selected = null;
+      this.$.productSelector.selected = null;
       this.$.versionSelector.value = '';
       this.$.lastValidatedVersion.value = '';
       this.$.targetSelector.value = '';
