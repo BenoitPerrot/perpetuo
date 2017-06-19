@@ -12,11 +12,11 @@ object DeploymentRequestParser {
     jsonInput.parseJson match {
       case body: JsObject =>
         val fields = body.fields
-        def read(key: String) = fields.getOrElse(key, missing(key))
+        def read(key: String): JsValue = fields.getOrElse(key, missing(key))
         def readStr(key: String, default: Option[String] = None): String = fields.get(key) match {
-          case Some(string: JsString) => string.value
+          case Some(JsString(string)) => string
           case None => default.getOrElse(missing(key))
-          case unknown => throw new ParsingException(s"Expected a string as $key, got: $unknown")
+          case Some(unknown) => throw new ParsingException(s"Expected a string as $key, got: $unknown (${unknown.getClass.getSimpleName})")
         }
 
         val versionArray = read("version") match {
@@ -52,13 +52,13 @@ object DeploymentRequestParser {
 
   def parseTargetExpression(target: JsValue): TargetExpr = {
     val whereTacticsIsOptional: Set[(Option[Tactics], Set[JsString])] = target match {
-      case string: JsString => Set((None, Set(string)))
-      case arr: JsArray if arr.elements.nonEmpty => arr.elements.map {
-        case string: JsString => (None, Set(string))
-        case obj: JsObject => parseTargetTerm(obj)
+      case jsString: JsString => Set((None, Set(jsString)))
+      case JsArray(arr) if arr.nonEmpty => arr.map {
+        case jsString: JsString => (None, Set(jsString))
+        case JsObject(obj) => parseTargetTerm(obj)
         case unknown => throw new ParsingException(s"Expected a JSON object or string in the `target` array, got: $unknown")
       }.toSet
-      case obj: JsObject => Set(parseTargetTerm(obj))
+      case JsObject(obj) => Set(parseTargetTerm(obj))
       case unknown => throw new ParsingException(s"Expected `target` to be a non-empty JSON array or object, got: $unknown")
     }
     whereTacticsIsOptional.map {
@@ -71,21 +71,21 @@ object DeploymentRequestParser {
     }
   }
 
-  private def parseTargetTerm(target: JsObject): (Option[Tactics], Set[JsString]) =
+  private def parseTargetTerm(target: Map[String, JsValue]): (Option[Tactics], Set[JsString]) =
     (
-      target.fields.get(tacticsKey).map {
-        case arr: JsArray if arr.elements.nonEmpty => arr.elements.map {
-          case obj: JsObject => obj
+      target.get(tacticsKey).map {
+        case JsArray(arr) if arr.nonEmpty => arr.map {
+          case jsObj: JsObject => jsObj
           case unknown => throw new ParsingException(s"Expected a JSON object in the `$tacticsKey` array, got: $unknown")
         }.toSet
-        case obj: JsObject => Set(obj)
+        case jsObj: JsObject => Set(jsObj)
         case unknown => throw new ParsingException(s"Expected `$tacticsKey` to be a non-empty JSON object or array, got: $unknown")
       }.map(Some(_)).getOrElse(None),
 
-      target.fields.get(selectKey).map {
-        case string: JsString => Set(string)
-        case arr: JsArray if arr.elements.nonEmpty =>
-          arr.elements.map {
+      target.get(selectKey).map {
+        case jsString: JsString => Set(jsString)
+        case JsArray(arr) if arr.nonEmpty =>
+          arr.map {
             case string: JsString => string
             case unknown => throw new ParsingException(s"Expected a JSON string in the `$selectKey` array, got: $unknown")
           }.toSet
