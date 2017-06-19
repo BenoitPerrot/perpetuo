@@ -20,6 +20,7 @@ import com.twitter.util.{Future => TwitterFuture}
 import spray.json.JsonParser.ParsingException
 import spray.json._
 
+import scala.collection.JavaConverters._
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future, TimeoutException}
@@ -125,9 +126,12 @@ class RestController @Inject()(val execution: Execution)
   }
 
   post("/api/products/validate-version") { r: ProductPostWithVersion =>
-    handleTimeout(
-      Map("valid" -> plugins.externalData.validateVersion(r.name, r.version))
+    def listOfErrors = handleTimeout(
+      plugins.externalData.validateVersion(r.name, r.version)
     )
+    if (listOfErrors.isEmpty) Map("valid" -> true)
+    else Map("valid" -> false, "reason" -> listOfErrors.asScala)
+
   }
 
   get("/api/deployment-requests/:id")(
