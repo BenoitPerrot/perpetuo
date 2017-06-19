@@ -13,6 +13,8 @@ class CriteoExternalData extends ExternalData { // fixme: this only works with J
     static final repos = new Repos()
     static final is_valid = new IsValid()
 
+    static final blacklisted = "Blacklisted"
+
     @Override
     String lastValidVersion(String productName) {
         def version = getLastVersion()
@@ -47,8 +49,14 @@ class CriteoExternalData extends ExternalData { // fixme: this only works with J
             def errors = []
             for (String repo: repos) {
                 def validation = allValidation.getOrDefault(repo, [:])
-                if (validation && !validation.valid) {
-                    errors += "${repo}: ${validation.reason}".toString()  // TODO: In case of blacklist, say why
+                if (!validation) {
+                    errors += "Could not find artifact for ${repo}".toString()
+                } else if (!validation.valid) {
+                    String reason = validation.reason
+                    if (reason == blacklisted && validation.comment) {
+                        reason = "${reason} because: ${validation.comment}"
+                    }
+                    errors += "${repo}: ${reason}".toString()
                 }
             }
             errors
