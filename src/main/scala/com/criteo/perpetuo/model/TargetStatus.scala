@@ -15,7 +15,8 @@ object Status extends Enumeration {
   type Code = Value
   type TargetMap = Map[TargetAtom.Type, TargetAtomStatus] // todo (2017.05.24): remove when schema update is over
 
-  // these values should be stable in short term, since they are persisted in the DB for a few hours max
+  // these values must be stable, since they are persisted in the DB
+  val running = Value(0)
   val success = Value(1)
   val productFailure = Value(2)
   val hostFailure = Value(3)
