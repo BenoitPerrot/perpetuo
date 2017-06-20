@@ -1,7 +1,7 @@
 package com.criteo.perpetuo.dispatchers
 
 import com.criteo.perpetuo.executors.ExecutorInvoker
-import com.criteo.perpetuo.model.Version
+import com.criteo.perpetuo.model.{TargetAtom, Version}
 
 import scala.collection.JavaConverters._
 
@@ -11,6 +11,7 @@ abstract class TargetDispatcher {
     val toAtoms = (word: String) => {
       val atoms = fromTargetWordToAtoms(productName, productVersion.toString, word).asScala
       require(atoms.nonEmpty, s"Target word `$word` doesn't resolve to any atomic target")
+      atoms.foreach(atom => require(atom.length <= TargetAtom.maxSize, s"Target `$atom` is too long"))
       atoms
     }
     target.map(term => TargetTerm(term.tactics, term.select.flatMap(toAtoms)))

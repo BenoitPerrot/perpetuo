@@ -4,11 +4,16 @@ import spray.json.DefaultJsonProtocol._
 import spray.json.{DeserializationException, JsString, JsValue, JsonFormat}
 
 
-case class TargetAtomStatus(code: Status.Code, detail: String)
+case class TargetAtomStatus(code: Status.Code, detail: String) // fixme: probably to remove when DB migration is over
+
+object TargetAtom {
+  type Type = String
+  val maxSize = 128
+}
 
 object Status extends Enumeration {
   type Code = Value
-  type TargetMap = Map[String, TargetAtomStatus] // todo (2017.05.24): remove when schema update is over
+  type TargetMap = Map[TargetAtom.Type, TargetAtomStatus] // todo (2017.05.24): remove when schema update is over
 
   // these values should be stable in short term, since they are persisted in the DB for a few hours max
   val success = Value(1)

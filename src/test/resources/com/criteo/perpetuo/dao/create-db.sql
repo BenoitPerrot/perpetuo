@@ -53,12 +53,14 @@ ALTER TABLE "execution_specification"
 CREATE TABLE "target_status" (
   "operation_trace_id"         BIGINT         NOT NULL,
   "execution_specification_id" BIGINT         NOT NULL,
+  "target"                     NVARCHAR(128)  NOT NULL,
   "code"                       SMALLINT       NOT NULL,
   "detail"                     NVARCHAR(1024) NOT NULL
 )
 ALTER TABLE "target_status"
   ADD CONSTRAINT "pk_target_status" PRIMARY KEY ("operation_trace_id", "execution_specification_id")
-
+CREATE INDEX "ix_target_status_target"
+  ON "target_status" ("target")
 
 CREATE TABLE "execution_trace" (
   "id"                         BIGINT      NOT NULL IDENTITY,

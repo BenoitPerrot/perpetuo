@@ -1,10 +1,11 @@
 package com.criteo.perpetuo.dao
 
-import com.criteo.perpetuo.model.Status
+import com.criteo.perpetuo.model.{Status, TargetAtom}
 
 
 private[dao] case class TargetStatusRecord(operationTraceId: Long,
                                            executionSpecificationId: Long,
+                                           targetAtom: String,
                                            code: Status.Code,
                                            detail: String)
 
@@ -26,10 +27,12 @@ trait TargetStatusBinder extends TableBinder {
     protected def exFk = foreignKey(executionSpecificationId, executionSpecificationQuery)(_.id)
     protected def pk = primaryKey((operationTraceId, executionSpecificationId))
 
+    def targetAtom = column[TargetAtom.Type]("target", O.SqlType(s"nvarchar(${TargetAtom.maxSize})"))
+    protected def targetIdx = index(targetAtom)
     def code = column[Status.Code]("code")
     def detail = column[String]("detail", O.SqlType(s"nvarchar(1024)"))
 
-    def * = (operationTraceId, executionSpecificationId, code, detail) <> (TargetStatusRecord.tupled, TargetStatusRecord.unapply)
+    def * = (operationTraceId, executionSpecificationId, targetAtom, code, detail) <> (TargetStatusRecord.tupled, TargetStatusRecord.unapply)
   }
 
   val targetStatusQuery: TableQuery[TargetStatusTable] = TableQuery[TargetStatusTable]
