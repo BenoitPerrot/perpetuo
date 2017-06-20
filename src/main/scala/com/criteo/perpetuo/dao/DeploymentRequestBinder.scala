@@ -32,7 +32,7 @@ trait DeploymentRequestBinder extends TableBinder {
     def target = column[String]("target", O.SqlType("nvarchar(max)"))
 
     // The details
-    def comment = column[String]("comment", O.SqlType("nvarchar(256)"))
+    def comment = column[String]("comment", O.SqlType("nvarchar(4000)"))
     def creator = column[String]("creator", O.SqlType(s"nvarchar(${User.maxSize})"))
     def creationDate = column[java.sql.Timestamp]("creation_date")
     protected def creationIdx = index(creationDate)

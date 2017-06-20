@@ -30,7 +30,7 @@ trait TargetStatusBinder extends TableBinder {
     def targetAtom = column[TargetAtom.Type]("target", O.SqlType(s"nvarchar(${TargetAtom.maxSize})"))
     protected def targetIdx = index(targetAtom)
     def code = column[Status.Code]("code")
-    def detail = column[String]("detail", O.SqlType(s"nvarchar(1024)"))
+    def detail = column[String]("detail", O.SqlType(s"nvarchar(4000)"))
 
     def * = (operationTraceId, executionSpecificationId, targetAtom, code, detail) <> (TargetStatusRecord.tupled, TargetStatusRecord.unapply)
   }

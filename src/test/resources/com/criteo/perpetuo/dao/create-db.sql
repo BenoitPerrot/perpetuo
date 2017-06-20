@@ -13,7 +13,7 @@ CREATE TABLE "deployment_request" (
   "product_id"    INTEGER        NOT NULL,
   "version"       NVARCHAR(1024) NOT NULL,
   "target"        NVARCHAR(MAX)  NOT NULL,
-  "comment"       NVARCHAR(256)  NOT NULL,
+  "comment"       NVARCHAR(4000) NOT NULL,
   "creator"       NVARCHAR(64)   NOT NULL,
   "creation_date" DATETIME       NOT NULL
 )
@@ -44,7 +44,7 @@ CREATE TABLE "execution_specification" (
   "id"                  BIGINT         NOT NULL IDENTITY,
   "operation_trace_id"  BIGINT         NOT NULL,
   "version"             NVARCHAR(1024),
-  "specific_parameters" NVARCHAR(4000) NOT NULL
+  "specific_parameters" NVARCHAR(MAX)  NOT NULL
 )
 ALTER TABLE "execution_specification"
   ADD CONSTRAINT "pk_execution_specification" PRIMARY KEY ("id")
@@ -55,7 +55,7 @@ CREATE TABLE "target_status" (
   "execution_specification_id" BIGINT         NOT NULL,
   "target"                     NVARCHAR(128)  NOT NULL,
   "code"                       SMALLINT       NOT NULL,
-  "detail"                     NVARCHAR(1024) NOT NULL
+  "detail"                     NVARCHAR(4000) NOT NULL
 )
 ALTER TABLE "target_status"
   ADD CONSTRAINT "pk_target_status" PRIMARY KEY ("operation_trace_id", "execution_specification_id")

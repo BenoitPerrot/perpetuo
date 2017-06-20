@@ -22,7 +22,7 @@ trait ExecutionSpecificationBinder extends TableBinder {
     protected def fk = foreignKey(operationTraceId, operationTraceQuery)(_.id)
 
     def version = column[Option[Version]]("version", O.SqlType(s"nvarchar(${Version.maxSize})"))
-    def specificParameters = column[String]("specific_parameters", O.SqlType("nvarchar(4000)"))
+    def specificParameters = column[String]("specific_parameters", O.SqlType("nvarchar(max)"))
 
     def * = (id.?, operationTraceId, version, specificParameters) <> (ExecutionSpecificationRecord.tupled, ExecutionSpecificationRecord.unapply)
   }
