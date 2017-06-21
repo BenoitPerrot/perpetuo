@@ -11,9 +11,7 @@ trait BaseExternalData {
 class ExternalData extends BaseExternalData with Plugin {
   def lastValidVersion(productName: String): String = ""
 
-  def validateVersion(productName: String, version: String): java.util.List[String] = {
-    new java.util.ArrayList[String]()
-  }
+  def validateVersion(productName: String, version: String): java.util.List[String] = new java.util.ArrayList[String]
 
   val timeout_s = 5
 }
