@@ -25,7 +25,7 @@ object UrlBuilders {
 
     val instanceNameProperty = if (instanceName.nonEmpty) s";instance=$instanceName" else ""
 
-    val dbNameProperty = if (dbName != null && dbName.nonEmpty) s";DatabaseName=$dbName" else ""
+    val dbNameProperty = if (dbName.nonEmpty) s";DatabaseName=$dbName" else ""
 
     s"jdbc:jtds:sqlserver://$host:${location.port}$instanceNameProperty$dbNameProperty"
   }
