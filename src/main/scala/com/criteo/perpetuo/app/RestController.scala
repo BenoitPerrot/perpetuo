@@ -272,7 +272,7 @@ class RestController @Inject()(val execution: Execution)
     op.map(_.map(_ => response.noContent))
   }
 
-  put("/api/execution-traces/:id") {
+  put(RestApi.executionCallbackPath(":id")) {
     // todo: give the permission to Rundeck only
     withIdAndRequest(
       putExecutionTrace,
@@ -326,4 +326,9 @@ class RestController @Inject()(val execution: Execution)
     response.notFound
   }
 
+}
+
+
+object RestApi {
+  def executionCallbackPath(executionId: String): String = s"/api/execution-traces/$executionId"
 }

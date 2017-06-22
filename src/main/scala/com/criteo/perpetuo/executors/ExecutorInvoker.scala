@@ -1,5 +1,6 @@
 package com.criteo.perpetuo.executors
 
+import com.criteo.perpetuo.app.RestApi
 import com.criteo.perpetuo.config.AppConfig
 import com.criteo.perpetuo.dispatchers.TargetExpr
 import com.criteo.perpetuo.model.Version
@@ -12,7 +13,7 @@ import scala.concurrent.Future
 abstract class ExecutorInvoker {
   ExecutorInvoker.registeredInvokers += this
 
-  protected def callbackUrl(executionId: Long): String = s"${ExecutorInvoker.selfUrl}/api/execution-traces/$executionId"
+  protected def callbackUrl(executionId: Long): String = AppConfig.get[String]("selfUrl") + RestApi.executionCallbackPath(executionId.toString)
 
   def trigger(operationName: String, executionId: Long, productName: String, version: Version, target: TargetExpr, initiator: String): Future[Option[String]]
 
@@ -22,8 +23,6 @@ abstract class ExecutorInvoker {
 
 object ExecutorInvoker {
   protected val registeredInvokers: mutable.Set[ExecutorInvoker] = mutable.Set()
-
-  protected val selfUrl: String = AppConfig.get("selfUrl")
 
   def getExecutionDetailsUrl(logHref: String): String = {
     if (logHref.contains("://"))
