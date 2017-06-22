@@ -17,20 +17,17 @@ object UrlBuilders {
   private def buildSqlServerUrl(location: Remote, dbName: String, schemaName: String): String = {
     // http://jtds.sourceforge.net/faq.html
     // SQL Server can run multiple so-called "named instances" (i.e. different server instances, running on different TCP ports) on the same machine.
-    // When using Microsoft tools, selecting one of these instances is made by using "<host_name>\<instance_name>" instead of the usual "<host_name>".
+    // When using Microsoft tools, selecting one of these instances is made by using "<host>\<instance_name>" instead of the usual "<host>".
     // With jTDS you will have to split the two and use the instance name as a property.
-    val regex = "^((?:(?:[0-9]{1,3}\\.){3}[0-9]{1,3})|(?:[^\\\\]+))(?:\\\\(.*))*".r
+    val split = location.host.split("\\")
+    val host = split.head.trim
+    val instanceName = split.tail.headOption.getOrElse("").trim
 
-    val (hostName, instanceName) = location.host match {
-      case regex(_hostName, null) => (_hostName.trim, null)
-      case regex(_hostName, _instanceName) => (_hostName.trim, _instanceName.trim)
-    }
-
-    val instanceNameProperty = if (instanceName != null && instanceName.nonEmpty) s";instance=$instanceName" else ""
+    val instanceNameProperty = if (instanceName.nonEmpty) s";instance=$instanceName" else ""
 
     val dbNameProperty = if (dbName != null && dbName.nonEmpty) s";DatabaseName=$dbName" else ""
 
-    s"jdbc:jtds:sqlserver://$hostName:${location.port}$instanceNameProperty$dbNameProperty"
+    s"jdbc:jtds:sqlserver://$host:${location.port}$instanceNameProperty$dbNameProperty"
   }
 
   implicit class H2UrlBuilder(val driver: JdbcDriver) {
