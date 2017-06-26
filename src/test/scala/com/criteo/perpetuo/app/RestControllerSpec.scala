@@ -251,10 +251,6 @@ class RestControllerSpec extends FeatureTest with TestDb {
       requestDeployment("my product", "b", Seq(Map("select" -> Seq(42))).toJson, None, Some("a JSON string in"))
     }
 
-    "properly reject bad version" in {
-      requestDeployment("my product", "x" * 65, "to everywhere".toJson, Some("my comment"), Some("Version is too long"))
-    }
-
   }
 
   "The DeploymentRequest's PUT entry-point" should {

@@ -69,7 +69,7 @@ object Version {
     case unknown => throw new ParsingException(s"Expected JSON objects in `version`, got: $unknown")
   }
 
-  val maxSize: Int = 64 // todo: increase that to deal with partial deployments!
+  val maxSize: Int = 1024 // todo: increase that to deal with partial deployments!
 
   def apply(input: String): Version = new Version(input)
 

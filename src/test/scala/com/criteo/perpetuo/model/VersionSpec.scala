@@ -23,15 +23,6 @@ class VersionSpec extends Test {
     "take the input as-is if it contains too long numbers" in {
       convert("abc-12345678901234-def") shouldEqual "abc-12345678901234-def"
     }
-
-    "take the input as-is if it contains too many numbers" in {
-      convert("a1b2c3d4e5") shouldEqual "a1b2c3d4e5"
-    }
-
-    "accept a sha-1" in {
-      // it's already covered by tests above, but it makes the idea clear
-      convert("b19cd1527b508127949da6c2861617b0c978ce1f") shouldEqual "b19cd1527b508127949da6c2861617b0c978ce1f"
-    }
   }
 
   "Versions numbers" should {
