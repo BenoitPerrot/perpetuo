@@ -3,7 +3,7 @@ package com.criteo.perpetuo.executors
 import java.net.InetSocketAddress
 
 import com.criteo.perpetuo.dispatchers.TargetExpr
-import com.criteo.perpetuo.model.{Target, Version}
+import com.criteo.perpetuo.model.Target
 import com.twitter.conversions.time._
 import com.twitter.finagle.builder.ClientBuilder
 import com.twitter.finagle.http._
@@ -19,7 +19,7 @@ abstract class HttpInvoker(val host: String,
                            val name: String) extends ExecutorInvoker {
 
   // to implement in concrete classes
-  protected def buildRequest(operationName: String, executionId: Long, productName: String, version: String, target: String, initiator: String): Request
+  protected def buildRequest(executionId: Long, target: String, frozenParameters: String, initiator: String): Request
   protected def getLogHref(executorAnswer: String): String // answer "" if no log href can be known (e.g. delayed execution)
   protected def extractMessage(status: Int, content: String): String // answer "" if no message can be extracted
 
@@ -42,9 +42,9 @@ abstract class HttpInvoker(val host: String,
 
   override def toString: String = name
 
-  override def trigger(operationName: String, executionId: Long, productName: String, version: Version, target: TargetExpr, initiator: String): ScalaFuture[Option[String]] = {
+  override def trigger(executionId: Long, target: TargetExpr, frozenParameters: String, initiator: String): ScalaFuture[Option[String]] = {
     // todo: while we only support deployment tactics, we directly give the select dimension, and formatted differently
-    val req = buildRequest(operationName, executionId, productName, version.toString, Target.getSimpleSelect(target).mkString(","), initiator)
+    val req = buildRequest(executionId, Target.getSimpleSelect(target).mkString(","), frozenParameters, initiator)
 
     // trigger the job and return a future to the execution's log href
     ScalaFuture {

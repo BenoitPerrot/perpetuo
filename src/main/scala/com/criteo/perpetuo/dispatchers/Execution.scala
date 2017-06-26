@@ -46,9 +46,9 @@ class Execution @Inject()(val dbBinding: DbBinding) extends Logging {
           // trigger the execution
           executor
             .trigger(
-              operation.toString, execId,
-              deploymentRequest.product.name, deploymentRequest.version,
+              execId,
               target,
+              executor.freezeParameters(operation.toString, deploymentRequest.product.name, deploymentRequest.version.toString),
               deploymentRequest.creator
             )
             .flatMap(

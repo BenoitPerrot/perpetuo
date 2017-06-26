@@ -3,8 +3,9 @@ package com.criteo.perpetuo.executors
 import com.criteo.perpetuo.app.RestApi
 import com.criteo.perpetuo.config.AppConfig
 import com.criteo.perpetuo.dispatchers.TargetExpr
-import com.criteo.perpetuo.model.Version
 import com.twitter.inject.Logging
+import spray.json.DefaultJsonProtocol._
+import spray.json._
 
 import scala.collection.mutable
 import scala.concurrent.Future
@@ -15,7 +16,21 @@ abstract class ExecutorInvoker {
 
   protected def callbackUrl(executionId: Long): String = AppConfig.get[String]("selfUrl") + RestApi.executionCallbackPath(executionId.toString)
 
-  def trigger(operationName: String, executionId: Long, productName: String, version: Version, target: TargetExpr, initiator: String): Future[Option[String]]
+  /**
+    * `freezeParameters` must return the execution parameters serialized as they will be
+    * provided to `trigger` in order to play or replay an execution in a deterministic way,
+    * except that it must be replayable with a subset of the original target (so the targets
+    * should not be included in the frozen parameters).
+    * If the input doesn't make sense (the parameters are incompatible with each other),
+    * it must return a `UnprocessableIntent` error, whose message will be displayed to the end user.
+    */
+  def freezeParameters(operationName: String, productName: String, version: String): String = Map(
+    "executionKind" -> operationName,
+    "productName" -> productName,
+    "version" -> version
+  ).toJson.compactPrint
+
+  def trigger(executionId: Long, target: TargetExpr, frozenParameters: String, initiator: String): Future[Option[String]]
 
   def getExecutionDetailsUrlIfApplicable(logHref: String): Option[String] = None
 }
@@ -43,8 +58,11 @@ object ExecutorInvoker {
 class DummyInvoker(name: String) extends ExecutorInvoker with Logging {
   override def toString: String = name
 
-  override def trigger(operationName: String, executionId: Long, productName: String, version: Version, target: TargetExpr, initiator: String): Future[Option[String]] = {
+  override def trigger(executionId: Long, target: TargetExpr, frozenParameters: String, initiator: String): Future[Option[String]] = {
     logger.info(s"Hi, I'm $name! I will run operation #$executionId on behalf of: $initiator")
     Future.successful(None)
   }
 }
+
+
+class UnprocessableIntent extends IllegalArgumentException

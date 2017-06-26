@@ -71,14 +71,26 @@ class RundeckInvoker extends HttpInvoker {
 
 
     @Override
-    Request buildRequest(String operationName, long executionId, String productName, String version, String target, String initiator) {
+    String freezeParameters(String operationName, String productName, String version) {
         String productType = CriteoExternalData.fetchManifest(productName)?.get('type') ?: 'marathon' // fixme: only accept active products here (https://jira.criteois.com/browse/DREDD-309)
 
-        def escapedProductName = jsonBuilder.toJson(productName)
-        def escapedVersion = jsonBuilder.toJson(version)
+        jsonBuilder.toJson([
+                runPath        : runPath(productType, operationName),
+                productName    : productName,
+                productVersion : version,
+                // todo: read uploader version from Versions itself or infer the latest
+                uploaderVersion: System.getenv("${productType.toUpperCase()}_UPLOADER") as String
+        ])
+    }
+
+    @Override
+    Request buildRequest(long executionId, String target, String frozenParameters, String initiator) {
+        def parameters = jsonSlurper.parseText(frozenParameters) as Map
+        def escapedProductName = jsonBuilder.toJson(parameters['productName'] as String)
+        def escapedVersion = jsonBuilder.toJson(parameters['productVersion'] as String)
         def escapedTarget = jsonBuilder.toJson(target)
-        def args = "-environment $envParam -callback-url '${callbackUrl(executionId)}' -product-name $escapedProductName -product-version $escapedVersion -target $escapedTarget"
-        def uploader = System.getenv("${productType.toUpperCase()}_UPLOADER")
+        def args = "-environment $envParam -callback-url '${callbackUrl(executionId)}' -product-name $escapedProductName -target $escapedTarget -product-version $escapedVersion"
+        def uploader = parameters['uploaderVersion'] as String
         if (uploader)
             args += " -uploader-version " + uploader
         def body = [
@@ -88,7 +100,7 @@ class RundeckInvoker extends HttpInvoker {
         body = new JsonBuilder(body).toString()
         def jsonType = Message$.MODULE$.ContentTypeJson
 
-        Request req = Request.apply(Method.Post$.MODULE$, runPath(productType, operationName))
+        Request req = Request.apply(Method.Post$.MODULE$, parameters['runPath'] as String)
         def headers = req.headerMap()
         headers[Fields.Host()] = host()
         headers[Fields.ContentType()] = jsonType

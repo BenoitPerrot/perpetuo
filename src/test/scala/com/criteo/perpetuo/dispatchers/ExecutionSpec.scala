@@ -56,8 +56,8 @@ class ExecutionSpec extends Test with TestDb {
   }
 
   object DummyInvokerWithLogHref extends DummyInvoker("DummyWithLogHref") {
-    override def trigger(operationName: String, executionId: Long, productName: String, version: Version, target: TargetExpr, initiator: String): Future[Option[String]] = {
-      super.trigger(operationName, executionId, productName, version, target, initiator).map { logHref =>
+    override def trigger(executionId: Long, target: TargetExpr, frozenParameters: String, initiator: String): Future[Option[String]] = {
+      super.trigger(executionId, target, frozenParameters, initiator).map { logHref =>
         assert(logHref.isEmpty)
         Some(s"#${dummyCounter.next}")
       }
