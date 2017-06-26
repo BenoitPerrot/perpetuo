@@ -1,6 +1,7 @@
 package com.criteo.perpetuo.model
 
 import com.twitter.inject.Test
+import spray.json._
 
 
 class VersionSpec extends Test {
@@ -9,50 +10,49 @@ class VersionSpec extends Test {
   private val padded420 = "0000000000420"
   private val filled = "1494242421234"
 
+  private def convert(value: String): String =
+    Version(value).value.parseJson.asInstanceOf[JsArray].elements.head.asJsObject.fields("value").asJsObject.fields("main").asInstanceOf[JsString].value
+
   "Self check" should {
     "assert that the encoded number size is the size of a timestamp in ms" in {
-      Version("42").value.length shouldEqual System.currentTimeMillis.toString.length
+      convert("42").length shouldEqual System.currentTimeMillis.toString.length
     }
   }
 
   "Creating a Version" should {
-    "be forbidden if the input is too long" in {
-      an[IllegalArgumentException] shouldBe thrownBy(Version("x" * 65))
-    }
-
     "take the input as-is if it contains too long numbers" in {
-      Version("abc-12345678901234-def").value shouldEqual "abc-12345678901234-def"
+      convert("abc-12345678901234-def") shouldEqual "abc-12345678901234-def"
     }
 
     "take the input as-is if it contains too many numbers" in {
-      Version("a1b2c3d4e5").value shouldEqual "a1b2c3d4e5"
+      convert("a1b2c3d4e5") shouldEqual "a1b2c3d4e5"
     }
 
     "accept a sha-1" in {
       // it's already covered by tests above, but it makes the idea clear
-      Version("b19cd1527b508127949da6c2861617b0c978ce1f").value shouldEqual "b19cd1527b508127949da6c2861617b0c978ce1f"
+      convert("b19cd1527b508127949da6c2861617b0c978ce1f") shouldEqual "b19cd1527b508127949da6c2861617b0c978ce1f"
     }
   }
 
   "Versions numbers" should {
     "be encoded with leading zeros in front of all numbers" in {
-      Version("5").value shouldEqual padded5
-      Version("42").value shouldEqual padded42
-      Version("420").value shouldEqual padded420
-      Version(filled).value shouldEqual filled
-      Version("foo42").value shouldEqual s"foo$padded42"
-      Version("42bar").value shouldEqual s"${padded42}bar"
-      Version("foo42bar").value shouldEqual s"foo${padded42}bar"
-      Version("foo42bar5").value shouldEqual s"foo${padded42}bar$padded5"
-      Version(s"foo${filled}bar").value shouldEqual s"foo${filled}bar"
+      convert("5") shouldEqual padded5
+      convert("42") shouldEqual padded42
+      convert("420") shouldEqual padded420
+      convert(filled) shouldEqual filled
+      convert("foo42") shouldEqual s"foo$padded42"
+      convert("42bar") shouldEqual s"${padded42}bar"
+      convert("foo42bar") shouldEqual s"foo${padded42}bar"
+      convert("foo42bar5") shouldEqual s"foo${padded42}bar$padded5"
+      convert(s"foo${filled}bar") shouldEqual s"foo${filled}bar"
     }
   }
 
   "Versions" should {
     "support equality on numbers" in {
-      Version("042") shouldEqual Version("42")
-      Version("42") shouldNot equal(Version("420"))
-      Version("42") shouldNot equal(Version("51"))
+      convert("042") shouldEqual convert("42")
+      convert("42") shouldNot equal(convert("420"))
+      convert("42") shouldNot equal(convert("51"))
     }
 
     "be sortable by Slick wrt each number node" in {
@@ -77,7 +77,7 @@ class VersionSpec extends Test {
         "a1b1c3d",
         "a1b2c3a",
         "5.21"
-      ).map(Version(_).value).sorted.map(Version(_).toString) shouldEqual Seq(
+      ).map(convert).sorted.map(Version(_).structured.head.value.head._2) shouldEqual Seq(
         "5",
         "5.1",
         "5.3",

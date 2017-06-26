@@ -229,7 +229,8 @@ class RestControllerSpec extends FeatureTest with TestDb {
 
     "properly reject bad input" in {
       requestDeployment("{", Some("Unexpected end-of-input at input"), start = true)
-      requestDeployment("""{"productName": "abc"}""", Some("Expected to find `target`"), start = true)
+      requestDeployment("""{"productName": "abc"}""", Some("Expected to find `version`"), start = true)
+      requestDeployment("""{"productName": "abc", "version": "42"}""", Some("Expected to find `target`"), start = true)
       requestDeployment("""{"productName": "abc", "target": "*", "version": "2"}""", Some("Product `abc` could not be found"), start = true)
     }
 
@@ -251,7 +252,7 @@ class RestControllerSpec extends FeatureTest with TestDb {
     }
 
     "properly reject bad version" in {
-      requestDeployment("my product", "x" * 65, "to everywhere".toJson, Some("my comment"), Some("Version must be up to 64-character long"))
+      requestDeployment("my product", "x" * 65, "to everywhere".toJson, Some("my comment"), Some("Version is too long"))
     }
 
   }

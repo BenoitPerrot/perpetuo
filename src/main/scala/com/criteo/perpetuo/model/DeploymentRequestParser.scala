@@ -4,7 +4,7 @@ import java.sql.Timestamp
 
 import com.criteo.perpetuo.dispatchers.{Tactics, TargetExpr, TargetTerm}
 import spray.json.JsonParser.ParsingException
-import spray.json.{JsArray, JsObject, JsString, JsValue, _}
+import spray.json._
 
 
 object DeploymentRequestParser {
@@ -19,10 +19,17 @@ object DeploymentRequestParser {
           case unknown => throw new ParsingException(s"Expected a string as $key, got: $unknown")
         }
 
-        val targetExpr = read("target")
-        val version = try Version(readStr("version")) catch {
-          case e: IllegalArgumentException => throw new ParsingException(e.getMessage)
+        val versionArray = read("version") match {
+          case JsString(string) => Version.compactPrint(Seq(SingleVersion(Map("main" -> string)))) // fixme: transition only
+          case jsArr: JsArray if jsArr.elements.nonEmpty => jsArr.compactPrint
+          case unknown => throw new ParsingException(s"Expected `version` to be a non-empty JSON array, got: $unknown")
         }
+        if (versionArray.length > Version.maxSize)
+          throw new ParsingException(s"Version is too long")
+        val version = Version(versionArray)
+        if (version.structured.map(_.ratio).sum != 1f)
+          throw new ParsingException("Sum of ratios must equal 1")
+        val targetExpr = read("target")
         val attrs = new DeploymentRequestAttrs(
           readStr("productName"),
           version,
