@@ -5,7 +5,7 @@ import com.criteo.perpetuo.model.Version
 
 private[dao] case class ExecutionSpecificationRecord(id: Option[Long],
                                                      operationTraceId: Long,
-                                                     version: Option[String],
+                                                     version: Option[Version],
                                                      specificParameters: String)
 
 
@@ -21,7 +21,7 @@ trait ExecutionSpecificationBinder extends TableBinder {
     def operationTraceId = column[Long]("operation_trace_id")
     protected def fk = foreignKey(operationTraceId, operationTraceQuery)(_.id)
 
-    def version = column[Option[String]]("version", O.SqlType(s"nvarchar(${Version.maxSize})"))
+    def version = column[Option[Version]]("version", O.SqlType(s"nvarchar(${Version.maxSize})"))
     def specificParameters = column[String]("specific_parameters", O.SqlType("nvarchar(4000)"))
 
     def * = (id.?, operationTraceId, version, specificParameters) <> (ExecutionSpecificationRecord.tupled, ExecutionSpecificationRecord.unapply)
