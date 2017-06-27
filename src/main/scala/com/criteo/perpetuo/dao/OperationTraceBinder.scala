@@ -47,7 +47,7 @@ trait OperationTraceBinder extends TableBinder {
     protected def fk = foreignKey(deploymentRequestId, deploymentRequestQuery)(_.id)
 
     def operation = column[Operation]("operation")
-    def targetStatus = column[Status.TargetMap]("target_status", O.SqlType("nvarchar(max)"), O.Default(Map())) // fixme: for the transition only
+    def targetStatus = column[Status.TargetMap]("target_status", O.SqlType("nvarchar(16000)"), O.Default(Map())) // fixme: for the transition only
 
     // todo: remove default values (they're for migration only)
     def creator = column[String]("creator", O.SqlType(s"nvarchar(${User.maxSize})"), O.Default("qabot"))

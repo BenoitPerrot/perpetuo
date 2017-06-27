@@ -12,7 +12,7 @@ CREATE TABLE "deployment_request" (
   "id"            BIGINT         NOT NULL IDENTITY,
   "product_id"    INTEGER        NOT NULL,
   "version"       NVARCHAR(1024) NOT NULL,
-  "target"        NVARCHAR(MAX)  NOT NULL,
+  "target"        NVARCHAR(8000) NOT NULL,
   "comment"       NVARCHAR(4000) NOT NULL,
   "creator"       NVARCHAR(64)   NOT NULL,
   "creation_date" DATETIME       NOT NULL
@@ -27,7 +27,7 @@ CREATE TABLE "operation_trace" (
   "id"                    BIGINT        NOT NULL IDENTITY,
   "deployment_request_id" BIGINT        NOT NULL,
   "operation"             SMALLINT      NOT NULL,
-  "target_status"         NVARCHAR(MAX) DEFAULT '{}' NOT NULL,
+  "target_status"         NVARCHAR(16000) DEFAULT '{}' NOT NULL,
   "creator"               NVARCHAR(64)  DEFAULT 'qabot' NOT NULL,
   "creation_date"         DATETIME      DEFAULT(CONVERT(DATETIME,{TS '1970-01-01 00:00:00.0'})) NOT NULL,
   "closing_date"          DATETIME      DEFAULT(CONVERT(DATETIME,{TS '1970-01-01 00:00:00.0'}))
@@ -41,10 +41,10 @@ CREATE INDEX "ix_operation_trace_creation_date"
 
 
 CREATE TABLE "execution_specification" (
-  "id"                  BIGINT         NOT NULL IDENTITY,
-  "operation_trace_id"  BIGINT         NOT NULL,
+  "id"                  BIGINT          NOT NULL IDENTITY,
+  "operation_trace_id"  BIGINT          NOT NULL,
   "version"             NVARCHAR(1024),
-  "specific_parameters" NVARCHAR(MAX)  NOT NULL
+  "specific_parameters" NVARCHAR(16000) NOT NULL
 )
 ALTER TABLE "execution_specification"
   ADD CONSTRAINT "pk_execution_specification" PRIMARY KEY ("id")
