@@ -51,9 +51,12 @@ class CriteoHooks extends Hooks {
                 Request initiated $originator
                 $optComment-- Perpetuo""".stripMargin()
 
-            Map metadata = getReleaseMetadata().getOrDefault(productName, [:])
-            def bools = [(true): "True", (false): "False"]
+            def allMetadata = getReleaseMetadata()
+            Map metadata = allMetadata[productName] ?:
+                    allMetadata.values().find { it["service_name"] == productName }
+            assert metadata
 
+            def bools = [(true): "True", (false): "False"]
             def requestJson = new JsonSlurper().parseText(requestBody)
             def lastValidatedVersion = requestJson.getOrDefault("lastValidatedVersion", "")
             String componentName = metadata["component_name"]
