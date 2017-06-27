@@ -28,10 +28,10 @@ class CriteoTargetDispatcher extends TargetDispatcher {
                 break
             case 'local':
                 def rundeckPort = (System.getenv("RD_PORT") ?: "4440")
-                invoker = new RundeckInvoker("localhost", rundeckPort as int, "preprod", appConfig)
+                invoker = new RundeckInvoker("localhost", rundeckPort as int, appConfig)
                 break
             default:
-                invoker = new RundeckInvoker("rundeck.central.criteo.${env}", 443, env, appConfig)
+                invoker = new RundeckInvoker("rundeck.central.criteo.${env}", 443, appConfig)
         }
     }
 
@@ -44,12 +44,10 @@ class CriteoTargetDispatcher extends TargetDispatcher {
 
 class RundeckInvoker extends HttpInvoker {
     String host
-    String envParam
     private String authToken
 
-    RundeckInvoker(String host, int port, String envParam, RootAppConfig appConfig) {
+    RundeckInvoker(String host, int port, RootAppConfig appConfig) {
         super(host, port, 'rundeck')
-        this.envParam = envParam
         this.authToken = appConfig.under("tokens").get(name())
     }
 
@@ -89,13 +87,13 @@ class RundeckInvoker extends HttpInvoker {
         def escapedProductName = jsonBuilder.toJson(parameters['productName'] as String)
         def escapedVersion = jsonBuilder.toJson(parameters['productVersion'] as String)
         def escapedTarget = jsonBuilder.toJson(target)
-        def args = "-environment $envParam -callback-url '${callbackUrl(executionId)}' -product-name $escapedProductName -target $escapedTarget -product-version $escapedVersion"
+        def args = "-callback-url '${callbackUrl(executionId)}' -product-name $escapedProductName -target $escapedTarget -product-version $escapedVersion"
         def uploader = parameters['uploaderVersion'] as String
         if (uploader)
             args += " -uploader-version " + uploader
         def body = [
                 // before version 18 of Rundeck, we can't pass options in a structured way
-                "argString": args // todo: remove 'environment'?
+                "argString": args
         ]
         body = new JsonBuilder(body).toString()
         def jsonType = Message$.MODULE$.ContentTypeJson
