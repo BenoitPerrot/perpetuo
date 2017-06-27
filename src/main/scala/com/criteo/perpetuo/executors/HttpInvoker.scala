@@ -19,8 +19,11 @@ abstract class HttpInvoker(val host: String,
                            val name: String) extends ExecutorInvoker {
 
   // to implement in concrete classes
+  /** `buildRequest` returns the HTTP request object ready to invoke the appropriate executor in charge of running the execution. */
   protected def buildRequest(executionId: Long, target: String, frozenParameters: String, initiator: String): Request
+  /** `logHref` gives a unique identifier allowing to find possible external execution logs. */
   protected def getLogHref(executorAnswer: String): String // answer "" if no log href can be known (e.g. delayed execution)
+  /** `extractMessage` extracts an error message from any error output returned by the contacted API. */
   protected def extractMessage(status: Int, content: String): String // answer "" if no message can be extracted
 
   // HTTP client
