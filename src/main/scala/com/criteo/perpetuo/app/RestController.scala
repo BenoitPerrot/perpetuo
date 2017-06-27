@@ -62,7 +62,7 @@ class RestController @Inject()(val execution: Execution)
   private val deployBotName = "qabot"
   private val escalationTeamNames = List(
     "d.caroff", "e.peroumalnaik", "g.bourguignon", "m.runtz", "m.molongo",
-    "m.nguyen", "m.soltani", "s.guerrier", "t.zhuang"
+    "m.nguyen", "m.soltani", "s.guerrier", "t.tellier", "t.zhuang"
   )
 
   private def handleTimeout[T](action: => T): T =
