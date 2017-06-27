@@ -284,12 +284,12 @@ class ExecutionSpec extends Test with TestDb {
 
   private def assertEqual(challenger: Any, expected: Any, path: String = "root"): Unit = {
     challenger match {
-      case cMap: scala.collection.Map[Any, Any] =>
+      case cMap: scala.collection.Map[_, _] =>
         val eMap = as[scala.collection.Map[Any, Any]](expected, path)
-        assertEqualSets(cMap.keySet, eMap.keySet, path)
+        assertEqualSets(cMap.asInstanceOf[scala.collection.Map[Any, Any]].keySet, eMap.keySet, path)
         cMap.foreach { case (k, v) => assertEqual(v, eMap(k), s"$path/$k") }
-      case cSet: scala.collection.Set[Any] =>
-        assertEqualSets(cSet, as[scala.collection.Set[Any]](expected, path), path)
+      case cSet: scala.collection.Set[_] =>
+        assertEqualSets(cSet.asInstanceOf[scala.collection.Set[Any]], as[scala.collection.Set[Any]](expected, path), path)
       case cTuple: scala.Product =>
         assertEqual(cTuple.productIterator, as[scala.Product](expected, path).productIterator, path)
       case cIt: TraversableOnce[Any] =>
