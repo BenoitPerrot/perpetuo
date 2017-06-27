@@ -7,6 +7,7 @@ import com.criteo.perpetuo.executors.ExecutorInvoker
 import com.criteo.perpetuo.model.Operation.Operation
 import com.criteo.perpetuo.model.{DeploymentRequest, ExecutionState, Operation}
 import com.twitter.inject.Logging
+import spray.json.DefaultJsonProtocol._
 import spray.json._
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -15,8 +16,6 @@ import scala.concurrent.Future
 
 @Singleton
 class Execution @Inject()(val dbBinding: DbBinding) extends Logging {
-
-  import spray.json.DefaultJsonProtocol._
 
   /**
     * Start all relevant executions and return the numbers of successful

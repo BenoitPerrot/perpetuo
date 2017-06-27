@@ -17,6 +17,7 @@ import com.twitter.finatra.request._
 import com.twitter.finatra.utils.FuturePools
 import com.twitter.finatra.validation._
 import com.twitter.util.{Future => TwitterFuture}
+import spray.json.DefaultJsonProtocol._
 import spray.json.JsonParser.ParsingException
 import spray.json._
 
@@ -232,7 +233,6 @@ class RestController @Inject()(val execution: Execution)
       case _: NoSuchElementException => throw BadRequestException(s"Unknown state `${r.state}`")
     }
 
-    import DefaultJsonProtocol._
     val statusMap =
       try {
         r.targetStatus.map { // don't use mapValues, as it gives a view (lazy generation, incompatible with error management here)
