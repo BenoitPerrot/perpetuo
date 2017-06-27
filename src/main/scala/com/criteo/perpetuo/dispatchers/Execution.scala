@@ -5,7 +5,7 @@ import javax.inject.{Inject, Singleton}
 import com.criteo.perpetuo.dao._
 import com.criteo.perpetuo.executors.ExecutorInvoker
 import com.criteo.perpetuo.model.Operation.Operation
-import com.criteo.perpetuo.model.{DeploymentRequest, ExecutionState}
+import com.criteo.perpetuo.model.{DeploymentRequest, ExecutionState, Operation}
 import com.twitter.inject.Logging
 import spray.json._
 
@@ -48,7 +48,7 @@ class Execution @Inject()(val dbBinding: DbBinding) extends Logging {
             .trigger(
               execId,
               target,
-              executor.freezeParameters(operation.toString, deploymentRequest.product.name, deploymentRequest.version.toString),
+              executor.freezeParameters(Operation.executionKind(operation), deploymentRequest.product.name, deploymentRequest.version.toString),
               deploymentRequest.creator
             )
             .flatMap(

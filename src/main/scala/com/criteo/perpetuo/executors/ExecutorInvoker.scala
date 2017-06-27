@@ -24,8 +24,8 @@ abstract class ExecutorInvoker {
     * If the input doesn't make sense (the parameters are incompatible with each other),
     * it must return a `UnprocessableIntent` error, whose message will be displayed to the end user.
     */
-  def freezeParameters(operationName: String, productName: String, version: String): String = Map(
-    "executionKind" -> operationName,
+  def freezeParameters(executionKind: String, productName: String, version: String): String = Map(
+    "executionKind" -> executionKind,
     "productName" -> productName,
     "version" -> version
   ).toJson.compactPrint

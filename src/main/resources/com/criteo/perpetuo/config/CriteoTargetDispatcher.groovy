@@ -54,14 +54,14 @@ class RundeckInvoker extends HttpInvoker {
     }
 
     // how Rundeck is currently configured
-    private static String jobName(String productType, String operationName) { "deploy-to-$productType" }
+    private static String jobName(String productType, String executionKind) { "$executionKind-to-$productType" }
     private int apiVersion = 16
 
     // Rundeck's API
     private String authenticated(String path) { "$path?authtoken=$authToken" }
 
-    private String runPath(String productType, String operationName) {
-        authenticated("/api/$apiVersion/job/${jobName(productType, operationName)}/executions")
+    private String runPath(String productType, String executionKind) {
+        authenticated("/api/$apiVersion/job/${jobName(productType, executionKind)}/executions")
     }
     private def errorInHtml = /.+<p>(.+)<\/p>.+/
 
@@ -71,11 +71,11 @@ class RundeckInvoker extends HttpInvoker {
 
 
     @Override
-    String freezeParameters(String operationName, String productName, String version) {
+    String freezeParameters(String executionKind, String productName, String version) {
         String productType = CriteoExternalData.fetchManifest(productName)?.get('type') ?: 'marathon' // fixme: only accept active products here (https://jira.criteois.com/browse/DREDD-309)
 
         jsonBuilder.toJson([
-                runPath        : runPath(productType, operationName),
+                runPath        : runPath(productType, executionKind),
                 productName    : productName,
                 productVersion : version,
                 // todo: read uploader version from Versions itself or infer the latest
