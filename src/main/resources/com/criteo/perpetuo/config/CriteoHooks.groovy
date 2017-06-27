@@ -56,13 +56,14 @@ class CriteoHooks extends Hooks {
 
             def requestJson = new JsonSlurper().parseText(requestBody)
             def lastValidatedVersion = requestJson.getOrDefault("lastValidatedVersion", "")
+            String componentName = metadata["component_name"]
 
             def body = [
                     "fields": [
                             "project"          : ["key": "MRM"],
-                            "summary"          : "$productName (MESOS JMOAB #$version)".toString(),
+                            "summary"          : "$productName (${componentName?.plus(" ") ?: ""}JMOAB #$version)".toString(),
                             "issuetype"        : ["name": "[MOAB] Release"],
-                            "customfield_11006": ["value": metadata.getOrDefault("component_name", productName)],
+                            "customfield_11006": ["value": componentName ?: productName],
                             "customfield_11003": version,
                             "customfield_12500": lastValidatedVersion,
                             "customfield_12702": ["value": bools[metadata.getOrDefault("preprodNeededField", false)]],
