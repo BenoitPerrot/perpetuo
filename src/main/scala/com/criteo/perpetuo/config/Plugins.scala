@@ -10,7 +10,7 @@ import com.criteo.perpetuo.dispatchers.TargetDispatcher
 import scala.collection.JavaConverters._
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
-import scala.concurrent.{Await, Future}
+import scala.concurrent.{Await, ExecutionException, Future}
 import scala.reflect._
 
 
@@ -105,9 +105,14 @@ abstract class PluginRunner[P <: Plugin](implementation: Option[P], base: P) {
       if (method.getDeclaringClass != base.getClass) {
         // there is a specific implementation for this plugin method, let's say it and start it, but time-boxed
         plugin.logger.info(methodName)
-        Await.result(Future {
-          toCallOnPlugin(plugin)
-        }, plugin.timeout_s.seconds)
+        try {
+          Await.result(Future {
+            toCallOnPlugin(plugin)
+          }, plugin.timeout_s.seconds)
+        }
+        catch {
+          case e: ExecutionException => throw e.getCause
+        }
       }
       else
         toCallOnPlugin(plugin)
