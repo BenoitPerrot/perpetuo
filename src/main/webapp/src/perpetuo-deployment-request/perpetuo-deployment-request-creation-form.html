@@ -60,7 +60,7 @@
           </paper-listbox>
         </paper-dropdown-menu>
         <div>
-          <paper-input id="versionSelector" label="Version"></paper-input>
+          <paper-input id="versionSelector" label="Version" value="{{selectedVersion}}"></paper-input>
           <p class="versionMessage">Requested version could not be validated</p>
           <p class="versionMessage">[[reason]]</p>
         </div>
@@ -85,12 +85,28 @@
       reason: { type: String },
       selectedProductItem: Object,
       selectedProductName: { type: String, computed: 'computeSelectedProductName(selectedProductItem)' },
-      products: { type: Array, value: () => [] }
+      products: { type: Array, value: () => [] },
+      selectedVersion: { type: String, notify: true, observer: 'onSelectedVersionChanged' }
     },
 
     behaviors: [
       Polymer.PaperDialogBehavior
     ],
+
+    onSelectedVersionChanged(v) {
+      if (v && this.selectedProductName) {
+        this.client.validateProductVersion(this.selectedProductName, v).then(r => {
+          if (v === this.selectedVersion) { // Support out-of-order execution
+            this.isVersionValid = r.valid;
+            if (!r.valid) {
+              this.reason = r.reason;
+            }
+          }
+        });
+      } else {
+        this.isVersionValid = true;
+      }
+    },
 
     computeSelectedProductName(selectedProductItem) {
       return selectedProductItem ? selectedProductItem.name : null;
@@ -99,26 +115,11 @@
     attached() {
       this.client = new Perpetuo.Client();
       this.client.fetchProducts().then(products => { this.products = products });
-      this.$.versionSelector.addEventListener('value-changed', e => {
-        const v = e.detail.value;
-        if (v && this.selectedProductName) {
-          this.client.validateProductVersion(this.selectedProductName, v).then(r => {
-            if (v === this.$.versionSelector.value) { // Support out-of-order execution
-              this.isVersionValid = r.valid;
-              if (!r.valid) {
-                this.reason = r.reason;
-              }
-            }
-          });
-        } else {
-          this.isVersionValid = true;
-        }
-      });
     },
 
     create() {
       this.client.createDeploymentRequest(this.selectedProductName,
-                                          this.$.versionSelector.value,
+                                          this.selectedVersion,
                                           this.$.lastValidatedVersion.value,
                                           this.$.targetSelector.value,
                                           this.$.commentEditor.value)
@@ -132,7 +133,7 @@
 
     clear() {
       this.$.productSelector.selected = null;
-      this.$.versionSelector.value = '';
+      this.selectedVersion = '';
       this.$.lastValidatedVersion.value = '';
       this.$.targetSelector.value = '';
       this.$.commentEditor.value = '';
