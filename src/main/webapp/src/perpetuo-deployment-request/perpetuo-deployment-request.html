@@ -37,7 +37,10 @@
 
   </style>
   <template>
-    <h1><span class="product-name">[[data.productName]]</span><span class="version">[[data.version]]</span></h1>
+    <h1>
+      <span class="product-name">[[data.productName]]</span>
+      <span class="version">[[data.version]]</span>
+    </h1>
     <paper-card id="general">
       <h1>General</h1>
       <p>Requested by [[data.creator]] on [[timestampToDates(data.creationDate)]]</p>
