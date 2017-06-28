@@ -72,7 +72,7 @@ class RundeckInvoker extends HttpInvoker {
 
     @Override
     Request buildRequest(String operationName, long executionId, String productName, String version, String target, String initiator) {
-        String productType = CriteoExternalData.manifest.get(productName)?.get('type') ?: 'marathon' // fixme: only accept active products here (https://jira.criteois.com/browse/DREDD-309)
+        String productType = CriteoExternalData.fetchManifest(productName)?.get('type') ?: 'marathon' // fixme: only accept active products here (https://jira.criteois.com/browse/DREDD-309)
 
         def escapedProductName = jsonBuilder.toJson(productName)
         def escapedVersion = jsonBuilder.toJson(version)

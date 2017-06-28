@@ -2,16 +2,11 @@ package com.criteo.perpetuo.config
 
 import groovyx.net.http.HttpResponseException
 import groovyx.net.http.RESTClient
-import org.codehaus.groovy.runtime.metaclass.ConcurrentReaderHashMap
 
 /* the "public" class to be loaded as the actual plugin must be the first statement after the imports */
 
 class CriteoExternalData extends ExternalData { // fixme: this only works with JMOAB for now
     final static int maxVersionsInThePast = 200 // don't bother reading further in the past
-
-    static final manifest = new Manifest()
-    static final repos = new Repos()
-    static final is_valid = new IsValid()
 
     static final blacklisted = "Blacklisted"
 
@@ -35,20 +30,20 @@ class CriteoExternalData extends ExternalData { // fixme: this only works with J
 
     @Override
     java.util.List<String> validateVersion(String productName, String version) {
-        Map<String, ?> manifest = manifest.get(productName)
-        Map<String, String> allRepos = repos.get(version)
-        Map<String, ?> allValidation = is_valid.get(version)
+        Map<String, ?> manifest = fetchManifest(productName)
+        Map<String, String> allRepos = fetchArtifactToRepository(version)
+        Map<String, ?> allValidation = fetchIsValid(version)
         if (manifest == null) {
             ["Product does not exist or has never been built."]
         } else if (allRepos == null || allValidation == null) {
             ["No data could be found. Version may be still being built or packaged."]
         } else {
             def repos = manifest.artifacts.collect {
-                allRepos.get(it.groupId + ':' + it.artifactId)
+                allRepos.get("${it.groupId}:${it.artifactId}".toString())
             }
             def errors = []
-            for (String repo: repos) {
-                def validation = allValidation.getOrDefault(repo, [:])
+            for (String repo : repos) {
+                def validation = allValidation.get(repo)
                 if (!validation) {
                     errors += "Could not find artifact for ${repo}".toString()
                 } else if (!validation.valid) {
@@ -75,43 +70,8 @@ class CriteoExternalData extends ExternalData { // fixme: this only works with J
             return null
         }
     }
-}
 
-
-abstract class Cache<T> extends ConcurrentReaderHashMap {
-    final private Map<String, Long> expirationTimesMillis = [:] // expiration time for each key
-    final private fetchLock = new Object()
-
-    T get(String key) {
-        def res
-        if (System.currentTimeMillis() < expirationTimesMillis.get(key, 0)) {
-            res = super.get(key) as T
-        } else {
-            synchronized (fetchLock) {
-                // prevent unnecessary concurrent fetches of new data
-                if (System.currentTimeMillis() < expirationTimesMillis.get(key, 0)) {
-                    // if the lock was blocking, we're supposed to get here (if it was expired, expiration changed)
-                    res = super.get(key) as T
-                } else {
-                    res = fetch(key)
-                    if (res != null)
-                        put(key, res)
-
-                    def cacheValidity = res != null ? 600 : 10 // in seconds
-                    expirationTimesMillis[key] = System.currentTimeMillis() + cacheValidity * 1000
-                }
-            }
-        }
-        return res
-    }
-
-    abstract T fetch(String key)
-}
-
-
-class Manifest extends Cache<Map<String, ?>> {
-    @Override
-    Map<String, ?> fetch(String productName) {
+    static Map<String, ?> fetchManifest(String productName) {
         def client = new RESTClient("http://moab.criteois.lan")
         try {
             def resp = client.get(path: "/products/$productName/manifest.json")
@@ -122,12 +82,8 @@ class Manifest extends Cache<Map<String, ?>> {
             return null
         }
     }
-}
 
-
-class Repos extends Cache<Map<String, String>> { // repos per artifact
-    @Override
-    Map<String, String> fetch(String version) {
+    static Map<String, String> fetchArtifactToRepository(String version) {
         def client = new RESTClient("http://moab.criteois.lan")
         try {
             def resp = client.get(path: "/java/moabs/$version/dependency-graph.json")
@@ -142,12 +98,8 @@ class Repos extends Cache<Map<String, String>> { // repos per artifact
             return null
         }
     }
-}
 
-
-class IsValid extends Cache<Map<String, ?>> { // fetch data about each artifact to know its validation status
-    @Override
-    Map<String, ?> fetch(String version) {
+    static Map<String, ?> fetchIsValid(String version) {
         def client = new RESTClient("http://moab.criteois.lan")
         try {
             def resp = client.get(path: "/java/moabs/$version/product-validation.json")
