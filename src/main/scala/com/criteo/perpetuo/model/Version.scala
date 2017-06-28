@@ -8,15 +8,15 @@ import spray.json._
 import scala.util.Try
 
 
-case class SingleVersion(value: Map[String, String], ratio: Float = 1f)
+case class PartialVersion(value: Map[String, String], ratio: Float = 1f)
 
 
 class Version(serialized: String) extends MappedTo[String] {
   // fixme (Try..getOrElse): for transition only, while there are non-structured versions in DB
-  val structured: Iterable[SingleVersion] = Try(serialized.parseJson.asInstanceOf[JsArray].elements)
+  val structured: Iterable[PartialVersion] = Try(serialized.parseJson.asInstanceOf[JsArray].elements)
     .map(_.map(Version.parseVersion))
-    .getOrElse(Seq(SingleVersion(Map("main" -> serialized))))
-    .map(sv => SingleVersion(sv.value.mapValues(v => Version.dropLeading0Regex.replaceAllIn(v, _.group(1))), sv.ratio))
+    .getOrElse(Seq(PartialVersion(Map("main" -> serialized))))
+    .map(sv => PartialVersion(sv.value.mapValues(v => Version.dropLeading0Regex.replaceAllIn(v, _.group(1))), sv.ratio))
 
   // compute the standardized representation, usable by Slick's `sortBy` thanks to `MappedTo`
   val value: String = try {
@@ -28,7 +28,7 @@ class Version(serialized: String) extends MappedTo[String] {
           assert(prefix >= 0)
           Version.numberBaseField.slice(0, prefix) + nb
         }))
-        SingleVersion(value, sv.ratio)
+        PartialVersion(value, sv.ratio)
       })
     )
     assert(uniformed.length <= Version.maxSize)
@@ -52,7 +52,7 @@ object Version {
   private val numberRegex = """\d+""".r
   private val dropLeading0Regex = """0*(\d+)""".r
 
-  private val parseVersion: JsValue => SingleVersion = {
+  private val parseVersion: JsValue => PartialVersion = {
     case JsObject(obj) =>
       val value = obj.getOrElse(valueField, throw new ParsingException(s"Expected to find a `$valueField` in every `version`")) match {
         case JsObject(o) => o.map {
@@ -65,7 +65,7 @@ object Version {
         case JsNumber(r) if r >= 0 && r <= 1 => r.floatValue
         case unexpected => throw new ParsingException(s"Expected a number in [0; 1] as `$ratioField` in every `version`, got: $unexpected")
       }
-      SingleVersion(value, ratio)
+      PartialVersion(value, ratio)
     case unknown => throw new ParsingException(s"Expected JSON objects in `version`, got: $unknown")
   }
 
@@ -73,7 +73,7 @@ object Version {
 
   def apply(input: String): Version = new Version(input)
 
-  def compactPrint(versions: Iterable[SingleVersion]): String = {
+  def compactPrint(versions: Iterable[PartialVersion]): String = {
     versions.map { v =>
       val map = Map(valueField -> v.value.toJson)
       if (v.ratio != 1f) map ++ Map(ratioField -> JsNumber(v.ratio)) else map

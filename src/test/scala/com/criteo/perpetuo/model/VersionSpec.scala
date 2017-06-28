@@ -25,7 +25,7 @@ class VersionSpec extends Test {
     }
   }
 
-  "Versions numbers" should {
+  "Version numbers" should {
     "be encoded with leading zeros in front of all numbers" in {
       convert("5") shouldEqual padded5
       convert("42") shouldEqual padded42
@@ -39,7 +39,7 @@ class VersionSpec extends Test {
     }
   }
 
-  "Versions" should {
+  "Version" should {
     "support equality on numbers" in {
       convert("042") shouldEqual convert("42")
       convert("42") shouldNot equal(convert("420"))
