@@ -11,7 +11,7 @@ class VersionSpec extends Test {
   private val filled = "1494242421234"
 
   private def convert(value: String): String =
-    Version(value).value.parseJson.asInstanceOf[JsArray].elements.head.asJsObject.fields("value").asInstanceOf[JsString].value
+    Version(value).value.parseJson.asInstanceOf[JsString].value
 
   "Self check" should {
     "assert that the encoded number size is the size of a timestamp in ms" in {

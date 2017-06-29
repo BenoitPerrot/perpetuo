@@ -23,7 +23,7 @@ class RundeckInvokerSpec extends Test with TestDb {
     assert(rundeckInvoker.getClass.getSimpleName == "RundeckInvoker")
     rundeckInvoker.client = request => {
       request.uri shouldEqual s"/api/16/job/deploy-to-marathon/executions?authtoken=my-super-secret-token"
-      request.contentString shouldEqual """{"argString":"-callback-url 'http://somewhere/api/execution-traces/42' -product-name \"My\\\"Beautiful\\\"Project\" -target \"a,b\" -product-version \"[{\\\"value\\\":\\\"the 42nd version\\\"}]\""}"""
+      request.contentString shouldEqual """{"argString":"-callback-url 'http://somewhere/api/execution-traces/42' -product-name \"My\\\"Beautiful\\\"Project\" -target \"a,b\" -product-version \"the 42nd version\""}"""
       val resp = Response(Status(statusCode))
       resp.write(content)
       Future.value(resp)

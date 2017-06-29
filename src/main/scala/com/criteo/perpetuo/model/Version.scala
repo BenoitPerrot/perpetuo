@@ -15,8 +15,12 @@ case class PartialVersion(value: JsValue, ratio: Float = 1f)
 
 class Version(serialized: String) extends MappedTo[String] {
   // fixme (Try..getOrElse): for transition only, while there are non-structured versions in DB
-  val structured: Iterable[PartialVersion] = Try(serialized.parseJson.asInstanceOf[JsArray].elements)
-    .map(_.map(Version.parseVersion))
+  val structured: Iterable[PartialVersion] = Try(serialized.parseJson)
+    .map {
+      case JsArray(arr) => arr.map(Version.parseVersion)
+      case _: JsNumber => Seq(PartialVersion(JsString(serialized))) // fixme: transition only
+      case other => Seq(PartialVersion(other))
+    }
     .getOrElse(Seq(PartialVersion(JsString(serialized))))
     .map(sv => PartialVersion(Version.replaceAllInStringLeaves(sv.value, Version.dropLeading0Regex, _.group(1)), sv.ratio))
 
@@ -80,9 +84,11 @@ object Version {
   def apply(input: String): Version = new Version(input)
 
   def compactPrint(versions: Iterable[PartialVersion]): String = {
-    versions.map { v =>
-      val map = Map(valueField -> v.value)
-      if (v.ratio != 1f) map ++ Map(ratioField -> JsNumber(v.ratio)) else map
-    }.toJson.compactPrint
+    {
+      if (versions.size == 1)
+        versions.head.value
+      else
+        versions.map { v => JsObject(valueField -> v.value, ratioField -> JsNumber(v.ratio)) }.toJson
+    }.compactPrint
   }
 }
