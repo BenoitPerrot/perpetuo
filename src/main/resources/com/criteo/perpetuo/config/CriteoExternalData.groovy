@@ -39,6 +39,39 @@ class CriteoExternalData extends ExternalData { // fixme: this only works with J
         }
     }
 
+    static Map<String, ?> getChangeLog(String productName, String version, String previousVersion) {
+        Map<String, ?> manifest = fetchManifest(productName)
+        Map<String, String> allRepos = fetchArtifactToRepository(version)
+        if (manifest == null || allRepos == null) {
+            [:]
+        } else {
+            def repos = manifest.artifacts.collect {
+                allRepos.get(it.groupId + ':' + it.artifactId)
+            }
+
+            def listOfChanges = [:]
+            for (String repo : repos) {
+                def changelog = getChangeLogForRepo(repo, version, previousVersion)
+                for (def moab : changelog) {
+                    for (def commit : moab.commits) {
+                        if (!listOfChanges[moab.moabId])
+                            listOfChanges[moab.moabId] = [:]
+                        if (!listOfChanges[moab.moabId][commit.repo])
+                            listOfChanges[moab.moabId][commit.repo] = [:]
+                        if (!listOfChanges[moab.moabId][commit.repo][commit.sha1])
+                            listOfChanges[moab.moabId][commit.repo][commit.sha1] = [
+                                author:commit.author,
+                                date:commit.date,
+                                title:commit.title,
+                                message:commit.message
+                            ]
+                    }
+                }
+            }
+            listOfChanges
+        }
+    }
+
     @Override
     java.util.List<String> suggestVersions(String productName) {
         def l = []
@@ -109,5 +142,28 @@ class CriteoExternalData extends ExternalData { // fixme: this only works with J
         assert resp.status == 200
 
         return resp.data.collect { it['version'] }
+    }
+
+    static List<Map<String, ?>> getChangeLogForRepo(String repoName, String requestedVersion, String previousVersion) {
+        def client = new RESTClient("http://software-factory-services.marathon-par.central.criteo.preprod")
+        def query = [
+                'repositories': repoName,
+                'with-dependencies': true,
+                'format': 'json',
+        ]
+        if (previousVersion) {  // If previous version is not given, we might want to display the changes for the current version
+            query += ['since': previousVersion]
+        }
+        try {
+            def resp = client.get(
+                    path: "/api/jmoabs/$requestedVersion/log",
+                    query: query
+            )
+            assert resp.status == 200
+            return resp.data
+        } catch (HttpResponseException e) {
+            assert e.response.status == 404
+            return []
+        }
     }
 }

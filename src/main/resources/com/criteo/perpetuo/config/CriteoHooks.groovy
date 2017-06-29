@@ -3,11 +3,17 @@ package com.criteo.perpetuo.config
 import com.criteo.perpetuo.dao.DbBinding
 import com.criteo.perpetuo.model.DeploymentRequest
 import com.criteo.perpetuo.model.Target
-import groovy.json.JsonException
+import groovy.json.JsonOutput
 import groovy.json.JsonSlurper
 import groovyx.net.http.HTTPBuilder
 import groovyx.net.http.HttpResponseException
 import groovyx.net.http.RESTClient
+import org.apache.http.HttpEntity
+import org.apache.http.client.methods.HttpPost
+import org.apache.http.entity.ContentType
+import org.apache.http.entity.mime.MultipartEntityBuilder
+import org.apache.http.impl.client.CloseableHttpClient
+import org.apache.http.impl.client.HttpClients
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
 
@@ -115,6 +121,34 @@ class CriteoHooks extends Hooks {
                 String ticket = resp.data.key
                 logger().info("Jira ticket created $suffix: $ticket")
                 String ticketUrl = "$url/browse/$ticket"
+
+                def changelog = CriteoExternalData.getChangeLog(productName, version, lastValidatedVersion)
+                if (changelog) {
+                    def jsonChangelog = JsonOutput.toJson(changelog)
+                    def attachmentUri = url + "/rest/api/2/issue/$ticket/attachments"
+
+                    HttpPost http = new HttpPost()
+                    http.setURI(attachmentUri.toURI())
+                    http.setHeader('Accept', JSON.toString())
+                    http.setHeader('X-Atlassian-Token' , 'nocheck')
+                    http.setHeader('Authorization', "Basic ${credentials.bytes.encodeBase64()}")
+
+                    MultipartEntityBuilder builder = MultipartEntityBuilder.create()
+                    builder.addBinaryBody("file", jsonChangelog.bytes, ContentType.APPLICATION_OCTET_STREAM, "changelog.json")
+                    HttpEntity multipart = builder.build()
+                    http.setEntity(multipart)
+
+                    CloseableHttpClient httpClient = HttpClients.createDefault()
+                    def uploadResponse = httpClient.execute(http)
+
+                    if (uploadResponse.statusLine.statusCode == 200) {
+                        def rangeMessage = lastValidatedVersion ? "from #$lastValidatedVersion to" : "for"
+                        logger().info("Changelog $rangeMessage #$version has been attached to JIRA Issue $ticket")
+                    } else {
+                        logger().warning('Could not attach changelog from file to JIRA Issue:' + uploadResponse.statusLine.toString())
+                    }
+                }
+
 
                 if (appConfig.transition()) {
                     return ticketUrl
