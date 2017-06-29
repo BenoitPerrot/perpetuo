@@ -73,10 +73,10 @@ class CriteoExternalData extends ExternalData { // fixme: this only works with J
         }
     }
 
-    static Map<String, String> fetchArtifactToRepository(String version) {
+    static Map<String, String> fetchArtifactToRepository(String requestedVersion) {
         def client = new RESTClient("http://moab.criteois.lan")
         try {
-            def resp = client.get(path: "/java/moabs/$version/dependency-graph.json")
+            def resp = client.get(path: "/java/moabs/$requestedVersion/dependency-graph.json")
             assert resp.status == 200
             return resp.data.collectMany { repo ->
                 repo.getOrDefault('artifacts', [:]).getOrDefault('created', []).collect {
@@ -89,10 +89,10 @@ class CriteoExternalData extends ExternalData { // fixme: this only works with J
         }
     }
 
-    static Map<String, ?> fetchIsValid(String version) {
+    static Map<String, ?> fetchIsValid(String requestedVersion) {
         def client = new RESTClient("http://moab.criteois.lan")
         try {
-            def resp = client.get(path: "/java/moabs/$version/product-validation.json")
+            def resp = client.get(path: "/java/moabs/$requestedVersion/product-validation.json")
             assert resp.status == 200
 
             return resp.data
