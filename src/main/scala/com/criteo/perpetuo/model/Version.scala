@@ -75,7 +75,7 @@ object Version {
       case other => other
     }
 
-  val maxSize: Int = 1024 // todo: increase that to deal with partial deployments!
+  val maxSize: Int = 1024
 
   def apply(input: String): Version = new Version(input)
 
