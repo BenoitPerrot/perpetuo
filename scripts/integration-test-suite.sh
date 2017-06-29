@@ -108,7 +108,7 @@ function is_started() {
 # delayed start
 api_query deployment-requests -d '{
     "productName": "itest-project",
-    "version": "v42",
+    "version": [{"value": "v42", "ratio": 0.8}, {"value": "v51", "ratio": 0.2}],
     "target": ["par", "am5"]
 }' | expects '\{"id":[0-9]+}' -Ex | {
     read ans

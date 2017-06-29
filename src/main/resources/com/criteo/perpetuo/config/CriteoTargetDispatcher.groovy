@@ -69,23 +69,23 @@ class RundeckInvoker extends HttpInvoker {
 
 
     @Override
-    String freezeParameters(String executionKind, String productName, String version) {
+    String freezeParameters(String executionKind, String productName, String jsonVersion) {
         String productType = CriteoExternalData.fetchManifest(productName)?.get('type') ?: 'marathon' // fixme: only accept active products here (https://jira.criteois.com/browse/DREDD-309)
 
         jsonBuilder.toJson([
                 runPath        : runPath(productType, executionKind),
                 productName    : productName,
-                productVersion : version,
-                // todo: read uploader version from Versions itself or infer the latest
-                uploaderVersion: System.getenv("${productType.toUpperCase()}_UPLOADER") as String
+                productVersion : jsonSlurper.parseText(jsonVersion),
+                // todo: read uploader version from version itself or infer the latest
+                uploaderVersion: System.getenv("${productType.toUpperCase()}_UPLOADER")
         ])
     }
 
     @Override
     Request buildRequest(long executionId, String target, String frozenParameters, String initiator) {
         def parameters = jsonSlurper.parseText(frozenParameters) as Map
-        def escapedProductName = jsonBuilder.toJson(parameters['productName'] as String)
-        def escapedVersion = jsonBuilder.toJson(parameters['productVersion'] as String)
+        def escapedProductName = jsonBuilder.toJson(parameters['productName'])
+        def escapedVersion = jsonBuilder.toJson(jsonBuilder.toJson(parameters['productVersion']))
         def escapedTarget = jsonBuilder.toJson(target)
         def args = "-callback-url '${callbackUrl(executionId)}' -product-name $escapedProductName -target $escapedTarget -product-version $escapedVersion"
         def uploader = parameters['uploaderVersion'] as String

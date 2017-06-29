@@ -24,11 +24,11 @@ abstract class ExecutorInvoker {
     * If the input doesn't make sense (the parameters are incompatible with each other),
     * it must return a `UnprocessableIntent` error, whose message will be displayed to the end user.
     */
-  def freezeParameters(executionKind: String, productName: String, version: String): String = Map(
-    "executionKind" -> executionKind,
-    "productName" -> productName,
-    "version" -> version
-  ).toJson.compactPrint
+  def freezeParameters(executionKind: String, productName: String, jsonVersion: String): String = JsObject(
+    "executionKind" -> executionKind.toJson,
+    "productName" -> productName.toJson,
+    "version" -> jsonVersion.parseJson
+  ).compactPrint
 
   def trigger(executionId: Long, target: TargetExpr, frozenParameters: String, initiator: String): Future[Option[String]]
 
