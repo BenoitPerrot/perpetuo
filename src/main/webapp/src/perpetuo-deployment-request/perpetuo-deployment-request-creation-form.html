@@ -191,7 +191,9 @@
 
     create() {
       this.client.createDeploymentRequest(this.selectedProductName,
-                                          this.selectedVersion,
+                                          // TODO: remove this hack as soon as the UI allows inputing complex version specifications <<
+                                          (_ => { try { return JSON.parse(_); } catch (e) { return _; } }) (this.selectedVersion),
+                                          // >>
                                           this.$.lastValidatedVersion.value,
                                           this.$.targetSelector.value,
                                           this.$.commentEditor.value)
