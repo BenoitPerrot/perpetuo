@@ -6,28 +6,30 @@ import spray.json.JsonParser.ParsingException
 import spray.json._
 
 import scala.util.Try
+import scala.util.matching.Regex
+import scala.util.matching.Regex.Match
 
 
-case class PartialVersion(value: Map[String, String], ratio: Float = 1f)
+case class PartialVersion(value: JsValue, ratio: Float = 1f)
 
 
 class Version(serialized: String) extends MappedTo[String] {
   // fixme (Try..getOrElse): for transition only, while there are non-structured versions in DB
   val structured: Iterable[PartialVersion] = Try(serialized.parseJson.asInstanceOf[JsArray].elements)
     .map(_.map(Version.parseVersion))
-    .getOrElse(Seq(PartialVersion(Map("main" -> serialized))))
-    .map(sv => PartialVersion(sv.value.mapValues(v => Version.dropLeading0Regex.replaceAllIn(v, _.group(1))), sv.ratio))
+    .getOrElse(Seq(PartialVersion(JsString(serialized))))
+    .map(sv => PartialVersion(Version.replaceAllInStringLeaves(sv.value, Version.dropLeading0Regex, _.group(1)), sv.ratio))
 
   // compute the standardized representation, usable by Slick's `sortBy` thanks to `MappedTo`
   val value: String = try {
     val uniformed = Version.compactPrint(
       structured.map(sv => {
-        val value = sv.value.mapValues(v => Version.numberRegex.replaceAllIn(v, { m =>
+        val value = Version.replaceAllInStringLeaves(sv.value, Version.numberRegex, { m =>
           val nb = m.matched
           val prefix = Version.numberBaseField.length - nb.length
           assert(prefix >= 0)
           Version.numberBaseField.slice(0, prefix) + nb
-        }))
+        })
         PartialVersion(value, sv.ratio)
       })
     )
@@ -39,7 +41,7 @@ class Version(serialized: String) extends MappedTo[String] {
   }
 
   // todo: break the API to use structured versions everywhere (update the plugins and the front-end)
-  override def toString: String = structured.head.value.head._2
+  override def toString: String = structured.head.value.asInstanceOf[JsString].value
 
   override def equals(o: scala.Any): Boolean = o.isInstanceOf[Version] && o.asInstanceOf[Version].value == value
 }
@@ -54,13 +56,7 @@ object Version {
 
   private val parseVersion: JsValue => PartialVersion = {
     case JsObject(obj) =>
-      val value = obj.getOrElse(valueField, throw new ParsingException(s"Expected to find a `$valueField` in every `version`")) match {
-        case JsObject(o) => o.map {
-          case (sKey, JsString(string)) => (sKey, string)
-          case (uKey, unsupported) => throw new ParsingException(s"Expected a JSON string at `version.$valueField.$uKey`, got: $unsupported")
-        }
-        case unsupported => throw new ParsingException(s"Expected a JSON object as `$valueField` in every `version`, got: $unsupported")
-      }
+      val value = obj.getOrElse(valueField, throw new ParsingException(s"Expected to find a `$valueField` in every `version`"))
       val ratio = obj.getOrElse(ratioField, JsNumber(1)) match {
         case JsNumber(r) if r >= 0 && r <= 1 => r.floatValue
         case unexpected => throw new ParsingException(s"Expected a number in [0; 1] as `$ratioField` in every `version`, got: $unexpected")
@@ -68,6 +64,14 @@ object Version {
       PartialVersion(value, ratio)
     case unknown => throw new ParsingException(s"Expected JSON objects in `version`, got: $unknown")
   }
+
+  private def replaceAllInStringLeaves(value: JsValue, regex: Regex, replacer: Match => String): JsValue =
+    value match {
+      case JsString(s) => JsString(regex.replaceAllIn(s, replacer))
+      case JsArray(arr) => JsArray(arr.map(replaceAllInStringLeaves(_, regex, replacer)))
+      case JsObject(map) => JsObject(map.mapValues(replaceAllInStringLeaves(_, regex, replacer)))
+      case other => other
+    }
 
   val maxSize: Int = 1024 // todo: increase that to deal with partial deployments!
 
