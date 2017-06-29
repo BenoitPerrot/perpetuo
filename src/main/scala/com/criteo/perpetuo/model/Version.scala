@@ -81,7 +81,7 @@ object Version {
 
   def compactPrint(versions: Iterable[PartialVersion]): String = {
     versions.map { v =>
-      val map = Map(valueField -> v.value.toJson)
+      val map = Map(valueField -> v.value)
       if (v.ratio != 1f) map ++ Map(ratioField -> JsNumber(v.ratio)) else map
     }.toJson.compactPrint
   }
