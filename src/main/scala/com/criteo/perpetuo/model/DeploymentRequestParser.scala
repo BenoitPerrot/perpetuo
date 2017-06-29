@@ -27,7 +27,7 @@ object DeploymentRequestParser {
         if (versionArray.length > Version.maxSize)
           throw new ParsingException(s"Version is too long")
         val version = Version(versionArray)
-        if (version.structured.map(_.ratio).sum != 1f)
+        if ((version.structured.map(_.ratio).sum - 1f).abs > 1e-6f)
           throw new ParsingException("Sum of ratios must equal 1")
         val targetExpr = read("target")
         val attrs = new DeploymentRequestAttrs(
