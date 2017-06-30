@@ -3,6 +3,7 @@ package com.criteo.perpetuo.config
 import com.criteo.perpetuo.dao.DbBinding
 import com.criteo.perpetuo.model.DeploymentRequest
 import com.criteo.perpetuo.model.Target
+import groovy.json.JsonException
 import groovy.json.JsonSlurper
 import groovyx.net.http.HTTPBuilder
 import groovyx.net.http.HttpResponseException
@@ -39,8 +40,18 @@ class CriteoHooks extends Hooks {
     @Override
     String onDeploymentRequestCreated(DeploymentRequest deploymentRequest, boolean immediateStart, String requestBody) {
         if (appConfig.env() != "preprod" && !immediateStart) {
+            def jsonSlurper = new JsonSlurper()
             def productName = deploymentRequest.product().name()
-            def version = deploymentRequest.version().toString()
+
+            def rawVersion = deploymentRequest.version().toString()
+            def version
+            def versionJson = jsonSlurper.parseText(rawVersion)
+            version = versionJson
+            if (versionJson.getClass() == [].getClass()) {
+                version = versionJson.max { v -> v.ratio }.value
+            }
+            assert version.getClass() == "".getClass()
+
             def target = Target.getSimpleSelectForGroovy(deploymentRequest.parsedTarget())
             def optComment = deploymentRequest.comment() ? "Initiator's comment: ${deploymentRequest.comment()}\n" : ""
             def originator = appConfig.transition() ?
@@ -57,7 +68,7 @@ class CriteoHooks extends Hooks {
             assert metadata
 
             def bools = [(true): "True", (false): "False"]
-            def requestJson = new JsonSlurper().parseText(requestBody)
+            def requestJson = jsonSlurper.parseText(requestBody)
             def lastValidatedVersion = requestJson.getOrDefault("lastValidatedVersion", "")
             String componentName = metadata["component_name"]
 
