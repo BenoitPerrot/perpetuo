@@ -19,13 +19,14 @@ object DeploymentRequestParser {
           case Some(unknown) => throw new ParsingException(s"Expected a string as $key, got: $unknown (${unknown.getClass.getSimpleName})")
         }
 
+        val productName = readStr("productName")
         val versionArray = read("version") match {
           case JsString(string) => Version.compactPrint(Seq(PartialVersion(JsString(string)))) // fixme: transition only
           case jsArr: JsArray if jsArr.elements.nonEmpty => jsArr.compactPrint
           case unknown => throw new ParsingException(s"Expected `version` to be a non-empty JSON array, got: $unknown")
         }
-        if (versionArray.contains("'"))
-          throw new ParsingException("Single quotes are not supported in versions")
+        if (productName.contains("'") || versionArray.contains("'")) // fixme: as long as we have Rundeck API 16, but maybe we should configure a validator in plugins
+          throw new ParsingException("Single quotes are not supported")
         if (versionArray.length > Version.maxSize)
           throw new ParsingException(s"Version is too long")
         val version = Version(versionArray)
@@ -33,7 +34,7 @@ object DeploymentRequestParser {
           throw new ParsingException("Sum of ratios must equal 1")
         val targetExpr = read("target")
         val attrs = new DeploymentRequestAttrs(
-          readStr("productName"),
+          productName,
           version,
           targetExpr.compactPrint,
           readStr("comment", Some("")),
