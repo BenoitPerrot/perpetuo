@@ -24,6 +24,8 @@ object DeploymentRequestParser {
           case jsArr: JsArray if jsArr.elements.nonEmpty => jsArr.compactPrint
           case unknown => throw new ParsingException(s"Expected `version` to be a non-empty JSON array, got: $unknown")
         }
+        if (versionArray.contains("'"))
+          throw new ParsingException("Single quotes are not supported in versions")
         if (versionArray.length > Version.maxSize)
           throw new ParsingException(s"Version is too long")
         val version = Version(versionArray)

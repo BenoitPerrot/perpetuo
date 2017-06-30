@@ -85,9 +85,9 @@ class RundeckInvoker extends HttpInvoker {
     Request buildRequest(long executionId, String target, String frozenParameters, String initiator) {
         def parameters = jsonSlurper.parseText(frozenParameters) as Map
         def escapedProductName = jsonBuilder.toJson(parameters['productName'])
-        def escapedVersion = jsonBuilder.toJson(parameters['productVersion'] instanceof String ? parameters['productVersion'] : jsonBuilder.toJson(parameters['productVersion']))
+        def escapedVersion = parameters['productVersion'] instanceof String ? parameters['productVersion'] : jsonBuilder.toJson(parameters['productVersion'])
         def escapedTarget = jsonBuilder.toJson(target)
-        def args = "-callback-url '${callbackUrl(executionId)}' -product-name $escapedProductName -target $escapedTarget -product-version $escapedVersion"
+        def args = "-callback-url '${callbackUrl(executionId)}' -product-name $escapedProductName -target $escapedTarget -product-version '$escapedVersion'"
         def uploader = parameters['uploaderVersion'] as String
         if (uploader)
             args += " -uploader-version " + uploader
