@@ -42,7 +42,7 @@ object TimestampSerializer extends StdSerializer[java.sql.Timestamp](classOf[jav
 
 object VersionSerializer extends StdSerializer[Version](classOf[Version]) {
   def serialize(version: Version, jgen: JsonGenerator, provider: SerializerProvider) {
-    jgen.writeString(version.toString)
+    jgen.writeRawValue(version.toString)
   }
 }
 

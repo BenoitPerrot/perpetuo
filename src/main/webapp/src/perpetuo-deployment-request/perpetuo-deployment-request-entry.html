@@ -177,8 +177,14 @@
       return data.comment || 0 < data.operations.length;
     },
 
+    shortenVersionValue(v) {
+      return v.length > 10 ? v.slice(0, 7) + "..." : v
+    },
+
     computeShortVersion(data) {
-      return data.version.length > 10 ? data.version.slice(0, 7) + "..." : data.version
+      return Array.isArray(data.version) ?
+        data.version.map(v => this.shortenVersionValue(v.value.toString()) + "@" + (v.ratio * 100) + "%").join(" + ") :
+        this.shortenVersionValue(data.version)
     },
 
     computeComment(data) {

@@ -41,13 +41,10 @@ class Version(serialized: String) extends MappedTo[String] {
     uniformed
   }
   catch {
-    case _: AssertionError => compactPrint
+    case _: AssertionError => toString
   }
 
-  def compactPrint: String = Version.compactPrint(structured)
-
-  // todo: break the API to use structured versions everywhere (update the plugins and the front-end)
-  override def toString: String = structured.head.value.asInstanceOf[JsString].value
+  override def toString: String = Version.compactPrint(structured)
 
   override def equals(o: scala.Any): Boolean = o.isInstanceOf[Version] && o.asInstanceOf[Version].value == value
 }
