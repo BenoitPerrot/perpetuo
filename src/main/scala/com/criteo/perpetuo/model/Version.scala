@@ -80,6 +80,7 @@ object Version {
     }
 
   val maxSize: Int = 1024
+  val ratioPrecision = 1e-6
 
   def apply(input: String): Version = new Version(input)
 
@@ -88,7 +89,7 @@ object Version {
       if (versions.size == 1)
         versions.head.value
       else
-        versions.map { v => JsObject(valueField -> v.value, ratioField -> JsNumber(v.ratio)) }.toJson
+        versions.map { v => JsObject(valueField -> v.value, ratioField -> JsNumber(v.ratio - (v.ratio % ratioPrecision))) }.toJson
     }.compactPrint
   }
 }
