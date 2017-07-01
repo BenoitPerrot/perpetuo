@@ -19,6 +19,11 @@
   .version {
     margin-left: 2em;
   }
+  .ratio {
+    vertical-align: super;
+    font-size: smaller;
+    color: gray;
+  }
 
   #general, #target, #operations {
     padding: 24px 16px;
@@ -39,7 +44,12 @@
   <template>
     <h1>
       <span class="product-name">[[data.productName]]</span>
-      <span class="version">[[data.version]]</span>
+      <span class="version">
+        <template is="dom-repeat" items="[[version]]">
+          <template is="dom-if" if="[[index]]">+</template>
+          [[item.value]]<template is="dom-if" if="[[item.ratio]]">&nbsp;<span class="ratio">[[asPercentage(item.ratio)]]%</span></template>
+        </template>
+      </span>
     </h1>
     <paper-card id="general">
       <h1>General</h1>
@@ -61,6 +71,7 @@
 
     properties: {
       data: { type: Object, value: () => {} },
+      version: {type: Array, computed: 'computeVersion(data)'},
     },
 
     timestampToDates(t) {
@@ -74,6 +85,15 @@
       const isoTime = iso[1].split('.')[0];
 
       return `${isoYMD} at ${isoTime} UTC (` + (localYMD !== isoYMD ? localYMD + ' ' : '') + localTime + ' local time)';
+    },
+
+
+    computeVersion(data) {
+      return Array.isArray(data.version) ? data.version : [{value: data.version}];
+    },
+
+    asPercentage(ratio) {
+      return ratio * 100;
     }
   })
   </script>
