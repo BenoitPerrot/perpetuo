@@ -44,6 +44,11 @@
     font-size: 20px;
     width: 10%;
   }
+  span.ratio {
+    vertical-align: super;
+    font-size: smaller;
+    color: gray;
+  }
   span.target {
     width: 20%;
   }
@@ -100,7 +105,11 @@
   <template>
     <div class="heading">
       <span class="product-name"><paper-icon-button icon="[[expanderIcon(expanded, hasMore)]]" disabled="[[!hasMore]]" on-tap="toggle"></paper-icon-button><span on-tap="toggle">[[data.productName]]</span></span>
-      <span class="version">[[shortVersion]]</span>
+      <span class="version">
+        <template is="dom-repeat" items="[[shortVersion]]">
+          [[item.value]]<template is="dom-if" if="[[item.ratio]]">&nbsp;<span class="ratio">[[asPercentage(item.ratio)]]%</span></template><br/>
+        </template>
+      </span>
       <span class="target">[[data.target]]</span>
       <span class="creator">[[data.creator]]</span>
       <span class="creation-date">[[data.dateString]]</span>
@@ -144,7 +153,7 @@
       state: { type: String, computed: 'computeState(data)' },
       expanded: { type: Boolean, notify: true },
       hasMore: { type: Boolean, computed: 'computeHasMore(data)' },
-      shortVersion: { type: String, computed: 'computeShortVersion(data)' },
+      shortVersion: { type: Array, computed: 'computeShortVersion(data)' },
       comment: { type: Object, computed: 'computeComment(data)' }
     },
 
@@ -177,14 +186,16 @@
       return data.comment || 0 < data.operations.length;
     },
 
-    shortenVersionValue(v) {
-      return v.length > 10 ? v.slice(0, 7) + "..." : v
+    computeShortVersion(data) {
+      const uniformed = Array.isArray(data.version) ? data.version : [{value: data.version}];
+      return uniformed.map(version => ({
+        value: (expr => expr.length > 10 ? expr.slice(0, 7) + "..." : expr)(version.value.toString()),
+        ratio: version.ratio
+      }));
     },
 
-    computeShortVersion(data) {
-      return Array.isArray(data.version) ?
-        data.version.map(v => this.shortenVersionValue(v.value.toString()) + "@" + (v.ratio * 100) + "%").join(" + ") :
-        this.shortenVersionValue(data.version)
+    asPercentage(ratio) {
+      return ratio * 100;
     },
 
     computeComment(data) {
