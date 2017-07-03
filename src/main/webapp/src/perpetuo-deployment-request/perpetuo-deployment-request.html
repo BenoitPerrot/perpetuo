@@ -70,7 +70,7 @@
     is: 'perpetuo-deployment-request',
 
     properties: {
-      data: { type: Object, value: () => {} },
+      data: { type: Object, value: () => ({}) },
       version: {type: Array, computed: 'computeVersion(data)'},
     },
 

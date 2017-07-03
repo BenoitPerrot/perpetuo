@@ -149,7 +149,7 @@
     is: 'perpetuo-deployment-request-entry',
 
     properties: {
-      data: { type: Object, value: () => {} },
+      data: { type: Object, value: () => ({}) },
       state: { type: String, computed: 'computeState(data)' },
       expanded: { type: Boolean, notify: true },
       hasMore: { type: Boolean, computed: 'computeHasMore(data)' },
