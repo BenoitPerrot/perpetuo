@@ -78,7 +78,7 @@ class CriteoHooks extends Hooks {
                             "summary"          : "$productName (${componentName?.plus(" ") ?: ""}JMOAB #$version)".toString(),
                             "issuetype"        : ["name": "[MOAB] Release"],
                             "customfield_11006": ["value": componentName ?: productName],
-                            "customfield_11003": version,
+                            "customfield_11003": rawVersion,
                             "customfield_12500": lastValidatedVersion,
                             "customfield_12702": ["value": bools[metadata.getOrDefault("preprodNeededField", false)]],
                             "customfield_12703": ["value": metadata.getOrDefault("deployType", "Worldwide")],
