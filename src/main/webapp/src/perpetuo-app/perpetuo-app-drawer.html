@@ -1,0 +1,34 @@
+<link rel="import" href="../../bower_components/polymer/polymer.html">
+
+<link rel="import" href="../../bower_components/app-layout/app-drawer/app-drawer.html">
+<link rel="import" href="../../bower_components/iron-icons/iron-icons.html">
+<link rel="import" href="../../bower_components/paper-item/paper-icon-item.html">
+
+<dom-module id="perpetuo-app-drawer">
+  <style>
+  app-drawer {
+    --app-drawer-scrim-background: rgba(255, 255, 255, 0.5);
+    --app-drawer-content-container: {
+      background-color: #333;
+    }
+  }
+  app-drawer a {
+    color: #eee;
+  }
+  </style>
+  <template>
+    <app-drawer id="drawer" swipe-open>
+      <a href="/"><paper-icon-item><iron-icon icon="menu" item-icon></iron-icon>Perpetuo</paper-icon-item></a>
+      <a href="/deployment-requests"><paper-icon-item><iron-icon icon="unarchive" item-icon></iron-icon>Deployment Requests</paper-icon-item></a>
+      <a href="/products"><paper-icon-item><iron-icon icon="folder-open" item-icon></iron-icon>Products</paper-icon-item></a>
+    </app-drawer>
+  </template>
+  <script>
+  Polymer({
+    is: 'perpetuo-app-drawer',
+    toggle() {
+      this.$.drawer.toggle();
+    }
+  });
+  </script>
+</dom-module>
