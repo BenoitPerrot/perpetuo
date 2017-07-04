@@ -13,7 +13,6 @@
 <link rel="import" href="../../bower_components/paper-icon-button/paper-icon-button.html">
 <link rel="import" href="../../bower_components/paper-item/paper-icon-item.html">
 
-<link rel="import" href="../perpetuo-administration/perpetuo-administration-page.html">
 <link rel="import" href="../perpetuo-client/perpetuo-client.html">
 <link rel="import" href="../perpetuo-deployment-request/perpetuo-deployment-requests-page.html">
 <link rel="import" href="../perpetuo-identity/perpetuo-identity.html">
@@ -80,14 +79,12 @@
         <div page-route="*" title=""></div>
         <perpetuo-deployment-requests-page page-route="deployment-requests" title="Deployment Requests" route="{{subroute}}" on-create="onCreateDeploymentRequest"></perpetuo-deployment-requests-page>
         <perpetuo-products-page page-route="products" title="Products"></perpetuo-products-page>
-        <perpetuo-administration-page page-route="administration" title="Administration"></perpetuo-administration-page>
       </iron-pages>
     </app-header-layout>
     <app-drawer id="drawer" swipe-open>
       <a href="/"><paper-icon-item><iron-icon icon="menu" item-icon></iron-icon>Perpetuo</paper-icon-item></a>
       <a href="/deployment-requests"><paper-icon-item><iron-icon icon="unarchive" item-icon></iron-icon>Deployment Requests</paper-icon-item></a>
       <a href="/products"><paper-icon-item><iron-icon icon="folder-open" item-icon></iron-icon>Products</paper-icon-item></a>
-      <a href="/administration"><paper-icon-item><iron-icon icon="settings" item-icon></iron-icon>Administration</paper-icon-item></a>
     </app-drawer>
     <perpetuo-deployment-request-creation-form with-backdrop></perpetuo-deployment-request-creation-form>
   </template>
