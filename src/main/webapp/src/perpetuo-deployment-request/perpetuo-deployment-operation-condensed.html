@@ -62,7 +62,7 @@ function arrayifyTargetStatus(targetStatusMap) {
     properties: {
       selected: { type: Number, value: 0 },
 
-      data: { type: Object, value: () => ({}), observer: 'onDataChanged' },
+      data: { type: Object, observer: 'onDataChanged' },
 
       targetStatus: { type: Array, value: () => [] },
       type: { type: String },
