@@ -17,7 +17,7 @@ private[dao] case class OperationTraceRecord(id: Option[Long],
                                              creationDate: java.sql.Timestamp,
                                              closingDate: Option[java.sql.Timestamp]) {
   def toOperationTrace: OperationTrace = {
-    OperationTrace(id.get, deploymentRequestId, operation, targetStatus)
+    OperationTrace(id.get, deploymentRequestId, operation, creator, creationDate, targetStatus)
   }
 }
 

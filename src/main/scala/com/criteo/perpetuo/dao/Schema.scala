@@ -134,6 +134,8 @@ class DbBinding @Inject()(val dbContext: DbContext)
               Map(
                 "id" -> op.id,
                 "type" -> op.operation.toString,
+                "creator" -> op.creator,
+                "creationDate" -> op.creationDate,
                 "targetStatus" -> op.targetStatus,
                 "executions" -> execs
               )

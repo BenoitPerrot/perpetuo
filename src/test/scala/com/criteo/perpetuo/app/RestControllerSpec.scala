@@ -168,6 +168,8 @@ class RestControllerSpec extends FeatureTest with TestDb {
     Map(
       "id" -> T,
       "type" -> "deploy".toJson,
+      "creator" -> "qabot".toJson,
+      "creationDate" -> T,
       "targetStatus" -> expectedTargetStatus.mapValues { case (s, d) => Map("code" -> s, "detail" -> d) }.toJson,
       "executions" -> JsArray(
         JsObject(
@@ -484,6 +486,8 @@ class RestControllerSpec extends FeatureTest with TestDb {
       Map(
         "id" -> T,
         "type" -> JsString("deploy"),
+        "creator" -> "qabot".toJson,
+        "creationDate" -> T,
         "targetStatus" -> JsObject()
       ) shouldEqual traces.head.asJsObject.fields
     }
@@ -532,6 +536,8 @@ class RestControllerSpec extends FeatureTest with TestDb {
         JsObject(
           "id" -> T,
           "type" -> "deploy".toJson,
+          "creator" -> "qabot".toJson,
+          "creationDate" -> T,
           "targetStatus" -> Map(
             "par" -> Map("code" -> "success", "detail" -> "").toJson,
             "am5" -> Map("code" -> "hostFailure", "detail" -> "some interesting details").toJson
@@ -551,6 +557,8 @@ class RestControllerSpec extends FeatureTest with TestDb {
         JsObject(
           "id" -> T,
           "type" -> "deploy".toJson,
+          "creator" -> "stdUser".toJson,
+          "creationDate" -> T,
           "targetStatus" -> JsObject(),
           "executions" -> JsArray(
             JsObject(

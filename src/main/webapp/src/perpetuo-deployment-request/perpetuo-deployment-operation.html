@@ -24,6 +24,7 @@
   </style>
   <template>
     <h1>Operation #[[plusOne(index)]]: [[data.type]]</h1>
+    <p>Started by [[data.creator]] on [[timestampToDates(data.creationDate)]]</p>
     <h2>Summary</h2>
     <perpetuo-target-status-table data="[[arrayifyTargetStatus(data.targetStatus)]]"></perpetuo-target-status-table>
     <h2>Execution Logs</h2>
@@ -36,6 +37,19 @@
     properties: {
       index: { type: Number },
       data: Object,
+    },
+
+    timestampToDates(t) {
+      const date = new Date(t * 1000);
+
+      const localYMD = date.getFullYear() + '-' + (date.getMonth() + 1) + '-' + date.getDate();
+      const localTime = date.toTimeString().split(' ')[0];
+
+      const iso = date.toISOString().split('T');
+      const isoYMD = iso[0].replace(/-0/g, '-');
+      const isoTime = iso[1].split('.')[0];
+
+      return `${isoYMD} at ${isoTime} UTC (` + (localYMD !== isoYMD ? localYMD + ' ' : '') + localTime + ' local time)';
     },
 
     plusOne(i) {
