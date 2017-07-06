@@ -186,7 +186,7 @@ class RestController @Inject()(val execution: Execution)
               .map { depReq => Some(response.created.json(Map("id" -> depReq.id))) }
           }
         },
-        2.seconds
+        5.seconds // fixme: get back to 2 seconds when the hook will be called asynchronously
       )
     }
   }
