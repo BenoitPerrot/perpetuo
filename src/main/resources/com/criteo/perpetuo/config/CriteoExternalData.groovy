@@ -16,6 +16,8 @@ class CriteoExternalData extends ExternalData { // fixme: this only works with J
         Map<String, ?> allValidation = fetchIsValid(version)
         if (manifest == null) {
             ["Product does not exist or has never been built."]
+        } else if (manifest.artifacts == null) {
+            [] // cannot do validation for that product...
         } else if (allRepos == null || allValidation == null) {
             ["No data could be found. Version may be still being built or packaged."]
         } else {
@@ -42,7 +44,7 @@ class CriteoExternalData extends ExternalData { // fixme: this only works with J
     static Map<String, ?> getChangeLog(String productName, String version, String previousVersion) {
         Map<String, ?> manifest = fetchManifest(productName)
         Map<String, String> allRepos = fetchArtifactToRepository(version)
-        if (manifest == null || allRepos == null) {
+        if (manifest?.artifacts == null || allRepos == null) {
             [:]
         } else {
             def repos = manifest.artifacts.collect {
@@ -74,24 +76,20 @@ class CriteoExternalData extends ExternalData { // fixme: this only works with J
 
     @Override
     java.util.List<String> suggestVersions(String productName) {
-        def l = []
-        try {
-            Map<String, ?> productManifest = fetchManifest(productName)
+        Map<String, ?> productManifest = fetchManifest(productName)
 
-            def requiredArtifactToLatestVersions = productManifest.get('artifacts').collectEntries { artifact ->
-                String groupId = artifact.get('groupId')
-                String artifactId = artifact.get('artifactId')
-                [ (artifact): fetchLatestVersions(groupId, artifactId) ]
-            }
+        if (productManifest?.artifacts == null)
+            return []
 
-            l = requiredArtifactToLatestVersions.inject(null as List<String>) { suggestions, requiredArtifact, latestVersions ->
-                suggestions == null ? latestVersions : suggestions.findAll { latestVersions.contains(it) }
-            }
-
-        } catch (Exception e) {
-            System.err.println(e.getStackTrace())
+        def requiredArtifactToLatestVersions = productManifest.artifacts.collectEntries { artifact ->
+            String groupId = artifact.groupId
+            String artifactId = artifact.artifactId
+            [(artifact): fetchLatestVersions(groupId, artifactId)]
         }
-        return l
+
+        return requiredArtifactToLatestVersions.inject(null as List<String>) { suggestions, requiredArtifact, latestVersions ->
+            suggestions == null ? latestVersions : suggestions.findAll { latestVersions.contains(it) }
+        } ?: []
     }
 
     static Map<String, ?> fetchManifest(String productName) {
