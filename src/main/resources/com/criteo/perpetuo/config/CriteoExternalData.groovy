@@ -62,10 +62,10 @@ class CriteoExternalData extends ExternalData { // fixme: this only works with J
                             listOfChanges[moab.moabId][commit.repo] = [:]
                         if (!listOfChanges[moab.moabId][commit.repo][commit.sha1])
                             listOfChanges[moab.moabId][commit.repo][commit.sha1] = [
-                                author:commit.author,
-                                date:commit.date,
-                                title:commit.title,
-                                message:commit.message
+                                    author : commit.author,
+                                    date   : commit.date,
+                                    title  : commit.title,
+                                    message: commit.message
                             ]
                     }
                 }
@@ -90,6 +90,7 @@ class CriteoExternalData extends ExternalData { // fixme: this only works with J
         return requiredArtifactToLatestVersions.inject(null as List<String>) { suggestions, requiredArtifact, latestVersions ->
             suggestions == null ? latestVersions : suggestions.findAll { latestVersions.contains(it) }
         } ?: []
+
     }
 
     static Map<String, ?> fetchManifest(String productName) {
@@ -111,7 +112,7 @@ class CriteoExternalData extends ExternalData { // fixme: this only works with J
             assert resp.status == 200
             return resp.data.collectMany { repo ->
                 repo.getOrDefault('artifacts', [:]).getOrDefault('created', []).collect {
-                    [it, repo.get('name')]
+                    [it, repo.name]
                 }
             }.collectEntries { it }
         } catch (HttpResponseException e) {
@@ -145,11 +146,12 @@ class CriteoExternalData extends ExternalData { // fixme: this only works with J
     static List<Map<String, ?>> getChangeLogForRepo(String repoName, String requestedVersion, String previousVersion) {
         def client = new RESTClient("http://software-factory-services.marathon-par.central.criteo.preprod")
         def query = [
-                'repositories': repoName,
+                'repositories'     : repoName,
                 'with-dependencies': true,
-                'format': 'json',
+                'format'           : 'json',
         ]
-        if (previousVersion) {  // If previous version is not given, we might want to display the changes for the current version
+        if (previousVersion) {
+            // If previous version is not given, we might want to display the changes for the current version
             query += ['since': previousVersion]
         }
         try {
