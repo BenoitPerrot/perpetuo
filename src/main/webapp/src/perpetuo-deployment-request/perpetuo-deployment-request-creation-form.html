@@ -177,8 +177,10 @@
       this.versionSuggestions = [];
       if (name !== null) {
         this.client.suggestProductVersions(name).then(_ => {
-          if (this.selectedProductName === name) { // Support out-of-order responses
-            this.versionSuggestions = _;
+          if (!_.errors) { // TODO: decide of error handling in the client
+            if (this.selectedProductName === name) { // Support out-of-order responses
+              this.versionSuggestions = _;
+            }
           }
         });
       }
