@@ -1,7 +1,10 @@
 <link rel="import" href="../../bower_components/polymer/polymer.html">
 
-<link rel="import" href="../../bower_components/iron-overlay-behavior/iron-overlay-backdrop.html">
+<link rel="import" href="../../bower_components/app-layout/app-header/app-header.html">
+<link rel="import" href="../../bower_components/app-layout/app-header-layout/app-header-layout.html">
 
+<link rel="import" href="../perpetuo-app/perpetuo-app-drawer.html">
+<link rel="import" href="../perpetuo-app/perpetuo-app-toolbar.html">
 <link rel="import" href="../perpetuo-client/perpetuo-client.html">
 <link rel="import" href="../perpetuo-deployment-request/perpetuo-deployment-request.html">
 <link rel="import" href="../perpetuo-deployment-request/perpetuo-deployment-request-table.html">
@@ -9,17 +12,6 @@
 
 <dom-module id="perpetuo-deployment-requests-page">
   <style>
-  :host {
-    display: flex;
-    flex-direction: row;
-  }
-  app-route {
-    display: none;
-  }
-  :host > * {
-    flex: 1;
-  }
-
   #deployment-requester {
     margin: 1em;
   }
@@ -46,26 +38,33 @@
   <template>
     <perpetuo-identity id="identity" login="{{login}}"></perpetuo-identity>
 
-    <iron-pages id="pageSelector" selected="[[selectPage(route)]]" fallback-selection="single" attr-for-selected="id">
-      <div id="all" style="display: flex">
-        <div class="toolbox">
-          <div>
-            <paper-button raised id="deployment-requester" on-tap="onCreateTap">Request Deployment</paper-button>
-            <paper-radio-group selected="{{dateFormat}}">
-              <paper-radio-button name="timestampToUTCDate">Time in UTC</paper-radio-button>
-              <paper-radio-button name="timestampToLocalDate">Local time</paper-radio-button>
-            </paper-radio-group>
-            <perpetuo-list-editor key="productName" label="Filter by product" choices="[[productNames]]" on-chosen-changed="updateFilter"></perpetuo-list-editor>
+    <app-header-layout>
+      <app-header reveals>
+        <perpetuo-app-toolbar on-drawer-toggle-tap="toggleDrawer" page-title="Deployment Requests"></perpetuo-app-toolbar>
+      </app-header>
+      <iron-pages id="pageSelector" selected="[[selectPage(route)]]" fallback-selection="single" attr-for-selected="id">
+        <div id="all" style="display: flex">
+          <div class="toolbox">
+            <div>
+              <paper-button raised id="deployment-requester" on-tap="onCreateTap">Request Deployment</paper-button>
+              <paper-radio-group selected="{{dateFormat}}">
+                <paper-radio-button name="timestampToUTCDate">Time in UTC</paper-radio-button>
+                <paper-radio-button name="timestampToLocalDate">Local time</paper-radio-button>
+              </paper-radio-group>
+              <perpetuo-list-editor key="productName" label="Filter by product" choices="[[productNames]]" on-chosen-changed="updateFilter"></perpetuo-list-editor>
+            </div>
+          </div>
+          <div class="main">
+            <perpetuo-deployment-request-table id="deploymentRequestTable" date-format="[[dateFormat]]" on-page-changed="onPageChanged" on-order-changed="onOrderChanged"></perpetuo-deployment-request-table>
           </div>
         </div>
-        <div class="main">
-          <perpetuo-deployment-request-table id="deploymentRequestTable" date-format="[[dateFormat]]" on-page-changed="onPageChanged" on-order-changed="onOrderChanged"></perpetuo-deployment-request-table>
+        <div id="single">
+          <perpetuo-deployment-request></perpetuo-deployment-request>
         </div>
-      </div>
-      <div id="single">
-        <perpetuo-deployment-request></perpetuo-deployment-request>
-      </div>
-    </iron-pages>
+      </iron-pages>
+    </app-header-layout>
+    <perpetuo-app-drawer id="drawer"></perpetuo-app-drawer>
+    <perpetuo-deployment-request-creation-form with-backdrop></perpetuo-deployment-request-creation-form>
   </template>
   <script>
   Polymer({
@@ -128,7 +127,7 @@
 
     onCreateTap() {
       if (this.login) {
-        this.fire('create');
+        this.$$('perpetuo-deployment-request-creation-form').open();
       } else {
         this.$.identity.request();
       }
@@ -158,6 +157,9 @@
       this.refresh(true);
     },
 
+    toggleDrawer() {
+      this.$.drawer.toggle();
+    }
   });
   </script>
 </dom-module>

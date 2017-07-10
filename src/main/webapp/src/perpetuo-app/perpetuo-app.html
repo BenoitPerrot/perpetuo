@@ -1,15 +1,10 @@
 <link rel="import" href="../../bower_components/polymer/polymer.html">
 
-<link rel="import" href="../../bower_components/app-layout/app-header/app-header.html">
-<link rel="import" href="../../bower_components/app-layout/app-header-layout/app-header-layout.html">
 <link rel="import" href="../../bower_components/app-route/app-location.html">
 <link rel="import" href="../../bower_components/app-route/app-route.html">
 <link rel="import" href="../../bower_components/font-roboto/roboto.html">
 <link rel="import" href="../../bower_components/iron-pages/iron-pages.html">
 
-<link rel="import" href="../perpetuo-app/perpetuo-app-drawer.html">
-<link rel="import" href="../perpetuo-app/perpetuo-app-toolbar.html">
-<link rel="import" href="../perpetuo-client/perpetuo-client.html">
 <link rel="import" href="../perpetuo-deployment-request/perpetuo-deployment-requests-page.html">
 <link rel="import" href="../perpetuo-identity/perpetuo-identity.html">
 <link rel="import" href="../perpetuo-product/perpetuo-products-page.html">
@@ -20,11 +15,6 @@
     :host {
       flex: 1;
     }
-
-    app-header {
-      @apply(--layout-fixed-top);
-      color: #fff;
-    }
     </style>
 
     <perpetuo-identity id="identity" login="{{login}}"></perpetuo-identity>
@@ -33,18 +23,11 @@
     <app-route route="{{route}}" pattern="/identify" data="{{routeData}}" tail="{{subroute}}" on-active-changed="onIdentifyActiveChanged"></app-route>
     <app-route route="{{route}}" pattern="/:page" data="{{routeData}}" tail="{{subroute}}"></app-route>
 
-    <app-header-layout>
-      <app-header reveals>
-        <perpetuo-app-toolbar on-drawer-toggle-tap="toggleDrawer" page-title="[[activePageTitle]]"></perpetuo-app-toolbar>
-      </app-header>
-      <iron-pages id="pageSelector" selected="[[routeData.page]]" fallback-selection="*" attr-for-selected="page-route" on-iron-select="onPageSelected">
-        <div page-route="*" title=""></div>
-        <perpetuo-deployment-requests-page page-route="deployment-requests" title="Deployment Requests" route="{{subroute}}" on-create="onCreateDeploymentRequest"></perpetuo-deployment-requests-page>
-        <perpetuo-products-page page-route="products" title="Products"></perpetuo-products-page>
-      </iron-pages>
-    </app-header-layout>
-    <perpetuo-app-drawer id="drawer"></perpetuo-app-drawer>
-    <perpetuo-deployment-request-creation-form with-backdrop></perpetuo-deployment-request-creation-form>
+    <iron-pages id="pageSelector" selected="[[routeData.page]]" fallback-selection="*" attr-for-selected="page-route" on-iron-select="onPageSelected">
+      <div page-route="*" title=""></div>
+      <perpetuo-deployment-requests-page page-route="deployment-requests" title="Deployment Requests" route="{{subroute}}"></perpetuo-deployment-requests-page>
+      <perpetuo-products-page page-route="products" title="Products"></perpetuo-products-page>
+    </iron-pages>
   </template>
 
   <script>
@@ -54,12 +37,7 @@
       properties: {
         route: Object,
         subroute: Object,
-        routeData: Object,
-        activePageTitle: { type: String }
-      },
-
-      toggleDrawer() {
-        this.$.drawer.toggle();
+        routeData: Object
       },
 
       onIdentifyActiveChanged(e) {
@@ -71,18 +49,13 @@
       onPageSelected() {
         const selectedPage = this.$.pageSelector.selectedItem;
         if (selectedPage) {
-          this.activePageTitle = selectedPage.getAttribute('title');
           // TODO: show a Welcome page, and a 404-unknown page, instead of always redirecting to deployment-requests <<
-          if (!this.activePageTitle) {
+          if (!selectedPage.getAttribute('title')) {
             this.route = { prefix: '', path: '/deployment-requests' };
           }
           // >>
         }
       },
-
-      onCreateDeploymentRequest() {
-        this.$$('perpetuo-deployment-request-creation-form').open();
-      }
     });
   </script>
 </dom-module>
