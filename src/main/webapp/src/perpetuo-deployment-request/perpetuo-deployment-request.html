@@ -1,18 +1,23 @@
 <link rel="import" href="../../bower_components/polymer/polymer.html">
 
+<link rel="import" href="../../bower_components/app-layout/app-header/app-header.html">
+<link rel="import" href="../../bower_components/app-layout/app-header-layout/app-header-layout.html">
 <link rel="import" href="../../bower_components/paper-card/paper-card.html">
 
+<link rel="import" href="../perpetuo-app/perpetuo-app-drawer.html">
+<link rel="import" href="../perpetuo-app/perpetuo-app-toolbar.html">
 <link rel="import" href="../perpetuo-deployment-request/perpetuo-deployment-operation.html">
 
 <dom-module id="perpetuo-deployment-request">
   <style>
-  :host {
+  .body {
     display: flex;
     flex-direction: column;
+    padding: 20px;
   }
-  :host > h1 {
+  .body > h1 {
     border-bottom: solid 1px #ddd;
-    padding-bottom: 0.5em;
+    padding: 0 0 0.5em 0;
     font-weight: normal;
   }
 
@@ -42,28 +47,36 @@
 
   </style>
   <template>
-    <h1>
-      <span class="product-name">[[data.productName]]</span>
-      <span class="version">
-        <template is="dom-repeat" items="[[version]]">
-          <template is="dom-if" if="[[index]]">+</template>
-          [[item.value]]<template is="dom-if" if="[[item.ratio]]">&nbsp;<span class="ratio">[[asPercentage(item.ratio)]]%</span></template>
+    <app-header-layout>
+      <app-header reveals>
+        <perpetuo-app-toolbar on-drawer-toggle-tap="toggleDrawer" page-title="Deployment Requests"></perpetuo-app-toolbar>
+      </app-header>
+      <div class="body">
+        <h1>
+          <span class="product-name">[[data.productName]]</span>
+          <span class="version">
+            <template is="dom-repeat" items="[[version]]">
+              <template is="dom-if" if="[[index]]">+</template>
+              [[item.value]]<template is="dom-if" if="[[item.ratio]]">&nbsp;<span class="ratio">[[asPercentage(item.ratio)]]%</span></template>
+            </template>
+          </span>
+        </h1>
+        <paper-card id="general">
+          <h1>General</h1>
+          <p>Requested by [[data.creator]] on [[timestampToDates(data.creationDate)]]</p>
+        </paper-card>
+        <paper-card id="target">
+          <h1>Deployment Target</h1>
+          <p>[[data.target]]</p>
+        </paper-card>
+        <template is="dom-repeat" items="[[data.operations]]">
+          <paper-card id="operations">
+            <perpetuo-deployment-operation index="[[index]]" data="[[item]]"></perpetuo-deployment-operation>
+          </paper-card>
         </template>
-      </span>
-    </h1>
-    <paper-card id="general">
-      <h1>General</h1>
-      <p>Requested by [[data.creator]] on [[timestampToDates(data.creationDate)]]</p>
-    </paper-card>
-    <paper-card id="target">
-      <h1>Deployment Target</h1>
-      <p>[[data.target]]</p>
-    </paper-card>
-    <template is="dom-repeat" items="[[data.operations]]">
-      <paper-card id="operations">
-        <perpetuo-deployment-operation index="[[index]]" data="[[item]]"></perpetuo-deployment-operation>
-      </paper-card>
-    </template>
+      </div>
+    </app-header-layout>
+    <perpetuo-app-drawer id="drawer"></perpetuo-app-drawer>
   </template>
   <script>
   Polymer({
@@ -94,7 +107,11 @@
 
     asPercentage(ratio) {
       return ratio * 100;
-    }
+    },
+
+    toggleDrawer() {
+      this.$.drawer.toggle();
+    },
   })
   </script>
 </dom-module>
