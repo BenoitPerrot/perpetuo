@@ -158,7 +158,7 @@ class RestController @Inject()(val execution: Execution)
             execution.dbBinding.findProductByName(attrs.productName)
               .map(_.map(DeploymentRequest(0, _, attrs.version, attrs.target, attrs.comment, attrs.creator, attrs.creationDate))
                 .getOrElse {
-                  throw BadRequestException(s"Product `${attrs.productName}` could not be found")
+                  throw new UnknownProduct(attrs.productName)
                 })
               .flatMap(plugins.hooks.onDeploymentRequestCreated(_, immediateStart = autoStart, r.contentString))
               .map(ticketUrl =>
@@ -182,9 +182,10 @@ class RestController @Inject()(val execution: Execution)
             }
 
             futureDepReq
-              .recover { case e: UnknownProduct => throw BadRequestException(s"Product `${e.productName}` could not be found") }
               .map { depReq => Some(response.created.json(Map("id" -> depReq.id))) }
           }
+        }.recover {
+          case e: UnknownProduct => throw BadRequestException(s"Product `${e.productName}` could not be found")
         },
         5.seconds // fixme: get back to 2 seconds when the hook will be called asynchronously
       )
