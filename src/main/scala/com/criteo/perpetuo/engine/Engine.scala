@@ -8,14 +8,15 @@ import com.criteo.perpetuo.dao.{DbBinding, UnknownProduct}
 import com.criteo.perpetuo.dispatchers.Execution
 import com.criteo.perpetuo.model.DeploymentRequestParser._
 import com.criteo.perpetuo.model._
-import com.twitter.finatra.http.exceptions.{BadRequestException, ConflictException}
 import spray.json.DefaultJsonProtocol._
-import spray.json.JsonParser.ParsingException
-import spray.json.{DeserializationException, _}
+import spray.json._
 
 import scala.collection.JavaConverters._
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
+
+case class ProductCreationConflict(productName: String, private val cause: Throwable = None.orNull)
+  extends Exception(s"Name `$productName` is already used", cause)
 
 @Singleton
 class Engine @Inject()(val dbBinding: DbBinding) {
@@ -33,7 +34,7 @@ class Engine @Inject()(val dbBinding: DbBinding) {
           // there is no specific exception type if the name is already used but the error message starts with
           // - if H2: Unique index or primary key violation: "ix_product_name ON PUBLIC.""product""(""name"") VALUES ('my product', 1)"
           // - if SQLServer: Cannot insert duplicate key row in object 'dbo.product' with unique index 'ix_product_name'
-          throw ConflictException(s"Name `$productName` is already used")
+          throw ProductCreationConflict(productName, e)
       }
 
   def suggestVersions(productName: String): Seq[String] =
@@ -51,12 +52,8 @@ class Engine @Inject()(val dbBinding: DbBinding) {
     dbBinding.findDeploymentRequestByIdWithProduct(deploymentRequestId)
 
   def createDeploymentRequest(creatorName: String, description: String, immediateStart: Boolean): Future[Map[String, Any]] = {
-    val attrs = try {
-      parse(description, creatorName)
-    }
-    catch {
-      case e: ParsingException => throw BadRequestException(e.getMessage)
-    }
+    // FIXME: move parsing to the caller
+    val attrs = parse(description, creatorName)
 
     if (AppConfig.transition && !immediateStart) {
       dbBinding.findProductByName(attrs.productName)
@@ -125,7 +122,7 @@ class Engine @Inject()(val dbBinding: DbBinding) {
       try {
         ExecutionState.withName(state)
       } catch {
-        case _: NoSuchElementException => throw BadRequestException(s"Unknown state `$state`")
+        case _: NoSuchElementException => throw new IllegalArgumentException(s"Unknown state `$state`")
       }
 
     val statusMap =
@@ -134,7 +131,7 @@ class Engine @Inject()(val dbBinding: DbBinding) {
           case (k, obj) => (k, Status.targetMapJsonFormat.read(obj.toJson)) // yes it's crazy to use spray's case class deserializer
         }
       } catch {
-        case e: DeserializationException => throw BadRequestException(e.getMessage)
+        case e: DeserializationException => throw new IllegalArgumentException(e.getMessage)
       }
 
     val executionUpdate =

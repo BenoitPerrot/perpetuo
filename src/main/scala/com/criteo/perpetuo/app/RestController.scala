@@ -7,14 +7,15 @@ import com.criteo.perpetuo.auth.UserFilter._
 import com.criteo.perpetuo.config.AppConfig
 import com.criteo.perpetuo.dao.UnknownProduct
 import com.criteo.perpetuo.dispatchers.Execution
-import com.criteo.perpetuo.engine.Engine
+import com.criteo.perpetuo.engine.{Engine, ProductCreationConflict}
 import com.twitter.finagle.http.{Request, Response, Status => HttpStatus}
-import com.twitter.finatra.http.exceptions.{BadRequestException, HttpException}
+import com.twitter.finatra.http.exceptions.{BadRequestException, ConflictException, HttpException}
 import com.twitter.finatra.http.{Controller => BaseController}
 import com.twitter.finatra.request._
 import com.twitter.finatra.utils.FuturePools
 import com.twitter.finatra.validation._
 import com.twitter.util.{Future => TwitterFuture}
+import spray.json.JsonParser.ParsingException
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
@@ -100,7 +101,10 @@ class RestController @Inject()(val engine: Engine)
     authenticate(r.request) { case user if user.name == deployBotName =>
       timeBoxed(
         engine.insertProduct(r.name)
-          .map(_ => Some(response.created.nothing)),
+          .map(_ => Some(response.created.nothing))
+          .recover { case e: ProductCreationConflict =>
+            throw ConflictException(e.getMessage)
+          },
         2.seconds
       )
     }
@@ -129,11 +133,15 @@ class RestController @Inject()(val engine: Engine)
     val autoStart = r.getBooleanParam("start", default = false)
     authenticate(r) { case user if user.name == deployBotName || !autoStart =>
       timeBoxed(
-        engine.createDeploymentRequest(user.name, r.contentString, autoStart)
-          .map(x => Some(response.created.json(x)))
-          .recover {
-            case e: UnknownProduct => throw BadRequestException(s"Product `${e.productName}` could not be found")
-          },
+        try {
+          engine.createDeploymentRequest(user.name, r.contentString, autoStart)
+            .map(x => Some(response.created.json(x)))
+            .recover {
+              case e: UnknownProduct => throw BadRequestException(s"Product `${e.productName}` could not be found")
+            }
+        } catch {
+          case e: ParsingException => throw BadRequestException(e.getMessage)
+        },
         5.seconds // fixme: get back to 2 seconds when the hook will be called asynchronously
       )
     }
@@ -159,7 +167,12 @@ class RestController @Inject()(val engine: Engine)
   put(RestApi.executionCallbackPath(":id")) {
     // todo: give the permission to Rundeck only
     withIdAndRequest(
-      (id, r: ExecutionTracePut) => engine.updateExecutionTrace(id, r.state, r.logHref, r.targetStatus).map(_.map(_ => response.noContent)),
+      (id, r: ExecutionTracePut) =>
+        try {
+          engine.updateExecutionTrace(id, r.state, r.logHref, r.targetStatus).map(_.map(_ => response.noContent))
+        } catch {
+          case e: IllegalArgumentException => throw BadRequestException(e.getMessage)
+        },
       3.seconds
     )
   }
