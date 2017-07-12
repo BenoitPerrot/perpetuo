@@ -70,30 +70,24 @@ class Engine @Inject()(val dbBinding: DbBinding) {
       // when the record is created, notify the corresponding hook
       futureDepReq.foreach(plugins.hooks.onDeploymentRequestCreated(_, immediateStart, description))
 
-      if (immediateStart) {
-        futureDepReq.flatMap(depReq =>
-          execution.startOperation(plugins.dispatcher, depReq, Operation.deploy, attrs.creator).map {
-            case (started, failed) => (depReq, started, failed)
-          }
-        ).foreach { case (depReq, started, failed) =>
-          plugins.hooks.onDeploymentRequestStarted(depReq, started, failed, immediately = true)
-        }
-      }
+      if (immediateStart)
+        futureDepReq.foreach(req => startDeploymentRequest(req, attrs.creator, immediately = true))
 
-      futureDepReq
-        .map(depReq => Map("id" -> depReq.id))
+      futureDepReq.map(depReq => Map("id" -> depReq.id))
     }
   }
 
+  private def startDeploymentRequest(req: DeploymentRequest, initiatorName: String, immediately: Boolean): Future[(Int, Int)] =
+    execution
+      .startOperation(plugins.dispatcher, req, Operation.deploy, initiatorName)
+      .map { case (started, failed) =>
+        plugins.hooks.onDeploymentRequestStarted(req, started, failed, immediately)
+        (started, failed)
+      }
+
   def startDeploymentRequest(deploymentRequestId: Long, initiatorName: String): Future[Option[Map[String, Any]]] =
     dbBinding.findDeploymentRequestByIdWithProduct(deploymentRequestId).map(_.map { req =>
-      // done asynchronously
-      execution.startOperation(plugins.dispatcher, req, Operation.deploy, initiatorName)
-        .foreach { case (started, failed) =>
-          plugins.hooks.onDeploymentRequestStarted(req, started, failed, immediately = false)
-        }
-
-      // returned synchronously
+      startDeploymentRequest(req, initiatorName, immediately = false)
       Map("id" -> req.id)
     })
 
