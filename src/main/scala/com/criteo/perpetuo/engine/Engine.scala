@@ -1,9 +1,10 @@
 package com.criteo.perpetuo.engine
 
 import java.sql.SQLException
+import javax.inject.{Inject, Singleton}
 
 import com.criteo.perpetuo.config.{AppConfig, Plugins}
-import com.criteo.perpetuo.dao.UnknownProduct
+import com.criteo.perpetuo.dao.{DbBinding, UnknownProduct}
 import com.criteo.perpetuo.dispatchers.Execution
 import com.criteo.perpetuo.model.DeploymentRequestParser._
 import com.criteo.perpetuo.model._
@@ -16,15 +17,17 @@ import scala.collection.JavaConverters._
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
-class Engine(val execution: Execution) {
+@Singleton
+class Engine @Inject()(val dbBinding: DbBinding) {
 
-  private val plugins = new Plugins(execution.dbBinding)
+  private val plugins = new Plugins(dbBinding)
+  private val execution =  new Execution(dbBinding)
 
   def getProductNames: Future[Seq[String]] =
-    execution.dbBinding.getProductNames
+    dbBinding.getProductNames
 
   def insertProduct(productName: String): Future[Product] =
-    execution.dbBinding.insert(productName)
+    dbBinding.insert(productName)
       .recover {
         case e: SQLException if e.getMessage.contains("nique index") =>
           // there is no specific exception type if the name is already used but the error message starts with
@@ -45,7 +48,7 @@ class Engine(val execution: Execution) {
   }
 
   def findDeploymentRequestByIdWithProduct(deploymentRequestId: Long): Future[Option[DeploymentRequest]] =
-    execution.dbBinding.findDeploymentRequestByIdWithProduct(deploymentRequestId)
+    dbBinding.findDeploymentRequestByIdWithProduct(deploymentRequestId)
 
   def createDeploymentRequest(creatorName: String, description: String, immediateStart: Boolean): Future[Map[String, Any]] = {
     val attrs = try {
@@ -56,7 +59,7 @@ class Engine(val execution: Execution) {
     }
 
     if (AppConfig.transition && !immediateStart) {
-      execution.dbBinding.findProductByName(attrs.productName)
+      dbBinding.findProductByName(attrs.productName)
         .map(_.map(DeploymentRequest(0, _, attrs.version, attrs.target, attrs.comment, attrs.creator, attrs.creationDate))
           .getOrElse {
             throw new UnknownProduct(attrs.productName)
@@ -66,7 +69,7 @@ class Engine(val execution: Execution) {
     }
     else {
       // first, log the user's general intent
-      val futureDepReq = execution.dbBinding.insert(attrs)
+      val futureDepReq = dbBinding.insert(attrs)
       // when the record is created, notify the corresponding hook
       futureDepReq.foreach(plugins.hooks.onDeploymentRequestCreated(_, immediateStart, description))
 
@@ -86,7 +89,7 @@ class Engine(val execution: Execution) {
   }
 
   def startDeploymentRequest(deploymentRequestId: Long, initiatorName: String): Future[Option[Map[String, Any]]] =
-    execution.dbBinding.findDeploymentRequestByIdWithProduct(deploymentRequestId).map(_.map { req =>
+    dbBinding.findDeploymentRequestByIdWithProduct(deploymentRequestId).map(_.map { req =>
       // done asynchronously
       execution.startOperation(plugins.dispatcher, req, Operation.deploy, initiatorName)
         .foreach { case (started, failed) =>
@@ -98,20 +101,20 @@ class Engine(val execution: Execution) {
     })
 
   def findOperationTracesByDeploymentRequest(deploymentRequestId: Long): Future[Option[Seq[OperationTrace]]] =
-    execution.dbBinding.findOperationTracesByDeploymentRequest(deploymentRequestId).flatMap { traces =>
+    dbBinding.findOperationTracesByDeploymentRequest(deploymentRequestId).flatMap { traces =>
       if (traces.isEmpty) {
         // if there is a deployment request with that ID, return the empty list, otherwise a 404
-        execution.dbBinding.deploymentRequestExists(deploymentRequestId).map(if (_) Some(traces) else None)
+        dbBinding.deploymentRequestExists(deploymentRequestId).map(if (_) Some(traces) else None)
       }
       else
         Future.successful(Some(traces))
     }
 
   def findExecutionTracesByDeploymentRequest(deploymentRequestId: Long): Future[Option[Seq[ExecutionTrace]]] =
-    execution.dbBinding.findExecutionTracesByDeploymentRequest(deploymentRequestId).flatMap { traces =>
+    dbBinding.findExecutionTracesByDeploymentRequest(deploymentRequestId).flatMap { traces =>
       if (traces.isEmpty) {
         // if there is a deployment request with that ID, return the empty list, otherwise a 404
-        execution.dbBinding.deploymentRequestExists(deploymentRequestId).map(if (_) Some(traces) else None)
+        dbBinding.deploymentRequestExists(deploymentRequestId).map(if (_) Some(traces) else None)
       }
       else
         Future.successful(Some(traces))
@@ -136,17 +139,17 @@ class Engine(val execution: Execution) {
 
     val executionUpdate =
       if (logHref.nonEmpty)
-        execution.dbBinding.updateExecutionTrace(id, logHref, executionState)
+        dbBinding.updateExecutionTrace(id, logHref, executionState)
       else
-        execution.dbBinding.updateExecutionTrace(id, executionState)
+        dbBinding.updateExecutionTrace(id, executionState)
 
     if (statusMap.nonEmpty)
       executionUpdate.flatMap {
         if (_) {
           // the execution trace has been updated, so it must exist!
-          execution.dbBinding.findExecutionTraceById(id).map(_.get).flatMap { execTrace =>
+          dbBinding.findExecutionTraceById(id).map(_.get).flatMap { execTrace =>
             val op = execTrace.operationTrace
-            execution.dbBinding.updateOperationTrace(op.id, op.partialUpdate(statusMap))
+            dbBinding.updateOperationTrace(op.id, op.partialUpdate(statusMap))
               .map { updated =>
                 assert(updated)
                 Some()
@@ -163,9 +166,9 @@ class Engine(val execution: Execution) {
   }
 
   def getDeepDeploymentRequest(deploymentRequestId: Long): Future[Option[Map[String, Any]]] =
-    execution.dbBinding.deepQueryDeploymentRequests(deploymentRequestId)
+    dbBinding.deepQueryDeploymentRequests(deploymentRequestId)
 
   def queryDeepDeploymentRequests(where: Seq[Map[String, Any]], orderBy: Seq[Map[String, Any]], limit: Int, offset: Int): Future[Iterable[Map[String, Any]]] =
-    execution.dbBinding.deepQueryDeploymentRequests(where, orderBy, limit, offset)
+    dbBinding.deepQueryDeploymentRequests(where, orderBy, limit, offset)
 
 }

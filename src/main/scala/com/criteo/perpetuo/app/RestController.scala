@@ -49,10 +49,9 @@ private case class SortingFilteringPost(orderBy: Seq[Map[String, Any]] = Seq(),
 /**
   * Controller that handles deployment requests as a REST API.
   */
-class RestController @Inject()(val execution: Execution)
+class RestController @Inject()(val engine: Engine)
   extends BaseController {
 
-  private val engine = new Engine(execution)
   private val futurePool = FuturePools.unboundedPool("RequestFuturePool")
   private val deployBotName = "qabot"
   private val escalationTeamNames = List(

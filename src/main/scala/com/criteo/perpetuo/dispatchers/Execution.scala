@@ -14,8 +14,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
 
-@Singleton
-class Execution @Inject()(val dbBinding: DbBinding) extends Logging {
+class Execution(val dbBinding: DbBinding) extends Logging {
 
   /**
     * Start all relevant executions and return the numbers of successful
