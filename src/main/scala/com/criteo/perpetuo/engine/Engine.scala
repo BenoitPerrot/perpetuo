@@ -62,14 +62,14 @@ class Engine @Inject()(val dbBinding: DbBinding) {
           .getOrElse {
             throw new UnknownProduct(attrs.productName)
           })
-        .flatMap(plugins.hooks.onDeploymentRequestCreated(_, immediateStart, description))
+        .flatMap(plugins.hooks.onDeploymentRequestCreated(_, immediateStart))
         .map(ticketUrl => Map("ticketUrl" -> ticketUrl))
     }
     else {
       // first, log the user's general intent
       val futureDepReq = dbBinding.insert(attrs)
       // when the record is created, notify the corresponding hook
-      futureDepReq.foreach(plugins.hooks.onDeploymentRequestCreated(_, immediateStart, description))
+      futureDepReq.foreach(plugins.hooks.onDeploymentRequestCreated(_, immediateStart))
 
       if (immediateStart)
         futureDepReq.foreach(req => startDeploymentRequest(req, attrs.creator, immediately = true))

@@ -44,7 +44,7 @@ class CriteoHooks extends Hooks {
     }
 
     @Override
-    String onDeploymentRequestCreated(DeploymentRequest deploymentRequest, boolean immediateStart, String requestBody) {
+    String onDeploymentRequestCreated(DeploymentRequest deploymentRequest, boolean immediateStart) {
         if (appConfig.env() != "preprod" && !immediateStart) {
             def jsonSlurper = new JsonSlurper()
             def productName = deploymentRequest.product().name()

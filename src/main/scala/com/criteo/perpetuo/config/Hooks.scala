@@ -8,7 +8,7 @@ import scala.concurrent.Future
 
 // fixme: temporarily parametrized
 trait BaseHooks[T] {
-  def onDeploymentRequestCreated(deploymentRequest: DeploymentRequest, immediateStart: Boolean, requestBody: String): T
+  def onDeploymentRequestCreated(deploymentRequest: DeploymentRequest, immediateStart: Boolean): T
 
   def onDeploymentRequestStarted(deploymentRequest: DeploymentRequest, startedExecutions: Int, failedToStart: Int, immediately: Boolean): Unit
 
@@ -20,7 +20,7 @@ class Hooks extends BaseHooks[String] with Plugin {
   /**
     * Methods that can be overridden as hooks.
     */
-  def onDeploymentRequestCreated(deploymentRequest: DeploymentRequest, immediateStart: Boolean, requestBody: String): String = null
+  def onDeploymentRequestCreated(deploymentRequest: DeploymentRequest, immediateStart: Boolean): String = null
 
   def onDeploymentRequestStarted(deploymentRequest: DeploymentRequest, startedExecutions: Int, failedToStart: Int, immediately: Boolean): Unit = {}
 
@@ -31,8 +31,8 @@ class Hooks extends BaseHooks[String] with Plugin {
 
 
 private[config] class HooksTrigger(implementation: Option[Hooks]) extends PluginRunner(implementation, new Hooks) with BaseHooks[Future[String]] {
-  override def onDeploymentRequestCreated(deploymentRequest: DeploymentRequest, immediateStart: Boolean, requestBody: String): Future[String] =
-    Future { wrap(_.onDeploymentRequestCreated(deploymentRequest, immediateStart, requestBody), name = "onDeploymentRequestCreated") }
+  override def onDeploymentRequestCreated(deploymentRequest: DeploymentRequest, immediateStart: Boolean): Future[String] =
+    Future { wrap(_.onDeploymentRequestCreated(deploymentRequest, immediateStart), name = "onDeploymentRequestCreated") }
 
   def onDeploymentRequestStarted(deploymentRequest: DeploymentRequest, startedExecutions: Int, failedToStart: Int, immediately: Boolean): Unit =
     Future { wrap(_.onDeploymentRequestStarted(deploymentRequest, startedExecutions, failedToStart, immediately), name = "onDeploymentRequestStarted") }
