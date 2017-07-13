@@ -3,6 +3,7 @@ package com.criteo.perpetuo.engine
 import com.twitter.inject.Test
 import com.criteo.perpetuo.TestDb
 import com.criteo.perpetuo.dao.DbBinding
+import com.criteo.perpetuo.model.ExecutionState
 
 import scala.concurrent.duration._
 import scala.concurrent.Await
@@ -23,7 +24,7 @@ class EngineSpec extends Test with TestDb {
           operationTraceId = operationTraces.head.id
           hasOpenExecutionBefore <- engine.dbBinding.hasOpenExecutionTracesForOperation(operationTraceId)
           executionTrace <- engine.dbBinding.findExecutionTracesByDeploymentRequest(deploymentRequestId).map(_.head)
-          _ <- engine.updateExecutionTrace(executionTrace.id, "completed", "", Map("moon" -> Map("code" -> "success", "detail" -> "no surprise"), "mars" -> Map("code" -> "hostFailure", "detail" -> "no surprise")))
+          _ <- engine.updateExecutionTrace(executionTrace.id, ExecutionState.completed, "", Map("moon" -> Map("code" -> "success", "detail" -> "no surprise"), "mars" -> Map("code" -> "hostFailure", "detail" -> "no surprise")))
           hasOpenExecutionAfter <- engine.dbBinding.hasOpenExecutionTracesForOperation(operationTraceId)
           operationClosingSucceeded <- engine.dbBinding.closeOperationTrace(operationTraceId)
         } yield {

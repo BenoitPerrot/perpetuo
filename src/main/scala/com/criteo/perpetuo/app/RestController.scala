@@ -6,8 +6,8 @@ import com.criteo.perpetuo.auth.User
 import com.criteo.perpetuo.auth.UserFilter._
 import com.criteo.perpetuo.config.AppConfig
 import com.criteo.perpetuo.dao.UnknownProduct
-import com.criteo.perpetuo.dispatchers.Execution
 import com.criteo.perpetuo.engine.{Engine, ProductCreationConflict}
+import com.criteo.perpetuo.model.ExecutionState
 import com.twitter.finagle.http.{Request, Response, Status => HttpStatus}
 import com.twitter.finatra.http.exceptions.{BadRequestException, ConflictException, HttpException}
 import com.twitter.finatra.http.{Controller => BaseController}
@@ -167,12 +167,19 @@ class RestController @Inject()(val engine: Engine)
   put(RestApi.executionCallbackPath(":id")) {
     // todo: give the permission to Rundeck only
     withIdAndRequest(
-      (id, r: ExecutionTracePut) =>
+      (id, r: ExecutionTracePut) => {
+        val executionState =
+          try {
+            ExecutionState.withName(r.state)
+          } catch {
+            case _: NoSuchElementException => throw BadRequestException(s"Unknown state `${r.state}`")
+          }
         try {
-          engine.updateExecutionTrace(id, r.state, r.logHref, r.targetStatus).map(_.map(_ => response.noContent))
+          engine.updateExecutionTrace(id, executionState, r.logHref, r.targetStatus).map(_.map(_ => response.noContent))
         } catch {
           case e: IllegalArgumentException => throw BadRequestException(e.getMessage)
-        },
+        }
+      },
       3.seconds
     )
   }

@@ -7,6 +7,7 @@ import com.criteo.perpetuo.config.{AppConfig, Plugins}
 import com.criteo.perpetuo.dao.{DbBinding, UnknownProduct}
 import com.criteo.perpetuo.dispatchers.Execution
 import com.criteo.perpetuo.model.DeploymentRequestParser._
+import com.criteo.perpetuo.model.ExecutionState.ExecutionState
 import com.criteo.perpetuo.model._
 import spray.json.DefaultJsonProtocol._
 import spray.json._
@@ -22,7 +23,7 @@ case class ProductCreationConflict(productName: String, private val cause: Throw
 class Engine @Inject()(val dbBinding: DbBinding) {
 
   private val plugins = new Plugins(dbBinding)
-  private val execution =  new Execution(dbBinding)
+  private val execution = new Execution(dbBinding)
 
   def getProductNames: Future[Seq[String]] =
     dbBinding.getProductNames
@@ -124,14 +125,7 @@ class Engine @Inject()(val dbBinding: DbBinding) {
   /**
     * @return ultimately true when the linked OperationTrace has been closed by the update, false otherwise
     */
-  def updateExecutionTrace(id: Long, state: String, logHref: String, targetStatus: Map[String, Map[String, String]]): Future[Option[Boolean]] = {
-    val executionState =
-      try {
-        ExecutionState.withName(state)
-      } catch {
-        case _: NoSuchElementException => throw new IllegalArgumentException(s"Unknown state `$state`")
-      }
-
+  def updateExecutionTrace(id: Long, executionState: ExecutionState, logHref: String, targetStatus: Map[String, Map[String, String]]): Future[Option[Boolean]] = {
     val statusMap =
       try {
         targetStatus.map { // don't use mapValues, as it gives a view (lazy generation, incompatible with error management here)
