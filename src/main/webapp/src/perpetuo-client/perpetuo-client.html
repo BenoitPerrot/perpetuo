@@ -69,11 +69,10 @@ this.Perpetuo.Client = this.Perpetuo.Client || (function () {
           return deploymentRequests.map(_ => Object.assign(_, { productType: 'mesos' })) // TODO: have the productType in the backend
         });
     }
-    createDeploymentRequest(productName, version, lastValidatedVersion, target, comment) {
+    createDeploymentRequest(productName, version, target, comment) {
       return jsonFetch('/api/deployment-requests', { method: 'POST', body: JSON.stringify({
         productName: productName,
         version: version,
-        lastValidatedVersion: lastValidatedVersion,
         target: target,
         comment: comment
       }) });

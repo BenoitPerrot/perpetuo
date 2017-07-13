@@ -58,15 +58,24 @@ class CriteoHooks extends Hooks {
             }
             assert version.getClass() == "".getClass()
 
+            def lastValidatedVersion = ''
+            def comment = deploymentRequest.comment()
+            if (comment) {
+                def m = comment =~ /Last validated version: (.*)$/
+                if (0 < m.count) {
+                    lastValidatedVersion = m[0][1]
+                }
+                comment = "Initiator's comment: ${comment}\n"
+            }
+
             def target = Target.getSimpleSelectForGroovy(deploymentRequest.parsedTarget())
-            def optComment = deploymentRequest.comment() ? "Initiator's comment: ${deploymentRequest.comment()}\n" : ""
             def originator = appConfig.transition() ?
                     "by Perpetuo" :
                     "here: ${appConfig.get('selfUrl')}/deployment-requests/${deploymentRequest.id()}"
             def desc = """
                 Please deploy $productName to: ${target.join(', ').toUpperCase()}
                 Request initiated $originator
-                $optComment-- Perpetuo""".stripMargin()
+                $comment-- Perpetuo""".stripMargin()
 
             def allMetadata = getReleaseMetadata()
             Map metadata = allMetadata[productName] ?:
@@ -74,8 +83,7 @@ class CriteoHooks extends Hooks {
             assert metadata
 
             def bools = [(true): "True", (false): "False"]
-            def requestJson = jsonSlurper.parseText(requestBody)
-            def lastValidatedVersion = requestJson.getOrDefault("lastValidatedVersion", "")
+
             String componentName = metadata["component_name"]
 
             def body = [
