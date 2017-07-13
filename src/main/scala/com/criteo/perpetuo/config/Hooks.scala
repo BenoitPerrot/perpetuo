@@ -1,6 +1,6 @@
 package com.criteo.perpetuo.config
 
-import com.criteo.perpetuo.model.DeploymentRequest
+import com.criteo.perpetuo.model.{DeploymentRequest, OperationTrace}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
@@ -11,6 +11,8 @@ trait BaseHooks[T] {
   def onDeploymentRequestCreated(deploymentRequest: DeploymentRequest, immediateStart: Boolean, requestBody: String): T
 
   def onDeploymentRequestStarted(deploymentRequest: DeploymentRequest, startedExecutions: Int, failedToStart: Int, immediately: Boolean): Unit
+
+  def onOperationClosed(operationTrace: OperationTrace, deploymentRequest: DeploymentRequest): Unit
 }
 
 
@@ -22,6 +24,8 @@ class Hooks extends BaseHooks[String] with Plugin {
 
   def onDeploymentRequestStarted(deploymentRequest: DeploymentRequest, startedExecutions: Int, failedToStart: Int, immediately: Boolean): Unit = {}
 
+  def onOperationClosed(operationTrace: OperationTrace, deploymentRequest: DeploymentRequest): Unit = {}
+
   val timeout_s = 30
 }
 
@@ -32,4 +36,7 @@ private[config] class HooksTrigger(implementation: Option[Hooks]) extends Plugin
 
   def onDeploymentRequestStarted(deploymentRequest: DeploymentRequest, startedExecutions: Int, failedToStart: Int, immediately: Boolean): Unit =
     Future { wrap(_.onDeploymentRequestStarted(deploymentRequest, startedExecutions, failedToStart, immediately), name = "onDeploymentRequestStarted") }
+
+  def onOperationClosed(operationTrace: OperationTrace, deploymentRequest: DeploymentRequest): Unit =
+    Future { wrap(_.onOperationClosed(operationTrace, deploymentRequest), name = "onOperationClosed") }
 }

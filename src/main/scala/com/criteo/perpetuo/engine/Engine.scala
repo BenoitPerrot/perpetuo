@@ -82,8 +82,18 @@ class Engine @Inject()(val dbBinding: DbBinding) {
       .startOperation(plugins.dispatcher, req, Operation.deploy, initiatorName)
       .map { case (op, started, failed) =>
         plugins.hooks.onDeploymentRequestStarted(req, started, failed, immediately)
+        if (started == 0)
+          closeOperation(op, req)
         (started, failed)
       }
+
+  private def closeOperation(operationTrace: OperationTrace, deploymentRequest: DeploymentRequest): Future[Boolean] = {
+    dbBinding.closeOperationTrace(operationTrace.id).map { closingSuccess =>
+      if (closingSuccess)
+        plugins.hooks.onOperationClosed(operationTrace, deploymentRequest)
+      closingSuccess
+    }
+  }
 
   def startDeploymentRequest(deploymentRequestId: Long, initiatorName: String): Future[Option[Map[String, Any]]] =
     dbBinding.findDeploymentRequestByIdWithProduct(deploymentRequestId).map(_.map { req =>
@@ -111,7 +121,10 @@ class Engine @Inject()(val dbBinding: DbBinding) {
         Future.successful(Some(traces))
     }
 
-  def updateExecutionTrace(id: Long, state: String, logHref: String, targetStatus: Map[String, Map[String, String]]): Future[Option[Unit]] = {
+  /**
+    * @return ultimately true when the linked OperationTrace has been closed by the update, false otherwise
+    */
+  def updateExecutionTrace(id: Long, state: String, logHref: String, targetStatus: Map[String, Map[String, String]]): Future[Option[Boolean]] = {
     val executionState =
       try {
         ExecutionState.withName(state)
@@ -136,22 +149,33 @@ class Engine @Inject()(val dbBinding: DbBinding) {
 
     executionUpdate.flatMap {
       if (_) {
-        if (statusMap.nonEmpty) {
-          // the execution trace has been updated, so it must exist!
-          dbBinding.findExecutionTraceById(id).map(_.get).flatMap { execTrace =>
-            val op = execTrace.operationTrace
-            dbBinding.updateOperationTrace(op.id, op.partialUpdate(statusMap))
-              .map { updated =>
-                assert(updated)
-                Some()
-              }
-          }
+        // the execution trace has been updated, so it must exist!
+        dbBinding.findExecutionTraceById(id).map(_.get).flatMap { execTrace =>
+          val op = execTrace.operationTrace
+
+          val operationClosingAttempt =
+            dbBinding.hasOpenExecutionTracesForOperation(op.id).flatMap { hasOpenExecutions =>
+              if (hasOpenExecutions)
+                Future.successful(false)
+              else
+                dbBinding.findDeploymentRequestByIdWithProduct(op.deploymentRequestId).flatMap { depReq =>
+                  closeOperation(op, depReq.get)
+                }
+            }
+
+          val statusMapUpdate =
+            if (statusMap.isEmpty)
+              Future.successful(false)
+            else
+              dbBinding.updateOperationTrace(op.id, op.partialUpdate(statusMap))
+
+          Future.sequence(Seq(operationClosingAttempt, statusMapUpdate)).map(x => {
+            Some(x.head)
+          })
         }
-        else
-          Future.successful(Some())
       }
       else
-        // FIXME: update failed; raise an exception?
+      // FIXME: update failed; raise an exception?
         Future.successful(None)
     }
   }

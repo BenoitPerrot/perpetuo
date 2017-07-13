@@ -1,7 +1,7 @@
 package com.criteo.perpetuo.dao
 
 import com.criteo.perpetuo.model.{ExecutionState, ExecutionTrace, OperationTrace}
-import com.criteo.perpetuo.model.ExecutionState.ExecutionState
+import com.criteo.perpetuo.model.ExecutionState._
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
@@ -65,6 +65,11 @@ trait ExecutionTraceBinder extends TableBinder {
     dbContext.db.run(query.result).map(_.headOption.map {
       case (exec, op) => exec.toExecutionTrace(op.toOperationTrace)
     })
+  }
+
+  def hasOpenExecutionTracesForOperation(operationTraceId: Long): Future[Boolean] = {
+    val query = executionTraceQuery filter { t => t.operationTraceId === operationTraceId && (t.state === ExecutionState.pending || t.state === ExecutionState.running) }
+    dbContext.db.run(query.exists.result)
   }
 
   def updateExecutionTrace(id: Long, logHref: String, state: ExecutionState): Future[Boolean] =

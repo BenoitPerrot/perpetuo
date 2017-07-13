@@ -81,4 +81,17 @@ trait OperationTraceBinder extends TableBinder {
         count == 1
       })
   }
+
+  def closeOperationTrace(id: Long): Future[Boolean] = {
+    // The following assumes that the DB provides atomicity on this operation (e.g. with exclusive lock on update)
+    dbContext.db.run(
+      operationTraceQuery
+        .filter(operationTrace => operationTrace.id === id && operationTrace.closingDate.isEmpty)
+        .map(_.closingDate)
+        .update(Some(new java.sql.Timestamp(System.currentTimeMillis)))
+    ).map(count => {
+      assert(count <= 1)
+      count == 1
+    })
+  }
 }
