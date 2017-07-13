@@ -2,6 +2,7 @@ package com.criteo.perpetuo.config
 
 import com.criteo.perpetuo.dao.DbBinding
 import com.criteo.perpetuo.model.DeploymentRequest
+import com.criteo.perpetuo.model.OperationTrace
 import com.criteo.perpetuo.model.Target
 import groovy.json.JsonOutput
 import groovy.json.JsonSlurper
@@ -68,6 +69,28 @@ class CriteoHooks extends Hooks {
 
             CloseableHttpClient httpClient = HttpClients.createDefault()
             httpClient.execute(http)
+        }
+
+        def fetchTicketChildren(parentTicketKey) {
+            def resp = makeAuthorizedClient().get(
+                path: '/rest/api/2/search',
+                query: [ jql: "parent=$parentTicketKey" ],
+                requestContentType: JSON,
+            )
+            assert resp.status == 200
+            resp
+        }
+
+        def transitionTicket(String ticketKey, Integer transitionId) {
+            def resp = makeAuthorizedClient().post(
+                path: "/rest/api/latest/issue/$ticketKey/transitions",
+                requestContentType: JSON,
+                body: [
+                    transition: [ id: transitionId ]
+                ]
+            )
+            assert resp.status < 300
+            resp
         }
     }
 
@@ -203,9 +226,50 @@ class CriteoHooks extends Hooks {
         }
     }
 
+    @Override
+    void onOperationClosed(OperationTrace operationTrace, DeploymentRequest deploymentRequest, boolean succeeded) {
+        if (jiraClient) {
+            def parentTicketKey = findJiraTicket(deploymentRequest)
+            if (parentTicketKey)
+                try {
+                    def resp = jiraClient.fetchTicketChildren(parentTicketKey)
+                    assert resp.data.total == 1
+                    def child = resp.data.issues[0]
+
+                    def transitions = succeeded ?
+                            [
+                                    351: '[RM] DEPLOYING - Deployment failed -> [RM] DEPLOYMENT FAILED'
+                            ] :
+                            [
+                                    371: '[RM] DEPLOYING - Partly deployed -> AWAITING DEPLOYMENT',
+                                    401: 'AWAITING DEPLOYMENT - Deployed -> [RM] DEPLOYED',
+                                    471: '[RM] DEPLOYED - Deploy [No validation] -> DONE'
+                            ]
+                    transitions.each { transitionId, transitionName ->
+                        logger().info("Applying `$transitionName` (id=$transitionId) on ${child.key}")
+                        jiraClient.transitionTicket(child.key, transitionId)
+                    }
+                } catch (HttpResponseException e) {
+                    logger().severe("Bad response from JIRA: ${e.response.status} ${e.getMessage()}: ${e.response.getData().toString()}")
+                }
+        }
+    }
+
     static Map getReleaseMetadata() {
         def client = new HTTPBuilder()
         StringReader resp = client.get(uri: "http://review.criteois.lan/gitweb?p=release/release-management.git;a=blob_plain;f=src/python/releaseManagement/jiraMoab/tlaVsAppObject.json")
         return new JsonSlurper().parse(resp) as Map
+    }
+
+    String findJiraTicket(DeploymentRequest deploymentRequest) {
+        def ticketKey = null
+        def comment = deploymentRequest.comment()
+        if (comment) {
+            def m = comment =~ /ticket: ${this.jiraClient.host}\/browse\/(.*)$/
+            if (0 < m.count) {
+                ticketKey = m[0][1]
+            }
+        }
+        ticketKey
     }
 }
