@@ -6,7 +6,6 @@ import javax.inject.{Inject, Singleton}
 import com.criteo.perpetuo.config.{AppConfig, Plugins}
 import com.criteo.perpetuo.dao.{DbBinding, UnknownProduct}
 import com.criteo.perpetuo.dispatchers.Execution
-import com.criteo.perpetuo.model.DeploymentRequestParser._
 import com.criteo.perpetuo.model.ExecutionState.ExecutionState
 import com.criteo.perpetuo.model._
 import spray.json.DefaultJsonProtocol._
@@ -52,10 +51,7 @@ class Engine @Inject()(val dbBinding: DbBinding) {
   def findDeploymentRequestByIdWithProduct(deploymentRequestId: Long): Future[Option[DeploymentRequest]] =
     dbBinding.findDeploymentRequestByIdWithProduct(deploymentRequestId)
 
-  def createDeploymentRequest(creatorName: String, description: String, immediateStart: Boolean): Future[Map[String, Any]] = {
-    // FIXME: move parsing to the caller
-    val attrs = parse(description, creatorName)
-
+  def createDeploymentRequest(attrs: DeploymentRequestAttrs, immediateStart: Boolean): Future[Map[String, Any]] = {
     if (AppConfig.transition && !immediateStart) {
       dbBinding.findProductByName(attrs.productName)
         .map(_.map(DeploymentRequest(0, _, attrs.version, attrs.target, attrs.comment, attrs.creator, attrs.creationDate))

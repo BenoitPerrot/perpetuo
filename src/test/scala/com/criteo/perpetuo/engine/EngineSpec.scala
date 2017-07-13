@@ -1,13 +1,16 @@
 package com.criteo.perpetuo.engine
 
-import com.twitter.inject.Test
+import java.sql.Timestamp
+
 import com.criteo.perpetuo.TestDb
 import com.criteo.perpetuo.dao.DbBinding
-import com.criteo.perpetuo.model.ExecutionState
+import com.criteo.perpetuo.model.{DeploymentRequestAttrs, ExecutionState, Version}
+import com.twitter.inject.Test
+import spray.json._
 
-import scala.concurrent.duration._
 import scala.concurrent.Await
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.duration._
 
 class EngineSpec extends Test with TestDb {
 
@@ -18,7 +21,7 @@ class EngineSpec extends Test with TestDb {
       Await.result(
         for {
           product <- engine.insertProduct("human")
-          deploymentRequestId <- engine.createDeploymentRequest("robert", s"""{"productName":"${product.name}","version":"42","target":["moon","mars"]}""", immediateStart = false).map(_ ("id").toString.toLong)
+          deploymentRequestId <- engine.createDeploymentRequest(new DeploymentRequestAttrs(product.name, Version(JsString("42").compactPrint), """["moon","mars"]}""", "", "robert", new Timestamp(System.currentTimeMillis)), immediateStart = false).map(_ ("id").toString.toLong)
           _ <- engine.startDeploymentRequest(deploymentRequestId, "ignace")
           operationTraces <- engine.findOperationTracesByDeploymentRequest(deploymentRequestId).map(_.get)
           operationTraceId = operationTraces.head.id
