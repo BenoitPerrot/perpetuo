@@ -134,9 +134,9 @@ class Engine @Inject()(val dbBinding: DbBinding) {
       else
         dbBinding.updateExecutionTrace(id, executionState)
 
-    if (statusMap.nonEmpty)
-      executionUpdate.flatMap {
-        if (_) {
+    executionUpdate.flatMap {
+      if (_) {
+        if (statusMap.nonEmpty) {
           // the execution trace has been updated, so it must exist!
           dbBinding.findExecutionTraceById(id).map(_.get).flatMap { execTrace =>
             val op = execTrace.operationTrace
@@ -148,12 +148,12 @@ class Engine @Inject()(val dbBinding: DbBinding) {
           }
         }
         else
-          Future.successful(None)
+          Future.successful(Some())
       }
-    else
-      executionUpdate.map {
-        if (_) Some() else None
-      }
+      else
+        // FIXME: update failed; raise an exception?
+        Future.successful(None)
+    }
   }
 
   def getDeepDeploymentRequest(deploymentRequestId: Long): Future[Option[Map[String, Any]]] =
