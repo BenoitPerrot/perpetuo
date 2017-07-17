@@ -47,16 +47,13 @@
     font-weight: 500;
   }
   .product-name {
-    width: 30%;
+    width: 40%;
   }
   .version {
     width: 10%;
   }
   .target {
     width: 20%;
-  }
-  .creator {
-    width: 10%;
   }
   .creation-date {
     width: 20%;
@@ -79,7 +76,6 @@
             <perpetuo-up-down-none class="product-name" key="productName" label="Product" on-state-changed="updateOrder"></perpetuo-up-down-none>
             <perpetuo-up-down-none inverted class="version" key="version" label="Version" on-state-changed="updateOrder"></perpetuo-up-down-none>
             <span class="target">Target</span>
-            <span class="creator">Creator</span>
             <perpetuo-up-down-none inverted class="creation-date" key="creationDate" label="Creation Date" on-state-changed="updateOrder"></perpetuo-up-down-none>
             <div class="state">
               <span>State</span>
@@ -91,7 +87,6 @@
             </div>
             <div class="version"></div>
             <span class="target"></span>
-            <span class="creator"></span>
             <div class="creation-date">
               <paper-dropdown-menu label="Time Zone">
                 <paper-listbox class="dropdown-content" selected="0" selected-item="{{timeZoneItem}}">

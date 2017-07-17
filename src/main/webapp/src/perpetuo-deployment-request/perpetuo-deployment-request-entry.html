@@ -30,7 +30,7 @@
 
   span.product-name {
     font-size: 26px;
-    width: 30%;
+    width: 40%;
     padding-right: 40px;
     box-sizing: border-box;
   }
@@ -51,9 +51,6 @@
   }
   span.target {
     width: 20%;
-  }
-  span.creator {
-    width: 10%;
   }
   span.creation-date {
     width: 20%;
@@ -111,7 +108,6 @@
         </template>
       </span>
       <span class="target">[[data.target]]</span>
-      <span class="creator">[[data.creator]]</span>
       <span class="creation-date">[[data.dateString]]</span>
       <div class$="state [[state]]">
         <template is="dom-if" if="[[isWaitingForApproval(state)]]">
