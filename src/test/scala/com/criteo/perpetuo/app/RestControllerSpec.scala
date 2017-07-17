@@ -265,6 +265,14 @@ class RestControllerSpec extends FeatureTest with TestDb {
         Ok
       ).contentString.parseJson.asJsObject shouldEqual JsObject("id" -> id.toJson)
     }
+
+    "return 404 when trying to start a non-existing DeploymentRequest" in {
+      httpPut(
+        "/api/deployment-requests/4242",
+        "".toJson,
+        NotFound
+      )
+    }
   }
 
   "The DeploymentRequest's GET entry-point" should {
