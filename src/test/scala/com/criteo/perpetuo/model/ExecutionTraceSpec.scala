@@ -31,13 +31,13 @@ class ExecutionTraceSpec extends FunSuite with ScalaFutures
       for {
         product <- insert("perpetuo-app")
         request <- insert(new DeploymentRequestAttrs(product.name, Version("v42"), "*", "No fear", "c.norris", new Timestamp(123456789)))
-        deployId <- addToDeploymentRequest(request.id, Operation.deploy, "c.norris")
-        execIds <- addToOperationTrace(deployId, 1)
+        deployOperationTrace <- addToDeploymentRequest(request.id, Operation.deploy, "c.norris")
+        execIds <- addToOperationTrace(deployOperationTrace.id, 1)
         execTraces <- dbContext.db.run(executionTraceQuery.result)
       } yield {
         assert(execTraces.length == 1)
         assert(execTraces.head.id.get == execIds.head)
-        assert(execTraces.head.operationTraceId.get == deployId)
+        assert(execTraces.head.operationTraceId.get == deployOperationTrace.id)
         assert(execTraces.head.logHref.isEmpty)
         assert(execTraces.head.state == ExecutionState.pending)
       },

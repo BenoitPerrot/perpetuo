@@ -5,7 +5,7 @@ import javax.inject.{Inject, Singleton}
 import com.criteo.perpetuo.dao._
 import com.criteo.perpetuo.executors.ExecutorInvoker
 import com.criteo.perpetuo.model.Operation.Operation
-import com.criteo.perpetuo.model.{DeploymentRequest, ExecutionState, Operation}
+import com.criteo.perpetuo.model.{DeploymentRequest, ExecutionState, Operation, OperationTrace}
 import com.twitter.inject.Logging
 import spray.json.DefaultJsonProtocol._
 import spray.json._
@@ -20,7 +20,7 @@ class Execution(val dbBinding: DbBinding) extends Logging {
     * Start all relevant executions and return the numbers of successful
     * and failed execution starts.
     */
-  def startOperation(dispatcher: TargetDispatcher, deploymentRequest: DeploymentRequest, operation: Operation, userName: String): Future[(Int, Int)] = {
+  def startOperation(dispatcher: TargetDispatcher, deploymentRequest: DeploymentRequest, operation: Operation, userName: String): Future[(OperationTrace, Int, Int)] = {
     // target resolution
     val expandedTarget = dispatcher.expandTarget(deploymentRequest.product.name, deploymentRequest.version, deploymentRequest.parsedTarget)
 
@@ -28,16 +28,16 @@ class Execution(val dbBinding: DbBinding) extends Logging {
     val invocations = dispatch(dispatcher, expandedTarget).toSeq
 
     // log the operation intent in the DB
-    dbBinding.addToDeploymentRequest(deploymentRequest.id, operation, userName).flatMap(
+    dbBinding.addToDeploymentRequest(deploymentRequest.id, operation, userName).flatMap(operationTrace =>
       // create as many traces, all at the same time
-      dbBinding.addToOperationTrace(_, invocations.length).map {
+      dbBinding.addToOperationTrace(operationTrace.id, invocations.length).map {
         execIds =>
           assert(execIds.length == invocations.length)
           invocations.zip(execIds)
-      }
-    ).flatMap(
+      }.map((operationTrace, _))
+    ).flatMap { case (operationTrace, executionSpecs) =>
       // and only then, for each execution to do:
-      Future.traverse(_) {
+      Future.traverse(executionSpecs) {
         case ((executor, target), execId) =>
           // log the execution
           logger.debug(s"Triggering $operation job for execution #$execId of ${deploymentRequest.product.name} v. ${deploymentRequest.version} on $executor")
@@ -75,9 +75,9 @@ class Execution(val dbBinding: DbBinding) extends Logging {
             }
       }.map { statuses =>
         val successes = statuses.count(s => s)
-        (successes, statuses.length - successes)
+        (operationTrace, successes, statuses.length - successes)
       }
-    )
+    }
   }
 
   def dispatch(dispatcher: TargetDispatcher, target: TargetExpr): Iterable[(ExecutorInvoker, TargetExpr)] =

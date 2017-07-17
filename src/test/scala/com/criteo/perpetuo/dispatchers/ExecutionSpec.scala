@@ -71,7 +71,7 @@ class ExecutionSpec extends Test with TestDb {
 
     val depReq = execution.dbBinding.insert(req)
     val asyncStart = depReq.flatMap(execution.startOperation(dispatcher, _, Operation.deploy, "c.norris"))
-    asyncStart.flatMap { case (successes, failures) =>
+    asyncStart.flatMap { case (op, successes, failures) =>
       depReq.map(_.id).flatMap(execution.dbBinding.findExecutionTracesByDeploymentRequest).map { traces =>
         val executions = traces.map(trace => {
           (trace.id, trace.logHref)

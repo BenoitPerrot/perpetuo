@@ -80,7 +80,7 @@ class Engine @Inject()(val dbBinding: DbBinding) {
   private def startDeploymentRequest(req: DeploymentRequest, initiatorName: String, immediately: Boolean): Future[(Int, Int)] =
     execution
       .startOperation(plugins.dispatcher, req, Operation.deploy, initiatorName)
-      .map { case (started, failed) =>
+      .map { case (op, started, failed) =>
         plugins.hooks.onDeploymentRequestStarted(req, started, failed, immediately)
         (started, failed)
       }

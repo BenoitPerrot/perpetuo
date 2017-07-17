@@ -35,15 +35,15 @@ class OperationTraceSpec extends FunSuite with ScalaFutures
       for {
         product <- insert("perpetuo-app")
         request <- insert(new DeploymentRequestAttrs(product.name, Version("v42"), "*", "No fear", "c.norris", new Timestamp(123456789)))
-        deployId <- addToDeploymentRequest(request.id, Operation.deploy, "c.norris")
-        revertId <- addToDeploymentRequest(request.id, Operation.revert, "c.norris")
+        deployOperationTrace <- addToDeploymentRequest(request.id, Operation.deploy, "c.norris")
+        revertOperationTrace <- addToDeploymentRequest(request.id, Operation.revert, "c.norris")
         traces <- dbContext.db.run(operationTraceQuery.result)
       } yield {
         assert(traces.length == 2)
         val deploy = traces.head
         val revert = traces.tail.head
-        assert(deployId == deploy.id.get)
-        assert(revertId == revert.id.get)
+        assert(deployOperationTrace.id == deploy.id.get)
+        assert(revertOperationTrace.id == revert.id.get)
         assert(deploy.id.get != revert.id.get) // different primary keys
         assert(deploy.deploymentRequestId == revert.deploymentRequestId) // same foreign key
         assert(deploy.deploymentRequestId == request.id) // pointing to the same DeploymentRequest
