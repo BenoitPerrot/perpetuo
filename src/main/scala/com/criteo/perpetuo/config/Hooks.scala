@@ -10,7 +10,7 @@ import scala.concurrent.Future
 trait BaseHooks[T] {
   def onDeploymentRequestCreated(deploymentRequest: DeploymentRequest, immediateStart: Boolean): T
 
-  def onDeploymentRequestStarted(deploymentRequest: DeploymentRequest, startedExecutions: Int, failedToStart: Int, immediately: Boolean): Unit
+  def onDeploymentRequestStarted(deploymentRequest: DeploymentRequest, startedExecutions: Int, failedToStart: Int, atCreation: Boolean): Unit
 
   def onOperationClosed(operationTrace: OperationTrace, deploymentRequest: DeploymentRequest, succeeded: Boolean): Unit
 }
@@ -22,7 +22,7 @@ class Hooks extends BaseHooks[String] with Plugin {
     */
   def onDeploymentRequestCreated(deploymentRequest: DeploymentRequest, immediateStart: Boolean): String = null
 
-  def onDeploymentRequestStarted(deploymentRequest: DeploymentRequest, startedExecutions: Int, failedToStart: Int, immediately: Boolean): Unit = {}
+  def onDeploymentRequestStarted(deploymentRequest: DeploymentRequest, startedExecutions: Int, failedToStart: Int, atCreation: Boolean): Unit = {}
 
   def onOperationClosed(operationTrace: OperationTrace, deploymentRequest: DeploymentRequest, succeeded: Boolean): Unit = {}
 
@@ -34,8 +34,8 @@ private[config] class HooksTrigger(implementation: Option[Hooks]) extends Plugin
   override def onDeploymentRequestCreated(deploymentRequest: DeploymentRequest, immediateStart: Boolean): Future[String] =
     Future { wrap(_.onDeploymentRequestCreated(deploymentRequest, immediateStart), name = "onDeploymentRequestCreated") }
 
-  def onDeploymentRequestStarted(deploymentRequest: DeploymentRequest, startedExecutions: Int, failedToStart: Int, immediately: Boolean): Unit =
-    Future { wrap(_.onDeploymentRequestStarted(deploymentRequest, startedExecutions, failedToStart, immediately), name = "onDeploymentRequestStarted") }
+  def onDeploymentRequestStarted(deploymentRequest: DeploymentRequest, startedExecutions: Int, failedToStart: Int, atCreation: Boolean): Unit =
+    Future { wrap(_.onDeploymentRequestStarted(deploymentRequest, startedExecutions, failedToStart, atCreation), name = "onDeploymentRequestStarted") }
 
   def onOperationClosed(operationTrace: OperationTrace, deploymentRequest: DeploymentRequest, succeeded: Boolean): Unit =
     Future { wrap(_.onOperationClosed(operationTrace, deploymentRequest, succeeded), name = "onOperationClosed") }

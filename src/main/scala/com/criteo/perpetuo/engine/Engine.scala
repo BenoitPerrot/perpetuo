@@ -68,17 +68,17 @@ class Engine @Inject()(val dbBinding: DbBinding) {
       futureDepReq.foreach(plugins.hooks.onDeploymentRequestCreated(_, immediateStart))
 
       if (immediateStart)
-        futureDepReq.foreach(req => startDeploymentRequest(req, attrs.creator, immediately = true))
+        futureDepReq.foreach(req => startDeploymentRequest(req, attrs.creator, atCreation = true))
 
       futureDepReq.map(depReq => Map("id" -> depReq.id))
     }
   }
 
-  private def startDeploymentRequest(req: DeploymentRequest, initiatorName: String, immediately: Boolean): Future[(Int, Int)] =
+  private def startDeploymentRequest(req: DeploymentRequest, initiatorName: String, atCreation: Boolean): Future[(Int, Int)] =
     execution
       .startOperation(plugins.dispatcher, req, Operation.deploy, initiatorName)
       .map { case (op, started, failed) =>
-        plugins.hooks.onDeploymentRequestStarted(req, started, failed, immediately)
+        plugins.hooks.onDeploymentRequestStarted(req, started, failed, atCreation)
         if (started == 0)
           closeOperation(op, req)
         (started, failed)
@@ -94,7 +94,7 @@ class Engine @Inject()(val dbBinding: DbBinding) {
 
   def startDeploymentRequest(deploymentRequestId: Long, initiatorName: String): Future[Option[Map[String, Any]]] =
     dbBinding.findDeploymentRequestByIdWithProduct(deploymentRequestId).map(_.map { req =>
-      startDeploymentRequest(req, initiatorName, immediately = false)
+      startDeploymentRequest(req, initiatorName, atCreation = false)
       Map("id" -> req.id)
     })
 
