@@ -106,7 +106,7 @@ class RundeckInvoker extends HttpInvoker {
     }
 
     @Override
-    String getLogHref(String executorAnswer) {
+    String extractLogHref(String executorAnswer) {
         (jsonSlurper.parseText(executorAnswer) as Map).permalink as String
     }
 

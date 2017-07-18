@@ -41,7 +41,7 @@ class CriteoExternalData extends ExternalData { // fixme: this only works with J
         }
     }
 
-    static Map<String, ?> getChangeLog(String productName, String version, String previousVersion) {
+    static Map<String, ?> fetchChangeLog(String productName, String version, String previousVersion) {
         Map<String, ?> manifest = fetchManifest(productName)
         Map<String, String> allRepos = fetchArtifactToRepository(version)
         if (manifest?.artifacts == null || allRepos == null) {
@@ -53,7 +53,7 @@ class CriteoExternalData extends ExternalData { // fixme: this only works with J
 
             def listOfChanges = [:]
             for (String repo : repos) {
-                def changelog = getChangeLogForRepo(repo, version, previousVersion)
+                def changelog = fetchChangeLogForRepo(repo, version, previousVersion)
                 for (def moab : changelog) {
                     for (def commit : moab.commits) {
                         if (!listOfChanges[moab.moabId])
@@ -143,7 +143,7 @@ class CriteoExternalData extends ExternalData { // fixme: this only works with J
         return resp.data.collect { it['version'] }
     }
 
-    static List<Map<String, ?>> getChangeLogForRepo(String repoName, String requestedVersion, String previousVersion) {
+    static List<Map<String, ?>> fetchChangeLogForRepo(String repoName, String requestedVersion, String previousVersion) {
         def client = new RESTClient("http://software-factory-services.marathon-par.central.criteo.preprod")
         def query = [
                 'repositories'     : repoName,

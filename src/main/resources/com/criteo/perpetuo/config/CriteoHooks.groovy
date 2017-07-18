@@ -133,13 +133,12 @@ class CriteoHooks extends Hooks {
             def productName = deploymentRequest.product().name()
 
             def rawVersion = deploymentRequest.version().toString()
-            def version
             def versionJson = jsonSlurper.parseText(rawVersion)
-            version = versionJson
-            if (versionJson.getClass() == [].getClass()) {
+            def version = versionJson
+            if (versionJson.class == [].class) {
                 version = versionJson.max { v -> v.ratio }.value
             }
-            assert version.getClass() == "".getClass()
+            assert version.class == "".class
 
             def lastValidatedVersion = ''
             def comment = deploymentRequest.comment()
@@ -160,7 +159,7 @@ class CriteoHooks extends Hooks {
                 Request initiated $originator
                 $comment-- Perpetuo""".stripMargin()
 
-            def allMetadata = getReleaseMetadata()
+            def allMetadata = fetchReleaseMetadata()
             Map metadata = allMetadata[productName] ?:
                     allMetadata.values().find { it["service_name"] == productName }
             assert metadata
@@ -196,7 +195,7 @@ class CriteoHooks extends Hooks {
                 logger().info("Jira ticket created $suffix: $ticket")
                 String ticketUrl = "${this.jiraClient.host}/browse/$ticket"
 
-                def changelog = CriteoExternalData.getChangeLog(productName, version, lastValidatedVersion)
+                def changelog = CriteoExternalData.fetchChangeLog(productName, version, lastValidatedVersion)
                 if (changelog) {
                     def jsonChangelog = JsonOutput.toJson(changelog)
                     def uploadResponse = jiraClient.attachToTicket(ticket, jsonChangelog.bytes, 'changelog.json')
@@ -207,7 +206,6 @@ class CriteoHooks extends Hooks {
                         logger().warning('Could not attach changelog from file to JIRA Issue:' + uploadResponse.statusLine.toString())
                     }
                 }
-
 
                 if (appConfig.transition()) {
                     return ticketUrl
@@ -221,7 +219,7 @@ class CriteoHooks extends Hooks {
                     assert updated
                 }
             } catch (HttpResponseException e) {
-                logger().severe("Bad response from JIRA when creating ticket $suffix: ${e.response.status} ${e.getMessage()}: ${e.response.getData().toString()}")
+                logger().severe("Bad response from JIRA when creating ticket $suffix: ${e.response.status} ${e.message}: ${e.response.data.toString()}")
             }
         }
     }
@@ -250,12 +248,12 @@ class CriteoHooks extends Hooks {
                         jiraClient.transitionTicket(child.key, transitionId)
                     }
                 } catch (HttpResponseException e) {
-                    logger().severe("Bad response from JIRA: ${e.response.status} ${e.getMessage()}: ${e.response.getData().toString()}")
+                    logger().severe("Bad response from JIRA: ${e.response.status} ${e.message}: ${e.response.data.toString()}")
                 }
         }
     }
 
-    static Map getReleaseMetadata() {
+    static Map fetchReleaseMetadata() {
         def client = new HTTPBuilder()
         StringReader resp = client.get(uri: "http://review.criteois.lan/gitweb?p=release/release-management.git;a=blob_plain;f=src/python/releaseManagement/jiraMoab/tlaVsAppObject.json")
         return new JsonSlurper().parse(resp) as Map

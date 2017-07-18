@@ -22,7 +22,7 @@ abstract class HttpInvoker(val host: String,
   /** `buildRequest` returns the HTTP request object ready to invoke the appropriate executor in charge of running the execution. */
   protected def buildRequest(executionId: Long, target: String, frozenParameters: String, initiator: String): Request
   /** `logHref` gives a unique identifier allowing to find possible external execution logs. */
-  protected def getLogHref(executorAnswer: String): String // answer "" if no log href can be known (e.g. delayed execution)
+  protected def extractLogHref(executorAnswer: String): String // answer "" if no log href can be known (e.g. delayed execution)
   /** `extractMessage` extracts an error message from any error output returned by the contacted API. */
   protected def extractMessage(status: Int, content: String): String // answer "" if no message can be extracted
 
@@ -61,7 +61,7 @@ abstract class HttpInvoker(val host: String,
       val content = response.contentString
       response.status match {
         case Status.Successful(_) =>
-          val logHref = getLogHref(content)
+          val logHref = extractLogHref(content)
           if (logHref.nonEmpty) Some(logHref) else None
         case s =>
           val embeddedDetail = extractMessage(response.statusCode, content)
