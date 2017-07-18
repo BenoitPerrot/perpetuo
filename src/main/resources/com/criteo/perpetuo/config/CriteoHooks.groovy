@@ -23,6 +23,54 @@ import static groovyx.net.http.ContentType.JSON
 /* the "public" class to be loaded as the actual plugin must be the first statement after the imports */
 
 class CriteoHooks extends Hooks {
+
+    class JiraClient {
+        String host
+        String basicAuthorization
+
+        JiraClient(String host, String username, String password) {
+            this.host = host
+            this.basicAuthorization = "Basic ${"${username}:${password}".bytes.encodeBase64()}"
+        }
+
+        private RESTClient makeAuthorizedClient() {
+            // don't reuse the connection pool because:
+            // - we are in a multi-threaded context managed externally
+            // - we don't get here very often
+            // - there can be a very long time between two calls
+            //
+            // cannot use auth facility provided by RESTClient since it fires a pre-request
+            // first without credentials and expects JIRA to respond a 401 but receives a 400...
+            def client = new RESTClient(host)
+            client.setHeaders(Authorization: basicAuthorization)
+            client
+        }
+
+        def createTicket(Map fields) {
+            makeAuthorizedClient().post(
+                path: '/rest/api/2/issue',
+                requestContentType: JSON,
+                body: [ fields: fields ]
+            )
+        }
+
+        def attachToTicket(String ticketKey, byte[] binaryBody, String attachmentName) {
+            HttpPost http = new HttpPost()
+            http.setURI("${this.host}/rest/api/2/issue/$ticketKey/attachments".toURI())
+            http.setHeader('Accept', JSON.toString())
+            http.setHeader('X-Atlassian-Token' , 'nocheck')
+            http.setHeader('Authorization', basicAuthorization)
+
+            MultipartEntityBuilder builder = MultipartEntityBuilder.create()
+            builder.addBinaryBody('file', binaryBody, ContentType.APPLICATION_OCTET_STREAM, attachmentName)
+            HttpEntity multipart = builder.build()
+            http.setEntity(multipart)
+
+            CloseableHttpClient httpClient = HttpClients.createDefault()
+            httpClient.execute(http)
+        }
+    }
+
     def targetMap = [
             "sv6": "NA-SV6",
             "ny8": "NA-NY8",
@@ -37,17 +85,27 @@ class CriteoHooks extends Hooks {
 
     DbBinding dbBinding
     RootAppConfig appConfig
-    String jiraHost
+    JiraClient jiraClient
 
     CriteoHooks(DbBinding dbBinding, RootAppConfig appConfig) {
         this.dbBinding = dbBinding
         this.appConfig = appConfig
-        this.jiraHost = appConfig.env() == "prod" ? "https://jira.criteois.com" : "https://dev2-jira.criteois.com"
+        if (appConfig.env() != 'preprod') {
+            def jiraUser = appConfig.tryGet('jira.user')
+            def jiraPassword = appConfig.tryGet('jira.password')
+            if (jiraUser.empty)
+                logger().severe('`jira.user` must be set')
+            else if (jiraPassword.empty)
+                logger().severe('`jira.password` must be set')
+            else {
+                this.jiraClient = new JiraClient("https://${appConfig.env() == 'prod' ? '' : 'dev2-'}jira.criteois.com", jiraUser.get().toString(), jiraPassword.get().toString())
+            }
+        }
     }
 
     @Override
     String onDeploymentRequestCreated(DeploymentRequest deploymentRequest, boolean immediateStart) {
-        if (appConfig.env() != "preprod" && !immediateStart) {
+        if (jiraClient && !immediateStart) {
             def jsonSlurper = new JsonSlurper()
             def productName = deploymentRequest.product().name()
 
@@ -88,68 +146,37 @@ class CriteoHooks extends Hooks {
 
             String componentName = metadata["component_name"]
 
-            def body = [
-                    "fields": [
-                            "project"          : ["key": "MRM"],
-                            "summary"          : "$productName (${componentName?.plus(" ") ?: ""}JMOAB #$version)".toString(),
-                            "issuetype"        : ["name": "[MOAB] Release"],
-                            "customfield_11006": ["value": componentName ?: productName],
-                            "customfield_11003": rawVersion,
-                            "customfield_12500": lastValidatedVersion,
-                            "customfield_12702": ["value": bools[metadata.getOrDefault("preprodNeededField", false)]],
-                            "customfield_12703": ["value": metadata.getOrDefault("deployType", "Worldwide")],
-                            "customfield_10922": target.collect { String dc -> ["value": targetMap[dc]] },
-                            "customfield_15500": ["value": bools[metadata.getOrDefault("prodApprovalNeeded", false)]],
-                            "customfield_27000": ["value": metadata["technicalData"]],
-                            "customfield_12800": metadata.getOrDefault("validation", []).collect { ["value": it] },
-                            "customfield_11107": productName,
-                            "reporter"         : ["name": deploymentRequest.creator()],
-                            "description"      : desc
-                    ]
+            def fields = [
+                    "project"          : ["key": "MRM"],
+                    "summary"          : "$productName (${componentName?.plus(" ") ?: ""}JMOAB #$version)".toString(),
+                    "issuetype"        : ["name": "[MOAB] Release"],
+                    "customfield_11006": ["value": componentName ?: productName],
+                    "customfield_11003": rawVersion,
+                    "customfield_12500": lastValidatedVersion,
+                    "customfield_12702": ["value": bools[metadata.getOrDefault("preprodNeededField", false)]],
+                    "customfield_12703": ["value": metadata.getOrDefault("deployType", "Worldwide")],
+                    "customfield_10922": target.collect { String dc -> ["value": targetMap[dc]] },
+                    "customfield_15500": ["value": bools[metadata.getOrDefault("prodApprovalNeeded", false)]],
+                    "customfield_27000": ["value": metadata["technicalData"]],
+                    "customfield_12800": metadata.getOrDefault("validation", []).collect { ["value": it] },
+                    "customfield_11107": productName,
+                    "reporter"         : ["name": deploymentRequest.creator()],
+                    "description"      : desc
             ]
-
-            // don't reuse the connexion pool because:
-            // - we are in a multi-threaded context managed externally
-            // - we don't get here very often
-            // - there can be a very long time between two calls
-            def client = new RESTClient(this.jiraHost)
-            // cannot use auth facility provided by RESTClient since it fires a pre-request
-            // first without credentials and expects JIRA to respond a 401 but receives a 400...
-            def credentials = appConfig.get("jira.user") + ":" + appConfig.get("jira.password")
-            client.setHeaders(Authorization: "Basic ${credentials.bytes.encodeBase64()}")
 
             def suffix = "for $productName #$version"
             try {
-                def resp = client.post(
-                        path: "/rest/api/2/issue",
-                        requestContentType: JSON,
-                        body: body
-                )
+                def resp = jiraClient.createTicket(fields)
                 assert resp.status < 300
 
                 String ticket = resp.data.key
                 logger().info("Jira ticket created $suffix: $ticket")
-                String ticketUrl = "${this.jiraHost}/browse/$ticket"
+                String ticketUrl = "${this.jiraClient.host}/browse/$ticket"
 
                 def changelog = CriteoExternalData.getChangeLog(productName, version, lastValidatedVersion)
                 if (changelog) {
                     def jsonChangelog = JsonOutput.toJson(changelog)
-                    def attachmentUri = "${this.jiraHost}/rest/api/2/issue/$ticket/attachments"
-
-                    HttpPost http = new HttpPost()
-                    http.setURI(attachmentUri.toURI())
-                    http.setHeader('Accept', JSON.toString())
-                    http.setHeader('X-Atlassian-Token' , 'nocheck')
-                    http.setHeader('Authorization', "Basic ${credentials.bytes.encodeBase64()}")
-
-                    MultipartEntityBuilder builder = MultipartEntityBuilder.create()
-                    builder.addBinaryBody("file", jsonChangelog.bytes, ContentType.APPLICATION_OCTET_STREAM, "changelog.json")
-                    HttpEntity multipart = builder.build()
-                    http.setEntity(multipart)
-
-                    CloseableHttpClient httpClient = HttpClients.createDefault()
-                    def uploadResponse = httpClient.execute(http)
-
+                    def uploadResponse = jiraClient.attachToTicket(ticket, jsonChangelog.bytes, 'changelog.json')
                     if (uploadResponse.statusLine.statusCode == 200) {
                         def rangeMessage = lastValidatedVersion ? "from #$lastValidatedVersion to" : "for"
                         logger().info("Changelog $rangeMessage #$version has been attached to JIRA Issue $ticket")
