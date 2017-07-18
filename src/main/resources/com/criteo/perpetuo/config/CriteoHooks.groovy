@@ -37,10 +37,12 @@ class CriteoHooks extends Hooks {
 
     DbBinding dbBinding
     RootAppConfig appConfig
+    String jiraHost
 
     CriteoHooks(DbBinding dbBinding, RootAppConfig appConfig) {
         this.dbBinding = dbBinding
         this.appConfig = appConfig
+        this.jiraHost = appConfig.env() == "prod" ? "https://jira.criteois.com" : "https://dev2-jira.criteois.com"
     }
 
     @Override
@@ -106,12 +108,11 @@ class CriteoHooks extends Hooks {
                     ]
             ]
 
-            def url = appConfig.env() == "prod" ? "https://jira.criteois.com" : "https://dev2-jira.criteois.com"
             // don't reuse the connexion pool because:
             // - we are in a multi-threaded context managed externally
             // - we don't get here very often
             // - there can be a very long time between two calls
-            def client = new RESTClient(url)
+            def client = new RESTClient(this.jiraHost)
             // cannot use auth facility provided by RESTClient since it fires a pre-request
             // first without credentials and expects JIRA to respond a 401 but receives a 400...
             def credentials = appConfig.get("jira.user") + ":" + appConfig.get("jira.password")
@@ -128,12 +129,12 @@ class CriteoHooks extends Hooks {
 
                 String ticket = resp.data.key
                 logger().info("Jira ticket created $suffix: $ticket")
-                String ticketUrl = "$url/browse/$ticket"
+                String ticketUrl = "${this.jiraHost}/browse/$ticket"
 
                 def changelog = CriteoExternalData.getChangeLog(productName, version, lastValidatedVersion)
                 if (changelog) {
                     def jsonChangelog = JsonOutput.toJson(changelog)
-                    def attachmentUri = url + "/rest/api/2/issue/$ticket/attachments"
+                    def attachmentUri = "${this.jiraHost}/rest/api/2/issue/$ticket/attachments"
 
                     HttpPost http = new HttpPost()
                     http.setURI(attachmentUri.toURI())
