@@ -193,7 +193,7 @@
 
     create() {
       const comment =
-        this.$.commentEditor.value +
+        (this.$.commentEditor.value || '') +
         (this.$.lastValidatedVersion.value ? `${this.$.commentEditor.value ? '\n' : ''}Last validated version: ${this.$.lastValidatedVersion.value}` : '')
       this.client.createDeploymentRequest(this.selectedProductName,
                                           // TODO: remove this hack as soon as the UI allows inputing complex version specifications <<
