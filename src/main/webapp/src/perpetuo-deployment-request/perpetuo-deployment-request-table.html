@@ -259,7 +259,9 @@
 
     onCreateTap() {
       if (this.login) {
-        this.$$('perpetuo-deployment-request-creation-form').open();
+        const creationForm = this.$$('perpetuo-deployment-request-creation-form');
+        this.client.fetchProducts().then(products => { creationForm.products = products; });
+        creationForm.open();
       } else {
         this.$.identity.request();
       }
