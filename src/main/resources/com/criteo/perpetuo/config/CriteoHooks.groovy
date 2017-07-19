@@ -74,8 +74,7 @@ class CriteoHooks extends Hooks {
         List fetchTicketChildren(parentTicketKey) {
             def resp = makeAuthorizedClient().get(
                     path: '/rest/api/2/search',
-                    query: [jql: "parent=$parentTicketKey"],
-                    requestContentType: JSON,
+                    query: [jql: "parent=$parentTicketKey"]
             )
             resp.data.issues
         }
