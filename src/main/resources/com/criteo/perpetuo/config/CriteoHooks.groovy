@@ -81,6 +81,12 @@ class CriteoHooks extends Hooks {
             resp
         }
 
+        String fetchTicketStatusId(ticketKey) {
+            def resp = makeAuthorizedClient().get(path: "/rest/api/2/issue/$ticketKey")
+            assert resp.status == 200
+            resp.data.fields.status.id
+        }
+
         def transitionTicket(String ticketKey, Map<Integer, String> transitionsIdsAndNames) {
             def client = makeAuthorizedClient()
             def resp = null
@@ -233,25 +239,21 @@ class CriteoHooks extends Hooks {
     void onOperationClosed(OperationTrace operationTrace, DeploymentRequest deploymentRequest, boolean succeeded) {
         if (jiraClient) {
             def parentTicketKey = findJiraTicket(deploymentRequest)
-            if (parentTicketKey)
-                try {
+            if (parentTicketKey) {
+                def deadline = System.currentTimeMillis() + timeout_s() * 1000
+                while (System.currentTimeMillis() < deadline) {
                     def resp = jiraClient.fetchTicketChildren(parentTicketKey)
-                    assert resp.data.total == 1
-                    String childKey = resp.data.issues[0].key
-
-                    def transitions = succeeded ?
-                            [
-                                    351: '[RM] DEPLOYING - Deployment failed -> [RM] DEPLOYMENT FAILED'
-                            ] :
-                            [
-                                    371: '[RM] DEPLOYING - Partly deployed -> AWAITING DEPLOYMENT',
-                                    401: 'AWAITING DEPLOYMENT - Deployed -> [RM] DEPLOYED',
-                                    471: '[RM] DEPLOYED - Deploy [No validation] -> DONE'
-                            ]
-                    jiraClient.transitionTicket(childKey, transitions)
-                } catch (HttpResponseException e) {
-                    logger().severe("Bad response from JIRA: ${e.response.status} ${e.message}: ${e.response.data.toString()}")
+                    assert resp.data.total <= 1
+                    if (resp.data.total == 1) {
+                        String childKey = resp.data.issues[0].key
+                        if (jiraClient.fetchTicketStatusId(childKey) == "10396") { // aka "[RM] Deploying"
+                            jiraClient.transitionTicket(childKey, closingTransitions(succeeded))
+                            return
+                        }
+                    }
+                    sleep(1000)
                 }
+            }
         }
     }
 
@@ -259,6 +261,18 @@ class CriteoHooks extends Hooks {
         def client = new HTTPBuilder()
         StringReader resp = client.get(uri: "http://review.criteois.lan/gitweb?p=release/release-management.git;a=blob_plain;f=src/python/releaseManagement/jiraMoab/tlaVsAppObject.json")
         return new JsonSlurper().parse(resp) as Map
+    }
+
+    static def closingTransitions(Boolean succeeded) {
+        succeeded ?
+                [
+                        351: '[RM] DEPLOYING - Deployment failed -> [RM] DEPLOYMENT FAILED'
+                ] :
+                [
+                        371: '[RM] DEPLOYING - Partly deployed -> AWAITING DEPLOYMENT',
+                        401: 'AWAITING DEPLOYMENT - Deployed -> [RM] DEPLOYED',
+                        471: '[RM] DEPLOYED - Deploy [No validation] -> DONE'
+                ]
     }
 
     String findJiraTicket(DeploymentRequest deploymentRequest) {
