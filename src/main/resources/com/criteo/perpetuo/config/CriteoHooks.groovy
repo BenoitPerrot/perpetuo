@@ -49,9 +49,9 @@ class CriteoHooks extends Hooks {
 
         def createTicket(Map fields) {
             makeAuthorizedClient().post(
-                path: '/rest/api/2/issue',
-                requestContentType: JSON,
-                body: [ fields: fields ]
+                    path: '/rest/api/2/issue',
+                    requestContentType: JSON,
+                    body: [fields: fields]
             )
         }
 
@@ -59,7 +59,7 @@ class CriteoHooks extends Hooks {
             HttpPost http = new HttpPost()
             http.setURI("${this.host}/rest/api/2/issue/$ticketKey/attachments".toURI())
             http.setHeader('Accept', JSON.toString())
-            http.setHeader('X-Atlassian-Token' , 'nocheck')
+            http.setHeader('X-Atlassian-Token', 'nocheck')
             http.setHeader('Authorization', basicAuthorization)
 
             MultipartEntityBuilder builder = MultipartEntityBuilder.create()
@@ -73,9 +73,9 @@ class CriteoHooks extends Hooks {
 
         def fetchTicketChildren(parentTicketKey) {
             def resp = makeAuthorizedClient().get(
-                path: '/rest/api/2/search',
-                query: [ jql: "parent=$parentTicketKey" ],
-                requestContentType: JSON,
+                    path: '/rest/api/2/search',
+                    query: [jql: "parent=$parentTicketKey"],
+                    requestContentType: JSON,
             )
             assert resp.status == 200
             resp
