@@ -87,7 +87,7 @@ class Engine @Inject()(val dbBinding: DbBinding) {
   private def closeOperation(operationTrace: OperationTrace, deploymentRequest: DeploymentRequest): Future[Boolean] = {
     dbBinding.closeOperationTrace(operationTrace.id).map { closingSuccess =>
       if (closingSuccess)
-        plugins.hooks.onOperationClosed(operationTrace, deploymentRequest)
+        plugins.hooks.onOperationClosed(operationTrace, deploymentRequest, operationTrace.succeeded)
       closingSuccess
     }
   }
