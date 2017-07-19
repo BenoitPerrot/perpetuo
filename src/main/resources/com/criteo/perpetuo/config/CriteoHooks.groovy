@@ -81,16 +81,21 @@ class CriteoHooks extends Hooks {
             resp
         }
 
-        def transitionTicket(String ticketKey, Integer transitionId) {
-            def resp = makeAuthorizedClient().post(
-                path: "/rest/api/latest/issue/$ticketKey/transitions",
-                requestContentType: JSON,
-                body: [
-                    transition: [ id: transitionId ]
-                ]
-            )
-            assert resp.status < 300
-            resp
+        def transitionTicket(String ticketKey, Map<Integer, String> transitionsIdsAndNames) {
+            def client = makeAuthorizedClient()
+            def resp = null
+            transitionsIdsAndNames.each { transitionId, transitionName ->
+                logger().info("Applying `$transitionName` (id=$transitionId) on $ticketKey")
+                resp = client.post(
+                        path: "/rest/api/latest/issue/$ticketKey/transitions",
+                        requestContentType: JSON,
+                        body: [
+                                transition: [id: transitionId]
+                        ]
+                )
+                assert resp.status < 300
+            }
+            return resp
         }
     }
 
@@ -232,7 +237,7 @@ class CriteoHooks extends Hooks {
                 try {
                     def resp = jiraClient.fetchTicketChildren(parentTicketKey)
                     assert resp.data.total == 1
-                    def child = resp.data.issues[0]
+                    String childKey = resp.data.issues[0].key
 
                     def transitions = succeeded ?
                             [
@@ -243,10 +248,7 @@ class CriteoHooks extends Hooks {
                                     401: 'AWAITING DEPLOYMENT - Deployed -> [RM] DEPLOYED',
                                     471: '[RM] DEPLOYED - Deploy [No validation] -> DONE'
                             ]
-                    transitions.each { transitionId, transitionName ->
-                        logger().info("Applying `$transitionName` (id=$transitionId) on ${child.key}")
-                        jiraClient.transitionTicket(child.key, transitionId)
-                    }
+                    jiraClient.transitionTicket(childKey, transitions)
                 } catch (HttpResponseException e) {
                     logger().severe("Bad response from JIRA: ${e.response.status} ${e.message}: ${e.response.data.toString()}")
                 }
