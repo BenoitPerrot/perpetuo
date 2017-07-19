@@ -132,7 +132,6 @@
     </paper-dialog-scrollable>
     <div class="buttons">
       <paper-button dialog-dismiss class="cancel" raised>Cancel</paper-button>
-      <paper-button raised on-tap="clear">Clear</paper-button>
       <paper-button dialog-confirm class="create" raised on-tap="create">Create</paper-button>
     </div>
   </template>
@@ -188,6 +187,7 @@
 
     attached() {
       this.client = new Perpetuo.Client();
+      this.addEventListener('opened-changed', () => { this.clear() });
     },
 
     create() {
