@@ -58,8 +58,7 @@ class Engine @Inject()(val dbBinding: DbBinding) {
           .getOrElse {
             throw new UnknownProduct(attrs.productName)
           })
-        .flatMap(plugins.hooks.onDeploymentRequestCreated(_, immediateStart))
-        .map(ticketUrl => Map("ticketUrl" -> ticketUrl))
+        .map(depReq => Map("ticketUrl" -> plugins.hooks.onDeploymentRequestCreated(depReq, immediateStart)))
     }
     else {
       // first, log the user's general intent
@@ -78,7 +77,7 @@ class Engine @Inject()(val dbBinding: DbBinding) {
     execution
       .startOperation(plugins.dispatcher, req, Operation.deploy, initiatorName)
       .map { case (op, started, failed) =>
-        plugins.hooks.onDeploymentRequestStarted(req, started, failed, atCreation)
+        Future(plugins.hooks.onDeploymentRequestStarted(req, started, failed, atCreation))
         if (started == 0)
           closeOperation(op, req)
         (started, failed)
@@ -87,7 +86,7 @@ class Engine @Inject()(val dbBinding: DbBinding) {
   private def closeOperation(operationTrace: OperationTrace, deploymentRequest: DeploymentRequest): Future[Boolean] = {
     dbBinding.closeOperationTrace(operationTrace.id).map { closingSuccess =>
       if (closingSuccess)
-        plugins.hooks.onOperationClosed(operationTrace, deploymentRequest, operationTrace.succeeded)
+        Future(plugins.hooks.onOperationClosed(operationTrace, deploymentRequest, operationTrace.succeeded))
       closingSuccess
     }
   }
