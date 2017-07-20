@@ -7,7 +7,7 @@ import com.criteo.perpetuo.auth.UserFilter._
 import com.criteo.perpetuo.config.AppConfig
 import com.criteo.perpetuo.dao.UnknownProduct
 import com.criteo.perpetuo.engine.{Engine, ProductCreationConflict}
-import com.criteo.perpetuo.model.DeploymentRequestParser._
+import com.criteo.perpetuo.model.DeploymentRequestParser
 import com.criteo.perpetuo.model.ExecutionState
 import com.twitter.finagle.http.{Request, Response, Status => HttpStatus}
 import com.twitter.finatra.http.exceptions.{BadRequestException, ConflictException, HttpException}
@@ -135,7 +135,7 @@ class RestController @Inject()(val engine: Engine)
     authenticate(r) { case user if user.name == deployBotName || !autoStart =>
       timeBoxed(
         try {
-          engine.createDeploymentRequest(parse(r.contentString, user.name), autoStart)
+          engine.createDeploymentRequest(DeploymentRequestParser.parse(r.contentString, user.name), autoStart)
             .map(x => Some(response.created.json(x)))
             .recover {
               case e: UnknownProduct => throw BadRequestException(s"Product `${e.productName}` could not be found")
