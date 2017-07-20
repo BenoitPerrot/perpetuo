@@ -1,4 +1,4 @@
-package com.criteo.perpetuo.executors
+package com.criteo.perpetuo.engine.executors
 
 import com.criteo.perpetuo.dispatchers.TargetExpr
 import com.twitter.inject.Test

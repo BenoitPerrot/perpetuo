@@ -1,4 +1,4 @@
-package com.criteo.perpetuo.executors
+package com.criteo.perpetuo.engine.executors
 
 import java.net.InetSocketAddress
 

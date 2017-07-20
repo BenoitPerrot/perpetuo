@@ -2,9 +2,9 @@ package com.criteo.perpetuo.config
 
 import com.criteo.perpetuo.dao.DbBinding
 import com.criteo.perpetuo.dispatchers.TargetDispatcher
-import com.criteo.perpetuo.executors.DummyInvoker
-import com.criteo.perpetuo.executors.ExecutorInvoker
-import com.criteo.perpetuo.executors.HttpInvoker
+import com.criteo.perpetuo.engine.executors.DummyInvoker
+import com.criteo.perpetuo.engine.executors.ExecutorInvoker
+import com.criteo.perpetuo.engine.executors.HttpInvoker
 import com.twitter.finagle.http.Fields
 import com.twitter.finagle.http.Message$
 import com.twitter.finagle.http.Method

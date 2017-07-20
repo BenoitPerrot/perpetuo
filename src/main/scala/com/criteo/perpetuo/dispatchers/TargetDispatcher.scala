@@ -1,6 +1,6 @@
 package com.criteo.perpetuo.dispatchers
 
-import com.criteo.perpetuo.executors.ExecutorInvoker
+import com.criteo.perpetuo.engine.executors.ExecutorInvoker
 import com.criteo.perpetuo.model.{TargetAtom, Version}
 
 import scala.collection.JavaConverters._

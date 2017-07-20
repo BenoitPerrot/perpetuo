@@ -1,4 +1,4 @@
-package com.criteo.perpetuo.executors
+package com.criteo.perpetuo.engine.executors
 
 import com.criteo.perpetuo.TestDb
 import com.criteo.perpetuo.config.{AppConfig, Plugins}
