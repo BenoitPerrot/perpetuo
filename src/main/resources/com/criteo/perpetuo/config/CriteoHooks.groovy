@@ -231,6 +231,19 @@ class CriteoHooks extends Hooks {
     }
 
     @Override
+    void onDeploymentRequestStarted(DeploymentRequest deploymentRequest, int startedExecutions, int failedToStart, boolean atCreation) {
+        if (appConfig.env() != 'preprod' && !atCreation) {
+            // fixme: !atCreation is for short-term transition only, while we support dep.req. creation without ticket
+            String parentTicketKey = findJiraTicket(deploymentRequest)
+            jiraClient.transitionTicket(parentTicketKey, startingParentTransitions())
+            def issues = jiraClient.fetchTicketChildren(parentTicketKey)
+            assert issues.size() == 1
+            String childKey = issues[0].key
+            jiraClient.transitionTicket(childKey, startingChildrenTransitions())
+        }
+    }
+
+    @Override
     void onOperationClosed(OperationTrace operationTrace, DeploymentRequest deploymentRequest, boolean succeeded) {
         if (jiraClient) {
             def parentTicketKey = findJiraTicket(deploymentRequest)
@@ -268,6 +281,19 @@ class CriteoHooks extends Hooks {
                 [
                         351: '[RM] DEPLOYING - Deployment failed -> [RM] DEPLOYMENT FAILED'
                 ]
+    }
+
+    static def startingParentTransitions() {
+        [
+                151: '[RM] DEFINITION OK - Deploy -> [RM] PROD DEPLOYMENT ONGOING'
+        ]
+    }
+
+    static def startingChildrenTransitions() {
+        [
+                11 : '[RM] DEPLOYMENT OPEN - Initiate -> AWAITING DEPLOYMENT',
+                311: '[RM] AWAITING DEPLOYMENT - Launch deployer -> [RM] DEPLOYING',
+        ]
     }
 
     String findJiraTicket(DeploymentRequest deploymentRequest) {
