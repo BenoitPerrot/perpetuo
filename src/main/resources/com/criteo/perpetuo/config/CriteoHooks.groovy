@@ -87,7 +87,7 @@ class CriteoHooks extends Hooks {
             transitionsIdsAndNames.each { transitionId, transitionName ->
                 logger().info("Applying `$transitionName` (id=$transitionId) on $ticketKey")
                 resp = client.post(
-                        path: "/rest/api/latest/issue/$ticketKey/transitions",
+                        path: "/rest/api/2/issue/$ticketKey/transitions",
                         requestContentType: JSON,
                         body: [
                                 transition: [id: transitionId]
