@@ -162,7 +162,7 @@ class CriteoHooks extends Hooks {
             }
 
             def target = Target.getSimpleSelectForGroovy(deploymentRequest.parsedTarget())
-            def originator = appConfig.transition() ?
+            def originator = appConfig.transition(productName) ?
                     "by Perpetuo" :
                     "here: ${appConfig.get('selfUrl')}/deployment-requests/${deploymentRequest.id()}"
             def desc = """
@@ -218,7 +218,7 @@ class CriteoHooks extends Hooks {
                     }
                 }
 
-                if (appConfig.transition()) {
+                if (appConfig.transition(productName)) {
                     return ticketUrl
                 } else {
                     def newComment = deploymentRequest.comment()

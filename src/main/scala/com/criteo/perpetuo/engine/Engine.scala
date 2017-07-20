@@ -52,7 +52,7 @@ class Engine @Inject()(val dbBinding: DbBinding) {
     dbBinding.findDeploymentRequestByIdWithProduct(deploymentRequestId)
 
   def createDeploymentRequest(attrs: DeploymentRequestAttrs, immediateStart: Boolean): Future[Map[String, Any]] = {
-    if (AppConfig.transition && !immediateStart) {
+    if (AppConfig.transition(attrs.productName) && !immediateStart) {
       dbBinding.findProductByName(attrs.productName)
         .map(_.map(DeploymentRequest(0, _, attrs.version, attrs.target, attrs.comment, attrs.creator, attrs.creationDate))
           .getOrElse {

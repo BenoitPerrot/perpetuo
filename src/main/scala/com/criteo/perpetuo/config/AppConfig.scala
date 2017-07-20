@@ -30,12 +30,19 @@ class AppConfig(override protected val config: Config,
 
 
 abstract class RootAppConfig extends BaseAppConfig {
+
+  private val listOfTransitionProjects = List(
+    "angryboards-app"
+  )
+
   override lazy val env: String = config.getString("env")
 
   lazy val db: AppConfig = under("db")
 
   // just to make clear what's impacted by the transition to Perpetuo usage
-  def transition: Boolean = env == "prod" // todo: remove it
+  def transition(projectName: String): Boolean = {
+    !listOfTransitionProjects.contains(projectName) && env == "prod"
+  } // todo: remove it
 }
 
 
