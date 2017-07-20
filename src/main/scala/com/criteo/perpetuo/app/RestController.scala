@@ -5,8 +5,8 @@ import javax.inject.Inject
 import com.criteo.perpetuo.auth.User
 import com.criteo.perpetuo.auth.UserFilter._
 import com.criteo.perpetuo.config.AppConfig
-import com.criteo.perpetuo.dao.{Schema, UnknownProduct}
-import com.criteo.perpetuo.engine.{Engine, ProductCreationConflict}
+import com.criteo.perpetuo.dao.{ProductCreationConflict, Schema, UnknownProduct}
+import com.criteo.perpetuo.engine.Engine
 import com.criteo.perpetuo.model.{DeploymentRequestParser, ExecutionState, Status, TargetAtomStatus}
 import com.twitter.finagle.http.{Request, Response, Status => HttpStatus}
 import com.twitter.finatra.http.exceptions.{BadRequestException, ConflictException, HttpException}

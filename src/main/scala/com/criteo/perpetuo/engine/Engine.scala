@@ -1,6 +1,5 @@
 package com.criteo.perpetuo.engine
 
-import java.sql.SQLException
 import javax.inject.{Inject, Singleton}
 
 import com.criteo.perpetuo.config.{AppConfig, Plugins}
@@ -11,9 +10,6 @@ import com.criteo.perpetuo.model._
 import scala.collection.JavaConverters._
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
-
-case class ProductCreationConflict(productName: String, private val cause: Throwable = None.orNull)
-  extends Exception(s"Name `$productName` is already used", cause)
 
 @Singleton
 class Engine @Inject()(val dbBinding: DbBinding) {
@@ -26,13 +22,6 @@ class Engine @Inject()(val dbBinding: DbBinding) {
 
   def insertProduct(productName: String): Future[Product] =
     dbBinding.insert(productName)
-      .recover {
-        case e: SQLException if e.getMessage.contains("nique index") =>
-          // there is no specific exception type if the name is already used but the error message starts with
-          // - if H2: Unique index or primary key violation: "ix_product_name ON PUBLIC.""product""(""name"") VALUES ('my product', 1)"
-          // - if SQLServer: Cannot insert duplicate key row in object 'dbo.product' with unique index 'ix_product_name'
-          throw ProductCreationConflict(productName, e)
-      }
 
   // TODO: move out of Engine? <<
   def suggestVersions(productName: String): Seq[String] =
