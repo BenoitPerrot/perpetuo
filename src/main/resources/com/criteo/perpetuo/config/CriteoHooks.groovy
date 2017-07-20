@@ -71,13 +71,13 @@ class CriteoHooks extends Hooks {
             httpClient.execute(http)
         }
 
-        def fetchTicketChildren(parentTicketKey) {
+        List fetchTicketChildren(parentTicketKey) {
             def resp = makeAuthorizedClient().get(
                     path: '/rest/api/2/search',
                     query: [jql: "parent=$parentTicketKey"],
                     requestContentType: JSON,
             )
-            resp
+            resp.data.issues
         }
 
         String fetchTicketStatusId(ticketKey) {
@@ -88,10 +88,9 @@ class CriteoHooks extends Hooks {
 
         def transitionTicket(String ticketKey, Map<Integer, String> transitionsIdsAndNames) {
             def client = makeAuthorizedClient()
-            def resp = null
             transitionsIdsAndNames.each { transitionId, transitionName ->
                 logger().info("Applying `$transitionName` (id=$transitionId) on $ticketKey")
-                resp = client.post(
+                client.post(
                         path: "/rest/api/2/issue/$ticketKey/transitions",
                         requestContentType: JSON,
                         body: [
@@ -99,7 +98,6 @@ class CriteoHooks extends Hooks {
                         ]
                 )
             }
-            return resp
         }
     }
 
@@ -239,10 +237,10 @@ class CriteoHooks extends Hooks {
             if (parentTicketKey) {
                 def deadline = System.currentTimeMillis() + timeout_s() * 1000
                 while (System.currentTimeMillis() < deadline) {
-                    def resp = jiraClient.fetchTicketChildren(parentTicketKey)
-                    assert resp.data.total <= 1
-                    if (resp.data.total == 1) {
-                        String childKey = resp.data.issues[0].key
+                    def issues = jiraClient.fetchTicketChildren(parentTicketKey)
+                    assert issues.size() <= 1
+                    if (issues.size() == 1) {
+                        String childKey = issues[0].key
                         if (jiraClient.fetchTicketStatusId(childKey) == "10396") { // aka "[RM] Deploying"
                             jiraClient.transitionTicket(childKey, closingTransitions(succeeded))
                             return
