@@ -98,6 +98,17 @@ class CriteoHooks extends Hooks {
                 )
             }
         }
+
+        def updateTicketField(String ticketKey, String fieldId, Object value) {
+            def resp = makeAuthorizedClient().put(
+                    path: "/rest/api/2/issue/$ticketKey",
+                    requestContentType: JSON,
+                    body: [
+                            fields: [(fieldId): value]
+                    ]
+            )
+            assert resp.status < 300
+        }
     }
 
     def targetMap = [
@@ -239,6 +250,7 @@ class CriteoHooks extends Hooks {
             assert issues.size() == 1
             String childKey = issues[0].key
             jiraClient.transitionTicket(childKey, startingChildrenTransitions())
+            jiraClient.updateTicketField(childKey, "customfield_20300", 1)
         }
     }
 
