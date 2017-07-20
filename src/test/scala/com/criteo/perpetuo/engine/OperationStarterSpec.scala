@@ -4,7 +4,7 @@ import java.sql.Timestamp
 
 import com.criteo.perpetuo.TestDb
 import com.criteo.perpetuo.dao._
-import com.criteo.perpetuo.dispatchers.{DummyTargetDispatcher, Select, SingleTargetDispatcher, TargetDispatcher, TargetExpr, TargetTerm}
+import com.criteo.perpetuo.engine.dispatchers.{DummyTargetDispatcher, Select, SingleTargetDispatcher, TargetDispatcher, TargetExpr, TargetTerm}
 import com.criteo.perpetuo.engine.executors.{DummyInvoker, ExecutorInvoker}
 import com.criteo.perpetuo.model.{DeploymentRequestAttrs, Operation, Product, Version}
 import com.twitter.inject.Test

@@ -3,7 +3,7 @@ package com.criteo.perpetuo.engine.executors
 import com.criteo.perpetuo.TestDb
 import com.criteo.perpetuo.config.{AppConfig, Plugins}
 import com.criteo.perpetuo.dao.DbBinding
-import com.criteo.perpetuo.dispatchers.TargetTerm
+import com.criteo.perpetuo.engine.dispatchers.TargetTerm
 import com.criteo.perpetuo.model.{Operation, Version}
 import com.twitter.finagle.http.{Response, Status}
 import com.twitter.inject.Test

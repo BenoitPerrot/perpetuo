@@ -1,7 +1,7 @@
 package com.criteo.perpetuo.engine
 
 import com.criteo.perpetuo.dao._
-import com.criteo.perpetuo.dispatchers.{TargetDispatcher, TargetExpr, TargetTerm}
+import com.criteo.perpetuo.engine.dispatchers.{TargetDispatcher, TargetExpr, TargetTerm}
 import com.criteo.perpetuo.engine.executors.ExecutorInvoker
 import com.criteo.perpetuo.model.Operation.Operation
 import com.criteo.perpetuo.model.{DeploymentRequest, ExecutionState, Operation, OperationTrace}

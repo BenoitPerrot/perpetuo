@@ -1,6 +1,6 @@
 package com.criteo.perpetuo.engine.executors
 
-import com.criteo.perpetuo.dispatchers.TargetExpr
+import com.criteo.perpetuo.engine.dispatchers.TargetExpr
 import com.twitter.inject.Test
 
 import scala.concurrent.Future

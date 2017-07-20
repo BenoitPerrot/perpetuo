@@ -1,7 +1,7 @@
 package com.criteo.perpetuo.config
 
 import com.criteo.perpetuo.dao.DbBinding
-import com.criteo.perpetuo.dispatchers.TargetDispatcher
+import com.criteo.perpetuo.engine.dispatchers.TargetDispatcher
 import com.criteo.perpetuo.engine.executors.DummyInvoker
 import com.criteo.perpetuo.engine.executors.ExecutorInvoker
 import com.criteo.perpetuo.engine.executors.HttpInvoker

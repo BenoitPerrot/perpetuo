@@ -2,7 +2,7 @@ package com.criteo.perpetuo.engine.executors
 
 import com.criteo.perpetuo.app.RestApi
 import com.criteo.perpetuo.config.AppConfig
-import com.criteo.perpetuo.dispatchers.TargetExpr
+import com.criteo.perpetuo.engine.dispatchers.TargetExpr
 import com.twitter.inject.Logging
 import spray.json.DefaultJsonProtocol._
 import spray.json._

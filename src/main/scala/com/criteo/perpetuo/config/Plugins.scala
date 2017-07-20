@@ -5,7 +5,7 @@ import java.util.logging.Logger
 import javax.script.{ScriptEngine, ScriptEngineManager}
 
 import com.criteo.perpetuo.dao.DbBinding
-import com.criteo.perpetuo.dispatchers.TargetDispatcher
+import com.criteo.perpetuo.engine.dispatchers.TargetDispatcher
 
 import scala.collection.JavaConverters._
 import scala.concurrent.ExecutionContext.Implicits.global

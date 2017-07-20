@@ -2,7 +2,7 @@ package com.criteo.perpetuo.model
 
 import java.sql.Timestamp
 
-import com.criteo.perpetuo.dispatchers.{Tactics, TargetExpr, TargetTerm}
+import com.criteo.perpetuo.engine.dispatchers.{Tactics, TargetExpr, TargetTerm}
 import spray.json.JsonParser.ParsingException
 import spray.json._
 
