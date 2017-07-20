@@ -56,17 +56,19 @@ class CriteoExternalData extends ExternalData { // fixme: this only works with J
                 def changelog = fetchChangeLogForRepo(repo, version, previousVersion)
                 for (def moab : changelog) {
                     for (def commit : moab.commits) {
-                        if (!listOfChanges[moab.moabId])
-                            listOfChanges[moab.moabId] = [:]
-                        if (!listOfChanges[moab.moabId][commit.repo])
-                            listOfChanges[moab.moabId][commit.repo] = [:]
-                        if (!listOfChanges[moab.moabId][commit.repo][commit.sha1])
-                            listOfChanges[moab.moabId][commit.repo][commit.sha1] = [
-                                    author : commit.author,
-                                    date   : commit.date,
-                                    title  : commit.title,
-                                    message: commit.message
-                            ]
+                        if (!commit.error) {
+                            if (!listOfChanges[moab.moabId])
+                                listOfChanges[moab.moabId] = [:]
+                            if (!listOfChanges[moab.moabId][commit.repo])
+                                listOfChanges[moab.moabId][commit.repo] = [:]
+                            if (!listOfChanges[moab.moabId][commit.repo][commit.sha1])
+                                listOfChanges[moab.moabId][commit.repo][commit.sha1] = [
+                                        author : commit.author,
+                                        date   : commit.date,
+                                        title  : commit.title,
+                                        message: commit.message
+                                ]
+                        }
                     }
                 }
             }
