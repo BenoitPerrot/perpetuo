@@ -1,7 +1,7 @@
 package com.criteo.perpetuo.dao
 
-import com.criteo.perpetuo.model.{ExecutionState, ExecutionTrace, OperationTrace}
 import com.criteo.perpetuo.model.ExecutionState._
+import com.criteo.perpetuo.model.{ExecutionState, ExecutionTrace, OperationTrace}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
@@ -11,7 +11,7 @@ private[dao] case class ExecutionTraceRecord(id: Option[Long],
                                              operationTraceId: Option[Long],
                                              logHref: Option[String] = None,
                                              state: ExecutionState = ExecutionState.pending,
-                                             executionSpecificationId: Option[Long] = None) {
+                                             executionId: Option[Long] = None) {
   def toExecutionTrace(operationTrace: OperationTrace): ExecutionTrace = {
     ExecutionTrace(id.get, operationTrace, logHref, state)
   }
@@ -19,7 +19,7 @@ private[dao] case class ExecutionTraceRecord(id: Option[Long],
 
 
 trait ExecutionTraceBinder extends TableBinder {
-  this: ExecutionSpecificationBinder with OperationTraceBinder with DbContextProvider =>
+  this: ExecutionBinder with OperationTraceBinder with DbContextProvider =>
 
   import dbContext.driver.api._
 
@@ -40,10 +40,10 @@ trait ExecutionTraceBinder extends TableBinder {
 
     def state = column[ExecutionState]("state")
 
-    def executionSpecificationId = column[Option[Long]]("execution_specification_id", O.Default(None))
-    protected def fk = foreignKey(executionSpecificationId, executionSpecificationQuery)(_.id)
+    def executionId = column[Option[Long]]("execution_id", O.Default(None))
+    protected def fk = foreignKey(executionId, executionQuery)(_.id)
 
-    def * = (id.?, operationTraceId, logHref, state, executionSpecificationId) <> (ExecutionTraceRecord.tupled, ExecutionTraceRecord.unapply)
+    def * = (id.?, operationTraceId, logHref, state, executionId) <> (ExecutionTraceRecord.tupled, ExecutionTraceRecord.unapply)
   }
 
   val executionTraceQuery = TableQuery[ExecutionTraceTable]

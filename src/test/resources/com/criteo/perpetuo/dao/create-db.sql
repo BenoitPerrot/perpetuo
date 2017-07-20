@@ -42,7 +42,6 @@ CREATE INDEX "ix_operation_trace_creation_date"
 
 CREATE TABLE "execution_specification" (
   "id"                  BIGINT          NOT NULL IDENTITY,
-  "operation_trace_id"  BIGINT          NOT NULL,
   "version"             NVARCHAR(1024),
   "specific_parameters" NVARCHAR(16000) NOT NULL
 )
@@ -50,24 +49,36 @@ ALTER TABLE "execution_specification"
   ADD CONSTRAINT "pk_execution_specification" PRIMARY KEY ("id")
 
 
+CREATE TABLE "execution" (
+  "id"                         BIGINT NOT NULL IDENTITY,
+  "operation_trace_id"         BIGINT NOT NULL,
+  "execution_specification_id" BIGINT NOT NULL
+)
+ALTER TABLE "execution"
+  ADD CONSTRAINT "pk_execution" PRIMARY KEY ("id")
+CREATE UNIQUE INDEX "ix_execution"
+  ON "execution" ("operation_trace_id", "execution_specification_id")
+
+
 CREATE TABLE "target_status" (
-  "operation_trace_id"         BIGINT         NOT NULL,
-  "execution_specification_id" BIGINT         NOT NULL,
+  "id"                         BIGINT         NOT NULL IDENTITY,
+  "execution_id"               BIGINT         NOT NULL,
   "target"                     NVARCHAR(128)  NOT NULL,
   "code"                       SMALLINT       NOT NULL,
   "detail"                     NVARCHAR(4000) NOT NULL
 )
 ALTER TABLE "target_status"
-  ADD CONSTRAINT "pk_target_status" PRIMARY KEY ("operation_trace_id", "execution_specification_id")
+  ADD CONSTRAINT "pk_target_status" PRIMARY KEY ("id")
 CREATE INDEX "ix_target_status_target"
   ON "target_status" ("target")
+
 
 CREATE TABLE "execution_trace" (
   "id"                         BIGINT      NOT NULL IDENTITY,
   "operation_trace_id"         BIGINT      DEFAULT NULL,
   "log_href"                   NVARCHAR(1024),
   "state"                      SMALLINT    NOT NULL,
-  "execution_specification_id" BIGINT      DEFAULT NULL
+  "execution_id"               BIGINT      DEFAULT NULL
 )
 ALTER TABLE "execution_trace"
   ADD CONSTRAINT "pk_execution_trace" PRIMARY KEY ("id")
@@ -91,20 +102,20 @@ ALTER TABLE "operation_trace"
   ADD CONSTRAINT "fk_operation_trace_deployment_request_id" FOREIGN KEY ("deployment_request_id") REFERENCES "deployment_request" ("id")
   ON UPDATE NO ACTION
   ON DELETE NO ACTION
-ALTER TABLE "execution_specification"
-  ADD CONSTRAINT "fk_execution_specification_operation_trace_id" FOREIGN KEY ("operation_trace_id") REFERENCES "operation_trace" ("id")
+ALTER TABLE "execution"
+  ADD CONSTRAINT "fk_execution_execution_specification_id" FOREIGN KEY ("execution_specification_id") REFERENCES "execution_specification" ("id")
+  ON UPDATE NO ACTION
+  ON DELETE NO ACTION
+ALTER TABLE "execution"
+  ADD CONSTRAINT "fk_execution_operation_trace_id" FOREIGN KEY ("operation_trace_id") REFERENCES "operation_trace" ("id")
   ON UPDATE NO ACTION
   ON DELETE NO ACTION
 ALTER TABLE "target_status"
-  ADD CONSTRAINT "fk_target_status_execution_specification_id" FOREIGN KEY ("execution_specification_id") REFERENCES "execution_specification" ("id")
-  ON UPDATE NO ACTION
-  ON DELETE NO ACTION
-ALTER TABLE "target_status"
-  ADD CONSTRAINT "fk_target_status_operation_trace_id" FOREIGN KEY ("operation_trace_id") REFERENCES "operation_trace" ("id")
+  ADD CONSTRAINT "fk_target_status_execution_id" FOREIGN KEY ("execution_id") REFERENCES "execution" ("id")
   ON UPDATE NO ACTION
   ON DELETE NO ACTION
 ALTER TABLE "execution_trace"
-  ADD CONSTRAINT "fk_execution_trace_execution_specification_id" FOREIGN KEY ("execution_specification_id") REFERENCES "execution_specification" ("id")
+  ADD CONSTRAINT "fk_execution_trace_execution_id" FOREIGN KEY ("execution_id") REFERENCES "execution" ("id")
   ON UPDATE NO ACTION
   ON DELETE NO ACTION
 ALTER TABLE "execution_trace"

@@ -4,13 +4,12 @@ import com.criteo.perpetuo.model.Version
 
 
 private[dao] case class ExecutionSpecificationRecord(id: Option[Long],
-                                                     operationTraceId: Long,
                                                      version: Option[Version],
                                                      specificParameters: String)
 
 
 trait ExecutionSpecificationBinder extends TableBinder {
-  this: OperationTraceBinder with DbContextProvider =>
+  this: DbContextProvider =>
 
   import dbContext.driver.api._
 
@@ -18,13 +17,10 @@ trait ExecutionSpecificationBinder extends TableBinder {
     def id = column[Long]("id", O.AutoInc)
     protected def pk = primaryKey(id)
 
-    def operationTraceId = column[Long]("operation_trace_id")
-    protected def fk = foreignKey(operationTraceId, operationTraceQuery)(_.id)
-
     def version = column[Option[Version]]("version", O.SqlType(s"nvarchar(${Version.maxSize})"))
     def specificParameters = column[String]("specific_parameters", O.SqlType("nvarchar(16000)"))
 
-    def * = (id.?, operationTraceId, version, specificParameters) <> (ExecutionSpecificationRecord.tupled, ExecutionSpecificationRecord.unapply)
+    def * = (id.?, version, specificParameters) <> (ExecutionSpecificationRecord.tupled, ExecutionSpecificationRecord.unapply)
   }
 
   val executionSpecificationQuery: TableQuery[ExecutionSpecificationTable] = TableQuery[ExecutionSpecificationTable]

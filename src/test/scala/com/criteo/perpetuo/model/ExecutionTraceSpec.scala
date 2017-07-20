@@ -17,7 +17,7 @@ import scala.concurrent.duration._
 @RunWith(classOf[JUnitRunner])
 class ExecutionTraceSpec extends FunSuite with ScalaFutures
   with ExecutionTraceBinder
-  with ExecutionSpecificationBinder with OperationTraceBinder with DeploymentRequestBinder with ProductBinder
+  with ExecutionBinder with ExecutionSpecificationBinder with OperationTraceBinder with DeploymentRequestBinder with ProductBinder
   with TestDb {
 
   import dbContext.driver.api._
