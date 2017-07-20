@@ -1,9 +1,10 @@
-package com.criteo.perpetuo.dispatchers
+package com.criteo.perpetuo.engine
 
 import java.sql.Timestamp
 
 import com.criteo.perpetuo.TestDb
 import com.criteo.perpetuo.dao._
+import com.criteo.perpetuo.dispatchers.{DummyTargetDispatcher, Select, SingleTargetDispatcher, TargetDispatcher, TargetExpr, TargetTerm}
 import com.criteo.perpetuo.executors.{DummyInvoker, ExecutorInvoker}
 import com.criteo.perpetuo.model.{DeploymentRequestAttrs, Operation, Product, Version}
 import com.twitter.inject.Test
@@ -43,13 +44,13 @@ object TestTargetDispatcher extends TargetDispatcher {
 }
 
 
-class ExecutionSpec extends Test with TestDb {
+class OperationStarterSpec extends Test with TestDb {
 
   import TestTargetDispatcher._
 
   private val dummyCounter = Stream.from(1).toIterator
   private val execLogs: ConcurrentMap[ExecutorInvoker, TargetExpr] = new TrieMap()
-  private val execution = new Execution(new DbBinding(dbContext)) {
+  private val execution = new OperationStarter(new DbBinding(dbContext)) {
     override protected def logExecution(identifier: String, execId: Long, executor: ExecutorInvoker, target: TargetExpr): Unit = {
       execLogs.put(executor, target).map(prev => fail(s"Logs say the executor has ${target.toJson.compactPrint} to do, but it already has $prev to do!"))
     }
@@ -70,7 +71,7 @@ class ExecutionSpec extends Test with TestDb {
     val req = new DeploymentRequestAttrs(product.name, Version("v42"), """"*"""", "No fear", "c.norris", new Timestamp(123456789))
 
     val depReq = execution.dbBinding.insert(req)
-    val asyncStart = depReq.flatMap(execution.startOperation(dispatcher, _, Operation.deploy, "c.norris"))
+    val asyncStart = depReq.flatMap(execution.start(dispatcher, _, Operation.deploy, "c.norris"))
     asyncStart.flatMap { case (op, successes, failures) =>
       depReq.map(_.id).flatMap(execution.dbBinding.findExecutionTracesByDeploymentRequest).map { traces =>
         val executions = traces.map(trace => {
@@ -97,7 +98,7 @@ class ExecutionSpec extends Test with TestDb {
     def dispatchedAs(that: Map[ExecutorInvoker, TargetExpr]): Unit = {
       execLogs.clear()
       Await.result(
-        depReq.flatMap(execution.startOperation(TestTargetDispatcher, _, Operation.deploy, "c.norris").map(_ =>
+        depReq.flatMap(execution.start(TestTargetDispatcher, _, Operation.deploy, "c.norris").map(_ =>
           assertEqual(execLogs, that)
         )),
         1.second

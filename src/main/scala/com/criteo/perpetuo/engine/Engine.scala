@@ -5,7 +5,6 @@ import javax.inject.{Inject, Singleton}
 
 import com.criteo.perpetuo.config.{AppConfig, Plugins}
 import com.criteo.perpetuo.dao.{DbBinding, UnknownProduct}
-import com.criteo.perpetuo.dispatchers.Execution
 import com.criteo.perpetuo.model.ExecutionState.ExecutionState
 import com.criteo.perpetuo.model._
 import spray.json.DefaultJsonProtocol._
@@ -22,7 +21,7 @@ case class ProductCreationConflict(productName: String, private val cause: Throw
 class Engine @Inject()(val dbBinding: DbBinding) {
 
   private val plugins = new Plugins(dbBinding)
-  private val execution = new Execution(dbBinding)
+  private val operationStarter = new OperationStarter(dbBinding)
 
   def getProductNames: Future[Seq[String]] =
     dbBinding.getProductNames
@@ -74,8 +73,8 @@ class Engine @Inject()(val dbBinding: DbBinding) {
   }
 
   private def startDeploymentRequest(req: DeploymentRequest, initiatorName: String, atCreation: Boolean): Future[(Int, Int)] =
-    execution
-      .startOperation(plugins.dispatcher, req, Operation.deploy, initiatorName)
+    operationStarter
+      .start(plugins.dispatcher, req, Operation.deploy, initiatorName)
       .map { case (op, started, failed) =>
         Future(plugins.hooks.onDeploymentRequestStarted(req, started, failed, atCreation))
         if (started == 0)

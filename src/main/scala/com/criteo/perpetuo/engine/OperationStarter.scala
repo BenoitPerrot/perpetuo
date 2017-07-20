@@ -1,6 +1,7 @@
-package com.criteo.perpetuo.dispatchers
+package com.criteo.perpetuo.engine
 
 import com.criteo.perpetuo.dao._
+import com.criteo.perpetuo.dispatchers.{TargetDispatcher, TargetExpr, TargetTerm}
 import com.criteo.perpetuo.executors.ExecutorInvoker
 import com.criteo.perpetuo.model.Operation.Operation
 import com.criteo.perpetuo.model.{DeploymentRequest, ExecutionState, Operation, OperationTrace}
@@ -12,13 +13,13 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
 
-class Execution(val dbBinding: DbBinding) extends Logging {
+class OperationStarter(val dbBinding: DbBinding) extends Logging {
 
   /**
     * Start all relevant executions and return the numbers of successful
     * and failed execution starts.
     */
-  def startOperation(dispatcher: TargetDispatcher, deploymentRequest: DeploymentRequest, operation: Operation, userName: String): Future[(OperationTrace, Int, Int)] = {
+  def start(dispatcher: TargetDispatcher, deploymentRequest: DeploymentRequest, operation: Operation, userName: String): Future[(OperationTrace, Int, Int)] = {
     // target resolution
     val expandedTarget = dispatcher.expandTarget(deploymentRequest.product.name, deploymentRequest.version, deploymentRequest.parsedTarget)
 
