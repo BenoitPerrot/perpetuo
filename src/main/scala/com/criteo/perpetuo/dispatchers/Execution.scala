@@ -1,7 +1,5 @@
 package com.criteo.perpetuo.dispatchers
 
-import javax.inject.{Inject, Singleton}
-
 import com.criteo.perpetuo.dao._
 import com.criteo.perpetuo.executors.ExecutorInvoker
 import com.criteo.perpetuo.model.Operation.Operation
