@@ -7,8 +7,7 @@ import com.criteo.perpetuo.auth.UserFilter._
 import com.criteo.perpetuo.config.AppConfig
 import com.criteo.perpetuo.dao.UnknownProduct
 import com.criteo.perpetuo.engine.{Engine, ProductCreationConflict}
-import com.criteo.perpetuo.model.DeploymentRequestParser
-import com.criteo.perpetuo.model.ExecutionState
+import com.criteo.perpetuo.model.{DeploymentRequestParser, ExecutionState, Status, TargetAtomStatus}
 import com.twitter.finagle.http.{Request, Response, Status => HttpStatus}
 import com.twitter.finatra.http.exceptions.{BadRequestException, ConflictException, HttpException}
 import com.twitter.finatra.http.{Controller => BaseController}
@@ -16,7 +15,10 @@ import com.twitter.finatra.request._
 import com.twitter.finatra.utils.FuturePools
 import com.twitter.finatra.validation._
 import com.twitter.util.{Future => TwitterFuture}
+import spray.json.DefaultJsonProtocol._
+import spray.json.DeserializationException
 import spray.json.JsonParser.ParsingException
+import spray.json._
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
@@ -179,11 +181,15 @@ class RestController @Inject()(val engine: Engine)
           } catch {
             case _: NoSuchElementException => throw BadRequestException(s"Unknown state `${r.state}`")
           }
-        try {
-          engine.updateExecutionTrace(id, executionState, r.logHref, r.targetStatus).map(_.map(_ => response.noContent))
-        } catch {
-          case e: IllegalArgumentException => throw BadRequestException(e.getMessage)
-        }
+        val statusMap: Map[String, TargetAtomStatus] =
+          try {
+            r.targetStatus.map { // don't use mapValues, as it gives a view (lazy generation, incompatible with error management here)
+              case (k, obj) => (k, Status.targetMapJsonFormat.read(obj.toJson)) // yes it's crazy to use spray's case class deserializer
+            }
+          } catch {
+            case e: DeserializationException => throw BadRequestException(e.getMessage)
+          }
+        engine.updateExecutionTrace(id, executionState, r.logHref, statusMap).map(_.map(_ => response.noContent))
       },
       3.seconds
     )

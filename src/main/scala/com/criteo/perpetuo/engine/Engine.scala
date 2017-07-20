@@ -7,8 +7,6 @@ import com.criteo.perpetuo.config.{AppConfig, Plugins}
 import com.criteo.perpetuo.dao.{DbBinding, UnknownProduct}
 import com.criteo.perpetuo.model.ExecutionState.ExecutionState
 import com.criteo.perpetuo.model._
-import spray.json.DefaultJsonProtocol._
-import spray.json._
 
 import scala.collection.JavaConverters._
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -118,16 +116,7 @@ class Engine @Inject()(val dbBinding: DbBinding) {
   /**
     * @return ultimately true when the linked OperationTrace has been closed by the update, false otherwise
     */
-  def updateExecutionTrace(id: Long, executionState: ExecutionState, logHref: String, targetStatus: Map[String, Map[String, String]]): Future[Option[Boolean]] = {
-    val statusMap =
-      try {
-        targetStatus.map { // don't use mapValues, as it gives a view (lazy generation, incompatible with error management here)
-          case (k, obj) => (k, Status.targetMapJsonFormat.read(obj.toJson)) // yes it's crazy to use spray's case class deserializer
-        }
-      } catch {
-        case e: DeserializationException => throw new IllegalArgumentException(e.getMessage)
-      }
-
+  def updateExecutionTrace(id: Long, executionState: ExecutionState, logHref: String, statusMap: Map[String, TargetAtomStatus]): Future[Option[Boolean]] = {
     val executionUpdate =
       if (logHref.nonEmpty)
         dbBinding.updateExecutionTrace(id, logHref, executionState)

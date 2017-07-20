@@ -4,7 +4,7 @@ import java.sql.Timestamp
 
 import com.criteo.perpetuo.TestDb
 import com.criteo.perpetuo.dao.DbBinding
-import com.criteo.perpetuo.model.{DeploymentRequestAttrs, ExecutionState, Version}
+import com.criteo.perpetuo.model._
 import com.twitter.inject.Test
 import spray.json._
 
@@ -27,7 +27,9 @@ class EngineSpec extends Test with TestDb {
           operationTraceId = operationTraces.head.id
           hasOpenExecutionBefore <- engine.dbBinding.hasOpenExecutionTracesForOperation(operationTraceId)
           executionTrace <- engine.dbBinding.findExecutionTracesByDeploymentRequest(deploymentRequestId).map(_.head)
-          _ <- engine.updateExecutionTrace(executionTrace.id, ExecutionState.completed, "", Map("moon" -> Map("code" -> "success", "detail" -> "no surprise"), "mars" -> Map("code" -> "hostFailure", "detail" -> "no surprise")))
+          _ <- engine.updateExecutionTrace(executionTrace.id, ExecutionState.completed, "", Map(
+            "moon" -> TargetAtomStatus(Status.success, "no surprise"),
+            "mars" -> TargetAtomStatus(Status.hostFailure, "no surprise")))
           hasOpenExecutionAfter <- engine.dbBinding.hasOpenExecutionTracesForOperation(operationTraceId)
           operationReClosingSucceeded <- engine.dbBinding.closeOperationTrace(operationTraceId)
         } yield {
