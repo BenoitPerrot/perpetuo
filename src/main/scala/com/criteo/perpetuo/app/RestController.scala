@@ -118,9 +118,13 @@ class RestController @Inject()(val engine: Engine)
   }
 
   post("/api/products/validate-version") { r: ProductPostWithVersion =>
-    handleTimeout(
-      engine.validateVersion(r.name, r.version)
-    )
+    handleTimeout {
+      val reasonsForInvalidity = engine.validateVersion(r.name, r.version)
+      if (reasonsForInvalidity.isEmpty)
+        Map("valid" -> true)
+      else
+        Map("valid" -> false, "reason" -> reasonsForInvalidity)
+    }
   }
 
   get("/api/deployment-requests/:id")(

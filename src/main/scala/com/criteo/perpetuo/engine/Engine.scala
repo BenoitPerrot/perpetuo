@@ -36,16 +36,14 @@ class Engine @Inject()(val dbBinding: DbBinding) {
           throw ProductCreationConflict(productName, e)
       }
 
+  // TODO: move out of Engine? <<
   def suggestVersions(productName: String): Seq[String] =
     plugins.externalData.suggestVersions(productName).asScala
 
-  def validateVersion(productName: String, productVersion: String): Map[String, Any] = {
-    val reasonsForInvalidity = plugins.externalData.validateVersion(productName, productVersion).asScala
-    if (reasonsForInvalidity.isEmpty)
-      Map("valid" -> true)
-    else
-      Map("valid" -> false, "reason" -> reasonsForInvalidity)
+  def validateVersion(productName: String, productVersion: String): Seq[String] = {
+    plugins.externalData.validateVersion(productName, productVersion).asScala
   }
+  // >>
 
   def findDeploymentRequestByIdWithProduct(deploymentRequestId: Long): Future[Option[DeploymentRequest]] =
     dbBinding.findDeploymentRequestByIdWithProduct(deploymentRequestId)
