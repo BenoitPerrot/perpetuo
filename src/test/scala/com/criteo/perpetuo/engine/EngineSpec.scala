@@ -29,12 +29,12 @@ class EngineSpec extends Test with TestDb {
           executionTrace <- engine.dbBinding.findExecutionTracesByDeploymentRequest(deploymentRequestId).map(_.head)
           _ <- engine.updateExecutionTrace(executionTrace.id, ExecutionState.completed, "", Map("moon" -> Map("code" -> "success", "detail" -> "no surprise"), "mars" -> Map("code" -> "hostFailure", "detail" -> "no surprise")))
           hasOpenExecutionAfter <- engine.dbBinding.hasOpenExecutionTracesForOperation(operationTraceId)
-          operationClosingSucceeded <- engine.dbBinding.closeOperationTrace(operationTraceId)
+          operationReClosingSucceeded <- engine.dbBinding.closeOperationTrace(operationTraceId)
         } yield {
-          hasOpenExecutionBefore && !hasOpenExecutionAfter && !operationClosingSucceeded
+          (hasOpenExecutionBefore, hasOpenExecutionAfter, operationReClosingSucceeded)
         },
         2.second
-      ) shouldBe true
+      ) shouldBe (true, false, false)
     }
   }
 
