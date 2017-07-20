@@ -97,7 +97,6 @@ class CriteoExternalData extends ExternalData { // fixme: this only works with J
         def client = new RESTClient("http://moab.criteois.lan")
         try {
             def resp = client.get(path: "/products/$productName/manifest.json")
-            assert resp.status == 200
             return resp.data
         } catch (HttpResponseException e) {
             assert e.response.status == 404 // it's not an error to not have data (yet?) about a product
@@ -109,7 +108,6 @@ class CriteoExternalData extends ExternalData { // fixme: this only works with J
         def client = new RESTClient("http://moab.criteois.lan")
         try {
             def resp = client.get(path: "/java/moabs/$requestedVersion/dependency-graph.json")
-            assert resp.status == 200
             return resp.data.collectMany { repo ->
                 repo.getOrDefault('artifacts', [:]).getOrDefault('created', []).collect {
                     [it, repo.name]
@@ -125,7 +123,6 @@ class CriteoExternalData extends ExternalData { // fixme: this only works with J
         def client = new RESTClient("http://moab.criteois.lan")
         try {
             def resp = client.get(path: "/java/moabs/$requestedVersion/product-validation.json")
-            assert resp.status == 200
 
             return resp.data
         } catch (HttpResponseException e) {
@@ -138,7 +135,6 @@ class CriteoExternalData extends ExternalData { // fixme: this only works with J
         def client = new RESTClient("http://moab.criteois.lan")
 
         def resp = client.get(path: "/tags/build/${groupId}/${artifactId}/latest.json")
-        assert resp.status == 200
 
         return resp.data.collect { it['version'] }
     }
@@ -159,7 +155,6 @@ class CriteoExternalData extends ExternalData { // fixme: this only works with J
                     path: "/api/jmoabs/$requestedVersion/log",
                     query: query
             )
-            assert resp.status == 200
             return resp.data
         } catch (HttpResponseException e) {
             assert e.response.status == 404

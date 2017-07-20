@@ -77,7 +77,6 @@ class CriteoHooks extends Hooks {
                     query: [jql: "parent=$parentTicketKey"],
                     requestContentType: JSON,
             )
-            assert resp.status == 200
             resp
         }
 
@@ -99,7 +98,6 @@ class CriteoHooks extends Hooks {
                                 transition: [id: transitionId]
                         ]
                 )
-                assert resp.status < 300
             }
             return resp
         }
@@ -200,7 +198,6 @@ class CriteoHooks extends Hooks {
             def suffix = "for $productName #$version"
             try {
                 def resp = jiraClient.createTicket(fields)
-                assert resp.status < 300
 
                 String ticket = resp.data.key
                 logger().info("Jira ticket created $suffix: $ticket")
