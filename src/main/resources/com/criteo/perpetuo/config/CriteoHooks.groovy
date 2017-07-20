@@ -261,12 +261,12 @@ class CriteoHooks extends Hooks {
     static def closingTransitions(Boolean succeeded) {
         succeeded ?
                 [
-                        351: '[RM] DEPLOYING - Deployment failed -> [RM] DEPLOYMENT FAILED'
-                ] :
-                [
                         371: '[RM] DEPLOYING - Partly deployed -> AWAITING DEPLOYMENT',
                         401: 'AWAITING DEPLOYMENT - Deployed -> [RM] DEPLOYED',
                         471: '[RM] DEPLOYED - Deploy [No validation] -> DONE'
+                ] :
+                [
+                        351: '[RM] DEPLOYING - Deployment failed -> [RM] DEPLOYMENT FAILED'
                 ]
     }
 
