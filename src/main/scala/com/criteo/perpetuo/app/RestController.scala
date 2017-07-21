@@ -5,7 +5,7 @@ import javax.inject.Inject
 import com.criteo.perpetuo.auth.User
 import com.criteo.perpetuo.auth.UserFilter._
 import com.criteo.perpetuo.config.AppConfig
-import com.criteo.perpetuo.dao.UnknownProduct
+import com.criteo.perpetuo.dao.{Schema, UnknownProduct}
 import com.criteo.perpetuo.engine.{Engine, ProductCreationConflict}
 import com.criteo.perpetuo.model.{DeploymentRequestParser, ExecutionState, Status, TargetAtomStatus}
 import com.twitter.finagle.http.{Request, Response, Status => HttpStatus}
@@ -228,6 +228,18 @@ class RestController @Inject()(val engine: Engine)
       },
       5.seconds)
   }
+
+  // <<
+  // TODO: remove once DB migration done
+  val schema = new Schema(engine.dbBinding.dbContext)
+
+  post("/api/unstable/db/operation-traces/set-missing-creation-date") { _: Request =>
+    Await.result(schema.setOperationTracesMissingCreationDate().map(x => Map("status" -> x)), 2.hours)
+  }
+  get("/api/unstable/db/operation-traces/missing-creation-date-count") { _: Request =>
+    Await.result(schema.countOperationTracesMissingCreationDate().map(x => Map("count" -> x)), 2.seconds)
+  }
+  // >>
 
   // Be sure to capture invalid calls to APIs
   get("/api/:*") { _: Request =>

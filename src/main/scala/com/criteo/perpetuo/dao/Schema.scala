@@ -23,6 +23,22 @@ class Schema(val dbContext: DbContext)
   def createTables(): Unit = {
     Await.result(dbContext.db.run(all.create), 2.seconds)
   }
+
+  // TODO: remove once migration done
+  // <<
+  def setOperationTracesMissingCreationDate() =
+    // request is suboptimal, but it works on H2; hoping that sql compilers will be smart
+    dbContext.db.run(sqlu"""
+                        UPDATE operation_trace
+                        SET creation_date = (
+                            SELECT dr.creation_date
+                            FROM deployment_request AS dr WHERE deployment_request_id = dr.id
+                        )
+                        WHERE creation_date = {ts '1970-01-01 00:00:00.000'}""")
+
+  def countOperationTracesMissingCreationDate() =
+    dbContext.db.run((operationTraceQuery filter (_.creationDate === new java.sql.Timestamp(0)) length).result)
+  // >>
 }
 
 
