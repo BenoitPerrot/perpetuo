@@ -12,12 +12,12 @@ import scala.concurrent.Future
 private[dao] case class OperationTraceRecord(id: Option[Long],
                                              deploymentRequestId: Long,
                                              operation: Operation,
-                                             targetStatus: Status.TargetMap,
+                                             targetStatus: Option[Status.TargetMap],
                                              creator: String,
                                              creationDate: java.sql.Timestamp,
                                              closingDate: Option[java.sql.Timestamp]) {
   def toOperationTrace: OperationTrace = {
-    OperationTrace(id.get, deploymentRequestId, operation, creator, creationDate, targetStatus)
+    OperationTrace(id.get, deploymentRequestId, operation, creator, creationDate, targetStatus.get)
   }
 }
 
@@ -47,7 +47,7 @@ trait OperationTraceBinder extends TableBinder {
     protected def fk = foreignKey(deploymentRequestId, deploymentRequestQuery)(_.id)
 
     def operation = column[Operation]("operation")
-    def targetStatus = column[Status.TargetMap]("target_status", O.SqlType("nvarchar(16000)"), O.Default(Map())) // fixme: for the transition only
+    def targetStatus = column[Option[Status.TargetMap]]("target_status", O.SqlType("nvarchar(16000)")) // todo: remove after transition
 
     // todo: remove default values (they're for migration only)
     def creator = column[String]("creator", O.SqlType(s"nvarchar(${User.maxSize})"), O.Default("qabot"))
@@ -62,9 +62,9 @@ trait OperationTraceBinder extends TableBinder {
   val operationTraceQuery = TableQuery[OperationTraceTable]
 
   def addToDeploymentRequest(requestId: Long, operation: Operation, creator: String): Future[OperationTrace] = {
-    val operationTrace = OperationTraceRecord(None, requestId, operation, Map(), creator, new java.sql.Timestamp(System.currentTimeMillis), None)
+    val operationTrace = OperationTraceRecord(None, requestId, operation, Some(Map()), creator, new java.sql.Timestamp(System.currentTimeMillis), None)
     dbContext.db.run((operationTraceQuery returning operationTraceQuery.map(_.id)) += operationTrace).map { id =>
-      OperationTrace(id, operationTrace.deploymentRequestId, operationTrace.operation, operationTrace.creator, operationTrace.creationDate, operationTrace.targetStatus)
+      OperationTrace(id, operationTrace.deploymentRequestId, operationTrace.operation, operationTrace.creator, operationTrace.creationDate, operationTrace.targetStatus.get)
     }
   }
 
@@ -75,7 +75,7 @@ trait OperationTraceBinder extends TableBinder {
   }
 
   def updateOperationTrace(id: Long, targetStatus: Status.TargetMap): Future[Boolean] = {
-    dbContext.db.run(operationTraceQuery.filter(_.id === id).map(_.targetStatus).update(targetStatus))
+    dbContext.db.run(operationTraceQuery.filter(_.id === id).map(_.targetStatus).update(Some(targetStatus)))
       .map(count => {
         assert(count <= 1)
         count == 1

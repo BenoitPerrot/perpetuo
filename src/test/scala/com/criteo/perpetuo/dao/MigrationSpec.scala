@@ -26,7 +26,7 @@ class MigrationSpec extends Test with TestDb {
         for {
           _ <- schema.insert("pirhana")
           deploymentRequestId <- schema.insert(new DeploymentRequestAttrs("pirhana", Version("\"4242\""), "paris", "no comment", "r.equester", now)).map(_.id)
-          operationTraceId <- db.run((schema.operationTraceQuery returning schema.operationTraceQuery.map(_.id)) += OperationTraceRecord(None, deploymentRequestId, Operation.deploy, Map(), "c.reator", new java.sql.Timestamp(0), None))
+          operationTraceId <- db.run((schema.operationTraceQuery returning schema.operationTraceQuery.map(_.id)) += OperationTraceRecord(None, deploymentRequestId, Operation.deploy, Some(Map()), "c.reator", new java.sql.Timestamp(0), None))
           countBefore <- schema.countOperationTracesMissingCreationDate()
           _ <- schema.setOperationTracesMissingCreationDate()
           countAfter <- schema.countOperationTracesMissingCreationDate()
@@ -51,7 +51,7 @@ class MigrationSpec extends Test with TestDb {
         for {
           _ <- schema.insert("tuna")
           deploymentRequestId <- schema.insert(new DeploymentRequestAttrs("tuna", Version("\"22\""), "nice", "no comment", "r.equester", now)).map(_.id)
-          operationTraceId <- db.run((schema.operationTraceQuery returning schema.operationTraceQuery.map(_.id)) += OperationTraceRecord(None, deploymentRequestId, Operation.deploy, Map(), "c.reator", new java.sql.Timestamp(0), None))
+          operationTraceId <- db.run((schema.operationTraceQuery returning schema.operationTraceQuery.map(_.id)) += OperationTraceRecord(None, deploymentRequestId, Operation.deploy, Some(Map()), "c.reator", new java.sql.Timestamp(0), None))
           countBefore <- schema.countOperationTracesMissingClosingDate()
           _ <- schema.setOperationTracesMissingClosingDate()
           countAfter <- schema.countOperationTracesMissingClosingDate()

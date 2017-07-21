@@ -50,8 +50,8 @@ class OperationTraceSpec extends FunSuite with ScalaFutures
         assert(deploy.operation == Operation.deploy) // right operation type
         assert(revert.operation == Operation.revert) // right operation type
         assert(deploy.operation != revert.operation) // different operation types
-        assert(deploy.targetStatus == revert.targetStatus) // same target status
-        assert(deploy.targetStatus == Map()) // same empty target status
+        assert(deploy.targetStatus.get == revert.targetStatus.get) // same target status
+        assert(deploy.targetStatus.get == Map()) // same empty target status
       },
       1.second
     )
@@ -67,7 +67,7 @@ class OperationTraceSpec extends FunSuite with ScalaFutures
         traces <- dbContext.db.run(operationTraceQuery.result)
       } yield {
         assert(updated)
-        assert(traces.head.targetStatus == Map("abc" -> TargetAtomStatus(Status.hostFailure, "details...")))
+        assert(traces.head.targetStatus.get == Map("abc" -> TargetAtomStatus(Status.hostFailure, "details...")))
       },
       1.second
     )
