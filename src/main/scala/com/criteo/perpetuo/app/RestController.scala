@@ -156,7 +156,7 @@ class RestController @Inject()(val engine: Engine)
     // todo: Use AD group to give escalation team permissions to deploy in prod
     authenticate(r.request) { case user if user.name == deployBotName || escalationTeamNames.contains(user.name) || AppConfig.env != "prod" =>
       withIdAndRequest(
-        (id, _: RequestWithId) => engine.startDeploymentRequest(id, user.name).map(_.map(response.ok.json)),
+        (id, _: RequestWithId) => engine.startDeploymentRequest(id, user.name).map(_.map { _ => response.ok.json(Map("id" -> id)) }),
         2.seconds
       )(r)
     }

@@ -70,14 +70,14 @@ class Engine @Inject()(val dbBinding: DbBinding) {
     }
   }
 
-  private def startDeploymentRequest(req: DeploymentRequest, initiatorName: String, atCreation: Boolean): Future[(Int, Int)] =
+  private def startDeploymentRequest(req: DeploymentRequest, initiatorName: String, atCreation: Boolean): Future[(OperationTrace, Int, Int)] =
     operationStarter
       .start(plugins.dispatcher, req, Operation.deploy, initiatorName)
       .map { case (op, started, failed) =>
         Future(plugins.hooks.onDeploymentRequestStarted(req, started, failed, atCreation))
         if (started == 0)
           closeOperation(op, req)
-        (started, failed)
+        (op, started, failed)
       }
 
   private def closeOperation(operationTrace: OperationTrace, deploymentRequest: DeploymentRequest): Future[Boolean] = {
@@ -88,11 +88,12 @@ class Engine @Inject()(val dbBinding: DbBinding) {
     }
   }
 
-  def startDeploymentRequest(deploymentRequestId: Long, initiatorName: String): Future[Option[Map[String, Any]]] =
-    dbBinding.findDeploymentRequestByIdWithProduct(deploymentRequestId).map(_.map { req =>
-      startDeploymentRequest(req, initiatorName, atCreation = false)
-      Map("id" -> req.id)
-    })
+  def startDeploymentRequest(deploymentRequestId: Long, initiatorName: String): Future[Option[(OperationTrace, Int, Int)]] =
+    dbBinding.findDeploymentRequestByIdWithProduct(deploymentRequestId).flatMap(
+      _.map { req =>
+        startDeploymentRequest(req, initiatorName, atCreation = false).map(Some(_))
+      }.getOrElse(Future.successful(None))
+    )
 
   def findOperationTracesByDeploymentRequest(deploymentRequestId: Long): Future[Option[Seq[OperationTrace]]] =
     dbBinding.findOperationTracesByDeploymentRequest(deploymentRequestId).flatMap { traces =>
