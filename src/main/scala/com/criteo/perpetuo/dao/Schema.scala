@@ -50,6 +50,19 @@ class Schema(val dbContext: DbContext)
 
   def countOperationTracesMissingClosingDate() =
     dbContext.db.run((operationTraceQuery filter (_.closingDate.isEmpty) length).result)
+
+  def addExecutionTracesMissingLinkToExecution() =
+    dbContext.db.run(sqlu"""
+                       UPDATE execution_trace
+                       SET execution_id = (
+                           SELECT execution.id
+                           FROM operation_trace, execution
+                           WHERE operation_trace.id = operation_trace_id AND operation_trace.id = execution.operation_trace_id
+                       )
+                       WHERE execution_id IS NULL""")
+
+  def countExecutionTracesMissingLinkToExecution() =
+    dbContext.db.run((executionTraceQuery filter (_.executionId.isEmpty) length).result)
   // >>
 }
 

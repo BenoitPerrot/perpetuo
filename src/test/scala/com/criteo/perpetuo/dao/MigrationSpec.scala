@@ -3,7 +3,7 @@ package com.criteo.perpetuo.dao
 import java.util.Calendar
 
 import com.criteo.perpetuo.TestDb
-import com.criteo.perpetuo.model.{DeploymentRequestAttrs, Operation, Version}
+import com.criteo.perpetuo.model.{DeploymentRequestAttrs, ExecutionState, Operation, Version}
 import com.twitter.inject.Test
 
 import scala.concurrent.Await
@@ -61,6 +61,28 @@ class MigrationSpec extends Test with TestDb {
         },
         2.second
       ) shouldEqual (2, 0, Some(later))
+    }
+  }
+
+  "Execution traces" should {
+    "obtain missing links to executions" in {
+      val v = Version("\"8410\"")
+      Await.result(
+        for {
+          _ <- schema.insert("cod")
+          deploymentRequestId <- schema.insert(new DeploymentRequestAttrs("cod", v, "pune", "no comment", "r.equester", new java.sql.Timestamp(System.currentTimeMillis))).map(_.id)
+          operationTraceId <- db.run((schema.operationTraceQuery returning schema.operationTraceQuery.map(_.id)) += OperationTraceRecord(None, deploymentRequestId, Operation.deploy, Map(), "c.reator", new java.sql.Timestamp(0), None))
+          executionTraceId <- db.run((schema.executionTraceQuery returning schema.executionTraceQuery.map(_.id)) += ExecutionTraceRecord(None, Some(operationTraceId), None, ExecutionState.completed, None))
+          executionSpecId <- db.run((schema.executionSpecificationQuery returning schema.executionSpecificationQuery.map(_.id)) += ExecutionSpecificationRecord(None, Some(v), ""))
+          executionId <- db.run((schema.executionQuery returning schema.executionQuery.map(_.id)) += ExecutionRecord(None, operationTraceId, executionSpecId))
+          countBefore <- schema.countExecutionTracesMissingLinkToExecution()
+          _ <- schema.addExecutionTracesMissingLinkToExecution()
+          countAfter <- schema.countExecutionTracesMissingLinkToExecution()
+        } yield {
+          (countBefore, countAfter)
+        },
+        2.hours
+      ) shouldEqual (1, 0)
     }
   }
 }
