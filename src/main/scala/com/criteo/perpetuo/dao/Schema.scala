@@ -49,7 +49,7 @@ class Schema(val dbContext: DbContext)
                         WHERE closing_date IS NULL""")
 
   def countOperationTracesMissingClosingDate() =
-    dbContext.db.run((operationTraceQuery filter (_.closingDate.isEmpty)).result).map(_.size)
+    dbContext.db.run((operationTraceQuery filter (_.closingDate.isEmpty) length).result)
   // >>
 }
 
