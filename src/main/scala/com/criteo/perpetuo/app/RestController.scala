@@ -239,6 +239,13 @@ class RestController @Inject()(val engine: Engine)
   get("/api/unstable/db/operation-traces/missing-creation-date-count") { _: Request =>
     Await.result(schema.countOperationTracesMissingCreationDate().map(x => Map("count" -> x)), 2.seconds)
   }
+
+  post("/api/unstable/db/operation-traces/set-missing-closing-date") { _: Request =>
+    Await.result(schema.setOperationTracesMissingClosingDate().map(x => Map("status" -> x)), 2.hours)
+  }
+  get("/api/unstable/db/operation-traces/missing-closing-date-count") { _: Request =>
+    Await.result(schema.countOperationTracesMissingClosingDate().map(x => Map("count" -> x)), 2.seconds)
+  }
   // >>
 
   // Be sure to capture invalid calls to APIs

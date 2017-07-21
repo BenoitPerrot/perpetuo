@@ -38,6 +38,18 @@ class Schema(val dbContext: DbContext)
 
   def countOperationTracesMissingCreationDate() =
     dbContext.db.run((operationTraceQuery filter (_.creationDate === new java.sql.Timestamp(0)) length).result)
+
+  def setOperationTracesMissingClosingDate() =
+    dbContext.db.run(sqlu"""
+                        UPDATE operation_trace
+                        SET closing_date = DATEADD('MINUTE', 1,
+                            SELECT dr.creation_date
+                            FROM deployment_request AS dr WHERE deployment_request_id = dr.id
+                        )
+                        WHERE closing_date IS NULL""")
+
+  def countOperationTracesMissingClosingDate() =
+    dbContext.db.run((operationTraceQuery filter (_.closingDate.isEmpty)).result).map(_.size)
   // >>
 }
 
