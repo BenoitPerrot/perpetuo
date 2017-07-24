@@ -71,7 +71,7 @@ class MigrationSpec extends Test with TestDb {
         for {
           _ <- schema.insert("cod")
           deploymentRequestId <- schema.insert(new DeploymentRequestAttrs("cod", v, "pune", "no comment", "r.equester", new java.sql.Timestamp(System.currentTimeMillis))).map(_.id)
-          operationTraceId <- db.run((schema.operationTraceQuery returning schema.operationTraceQuery.map(_.id)) += OperationTraceRecord(None, deploymentRequestId, Operation.deploy, Map(), "c.reator", new java.sql.Timestamp(0), None))
+          operationTraceId <- db.run((schema.operationTraceQuery returning schema.operationTraceQuery.map(_.id)) += OperationTraceRecord(None, deploymentRequestId, Operation.deploy, Some(Map()), "c.reator", new java.sql.Timestamp(0), None))
           executionTraceId <- db.run((schema.executionTraceQuery returning schema.executionTraceQuery.map(_.id)) += ExecutionTraceRecord(None, Some(operationTraceId), None, ExecutionState.completed, None))
           executionSpecId <- db.run((schema.executionSpecificationQuery returning schema.executionSpecificationQuery.map(_.id)) += ExecutionSpecificationRecord(None, Some(v), ""))
           executionId <- db.run((schema.executionQuery returning schema.executionQuery.map(_.id)) += ExecutionRecord(None, operationTraceId, executionSpecId))
