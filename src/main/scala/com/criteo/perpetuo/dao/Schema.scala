@@ -4,7 +4,7 @@ import java.net.InetSocketAddress
 import javax.inject.{Inject, Singleton}
 
 import com.criteo.perpetuo.app.RawJson
-import com.criteo.perpetuo.model.{ExecutionTrace, Status, TargetAtomStatus}
+import com.criteo.perpetuo.model._
 import com.twitter.finagle.builder.ClientBuilder
 import com.twitter.finagle.http.{Http, Request, Status => HttpStatus}
 import com.twitter.util.{Await => TwitterAwait}
@@ -281,5 +281,37 @@ class DbBinding @Inject()(val dbContext: DbContext)
         ).on(_.id === _.operationTraceId).map(_._2).result).map(
       _.headOption.map(_.isEmpty)
     )
+  }
+
+  def findSoundExecutionIdsForRollback(o: OperationTrace): Future[Map[TargetAtom.Type, Long]] = {
+    val productIdAndTargetAtomsForOperation =
+      executionQuery
+        .join(targetStatusQuery)
+        .join(deploymentRequestQuery)
+        .filter { case ((execution, targetStatus), deploymentRequest) =>
+          execution.operationTraceId === o.id && execution.id === targetStatus.executionId && deploymentRequest.id === o.deploymentRequestId
+        }
+        .map { case ((execution, targetStatus), deploymentRequest) => (deploymentRequest.productId, targetStatus.targetAtom) }
+
+    val executionIds =
+      productIdAndTargetAtomsForOperation
+        .join(targetStatusQuery)
+        .join(executionQuery)
+        .join(operationTraceQuery)
+        .join(deploymentRequestQuery)
+        .filter { case (((((productId, targetAtom), targetStatus), execution), operationTrace), deploymentRequest) =>
+          targetStatus.executionId === execution.id && execution.operationTraceId === operationTrace.id && operationTrace.deploymentRequestId === deploymentRequest.id &&
+            targetStatus.targetAtom === targetAtom && targetStatus.code === Status.success && deploymentRequest.productId === productId &&
+            operationTrace.closingDate.map(_ < o.creationDate)
+        }
+        .map { case (((((productId, targetAtom), targetStatus), execution), operationTrace), deploymentRequest) => (targetAtom, execution.id) }
+        .groupBy { case (targetAtom, executionId) => targetAtom }
+        .map { case (targetAtom, q) => targetAtom -> q.map { case (_, executionId) => executionId }.max.get }
+
+    dbContext.db.run(executionIds.result).map { seq =>
+      val res = seq.toMap
+      assert(res.size == seq.size)
+      res
+    }
   }
 }
