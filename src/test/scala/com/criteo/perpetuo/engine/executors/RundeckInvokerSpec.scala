@@ -23,13 +23,17 @@ class RundeckInvokerSpec extends Test with TestDb {
     assert(rundeckInvoker.getClass.getSimpleName == "RundeckInvoker")
     rundeckInvoker.client = request => {
       request.uri shouldEqual s"/api/16/job/deploy-to-marathon/executions?authtoken=my-super-secret-token"
-      request.contentString shouldEqual """{"argString":"-callback-url 'http://somewhere/api/execution-traces/42' -product-name 'My\"Beautiful\"Project' -target 'a,b' -product-version 'the 42nd version'"}"""
+      request.contentString shouldEqual """{"argString":"-callback-url 'http://somewhere/api/execution-traces/42' -product-name 'My\"Beautiful\"Project' -target 'a,b' -product-version \"the 42nd version\""}"""
       val resp = Response(Status(statusCode))
       resp.write(content)
       Future.value(resp)
     }
-    val parameters = rundeckInvoker.freezeParameters(Operation.executionKind(Operation.deploy), "My\"Beautiful\"Project", Version("the 042nd version").toString)
-    val logHref = Await.result(rundeckInvoker.trigger(42, Set(TargetTerm(Set(JsObject("abc" -> JsString("def"), "ghi" -> JsNumber(51.3))), Set("a", "b"))), parameters, "guy next door"), 1.second)
+    val kind = Operation.executionKind(Operation.deploy)
+    val productName = "My\"Beautiful\"Project"
+    val version = Version("the 042nd version")
+    val parameters = rundeckInvoker.freezeParameters(kind, productName, version)
+    val target = Set(TargetTerm(Set(JsObject("abc" -> JsString("def"), "ghi" -> JsNumber(51.3))), Set("a", "b")))
+    val logHref = Await.result(rundeckInvoker.trigger(42, kind, productName, version, target, parameters, "guy next door"), 1.second)
     logHref shouldBe defined
     logHref.get
   }

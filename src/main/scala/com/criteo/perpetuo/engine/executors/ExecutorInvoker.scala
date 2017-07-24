@@ -3,6 +3,7 @@ package com.criteo.perpetuo.engine.executors
 import com.criteo.perpetuo.app.RestApi
 import com.criteo.perpetuo.config.AppConfig
 import com.criteo.perpetuo.engine.dispatchers.TargetExpr
+import com.criteo.perpetuo.model.Version
 import com.twitter.inject.Logging
 import spray.json.DefaultJsonProtocol._
 import spray.json._
@@ -24,13 +25,9 @@ abstract class ExecutorInvoker {
     * If the input doesn't make sense (the parameters are incompatible with each other),
     * it must return a `UnprocessableIntent` error, whose message will be displayed to the end user.
     */
-  def freezeParameters(executionKind: String, productName: String, jsonVersion: String): String = JsObject(
-    "executionKind" -> executionKind.toJson,
-    "productName" -> productName.toJson,
-    "version" -> jsonVersion.parseJson
-  ).compactPrint
+  def freezeParameters(executionKind: String, productName: String, version: Version): String = ""
 
-  def trigger(executionId: Long, target: TargetExpr, frozenParameters: String, initiator: String): Future[Option[String]]
+  def trigger(executionId: Long, executionKind: String, productName: String, version: Version, target: TargetExpr, frozenParameters: String, initiator: String): Future[Option[String]]
 
   def getExecutionDetailsUrlIfApplicable(logHref: String): Option[String] = None
 }
@@ -58,7 +55,7 @@ object ExecutorInvoker {
 class DummyInvoker(name: String) extends ExecutorInvoker with Logging {
   override def toString: String = name
 
-  override def trigger(executionId: Long, target: TargetExpr, frozenParameters: String, initiator: String): Future[Option[String]] = {
+  override def trigger(executionId: Long, executionKind: String, productName: String, version: Version, target: TargetExpr, frozenParameters: String, initiator: String): Future[Option[String]] = {
     logger.info(s"Hi, I'm $name! I will run operation #$executionId on behalf of: $initiator")
     Future.successful(None)
   }

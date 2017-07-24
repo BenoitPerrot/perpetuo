@@ -40,12 +40,16 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
         case ((executor, target), execId) =>
           // log the execution
           logger.debug(s"Triggering $operation job for execution #$execId of ${deploymentRequest.product.name} v. ${deploymentRequest.version} on $executor")
+          val executionKind = Operation.executionKind(operation)
           // trigger the execution
           executor
             .trigger(
               execId,
+              executionKind,
+              deploymentRequest.product.name,
+              deploymentRequest.version,
               target,
-              executor.freezeParameters(Operation.executionKind(operation), deploymentRequest.product.name, deploymentRequest.version.toString),
+              executor.freezeParameters(executionKind, deploymentRequest.product.name, deploymentRequest.version),
               deploymentRequest.creator
             )
             .flatMap(

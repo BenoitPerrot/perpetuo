@@ -5,6 +5,7 @@ import com.criteo.perpetuo.engine.dispatchers.TargetDispatcher
 import com.criteo.perpetuo.engine.executors.DummyInvoker
 import com.criteo.perpetuo.engine.executors.ExecutorInvoker
 import com.criteo.perpetuo.engine.executors.HttpInvoker
+import com.criteo.perpetuo.model.Version
 import com.twitter.finagle.http.Fields
 import com.twitter.finagle.http.Message$
 import com.twitter.finagle.http.Method
@@ -58,8 +59,8 @@ class RundeckInvoker extends HttpInvoker {
     // Rundeck's API
     private String authenticated(String path) { "$path?authtoken=$authToken" }
 
-    private String runPath(String productType, String executionKind) {
-        authenticated("/api/$apiVersion/job/${jobName(productType, executionKind)}/executions")
+    private String runPath(String jobName) {
+        authenticated("/api/$apiVersion/job/$jobName/executions")
     }
     private def errorInHtml = /.+<p>(.+)<\/p>.+/
 
@@ -69,24 +70,26 @@ class RundeckInvoker extends HttpInvoker {
 
 
     @Override
-    String freezeParameters(String executionKind, String productName, String jsonVersion) {
+    String freezeParameters(String executionKind, String productName, Version version) {
         String productType = CriteoExternalData.fetchManifest(productName)?.get('type') ?: 'marathon' // fixme: only accept active products here (https://jira.criteois.com/browse/DREDD-309)
 
         jsonBuilder.toJson([
-                runPath        : runPath(productType, executionKind),
-                productName    : productName,
-                productVersion : jsonSlurper.parseText(jsonVersion),
+                jobName: jobName(productType, executionKind),
                 // todo: read uploader version from version itself or infer the latest
                 uploaderVersion: System.getenv("${productType.toUpperCase()}_UPLOADER")
-        ])
+        ].findAll { it.value })
     }
 
     @Override
-    Request buildRequest(long executionId, String target, String frozenParameters, String initiator) {
+    Request buildRequest(long executionId, String executionKind, String productName, Version version, String target, String frozenParameters, String initiator) {
         def parameters = jsonSlurper.parseText(frozenParameters) as Map
-        def serializedVersion = parameters['productVersion'] instanceof String ? parameters['productVersion'] : jsonBuilder.toJson(parameters['productVersion'])
-        def args = "-callback-url '${callbackUrl(executionId)}' -product-name '${parameters['productName']}' -target '$target' -product-version '$serializedVersion'"
-        def uploader = parameters['uploaderVersion'] as String
+        String jobName = parameters.jobName
+        String uploader = parameters.uploaderVersion
+        String quotedVersion = version.toString()
+        if (quotedVersion.startsWith('['))
+            quotedVersion = "'$quotedVersion'"
+
+        def args = "-callback-url '${callbackUrl(executionId)}' -product-name '$productName' -target '$target' -product-version $quotedVersion"
         if (uploader)
             args += " -uploader-version " + uploader
         def body = [
@@ -96,7 +99,7 @@ class RundeckInvoker extends HttpInvoker {
         body = new JsonBuilder(body).toString()
         def jsonType = Message$.MODULE$.ContentTypeJson
 
-        Request req = Request.apply(Method.Post$.MODULE$, parameters['runPath'] as String)
+        Request req = Request.apply(Method.Post$.MODULE$, runPath(jobName))
         def headers = req.headerMap()
         headers[Fields.Host()] = host()
         headers[Fields.ContentType()] = jsonType
