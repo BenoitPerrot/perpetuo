@@ -1,12 +1,15 @@
 package com.criteo.perpetuo.dao
 
-import com.criteo.perpetuo.model.{Status, TargetAtom}
+import com.criteo.perpetuo.model.{Status, TargetAtom, TargetAtomStatus}
+
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.Future
 
 
 private[dao] case class TargetStatusRecord(id: Option[Long],
                                            executionId: Long,
-                                           operationTraceId: Long,
-                                           executionSpecificationId: Long,
+                                           operationTraceId: Long, //TODO: Remove after migration to targetStatus
+                                           executionSpecificationId: Long, //TODO: Remove after migration to targetStatus
                                            targetAtom: String,
                                            code: Status.Code,
                                            detail: String)
@@ -41,4 +44,11 @@ trait TargetStatusBinder extends TableBinder {
   }
 
   val targetStatusQuery: TableQuery[TargetStatusTable] = TableQuery[TargetStatusTable]
+
+  def addToExecution(executionId: Long, operationTraceId: Long, statusMap: Map[String, TargetAtomStatus]): Future[Unit] = {
+    val listOfTargetStatus = statusMap.map { case (targetAtom, targetStatus) =>
+      TargetStatusRecord(None, executionId, -1, -1, targetAtom, targetStatus.code, targetStatus.detail) //TODO: Remove after migration to targetStatus
+    }
+    dbContext.db.run((targetStatusQuery ++= listOfTargetStatus).transactionally).map(_ => ())
+  }
 }

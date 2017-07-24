@@ -18,7 +18,7 @@ import scala.concurrent.{Await, Future}
 
 
 class Schema(val dbContext: DbContext)
-  extends LockBinder with ExecutionTraceBinder with TargetStatusBinder with ExecutionBinder with ExecutionSpecificationBinder with OperationTraceBinder with DeploymentRequestBinder with ProductBinder
+  extends LockBinder with ExecutionTraceBinder with ExecutionBinder with ExecutionSpecificationBinder with OperationTraceBinder with DeploymentRequestBinder with TargetStatusBinder with ProductBinder
     with DbContextProvider {
 
   import dbContext.driver.api._
@@ -120,7 +120,7 @@ class Schema(val dbContext: DbContext)
 
 @Singleton
 class DbBinding @Inject()(val dbContext: DbContext)
-  extends ExecutionTraceBinder with ExecutionBinder with ExecutionSpecificationBinder with OperationTraceBinder with DeploymentRequestBinder with ProductBinder
+  extends ExecutionTraceBinder with ExecutionBinder with ExecutionSpecificationBinder with OperationTraceBinder with DeploymentRequestBinder with TargetStatusBinder with ProductBinder
     with DbContextProvider {
 
   import dbContext.driver.api._
