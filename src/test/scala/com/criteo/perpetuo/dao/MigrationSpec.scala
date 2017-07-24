@@ -64,25 +64,41 @@ class MigrationSpec extends Test with TestDb {
     }
   }
 
-  "Execution traces" should {
-    "obtain missing links to executions" in {
-      val v = Version("\"8410\"")
-      Await.result(
-        for {
-          _ <- schema.insert("cod")
-          deploymentRequestId <- schema.insert(new DeploymentRequestAttrs("cod", v, "pune", "no comment", "r.equester", new java.sql.Timestamp(System.currentTimeMillis))).map(_.id)
-          operationTraceId <- db.run((schema.operationTraceQuery returning schema.operationTraceQuery.map(_.id)) += OperationTraceRecord(None, deploymentRequestId, Operation.deploy, Some(Map()), "c.reator", new java.sql.Timestamp(0), None))
-          executionTraceId <- db.run((schema.executionTraceQuery returning schema.executionTraceQuery.map(_.id)) += ExecutionTraceRecord(None, Some(operationTraceId), None, ExecutionState.completed, None))
-          executionSpecId <- db.run((schema.executionSpecificationQuery returning schema.executionSpecificationQuery.map(_.id)) += ExecutionSpecificationRecord(None, Some(v), ""))
-          executionId <- db.run((schema.executionQuery returning schema.executionQuery.map(_.id)) += ExecutionRecord(None, operationTraceId, executionSpecId))
-          countBefore <- schema.countExecutionTracesMissingLinkToExecution()
-          _ <- schema.addExecutionTracesMissingLinkToExecution()
-          countAfter <- schema.countExecutionTracesMissingLinkToExecution()
-        } yield {
-          (countBefore, countAfter)
-        },
-        2.hours
-      ) shouldEqual (1, 0)
+  private def createExecutions(productName: String, userInput: String = ""): (Int, Int, Seq[String]) = {
+    val v = Version("\"8410\"")
+    Await.result(
+      for {
+        _ <- schema.insert(productName)
+        deploymentRequestId <- schema.insert(new DeploymentRequestAttrs(productName, v, "pune", "no comment", "r.equester", new java.sql.Timestamp(System.currentTimeMillis))).map(_.id)
+        operationTraceId <- db.run((schema.operationTraceQuery returning schema.operationTraceQuery.map(_.id)) += OperationTraceRecord(None, deploymentRequestId, Operation.deploy, Some(Map()), "c.reator", new java.sql.Timestamp(0), None))
+        _ <- db.run((schema.executionTraceQuery returning schema.executionTraceQuery.map(_.id)) += ExecutionTraceRecord(None, Some(operationTraceId), None, ExecutionState.completed, None))
+        countBefore <- schema.countMissingExecutions()
+        countCreated <- schema.createAllExecutions(userInput)
+        countAfter <- schema.countMissingExecutions()
+        specParams <- db.run(schema.executionQuery.filter(_.operationTraceId === operationTraceId).join(schema.executionSpecificationQuery).on(_.executionSpecificationId === _.id).map(_._2.specificParameters).result)
+      } yield {
+        countBefore shouldEqual countAfter + countCreated
+        (countBefore, countAfter, specParams)
+      },
+      10.minutes
+    )
+  }
+
+  "Automatic creation of past executions and their specifications" should {
+    "infer the right job name for products of a known type" in {
+      createExecutions("perpetuo-app") shouldEqual(1, 0, Vector("""{"jobName":"deploy-to-marathon"}"""))
+    }
+
+    "not create executions for products of an unknown type" in {
+      createExecutions("cod") shouldEqual(1, 1, Vector())
+    }
+
+    "take into account product types from user input" in {
+      createExecutions("jedi", """{"jedi": "WHAT?"}""") shouldEqual(2, 1, Vector("""{"jobName":"deploy-to-WHAT?"}"""))
+    }
+
+    "not be messing things up with user input" in {
+      createExecutions("angryboards-app", """{"jedi": "WHAT?"}""") shouldEqual(2, 1, Vector("""{"jobName":"deploy-to-marathon"}"""))
     }
   }
 }

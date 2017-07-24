@@ -247,11 +247,12 @@ class RestController @Inject()(val engine: Engine)
     Await.result(schema.countOperationTracesMissingClosingDate().map(x => Map("count" -> x)), 2.seconds)
   }
 
-  post("/api/unstable/db/execution-traces/add-missing-link-to-execution") { _: Request =>
-    Await.result(schema.addExecutionTracesMissingLinkToExecution().map(x => Map("status" -> x)), 2.hours)
+  post("/api/unstable/db/executions/create-all") { r: Request =>
+    Await.result(schema.createAllExecutions(r.contentString).map(x => Map("created" -> x)), 2.hours)
   }
-  get("/api/unstable/db/execution-traces/missing-link-to-execution-count") { _: Request =>
-    Await.result(schema.countOperationTracesMissingClosingDate().map(x => Map("count" -> x)), 2.seconds)
+
+  get("/api/unstable/db/executions/missing-count") { _: Request =>
+    Await.result(schema.countMissingExecutions().map(x => Map("count" -> x)), 2.seconds)
   }
   // >>
 

@@ -1,12 +1,17 @@
 package com.criteo.perpetuo.dao
 
+import java.net.InetSocketAddress
 import javax.inject.{Inject, Singleton}
 
 import com.criteo.perpetuo.app.RawJson
 import com.criteo.perpetuo.model.ExecutionTrace
+import com.twitter.finagle.builder.ClientBuilder
+import com.twitter.finagle.http.{Http, Request, Status}
+import com.twitter.util.{Await => TwitterAwait}
+import spray.json._
 
-import scala.collection.{SortedMap, mutable}
 import scala.collection.mutable.ArrayBuffer
+import scala.collection.{SortedMap, mutable}
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}
@@ -51,18 +56,60 @@ class Schema(val dbContext: DbContext)
   def countOperationTracesMissingClosingDate() =
     dbContext.db.run((operationTraceQuery filter (_.closingDate.isEmpty) length).result)
 
-  def addExecutionTracesMissingLinkToExecution() =
-    dbContext.db.run(sqlu"""
-                       UPDATE execution_trace
-                       SET execution_id = (
-                           SELECT execution.id
-                           FROM operation_trace, execution
-                           WHERE operation_trace.id = operation_trace_id AND operation_trace.id = execution.operation_trace_id
-                       )
-                       WHERE execution_id IS NULL""")
+  def createAllExecutions(contentString: String): Future[Int] = {
+    val productTypes: Map[String, String] = if (contentString.isEmpty)
+      Map()
+    else
+      contentString.parseJson.asJsObject.fields.map { case (k, v) => k -> v.asInstanceOf[JsString].value }
+    val client = ClientBuilder()
+      .codec(Http())
+      .hostConnectionLimit(3)
+      .hosts(new InetSocketAddress("moab.criteois.lan", 80))
+      .failFast(false)
+      .build()
+    dbContext.db.run(
+      executionTraceQuery.filter(_.executionId.isEmpty)
+        .join(operationTraceQuery).on(_.operationTraceId === _.id)
+        .join(deploymentRequestQuery).on(_._2.deploymentRequestId === _.id)
+        .join(productQuery).on(_._2.productId === _.id).result
+    ).flatMap { seq =>
+      val specParamsPerProduct = seq
+        .map { case (_, product) => product.name }
+        .toSet
+        .flatMap { productName: String =>
+          val productType: Option[String] = productTypes.get(productName).orElse {
+            val request = Request(s"/products/$productName/manifest.json")
+            request.headerMap.add("Host", "moab.criteois.lan")
+            val resp = TwitterAwait.result(client.apply(request))
+            println(resp.contentString)
+            if (resp.status == Status.Ok)
+              Some(resp.contentString.parseJson.asJsObject.fields("type").asInstanceOf[JsString].value)
+            else
+              None
+          }
+          productType.map(t => productName -> JsObject("jobName" -> JsString(s"deploy-to-$t")).toString)
+        }
+        .toMap
 
-  def countExecutionTracesMissingLinkToExecution() =
-    dbContext.db.run((executionTraceQuery filter (_.executionId.isEmpty) length).result)
+      Future.sequence(
+        seq.flatMap { case (((execTrace, op), req), product) =>
+          specParamsPerProduct.get(product.name).map { specParams =>
+            val spec = ExecutionSpecificationRecord(None, Some(req.version), specParams)
+            val insertions = for {
+              specId <- (executionSpecificationQuery returning executionSpecificationQuery.map(_.id)) += spec
+              execId <- (executionQuery returning executionQuery.map(_.id)) += ExecutionRecord(None, op.id.get, specId)
+              updates <- executionTraceQuery.filter(_.id === execTrace.id.get).map(_.executionId).update(Some(execId))
+            } yield updates
+            dbContext.db.run(insertions.transactionally)
+          }
+        }
+      )
+    }.map(_.sum)
+  }
+
+  def countMissingExecutions(): Future[Int] =
+    dbContext.db.run(executionTraceQuery.filter(_.executionId.isEmpty).length.result)
+
   // >>
 }
 
