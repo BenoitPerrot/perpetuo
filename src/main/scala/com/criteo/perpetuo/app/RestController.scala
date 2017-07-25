@@ -248,7 +248,7 @@ class RestController @Inject()(val engine: Engine)
   }
 
   post("/api/unstable/db/executions/create-all") { r: Request =>
-    Await.result(schema.createAllExecutions(r.contentString).map(x => Map("created" -> x)), 2.hours)
+    Await.result(schema.createAllExecutions(r.contentString).map(x => Map("not done" -> x)), 2.hours)
   }
 
   get("/api/unstable/db/executions/missing-count") { _: Request =>

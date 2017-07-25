@@ -73,11 +73,11 @@ class MigrationSpec extends Test with TestDb {
         operationTraceId <- db.run((schema.operationTraceQuery returning schema.operationTraceQuery.map(_.id)) += OperationTraceRecord(None, deploymentRequestId, Operation.deploy, Some(Map()), "c.reator", new java.sql.Timestamp(0), None))
         _ <- db.run((schema.executionTraceQuery returning schema.executionTraceQuery.map(_.id)) += ExecutionTraceRecord(None, Some(operationTraceId), None, ExecutionState.completed, None))
         countBefore <- schema.countMissingExecutions()
-        countCreated <- schema.createAllExecutions(userInput)
+        missed <- schema.createAllExecutions(userInput)
         countAfter <- schema.countMissingExecutions()
         specParams <- db.run(schema.executionQuery.filter(_.operationTraceId === operationTraceId).join(schema.executionSpecificationQuery).on(_.executionSpecificationId === _.id).map(_._2.specificParameters).result)
       } yield {
-        countBefore shouldEqual countAfter + countCreated
+        missed.length shouldEqual countAfter
         (countBefore, countAfter, specParams)
       },
       10.minutes

@@ -56,7 +56,7 @@ class Schema(val dbContext: DbContext)
   def countOperationTracesMissingClosingDate() =
     dbContext.db.run((operationTraceQuery filter (_.closingDate.isEmpty) length).result)
 
-  def createAllExecutions(contentString: String): Future[Int] = {
+  def createAllExecutions(contentString: String): Future[List[String]] = {
     val productTypes: Map[String, String] = if (contentString.isEmpty)
       Map()
     else
@@ -72,39 +72,43 @@ class Schema(val dbContext: DbContext)
         .join(operationTraceQuery).on(_.operationTraceId === _.id)
         .join(deploymentRequestQuery).on(_._2.deploymentRequestId === _.id)
         .join(productQuery).on(_._2.productId === _.id).result
-    ).flatMap { seq =>
+    ).map { seq =>
       val specParamsPerProduct = seq
         .map { case (_, product) => product.name }
         .toSet
-        .flatMap { productName: String =>
+        .map { productName: String =>
           val productType: Option[String] = productTypes.get(productName).orElse {
             val request = Request(s"/products/$productName/manifest.json")
             request.headerMap.add("Host", "moab.criteois.lan")
             val resp = TwitterAwait.result(client.apply(request))
-            println(resp.contentString)
             if (resp.status == Status.Ok)
               Some(resp.contentString.parseJson.asJsObject.fields("type").asInstanceOf[JsString].value)
             else
               None
           }
-          productType.map(t => productName -> JsObject("jobName" -> JsString(s"deploy-to-$t")).toString)
+          productName -> productType.map(t => JsObject("jobName" -> JsString(s"deploy-to-$t")).toString)
         }
         .toMap
 
-      Future.sequence(
-        seq.flatMap { case (((execTrace, op), req), product) =>
-          specParamsPerProduct.get(product.name).map { specParams =>
-            val spec = ExecutionSpecificationRecord(None, Some(req.version), specParams)
-            val insertions = for {
-              specId <- (executionSpecificationQuery returning executionSpecificationQuery.map(_.id)) += spec
-              execId <- (executionQuery returning executionQuery.map(_.id)) += ExecutionRecord(None, op.id.get, specId)
-              updates <- executionTraceQuery.filter(_.id === execTrace.id.get).map(_.executionId).update(Some(execId))
-            } yield updates
-            dbContext.db.run(insertions.transactionally)
-          }
-        }
-      )
-    }.map(_.sum)
+      seq.grouped(100).flatMap { batch =>
+        Await.result(
+          Future.sequence {
+            batch.map { case (((execTrace, op), req), product) =>
+              specParamsPerProduct(product.name).map { specParams =>
+                val spec = ExecutionSpecificationRecord(None, Some(req.version), specParams)
+                val insertions = for {
+                  specId <- (executionSpecificationQuery returning executionSpecificationQuery.map(_.id)) += spec
+                  execId <- (executionQuery returning executionQuery.map(_.id)) += ExecutionRecord(None, op.id.get, specId)
+                  updates <- executionTraceQuery.filter(_.id === execTrace.id.get).map(_.executionId).update(Some(execId))
+                } yield updates
+                dbContext.db.run(insertions.transactionally)
+              }.map(_.map(_ => None)).getOrElse(Future.successful(Some(product.name)))
+            }
+          },
+          5.minutes
+        )
+      }
+    }.map(_.flatten.toList)
   }
 
   def countMissingExecutions(): Future[Int] =
