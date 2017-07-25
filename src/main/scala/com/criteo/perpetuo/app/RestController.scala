@@ -156,7 +156,7 @@ class RestController @Inject()(val engine: Engine)
         } catch {
           case e: ParsingException => throw BadRequestException(e.getMessage)
         },
-        5.seconds // fixme: get back to 2 seconds when the hook will be called asynchronously
+        5.seconds // fixme: get back to 2 seconds when the listener will be called asynchronously
       )
     }
   }

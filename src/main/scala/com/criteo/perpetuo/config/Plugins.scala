@@ -77,7 +77,7 @@ class Plugins(dbBinding: DbBinding, appConfig: BaseAppConfig = AppConfig) {
 
   val dispatcher: TargetDispatcher = extractInstance[TargetDispatcher].get
   val externalData: ExternalDataGetter = new ExternalDataGetter(extractInstance[ExternalData])
-  val hooks: HooksTrigger = new HooksTrigger(extractInstance[Hooks])
+  val listener: ListenerPluginWrapper = new ListenerPluginWrapper(extractInstance[DefaultListenerPlugin])
   assert(tempInstances.isEmpty, s"Unused plugin(s): ${tempInstances.map(_.getClass.getName).mkString(", ")}")
 }
 
@@ -119,7 +119,7 @@ abstract class PluginRunner[P <: Plugin](implementation: Option[P], base: P) {
     }
     catch {
       case e: Throwable =>
-        // to know which hook is failing, we prefix the trace
+        // to know which method is failing, prefix the trace
         plugin.logger.severe(s"$methodName - ${e.getMessage}\n${e.getStackTrace.mkString("\n")}")
         throw e
     }

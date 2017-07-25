@@ -1,21 +1,10 @@
 package com.criteo.perpetuo.config
 
+import com.criteo.perpetuo.engine.Listener
 import com.criteo.perpetuo.model.{DeploymentRequest, OperationTrace}
 
 
-trait BaseHooks {
-  def onDeploymentRequestCreated(deploymentRequest: DeploymentRequest, immediateStart: Boolean): String // fixme: should become Unit soon
-
-  def onDeploymentRequestStarted(deploymentRequest: DeploymentRequest, startedExecutions: Int, failedToStart: Int, atCreation: Boolean): Unit
-
-  def onOperationClosed(operationTrace: OperationTrace, deploymentRequest: DeploymentRequest, succeeded: Boolean): Unit
-}
-
-
-class Hooks extends BaseHooks with Plugin {
-  /**
-    * Methods that can be overridden as hooks.
-    */
+class DefaultListenerPlugin extends Listener with Plugin {
   def onDeploymentRequestCreated(deploymentRequest: DeploymentRequest, immediateStart: Boolean): String = null
 
   def onDeploymentRequestStarted(deploymentRequest: DeploymentRequest, startedExecutions: Int, failedToStart: Int, atCreation: Boolean): Unit = {}
@@ -26,7 +15,7 @@ class Hooks extends BaseHooks with Plugin {
 }
 
 
-private[config] class HooksTrigger(implementation: Option[Hooks]) extends PluginRunner(implementation, new Hooks) with BaseHooks {
+private[config] class ListenerPluginWrapper(implementation: Option[DefaultListenerPlugin]) extends PluginRunner(implementation, new DefaultListenerPlugin) with Listener {
   def onDeploymentRequestCreated(deploymentRequest: DeploymentRequest, immediateStart: Boolean): String =
     wrap(_.onDeploymentRequestCreated(deploymentRequest, immediateStart))
 

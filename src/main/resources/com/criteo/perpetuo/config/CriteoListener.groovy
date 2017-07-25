@@ -23,7 +23,7 @@ import static groovyx.net.http.ContentType.JSON
 
 /* the "public" class to be loaded as the actual plugin must be the first statement after the imports */
 
-class CriteoHooks extends Hooks {
+class CriteoListener extends DefaultListenerPlugin {
 
     class JiraClient {
         String host
@@ -133,7 +133,7 @@ class CriteoHooks extends Hooks {
     RootAppConfig appConfig
     JiraClient jiraClient
 
-    CriteoHooks(DbBinding dbBinding, RootAppConfig appConfig) {
+    CriteoListener(DbBinding dbBinding, RootAppConfig appConfig) {
         this.dbBinding = dbBinding
         this.appConfig = appConfig
         if (appConfig.env() != 'preprod') {

@@ -43,13 +43,13 @@ class Engine @Inject()(val dbBinding: DbBinding) {
           .getOrElse {
             throw new UnknownProduct(attrs.productName)
           })
-        .map(depReq => Map("ticketUrl" -> plugins.hooks.onDeploymentRequestCreated(depReq, immediateStart)))
+        .map(depReq => Map("ticketUrl" -> plugins.listener.onDeploymentRequestCreated(depReq, immediateStart)))
     }
     else {
       // first, log the user's general intent
       val futureDepReq = dbBinding.insert(attrs)
-      // when the record is created, notify the corresponding hook
-      futureDepReq.foreach(plugins.hooks.onDeploymentRequestCreated(_, immediateStart))
+
+      futureDepReq.foreach(plugins.listener.onDeploymentRequestCreated(_, immediateStart))
 
       if (immediateStart)
         futureDepReq.foreach(req => startDeploymentRequest(req, attrs.creator, atCreation = true))
@@ -62,7 +62,7 @@ class Engine @Inject()(val dbBinding: DbBinding) {
     operationStarter
       .start(plugins.dispatcher, req, Operation.deploy, initiatorName)
       .map { case (op, started, failed) =>
-        Future(plugins.hooks.onDeploymentRequestStarted(req, started, failed, atCreation))
+        Future(plugins.listener.onDeploymentRequestStarted(req, started, failed, atCreation))
         if (started == 0)
           closeOperation(op, req)
         (op, started, failed)
@@ -73,7 +73,7 @@ class Engine @Inject()(val dbBinding: DbBinding) {
       if (closingSuccess)
         dbBinding.isOperationSuccessful(operationTrace.id).foreach { succeeded =>
           assert(succeeded.isDefined, s"Operation #${operationTrace.id} doesn't exist or is not closed")
-          plugins.hooks.onOperationClosed(operationTrace, deploymentRequest, succeeded.get)
+          plugins.listener.onOperationClosed(operationTrace, deploymentRequest, succeeded.get)
         }
       closingSuccess
     }
