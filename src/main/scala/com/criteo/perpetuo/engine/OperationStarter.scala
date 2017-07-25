@@ -23,6 +23,10 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
     // target resolution
     val expandedTarget = dispatcher.expandTarget(deploymentRequest.product.name, deploymentRequest.version, deploymentRequest.parsedTarget)
 
+    // generation of specific parameters
+    val executionKind = Operation.executionKind(operation)
+    val specificParameters = dispatcher.freezeParameters(executionKind, deploymentRequest.product.name, deploymentRequest.version)
+
     // execution dispatching
     val invocations = dispatch(dispatcher, expandedTarget).toSeq
 
@@ -40,7 +44,6 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
         case ((executor, target), execId) =>
           // log the execution
           logger.debug(s"Triggering $operation job for execution #$execId of ${deploymentRequest.product.name} v. ${deploymentRequest.version} on $executor")
-          val executionKind = Operation.executionKind(operation)
           // trigger the execution
           executor
             .trigger(
@@ -49,7 +52,7 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
               deploymentRequest.product.name,
               deploymentRequest.version,
               target,
-              executor.freezeParameters(executionKind, deploymentRequest.product.name, deploymentRequest.version),
+              specificParameters,
               deploymentRequest.creator
             )
             .flatMap(

@@ -40,6 +40,18 @@ class CriteoTargetDispatcher extends TargetDispatcher {
     Iterable<ExecutorInvoker> assign(String targetAtom) {
         return [invoker]
     }
+
+    @Override
+    String freezeParameters(String executionKind, String productName, Version version) {
+        String productType = CriteoExternalData.fetchManifest(productName)?.get('type') ?: 'marathon'
+        // fixme: only accept active products here (https://jira.criteois.com/browse/DREDD-309)
+
+        JsonOutput.toJson([
+                jobName        : "$executionKind-to-$productType",
+                // todo: read uploader version from version itself or infer the latest
+                uploaderVersion: System.getenv("${productType.toUpperCase()}_UPLOADER")
+        ].findAll { it.value })
+    }
 }
 
 
@@ -53,7 +65,6 @@ class RundeckInvoker extends HttpInvoker {
     }
 
     // how Rundeck is currently configured
-    private static String jobName(String productType, String executionKind) { "$executionKind-to-$productType" }
     private int apiVersion = 16
 
     // Rundeck's API
@@ -65,20 +76,8 @@ class RundeckInvoker extends HttpInvoker {
     private def errorInHtml = /.+<p>(.+)<\/p>.+/
 
     // internal purpose
-    private def jsonBuilder = new JsonOutput()
     private def jsonSlurper = new JsonSlurper()
 
-
-    @Override
-    String freezeParameters(String executionKind, String productName, Version version) {
-        String productType = CriteoExternalData.fetchManifest(productName)?.get('type') ?: 'marathon' // fixme: only accept active products here (https://jira.criteois.com/browse/DREDD-309)
-
-        jsonBuilder.toJson([
-                jobName: jobName(productType, executionKind),
-                // todo: read uploader version from version itself or infer the latest
-                uploaderVersion: System.getenv("${productType.toUpperCase()}_UPLOADER")
-        ].findAll { it.value })
-    }
 
     @Override
     Request buildRequest(long executionId, String executionKind, String productName, Version version, String target, String frozenParameters, String initiator) {

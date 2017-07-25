@@ -5,8 +5,6 @@ import com.criteo.perpetuo.config.AppConfig
 import com.criteo.perpetuo.engine.dispatchers.TargetExpr
 import com.criteo.perpetuo.model.Version
 import com.twitter.inject.Logging
-import spray.json.DefaultJsonProtocol._
-import spray.json._
 
 import scala.collection.mutable
 import scala.concurrent.Future
@@ -16,16 +14,6 @@ abstract class ExecutorInvoker {
   ExecutorInvoker.registeredInvokers += this
 
   protected def callbackUrl(executionId: Long): String = AppConfig.get[String]("selfUrl") + RestApi.executionCallbackPath(executionId.toString)
-
-  /**
-    * `freezeParameters` must return the execution parameters serialized as they will be
-    * provided to `trigger` in order to play or replay an execution in a deterministic way,
-    * except that it must be replayable with a subset of the original target (so the targets
-    * should not be included in the frozen parameters).
-    * If the input doesn't make sense (the parameters are incompatible with each other),
-    * it must return a `UnprocessableIntent` error, whose message will be displayed to the end user.
-    */
-  def freezeParameters(executionKind: String, productName: String, version: Version): String = ""
 
   def trigger(executionId: Long, executionKind: String, productName: String, version: Version, target: TargetExpr, frozenParameters: String, initiator: String): Future[Option[String]]
 

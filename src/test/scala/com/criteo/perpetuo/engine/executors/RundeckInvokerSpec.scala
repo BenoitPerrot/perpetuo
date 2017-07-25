@@ -31,7 +31,7 @@ class RundeckInvokerSpec extends Test with TestDb {
     val kind = Operation.executionKind(Operation.deploy)
     val productName = "My\"Beautiful\"Project"
     val version = Version("the 042nd version")
-    val parameters = rundeckInvoker.freezeParameters(kind, productName, version)
+    val parameters = plugins.dispatcher.freezeParameters(kind, productName, version)
     val target = Set(TargetTerm(Set(JsObject("abc" -> JsString("def"), "ghi" -> JsNumber(51.3))), Set("a", "b")))
     val logHref = Await.result(rundeckInvoker.trigger(42, kind, productName, version, target, parameters, "guy next door"), 1.second)
     logHref shouldBe defined

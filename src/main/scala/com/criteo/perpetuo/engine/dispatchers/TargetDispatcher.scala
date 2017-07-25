@@ -26,6 +26,16 @@ abstract class TargetDispatcher {
   protected def fromTargetWordToAtoms(productName: String, productVersion: String, targetWord: String): java.lang.Iterable[String] =
     Seq(targetWord).asJava
 
+  /**
+    * `freezeParameters` must return the execution parameters serialized as they will be
+    * provided to `trigger` in order to play or replay an execution in a deterministic way,
+    * except that it must be replayable with a subset of the original target (so the targets
+    * should not be included in the frozen parameters).
+    * If the input doesn't make sense (the parameters are incompatible with each other),
+    * it must return a `UnprocessableIntent` error, whose message will be displayed to the end user.
+    */
+  def freezeParameters(executionKind: String, productName: String, version: Version): String = ""
+
   // todo: rename as `dispatch` or `toExecutors`
   protected def assign(targetAtom: String): java.lang.Iterable[ExecutorInvoker]
 }
