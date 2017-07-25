@@ -47,9 +47,9 @@ class Schema(val dbContext: DbContext)
   def setOperationTracesMissingClosingDate() =
     dbContext.db.run(sqlu"""
                         UPDATE operation_trace
-                        SET closing_date = DATEADD('MINUTE', 1,
-                            SELECT dr.creation_date
-                            FROM deployment_request AS dr WHERE deployment_request_id = dr.id
+                        SET closing_date = DATEADD(MINUTE, 1, (
+                          SELECT dr.creation_date
+                          FROM deployment_request AS dr WHERE deployment_request_id = dr.id)
                         )
                         WHERE closing_date IS NULL""")
 
