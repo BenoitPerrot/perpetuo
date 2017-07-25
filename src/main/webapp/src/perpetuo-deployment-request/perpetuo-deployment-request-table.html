@@ -18,53 +18,53 @@
 <link rel="import" href="../perpetuo-up-down-none/perpetuo-up-down-none.html">
 
 <dom-module id="perpetuo-deployment-request-table">
-  <style>
-  :host {
-    display: flex;
-    flex-direction: column;
-  }
-
-  .table {
-    flex: 1;
-    padding: 1em 40px;
-    margin-left: 50px;
-  }
-  .row.heading {
-    flex: 1;
-    display: flex;
-    align-items: center;
-    padding: 0.5em 0;
-    border-bottom: solid 1px #ddd;
-    color: #757575;
-  }
-  .row.heading perpetuo-up-down-none {
-    font-weight: 500;
-  }
-  .row.heading perpetuo-up-down-none:not([state=none]) {
-    color: #212121;
-  }
-  .row.heading span {
-    font-weight: 500;
-  }
-  .product-name {
-    width: 40%;
-  }
-  .version {
-    width: 10%;
-  }
-  .target {
-    width: 20%;
-  }
-  .creation-date {
-    width: 20%;
-  }
-  div.state {
-    width: 10%;
-    display: flex;
-    justify-content: flex-end;
-  }
-  </style>
   <template>
+    <style>
+    :host {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .table {
+      flex: 1;
+      padding: 1em 40px;
+      margin-left: 50px;
+    }
+    .row.heading {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      padding: 0.5em 0;
+      border-bottom: solid 1px #ddd;
+      color: #757575;
+    }
+    .row.heading perpetuo-up-down-none {
+      font-weight: 500;
+    }
+    .row.heading perpetuo-up-down-none:not([state=none]) {
+      color: #212121;
+    }
+    .row.heading span {
+      font-weight: 500;
+    }
+    .product-name {
+      width: 40%;
+    }
+    .version {
+      width: 10%;
+    }
+    .target {
+      width: 20%;
+    }
+    .creation-date {
+      width: 20%;
+    }
+    div.state {
+      width: 10%;
+      display: flex;
+      justify-content: flex-end;
+    }
+    </style>
     <perpetuo-identity id="identity" login="{{login}}"></perpetuo-identity>
 
     <app-header-layout>

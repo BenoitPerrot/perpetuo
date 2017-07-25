@@ -1,37 +1,37 @@
 <link rel="import" href="../../bower_components/polymer/polymer.html">
 
 <dom-module id="perpetuo-target-status-table">
-  <style>
-  table {
-    width: 100%;
-    border-collapse: collapse;
-  }
-  table th {
-    font-weight: 500;
-    color: #757575;
-    text-align: left;
-  }
-  table td {
-    color: hsl(0,0%,13%);
-  }
-  table tr {
-    height: 42px;
-    border-bottom: solid 1px #ddd;
-  }
-  table tr :first-child {
-    padding-left: 24px;
-  }
-  table tbody tr:last-of-type {
-    border: 0;
-  }
-  table td:not(:last-child) {
-    padding-right: 56px;
-  }
-  table tbody tr:hover {
-    background-color: #eee;
-  }
-  </style>
   <template>
+    <style>
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    table th {
+      font-weight: 500;
+      color: #757575;
+      text-align: left;
+    }
+    table td {
+      color: hsl(0,0%,13%);
+    }
+    table tr {
+      height: 42px;
+      border-bottom: solid 1px #ddd;
+    }
+    table tr :first-child {
+      padding-left: 24px;
+    }
+    table tbody tr:last-of-type {
+      border: 0;
+    }
+    table td:not(:last-child) {
+      padding-right: 56px;
+    }
+    table tbody tr:hover {
+      background-color: #eee;
+    }
+    </style>
     <table class="target-status">
       <thead>
         <tr><th>Target</th><th>Status</th><th>Detail</th></tr>

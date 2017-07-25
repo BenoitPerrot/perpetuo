@@ -12,17 +12,17 @@
 <link rel="import" href="../perpetuo-product/perpetuo-product-table.html">
 
 <dom-module id="perpetuo-products-page">
-  <style>
-  paper-card {
-    flex: 1;
-    margin: 1em;
-    display: flex;
-  }
-  perpetuo-product-table {
-    flex: 1;
-  }
-  </style>
   <template>
+    <style>
+    paper-card {
+      flex: 1;
+      margin: 1em;
+      display: flex;
+    }
+    perpetuo-product-table {
+      flex: 1;
+    }
+    </style>
     <app-header-layout>
       <app-header reveals>
         <perpetuo-app-toolbar on-drawer-toggle-tap="toggleDrawer" page-title="Products"></perpetuo-app-toolbar>

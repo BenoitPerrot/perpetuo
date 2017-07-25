@@ -14,12 +14,12 @@
 <link rel="import" href="../perpetuo-client/perpetuo-client.html">
 
 <dom-module id="perpetuo-input-suggester">
-  <style>
-  :host {
-    --paper-item-selected-weight: normal;
-  }
-  </style>
   <template>
+    <style>
+    :host {
+      --paper-item-selected-weight: normal;
+    }
+    </style>
     <paper-input id="selector" label="Version" value="{{selection}}" on-focus="onFocus" on-focusout="onFocusOut"></paper-input>
 
     <div id="suggester"
@@ -74,40 +74,40 @@
 </dom-module>
 
 <dom-module id="perpetuo-deployment-request-creation-form">
-  <style>
-  :host {
-    display: block;
-    top: 0;
-    border-radius: 2px;
-  }
-
-  .product-name-version {
-    display: flex;
-    flex-direction: row;
-    justify-content: space-between;
-  }
-  .product-name-version > * {
-    width: 45%;
-  }
-
-  :host .versionMessage {
-    margin: 0;
-    color: red;
-  }
-  :host[is-version-valid] .versionMessage {
-    visibility: hidden;
-  }
-
-  .create {
-    background: #26a69a;
-    color: #fff;
-  }
-  .cancel {
-    background-color: #f44336;
-    color: #fff;
-  }
-  </style>
   <template>
+    <style>
+    :host {
+      display: block;
+      top: 0;
+      border-radius: 2px;
+    }
+
+    .product-name-version {
+      display: flex;
+      flex-direction: row;
+      justify-content: space-between;
+    }
+    .product-name-version > * {
+      width: 45%;
+    }
+
+    :host .versionMessage {
+      margin: 0;
+      color: red;
+    }
+    :host[is-version-valid] .versionMessage {
+      visibility: hidden;
+    }
+
+    .create {
+      background: #26a69a;
+      color: #fff;
+    }
+    .cancel {
+      background-color: #f44336;
+      color: #fff;
+    }
+    </style>
     <style include="paper-dialog-shared-styles"></style>
     <h2>New Deployment Request</h2>
     <paper-dialog-scrollable>

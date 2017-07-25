@@ -9,44 +9,44 @@
 <link rel="import" href="../perpetuo-deployment-request/perpetuo-deployment-operation.html">
 
 <dom-module id="perpetuo-deployment-request">
-  <style>
-  .body {
-    display: flex;
-    flex-direction: column;
-    padding: 20px;
-  }
-  .body > h1 {
-    border-bottom: solid 1px #ddd;
-    padding: 0 0 0.5em 0;
-    font-weight: normal;
-  }
-
-  .version {
-    margin-left: 2em;
-  }
-  .ratio {
-    vertical-align: super;
-    font-size: smaller;
-    color: gray;
-  }
-
-  #general, #target, #operations {
-    padding: 24px 16px;
-  }
-
-  paper-card {
-    margin-bottom: 1em;
-  }
-  paper-card h1, paper-card h2 {
-    margin: 0;
-    font-weight: normal;
-  }
-  paper-card h1 {
-    font-size: 24px;
-  }
-
-  </style>
   <template>
+    <style>
+    .body {
+      display: flex;
+      flex-direction: column;
+      padding: 20px;
+    }
+    .body > h1 {
+      border-bottom: solid 1px #ddd;
+      padding: 0 0 0.5em 0;
+      font-weight: normal;
+    }
+
+    .version {
+      margin-left: 2em;
+    }
+    .ratio {
+      vertical-align: super;
+      font-size: smaller;
+      color: gray;
+    }
+
+    #general, #target, #operations {
+      padding: 24px 16px;
+    }
+
+    paper-card {
+      margin-bottom: 1em;
+    }
+    paper-card h1, paper-card h2 {
+      margin: 0;
+      font-weight: normal;
+    }
+    paper-card h1 {
+      font-size: 24px;
+    }
+
+    </style>
     <app-header-layout>
       <app-header reveals>
         <perpetuo-app-toolbar on-drawer-toggle-tap="toggleDrawer" page-title="Deployment Requests"></perpetuo-app-toolbar>

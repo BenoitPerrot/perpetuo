@@ -17,34 +17,34 @@ function arrayifyTargetStatus(targetStatusMap) {
 </script>
 
 <dom-module id="perpetuo-deployment-operation-condensed">
-  <style>
-  :host {
-    padding: 1em;
-    display: flex;
-    flex-direction: column;
-    --paper-tabs-container: {
-      display: table;
-    }
-    --paper-tabs-selection-bar-color: #0086b2;
-    --paper-tab-ink: #0086b2;
-    --paper-tab-content: {
-      text-transform: uppercase;
-      font-size: 12px;
-    }
-  }
-
-  paper-tab[disabled] {
-    color: #757575;
-  }
-
-  p {
-    margin-top: 0;
-    font-size: 20px;
-    color: hsl(0,0%,13%);
-    text-transform: capitalize;
-  }
-  </style>
   <template>
+    <style>
+    :host {
+      padding: 1em;
+      display: flex;
+      flex-direction: column;
+      --paper-tabs-container: {
+        display: table;
+      }
+      --paper-tabs-selection-bar-color: #0086b2;
+      --paper-tab-ink: #0086b2;
+      --paper-tab-content: {
+        text-transform: uppercase;
+        font-size: 12px;
+      }
+    }
+
+    paper-tab[disabled] {
+      color: #757575;
+    }
+
+    p {
+      margin-top: 0;
+      font-size: 20px;
+      color: hsl(0,0%,13%);
+      text-transform: capitalize;
+    }
+    </style>
     <p>Operation: [[type]]</p>
     <paper-tabs selected="{{selected}}">
       <paper-tab id="summaryTab">Summary</paper-tab>

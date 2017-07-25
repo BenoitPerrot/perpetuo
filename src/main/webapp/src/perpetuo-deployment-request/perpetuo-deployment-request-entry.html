@@ -9,97 +9,97 @@
 <link rel="import" href="../perpetuo-deployment-request/perpetuo-deployment-operation-condensed.html">
 
 <dom-module id="perpetuo-deployment-request-entry">
-  <style>
-  :host {
-    display: flex;
-    flex-direction: column;
-    margin-bottom: 5px;
-    border-bottom: solid 1px #ddd;
-  }
-
-  div.heading {
-    display: flex;
-    align-items: center;
-    padding: 0.5em 0;
-    height: 50px;
-  }
-
-  span {
-    display: inline-block;
-  }
-
-  span.product-name {
-    font-size: 26px;
-    width: 40%;
-    padding-right: 40px;
-    box-sizing: border-box;
-  }
-  span.product-name > span {
-    cursor: pointer;
-  }
-  span.product-name > paper-icon-button:first-of-type {
-    margin-left: -40px;
-  }
-  span.version {
-    font-size: 20px;
-    width: 10%;
-  }
-  span.ratio {
-    vertical-align: super;
-    font-size: smaller;
-    color: gray;
-  }
-  span.target {
-    width: 20%;
-  }
-  span.creation-date {
-    width: 20%;
-  }
-  div.state {
-    width: 10%;
-    display: flex;
-    justify-content: flex-end;
-  }
-  div.state > paper-material {
-    border-radius: 3px;
-    padding: 0.7em 0.57em;
-    text-transform: uppercase;
-  }
-  div.state.success > paper-material {
-    color: #fff;
-    background-color: #0f9d58;
-  }
-  div.state.failed > paper-material {
-    color: #fff;
-    background-color: #f44336;
-  }
-  div.state.in-progress > paper-material {
-    color: #fff;
-    background: repeating-linear-gradient(-45deg, #009688, #009688 10px, #26a69a 10px, #26a69a 20px);
-  }
-  paper-icon-button#singleOpener {
-    margin-right: -40px;
-    color: initial;
-  }
-
-  div.comment {
-    margin: 0.5em 2em;
-    background-color: #eee;
-    border: solid 1px #ddd;
-    padding-left: 1em;
-  }
-
-  div.comment > p {
-    margin: 0;
-  }
-
-  div.operations {
-    display: flex;
-    flex-direction: column;
-    padding: 0 0 1em 1em;
-  }
-  </style>
   <template>
+    <style>
+    :host {
+      display: flex;
+      flex-direction: column;
+      margin-bottom: 5px;
+      border-bottom: solid 1px #ddd;
+    }
+
+    div.heading {
+      display: flex;
+      align-items: center;
+      padding: 0.5em 0;
+      height: 50px;
+    }
+
+    span {
+      display: inline-block;
+    }
+
+    span.product-name {
+      font-size: 26px;
+      width: 40%;
+      padding-right: 40px;
+      box-sizing: border-box;
+    }
+    span.product-name > span {
+      cursor: pointer;
+    }
+    span.product-name > paper-icon-button:first-of-type {
+      margin-left: -40px;
+    }
+    span.version {
+      font-size: 20px;
+      width: 10%;
+    }
+    span.ratio {
+      vertical-align: super;
+      font-size: smaller;
+      color: gray;
+    }
+    span.target {
+      width: 20%;
+    }
+    span.creation-date {
+      width: 20%;
+    }
+    div.state {
+      width: 10%;
+      display: flex;
+      justify-content: flex-end;
+    }
+    div.state > paper-material {
+      border-radius: 3px;
+      padding: 0.7em 0.57em;
+      text-transform: uppercase;
+    }
+    div.state.success > paper-material {
+      color: #fff;
+      background-color: #0f9d58;
+    }
+    div.state.failed > paper-material {
+      color: #fff;
+      background-color: #f44336;
+    }
+    div.state.in-progress > paper-material {
+      color: #fff;
+      background: repeating-linear-gradient(-45deg, #009688, #009688 10px, #26a69a 10px, #26a69a 20px);
+    }
+    paper-icon-button#singleOpener {
+      margin-right: -40px;
+      color: initial;
+    }
+
+    div.comment {
+      margin: 0.5em 2em;
+      background-color: #eee;
+      border: solid 1px #ddd;
+      padding-left: 1em;
+    }
+
+    div.comment > p {
+      margin: 0;
+    }
+
+    div.operations {
+      display: flex;
+      flex-direction: column;
+      padding: 0 0 1em 1em;
+    }
+    </style>
     <div class="heading">
       <span class="product-name"><paper-icon-button icon="[[expanderIcon(expanded, hasMore)]]" disabled="[[!hasMore]]" on-tap="toggle"></paper-icon-button><span on-tap="toggle">[[data.productName]]</span></span>
       <span class="version">

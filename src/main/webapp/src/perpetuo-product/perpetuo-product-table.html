@@ -1,37 +1,37 @@
 <link rel="import" href="../../bower_components/polymer/polymer.html">
 
 <dom-module id="perpetuo-product-table">
-  <style>
-  :host {
-    display: flex;
-    align-items: center;
-  }
-
-  .table {
-    flex: 1;
-    padding: 1em;
-  }
-  .row {
-    display: flex;
-    align-items: center;
-    padding: 0.5em;
-  }
-  .row.heading {
-    border-bottom: solid 1px #ddd;
-    margin-bottom: 1em;
-  }
-
-  span {
-    display: inline-block;
-  }
-  span.product-type {
-    flex: 0.5;
-  }
-  span.product-name {
-    flex: 1;
-  }
-  </style>
   <template>
+    <style>
+    :host {
+      display: flex;
+      align-items: center;
+    }
+
+    .table {
+      flex: 1;
+      padding: 1em;
+    }
+    .row {
+      display: flex;
+      align-items: center;
+      padding: 0.5em;
+    }
+    .row.heading {
+      border-bottom: solid 1px #ddd;
+      margin-bottom: 1em;
+    }
+
+    span {
+      display: inline-block;
+    }
+    span.product-type {
+      flex: 0.5;
+    }
+    span.product-name {
+      flex: 1;
+    }
+    </style>
     <div class="table">
       <div class="row heading">
         <span class="product-type">Product Type</span>

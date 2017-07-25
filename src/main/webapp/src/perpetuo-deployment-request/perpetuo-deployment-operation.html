@@ -4,25 +4,25 @@
 <link rel="import" href="../perpetuo-deployment-request/perpetuo-deployment-execution-list.html">
 
 <dom-module id="perpetuo-deployment-operation">
-  <style>
-  :host {
-    display: flex;
-    flex-direction: column;
-  }
-
-  h1, h2 {
-    margin: 0;
-    font-weight: normal;
-  }
-  h1 {
-    font-size: 24px;
-  }
-  h2 {
-    font-size: 16px;
-    margin-top: 1em;
-  }
-  </style>
   <template>
+    <style>
+    :host {
+      display: flex;
+      flex-direction: column;
+    }
+
+    h1, h2 {
+      margin: 0;
+      font-weight: normal;
+    }
+    h1 {
+      font-size: 24px;
+    }
+    h2 {
+      font-size: 16px;
+      margin-top: 1em;
+    }
+    </style>
     <h1>Operation #[[plusOne(index)]]: [[data.type]]</h1>
     <p>Started by [[data.creator]] on [[timestampToDates(data.creationDate)]]</p>
     <h2>Summary</h2>

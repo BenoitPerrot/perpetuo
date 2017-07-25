@@ -5,19 +5,19 @@
 <link rel="import" href="../perpetuo-deployment-request/perpetuo-deployment-request-table.html">
 
 <dom-module id="perpetuo-deployment-requests-page">
-  <style>
-  :host {
-    display: flex;
-    flex-direction: row;
-  }
-  app-route {
-    display: none;
-  }
-  #pageSelector {
-    flex: 1;
-  }
-  </style>
   <template>
+    <style>
+    :host {
+      display: flex;
+      flex-direction: row;
+    }
+    app-route {
+      display: none;
+    }
+    #pageSelector {
+      flex: 1;
+    }
+    </style>
     <iron-pages id="pageSelector" selected="[[selectPage(route)]]" fallback-selection="single" attr-for-selected="id">
       <div id="all">
         <perpetuo-deployment-request-table></perpetuo-deployment-request-table>
