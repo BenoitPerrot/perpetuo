@@ -11,6 +11,7 @@ private[dao] case class ExecutionTraceRecord(id: Option[Long],
                                              operationTraceId: Option[Long],
                                              logHref: Option[String] = None,
                                              state: ExecutionState = ExecutionState.pending,
+                                             executionSpecificationId: Option[Long] = None,
                                              executionId: Option[Long] = None) {
   def toExecutionTrace(operationTrace: OperationTrace): ExecutionTrace = {
     ExecutionTrace(id.get, operationTrace, logHref, state)
@@ -40,10 +41,12 @@ trait ExecutionTraceBinder extends TableBinder {
 
     def state = column[ExecutionState]("state")
 
+    def executionSpecificationId = column[Option[Long]]("execution_specification_id")
+
     def executionId = column[Option[Long]]("execution_id", O.Default(None))
     protected def fk = foreignKey(executionId, executionQuery)(_.id)
 
-    def * = (id.?, operationTraceId, logHref, state, executionId) <> (ExecutionTraceRecord.tupled, ExecutionTraceRecord.unapply)
+    def * = (id.?, operationTraceId, logHref, state, executionSpecificationId, executionId) <> (ExecutionTraceRecord.tupled, ExecutionTraceRecord.unapply)
   }
 
   val executionTraceQuery = TableQuery[ExecutionTraceTable]

@@ -95,7 +95,7 @@ class Schema(val dbContext: DbContext)
           Future.sequence {
             batch.map { case (((execTrace, op), req), product) =>
               specParamsPerProduct(product.name).map { specParams =>
-                val spec = ExecutionSpecificationRecord(None, req.version, specParams)
+                val spec = ExecutionSpecificationRecord(None, 42, req.version, specParams)
                 val insertions = for {
                   specId <- (executionSpecificationQuery returning executionSpecificationQuery.map(_.id)) += spec
                   execId <- (executionQuery returning executionQuery.map(_.id)) += ExecutionRecord(None, op.id.get, specId)
