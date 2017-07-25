@@ -20,7 +20,7 @@
     <paper-input id="search" label="[[label]]" on-value-changed="narrowDown" no-animations></paper-input>
     <div>
       <iron-dropdown id="dropdown" no-auto-focus>
-        <paper-listbox id="listbox" class="dropdown-content" on-selected-changed="select">
+        <paper-listbox id="listbox" slot="dropdown-content" on-selected-changed="select">
           <template is="dom-repeat" items="[[filteredChoices]]">
             <paper-item>[[item]]</paper-item>
           </template>
