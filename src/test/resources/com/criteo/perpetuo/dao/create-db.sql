@@ -42,7 +42,7 @@ CREATE INDEX "ix_operation_trace_creation_date"
 
 CREATE TABLE "execution_specification" (
   "id"                  BIGINT          NOT NULL IDENTITY,
-  "version"             NVARCHAR(1024),
+  "version"             NVARCHAR(1024)  NOT NULL,
   "specific_parameters" NVARCHAR(16000) NOT NULL
 )
 ALTER TABLE "execution_specification"
