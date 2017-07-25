@@ -24,14 +24,13 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
     val executionKind = Operation.executionKind(operation)
     val specificParameters = dispatcher.freezeParameters(executionKind, deploymentRequest.product.name, deploymentRequest.version)
 
-    dbBinding.addToDeploymentRequest(deploymentRequest.id, operation, userName).flatMap { operationTrace =>
-      // fixme: temporary create an in-memory record, because I don't want to create those in DB
-      //        before having them bound to Execution records
-      val executionSpecification = ExecutionSpecification(0, deploymentRequest.version, specificParameters)
-      startExecution(dispatcher, deploymentRequest, operationTrace, executionSpecification).map {
-        case (successes, failures) => (operationTrace, successes, failures)
-      }
-    }
+    dbBinding.addToDeploymentRequest(deploymentRequest.id, operation, userName).flatMap(operationTrace =>
+      dbBinding.insert(specificParameters, deploymentRequest.version).flatMap(executionSpecification =>
+        startExecution(dispatcher, deploymentRequest, operationTrace, executionSpecification).map {
+          case (successes, failures) => (operationTrace, successes, failures)
+        }
+      )
+    )
   }
 
   def startExecution(dispatcher: TargetDispatcher,
@@ -47,59 +46,57 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
     // execution dispatching
     val invocations = dispatch(dispatcher, expandedTarget).toSeq
 
-    // create as many traces, all at the same time
-    dbBinding.addToOperationTrace(operationTrace.id, invocations.length)
-      .map {
-        execIds =>
-          assert(execIds.length == invocations.length)
-          invocations.zip(execIds)
-      }
-      .flatMap { executionSpecs =>
-        // and only then, for each execution to do:
-        Future.traverse(executionSpecs) {
-          case ((executor, target), execId) =>
-            // log the execution
-            logger.debug(s"Triggering ${operationTrace.operation} job for execution #$execId of $productName v. $version on $executor")
-            // trigger the execution
-            executor
-              .trigger(
-                execId,
-                Operation.executionKind(operationTrace.operation),
-                productName,
-                version,
-                target,
-                executionSpecification.specificParameters,
-                deploymentRequest.creator
-              )
-              .flatMap(
-                // if that answers a log href, update the trace with it, and consider that the job
-                // is running (i.e. already followable and not yet terminated, really)
-                _.map(logHref =>
-                  dbBinding.updateExecutionTrace(execId, logHref, ExecutionState.running).map { updated =>
-                    assert(updated)
-                    (true, s"`$logHref` succeeded")
-                  }
-                ).getOrElse(
-                  Future.successful((true, "succeeded (but with an unknown log href)"))
+    dbBinding.insert(operationTrace.id, executionSpecification.id).flatMap(executionId =>
+      // create as many traces, all at the same time
+      dbBinding.attach(operationTrace.id, executionId, invocations.length)
+        .map(x => invocations.zip(x))
+        .flatMap { executionSpecs =>
+          // and only then, for each execution to do:
+          Future.traverse(executionSpecs) {
+            case ((executor, target), execId) =>
+              // log the execution
+              logger.debug(s"Triggering ${operationTrace.operation} job for execution #$execId of $productName v. $version on $executor")
+              // trigger the execution
+              executor
+                .trigger(
+                  execId,
+                  Operation.executionKind(operationTrace.operation),
+                  productName,
+                  version,
+                  target,
+                  executionSpecification.specificParameters,
+                  deploymentRequest.creator
                 )
-              )
-              .recoverWith {
-                // if triggering the job throws an error, mark the execution as failed at initialization
-                case e: Throwable =>
-                  dbBinding.updateExecutionTrace(execId, ExecutionState.initFailed).map { updated =>
-                    assert(updated)
-                    (false, s"failed (${e.getMessage})")
-                  }
-              }
-              .map { case (succeeded, identifier) =>
-                logExecution(identifier, execId, executor, target)
-                succeeded
-              }
-        }.map { statuses =>
-          val successes = statuses.count(s => s)
-          (successes, statuses.length - successes)
+                .flatMap(
+                  // if that answers a log href, update the trace with it, and consider that the job
+                  // is running (i.e. already followable and not yet terminated, really)
+                  _.map(logHref =>
+                    dbBinding.updateExecutionTrace(execId, logHref, ExecutionState.running).map { updated =>
+                      assert(updated)
+                      (true, s"`$logHref` succeeded")
+                    }
+                  ).getOrElse(
+                    Future.successful((true, "succeeded (but with an unknown log href)"))
+                  )
+                )
+                .recoverWith {
+                  // if triggering the job throws an error, mark the execution as failed at initialization
+                  case e: Throwable =>
+                    dbBinding.updateExecutionTrace(execId, ExecutionState.initFailed).map { updated =>
+                      assert(updated)
+                      (false, s"failed (${e.getMessage})")
+                    }
+                }
+                .map { case (succeeded, identifier) =>
+                  logExecution(identifier, execId, executor, target)
+                  succeeded
+                }
+          }.map { statuses =>
+            val successes = statuses.count(s => s)
+            (successes, statuses.length - successes)
+          }
         }
-      }
+    )
   }
 
   def dispatch(dispatcher: TargetDispatcher, target: TargetExpr): Iterable[(ExecutorInvoker, TargetExpr)] =

@@ -1,5 +1,7 @@
 package com.criteo.perpetuo.dao
 
+import scala.concurrent.Future
+
 
 private[dao] case class ExecutionRecord(id: Option[Long],
                                         operationTraceId: Long,
@@ -25,4 +27,8 @@ trait ExecutionBinder extends TableBinder {
   }
 
   val executionQuery: TableQuery[ExecutionTable] = TableQuery[ExecutionTable]
+
+  def insert(operationTraceId: Long, executionSpecificationId: Long): Future[Long] = {
+    dbContext.db.run((executionQuery returning executionQuery.map(_.id)) += ExecutionRecord(None, operationTraceId, executionSpecificationId))
+  }
 }

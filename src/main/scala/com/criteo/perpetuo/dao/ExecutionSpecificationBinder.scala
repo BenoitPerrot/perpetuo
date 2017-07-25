@@ -1,7 +1,9 @@
 package com.criteo.perpetuo.dao
 
-import com.criteo.perpetuo.model.Version
+import com.criteo.perpetuo.model.{ExecutionSpecification, Version}
 
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.Future
 
 private[dao] case class ExecutionSpecificationRecord(id: Option[Long],
                                                      version: Version,
@@ -24,4 +26,11 @@ trait ExecutionSpecificationBinder extends TableBinder {
   }
 
   val executionSpecificationQuery: TableQuery[ExecutionSpecificationTable] = TableQuery[ExecutionSpecificationTable]
+
+  def insert(specificParameters: String, version: Version): Future[ExecutionSpecification] = {
+    val record = ExecutionSpecificationRecord(None, version, specificParameters)
+    dbContext.db.run((executionSpecificationQuery returning executionSpecificationQuery.map(_.id)) += record).map(
+      ExecutionSpecification(_, version, specificParameters)
+    )
+  }
 }

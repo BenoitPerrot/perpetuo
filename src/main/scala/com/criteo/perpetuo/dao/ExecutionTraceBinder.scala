@@ -48,9 +48,12 @@ trait ExecutionTraceBinder extends TableBinder {
 
   val executionTraceQuery = TableQuery[ExecutionTraceTable]
 
-  def addToOperationTrace(traceId: Long, numberOfTraces: Int): Future[Seq[Long]] = {
-    val execTrace = ExecutionTraceRecord(None, Some(traceId))
-    dbContext.db.run((executionTraceQuery returning executionTraceQuery.map(_.id)) ++= List.fill(numberOfTraces)(execTrace))
+  def attach(operationTraceId: Long, executionId: Long, numberOfTraces: Int): Future[Seq[Long]] = { // fixme: deprecated
+    val execTrace = ExecutionTraceRecord(None, Some(operationTraceId), executionId = Some(executionId))
+    dbContext.db.run((executionTraceQuery returning executionTraceQuery.map(_.id)) ++= List.fill(numberOfTraces)(execTrace)).map { seq =>
+      assert(seq.length == numberOfTraces)
+      seq
+    }
   }
 
   def findExecutionTracesByDeploymentRequest(deploymentRequestId: Long): Future[Seq[ExecutionTrace]] = {
