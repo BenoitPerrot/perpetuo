@@ -1,8 +1,7 @@
 <link rel="import" href="../../bower_components/polymer/polymer.html">
 
 <link rel="import" href="../../bower_components/paper-button/paper-button.html">
-<link rel="import" href="../../bower_components/paper-dialog-behavior/paper-dialog-behavior.html">
-<link rel="import" href="../../bower_components/paper-dialog-behavior/paper-dialog-shared-styles.html">
+<link rel="import" href="../../bower_components/paper-dialog/paper-dialog.html">
 <link rel="import" href="../../bower_components/paper-dialog-scrollable/paper-dialog-scrollable.html">
 <link rel="import" href="../../bower_components/paper-dropdown-menu/paper-dropdown-menu.html">
 <link rel="import" href="../../bower_components/paper-input/paper-input.html">
@@ -107,33 +106,38 @@
       background-color: #f44336;
       color: #fff;
     }
+
+    #dialog {
+      top: 0;
+    }
     </style>
-    <style include="paper-dialog-shared-styles"></style>
-    <h2>New Deployment Request</h2>
-    <paper-dialog-scrollable>
-      <div class="product-name-version">
-        <paper-dropdown-menu label="Product" no-animations>
-          <paper-listbox id="productSelector" class="dropdown-content" selected-item="{{selectedProductItem}}">
-            <template is="dom-repeat" items="[[products]]">
-              <paper-item name="[[item.name]]">[[item.name]]</paper-item>
-            </template>
-          </paper-listbox>
-        </paper-dropdown-menu>
-        <div>
-          <perpetuo-input-suggester suggestions="[[versionSuggestions]]" selection="{{selectedVersion}}"></perpetuo-input-suggester>
-          <p class="versionMessage">Requested version could not be validated</p>
-          <p class="versionMessage">[[reason]]</p>
+    <paper-dialog id="dialog" with-backdrop>
+      <h2>New Deployment Request</h2>
+      <paper-dialog-scrollable>
+        <div class="product-name-version">
+          <paper-dropdown-menu label="Product" no-animations>
+            <paper-listbox id="productSelector" class="dropdown-content" selected-item="{{selectedProductItem}}">
+              <template is="dom-repeat" items="[[products]]">
+                <paper-item name="[[item.name]]">[[item.name]]</paper-item>
+              </template>
+            </paper-listbox>
+          </paper-dropdown-menu>
+          <div>
+            <perpetuo-input-suggester suggestions="[[versionSuggestions]]" selection="{{selectedVersion}}"></perpetuo-input-suggester>
+            <p class="versionMessage">Requested version could not be validated</p>
+            <p class="versionMessage">[[reason]]</p>
+          </div>
         </div>
+        <!-- TODO: Make this a _pluggable_ component -->
+        <perpetuo-criteo-target-expression-editor product-name="[[selectedProductName]]" id="targetSelector"></perpetuo-criteo-target-expression-editor>
+        <paper-input id="lastValidatedVersion" label="Last Validated Version"></paper-input>
+        <paper-textarea id="commentEditor" label="Comment"></paper-textarea>
+      </paper-dialog-scrollable>
+      <div class="buttons">
+        <paper-button dialog-dismiss class="cancel" raised>Cancel</paper-button>
+        <paper-button dialog-confirm class="create" raised on-tap="create">Create</paper-button>
       </div>
-      <!-- TODO: Make this a _pluggable_ component -->
-      <perpetuo-criteo-target-expression-editor product-name="[[selectedProductName]]" id="targetSelector"></perpetuo-criteo-target-expression-editor>
-      <paper-input id="lastValidatedVersion" label="Last Validated Version"></paper-input>
-      <paper-textarea id="commentEditor" label="Comment"></paper-textarea>
-    </paper-dialog-scrollable>
-    <div class="buttons">
-      <paper-button dialog-dismiss class="cancel" raised>Cancel</paper-button>
-      <paper-button dialog-confirm class="create" raised on-tap="create">Create</paper-button>
-    </div>
+    </paper-dialog>
   </template>
   <script>
   Polymer({
@@ -148,10 +152,6 @@
       versionSuggestions: { type: Array, value: () => [] },
       selectedVersion: { type: String, notify: true, observer: 'onSelectedVersionChanged' }
     },
-
-    behaviors: [
-      Polymer.PaperDialogBehavior
-    ],
 
     onSelectedVersionChanged(v) {
       if (v && this.selectedProductName) {
@@ -187,13 +187,17 @@
 
     attached() {
       this.client = new Perpetuo.Client();
-      this.addEventListener('opened-changed', () => { this.clear() });
+      this.$.dialog.addEventListener('opened-changed', () => { this.clear() });
+    },
+
+    open() {
+      this.$.dialog.open();
     },
 
     create() {
       const comment =
         (this.$.commentEditor.value || '') +
-        (this.$.lastValidatedVersion.value ? `${this.$.commentEditor.value ? '\n' : ''}Last validated version: ${this.$.lastValidatedVersion.value}` : '')
+         (this.$.lastValidatedVersion.value ? `${this.$.commentEditor.value ? '\n' : ''}Last validated version: ${this.$.lastValidatedVersion.value}` : '')
       this.client.createDeploymentRequest(this.selectedProductName,
                                           // TODO: remove this hack as soon as the UI allows inputing complex version specifications <<
                                           (_ => { try { const x = JSON.parse(_); return Array.isArray(x) ? x : _; } catch (e) { return _; } }) (this.selectedVersion),
