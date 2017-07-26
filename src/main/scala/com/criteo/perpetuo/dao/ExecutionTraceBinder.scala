@@ -14,7 +14,7 @@ private[dao] case class ExecutionTraceRecord(id: Option[Long],
                                              executionSpecificationId: Option[Long] = None,
                                              executionId: Option[Long] = None) {
   def toExecutionTrace(operationTrace: OperationTrace): ExecutionTrace = {
-    ExecutionTrace(id.get, operationTrace, logHref, state)
+    ExecutionTrace(id.get, executionId.getOrElse(0), operationTrace, logHref, state)
   }
 }
 
