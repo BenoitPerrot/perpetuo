@@ -254,6 +254,14 @@ class RestController @Inject()(val engine: Engine)
   get("/api/unstable/db/executions/missing-count") { _: Request =>
     Await.result(schema.countMissingExecutions().map(x => Map("count" -> x)), 2.seconds)
   }
+
+  post("/api/unstable/db/target-status/set-missing") { _: Request =>
+    Await.result(schema.setMissingTargetStatuses().map(x => Map("count" -> x)), 2.hours)
+  }
+
+  get("/api/unstable/db/target-status/count-executions-not-set") { _: Request =>
+    Await.result(schema.countMissingTargetStatuses().map(x => Map("count" -> x)), 20.seconds)
+  }
   // >>
 
   // Be sure to capture invalid calls to APIs

@@ -4,9 +4,9 @@ import java.net.InetSocketAddress
 import javax.inject.{Inject, Singleton}
 
 import com.criteo.perpetuo.app.RawJson
-import com.criteo.perpetuo.model.ExecutionTrace
+import com.criteo.perpetuo.model.{ExecutionTrace, Status, TargetAtomStatus}
 import com.twitter.finagle.builder.ClientBuilder
-import com.twitter.finagle.http.{Http, Request, Status}
+import com.twitter.finagle.http.{Http, Request, Status => HttpStatus}
 import com.twitter.util.{Await => TwitterAwait}
 import spray.json._
 
@@ -81,7 +81,7 @@ class Schema(val dbContext: DbContext)
             val request = Request(s"/products/$productName/manifest.json")
             request.headerMap.add("Host", "moab.criteois.lan")
             val resp = TwitterAwait.result(client.apply(request))
-            if (resp.status == Status.Ok)
+            if (resp.status == HttpStatus.Ok)
               Some(resp.contentString.parseJson.asJsObject.fields("type").asInstanceOf[JsString].value)
             else
               None
@@ -114,6 +114,33 @@ class Schema(val dbContext: DbContext)
   def countMissingExecutions(): Future[Int] =
     dbContext.db.run(executionTraceQuery.filter(_.executionId.isEmpty).length.result)
 
+  def setMissingTargetStatuses(): Future[Int] = {
+    listExecutionsIdsMissingTargetStatus().map(_.grouped(100).flatMap {
+      batch =>
+        Await.result(
+          Future.sequence {
+            batch.map { case (execId, targetStatus) =>
+              addToExecution(execId, targetStatus.parseJson.asJsObject.fields.mapValues { value =>
+                val Vector(JsNumber(statusId), JsString(detail)) = value.asInstanceOf[JsArray].elements
+                TargetAtomStatus(Status(statusId.toInt), detail)
+              })
+            }
+          },
+          5.minutes
+        )
+    }.length)
+  }
+
+  def countMissingTargetStatuses(): Future[Int] = {
+    listExecutionsIdsMissingTargetStatus().map(_.length)
+  }
+
+  def listExecutionsIdsMissingTargetStatus(): Future[Vector[(Long, String)]] = {
+    dbContext.db.run(
+      sql"""select execution.id, operation_trace.target_status from execution join operation_trace on operation_trace_id = operation_trace.id
+            where (select count(*) from target_status where execution_id = execution.id) = 0;""".as[(Long, String)]
+    )
+  }
   // >>
 }
 
