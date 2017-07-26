@@ -23,7 +23,7 @@ class CriteoExternalData extends ExternalData { // fixme: this only works with J
         } else {
             def repos = manifest.artifacts.collect {
                 allRepos.get("${it.groupId}:${it.artifactId}".toString())
-            }
+            }.findAll()
             def errors = []
             for (String repo : repos) {
                 def validation = allValidation.get(repo)
@@ -49,7 +49,7 @@ class CriteoExternalData extends ExternalData { // fixme: this only works with J
         } else {
             def repos = manifest.artifacts.collect {
                 allRepos.get(it.groupId + ':' + it.artifactId)
-            }
+            }.findAll()
 
             def listOfChanges = [:]
             for (String repo : repos) {
