@@ -30,7 +30,7 @@ class TargetStatusSpec extends FunSuite with ScalaFutures
         deployOperationTrace <- addToDeploymentRequest(request.id, Operation.deploy, "n.armstrong")
         execSpec <- insert("{}", Version("456"))
         execId <- insert(deployOperationTrace.id, execSpec.id)
-        _ <- addToExecution(execId, deployOperationTrace.id, Map("Moon" -> TargetAtomStatus(Status.hostFailure, "Houston, we've got a problem")))
+        _ <- addToExecution(execId, Map("Moon" -> TargetAtomStatus(Status.hostFailure, "Houston, we've got a problem")))
         targetStatuses <- dbContext.db.run(targetStatusQuery.result)
       } yield {
         assert(targetStatuses.length == 1)

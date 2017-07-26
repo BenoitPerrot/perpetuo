@@ -134,7 +134,7 @@ class Engine @Inject()(val dbBinding: DbBinding) {
             else
               dbBinding.updateOperationTrace(op.id, op.partialUpdate(statusMap))
 
-          val statusMapToExecution = dbBinding.addToExecution(execTrace.executionId, op.id, statusMap).map(_ => true)
+          val statusMapToExecution = dbBinding.addToExecution(execTrace.executionId, statusMap).map(_ => true)
 
           Future.sequence(Seq(operationClosingAttempt, statusMapUpdate, statusMapToExecution)).map(x => {
             Some(x.head)
