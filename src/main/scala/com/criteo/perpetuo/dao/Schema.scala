@@ -266,4 +266,20 @@ class DbBinding @Inject()(val dbContext: DbContext)
         }
       }
   }
+
+  /**
+    * @return - None if the operation doesn't exist or is still running,
+    *         - Some(True) if it's closed and all targets are marked successful,
+    *         - Some(False) if it's closed and at least one target is not successful
+    */
+  def isOperationSuccessful(id: Long): Future[Option[Boolean]] = {
+    dbContext.db.run(
+      operationTraceQuery.filter(op => op.id === id && op.closingDate.isDefined)
+        .joinLeft(
+          executionQuery.join(targetStatusQuery).on(_.id === _.executionId)
+            .filter(_._2.code =!= Status.success).take(1).map(_._1)
+        ).on(_.id === _.operationTraceId).map(_._2).result).map(
+      _.headOption.map(_.isEmpty)
+    )
+  }
 }

@@ -20,7 +20,7 @@ trait TargetStatusBinder extends TableBinder {
 
   import dbContext.driver.api._
 
-  private implicit lazy val statusMapper = MappedColumnType.base[Status.Code, Short](
+  protected implicit lazy val statusMapper = MappedColumnType.base[Status.Code, Short](
     op => op.id.toShort,
     short => Status(short.toInt)
   )

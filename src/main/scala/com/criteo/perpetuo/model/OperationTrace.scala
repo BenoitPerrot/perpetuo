@@ -14,7 +14,4 @@ case class OperationTrace(id: Long,
     // todo: take into account the precedence of individual target statuses; in JIRA: DREDD-174
     targetStatus ++ partialTargetStatus
   }
-
-  // TODO: consider ExecutionTrace, and in the future the dedicated Table
-  def succeeded: Boolean = targetStatus.forall(_._2.code == Status.success)
 }

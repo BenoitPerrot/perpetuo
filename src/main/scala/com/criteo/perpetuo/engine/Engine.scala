@@ -70,7 +70,10 @@ class Engine @Inject()(val dbBinding: DbBinding) {
   private def closeOperation(operationTrace: OperationTrace, deploymentRequest: DeploymentRequest): Future[Boolean] = {
     dbBinding.closeOperationTrace(operationTrace.id).map { closingSuccess =>
       if (closingSuccess)
-        Future(plugins.hooks.onOperationClosed(operationTrace, deploymentRequest, operationTrace.succeeded))
+        dbBinding.isOperationSuccessful(operationTrace.id).foreach { succeeded =>
+          assert(succeeded.isDefined, s"Operation #${operationTrace.id} doesn't exist or is not closed")
+          plugins.hooks.onOperationClosed(operationTrace, deploymentRequest, succeeded.get)
+        }
       closingSuccess
     }
   }
