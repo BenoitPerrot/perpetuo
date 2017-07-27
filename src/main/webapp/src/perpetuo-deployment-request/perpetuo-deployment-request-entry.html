@@ -3,7 +3,7 @@
 <link rel="import" href="../../bower_components/iron-collapse/iron-collapse.html">
 <link rel="import" href="../../bower_components/paper-button/paper-button.html">
 <link rel="import" href="../../bower_components/paper-icon-button/paper-icon-button.html">
-<link rel="import" href="../../bower_components/paper-styles/shadow.html">
+<link rel="import" href="../../bower_components/paper-material/paper-material.html">
 
 <link rel="import" href="../perpetuo-client/perpetuo-client.html">
 <link rel="import" href="../perpetuo-deployment-request/perpetuo-deployment-operation-condensed.html">
@@ -61,21 +61,20 @@
       display: flex;
       justify-content: flex-end;
     }
-    div.state > span {
+    div.state > paper-material {
       border-radius: 3px;
       padding: 0.7em 0.57em;
       text-transform: uppercase;
-      @apply --shadow-elevation-2dp;
     }
-    div.state.success > span {
+    div.state.success > paper-material {
       color: #fff;
       background-color: #0f9d58;
     }
-    div.state.failed > span {
+    div.state.failed > paper-material {
       color: #fff;
       background-color: #f44336;
     }
-    div.state.in-progress > span {
+    div.state.in-progress > paper-material {
       color: #fff;
       background: repeating-linear-gradient(-45deg, #009688, #009688 10px, #26a69a 10px, #26a69a 20px);
     }
@@ -115,7 +114,7 @@
           <paper-button on-tap="onStartTap" raised>Start!</paper-button>
         </template>
         <template is="dom-if" if="[[!isWaitingForApproval(state)]]">
-          <span>[[state]]</span>
+          <paper-material>[[state]]</paper-material>
         </template>
       </div>
       <a href$="/deployment-requests/[[data.id]]"><paper-icon-button id="singleOpener" icon="launch"></paper-icon-button></a>

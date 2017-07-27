@@ -116,7 +116,7 @@
       <paper-dialog-scrollable>
         <div class="product-name-version">
           <paper-dropdown-menu label="Product" no-animations>
-            <paper-listbox id="productSelector" slot="dropdown-content" selected-item="{{selectedProductItem}}">
+            <paper-listbox id="productSelector" class="dropdown-content" selected-item="{{selectedProductItem}}">
               <template is="dom-repeat" items="[[products]]">
                 <paper-item name="[[item.name]]">[[item.name]]</paper-item>
               </template>
