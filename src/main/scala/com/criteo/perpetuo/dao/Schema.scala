@@ -120,10 +120,13 @@ class Schema(val dbContext: DbContext)
         Await.result(
           Future.sequence {
             batch.map { case (execId, targetStatus) =>
-              addToExecution(execId, targetStatus.parseJson.asJsObject.fields.mapValues { value =>
+              var statusMap = targetStatus.parseJson.asJsObject.fields.mapValues { value =>
                 val Vector(JsNumber(statusId), JsString(detail)) = value.asInstanceOf[JsArray].elements
                 TargetAtomStatus(Status(statusId.toInt), detail)
-              })
+              }
+              if (statusMap.isEmpty)
+                statusMap = Map("*" -> TargetAtomStatus(Status.hostFailure, "The job has been killed"))
+              addToExecution(execId, statusMap)
             }
           },
           5.minutes
