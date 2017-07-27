@@ -89,13 +89,19 @@ class CriteoHooks extends Hooks {
             def client = makeAuthorizedClient()
             transitionsIdsAndNames.each { transitionId, transitionName ->
                 logger().info("Applying `$transitionName` (id=$transitionId) on $ticketKey")
-                client.post(
-                        path: "/rest/api/2/issue/$ticketKey/transitions",
-                        requestContentType: JSON,
-                        body: [
-                                transition: [id: transitionId]
-                        ]
-                )
+                try {
+                    client.post(
+                            path: "/rest/api/2/issue/$ticketKey/transitions",
+                            requestContentType: JSON,
+                            body: [
+                                    transition: [id: transitionId]
+                            ]
+                    )
+                }
+                catch (HttpResponseException e) {
+                    logger().severe("Bad response from JIRA when transitioning ticket $ticketKey: ${e.response.status} ${e.message}: ${e.response.data.toString()}")
+                    throw e
+                }
             }
         }
 
