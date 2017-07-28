@@ -165,6 +165,22 @@ class DbBinding @Inject()(val dbContext: DbContext)
     ).map { _.headOption }
   }
 
+  def findOperationTraceAndExecutionSpecs(operationTraceId: Long): Future[Option[(OperationTrace, Seq[ExecutionSpecification])]] = {
+    dbContext.db.run(operationTraceQuery
+      .join(executionQuery)
+      .join(executionSpecificationQuery)
+      .filter { case ((operationTrace, execution), executionSpec) =>
+        operationTrace.id === operationTraceId &&
+          execution.operationTraceId === operationTraceId &&
+          execution.executionSpecificationId === executionSpec.id
+      }.map { case ((operationTrace, _), executionSpec) =>
+          (operationTrace, executionSpec)
+      }.result
+    ).map(allOperationTraceAndExecutionSpecs =>
+      allOperationTraceAndExecutionSpecs.headOption.map(x => (x._1.toOperationTrace, allOperationTraceAndExecutionSpecs.map(_._2.toExecutionSpecification)))
+    )
+  }
+
   // TODO: find a cheap way to factor this - or find a more clever structure for the query
   // (note that as after type erasure the two methods have the same signature, they must have different names) <<
   def sortBy(q: Query[(DeploymentRequestTable, ProductTable), (DeploymentRequestRecord, ProductRecord), scala.Seq], order: Seq[Map[String, Any]]) = {

@@ -8,7 +8,11 @@ import scala.concurrent.Future
 private[dao] case class ExecutionSpecificationRecord(id: Option[Long],
                                                      operationTraceId: Long,
                                                      version: Version,
-                                                     specificParameters: String)
+                                                     specificParameters: String) {
+  def toExecutionSpecification: ExecutionSpecification = {
+    ExecutionSpecification(id.get, version, specificParameters)
+  }
+}
 
 
 trait ExecutionSpecificationBinder extends TableBinder {

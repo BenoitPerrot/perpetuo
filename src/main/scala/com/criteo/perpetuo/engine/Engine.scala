@@ -85,6 +85,20 @@ class Engine @Inject()(val dbBinding: DbBinding) {
       }.getOrElse(Future.successful(None))
     )
 
+  def retryOperationTrace(operationTraceId: Long, initiatorName: String): Future[Option[OperationTrace]] = {
+    val operationTraceAndExecutionSpecifications = dbBinding.findOperationTraceAndExecutionSpecs(operationTraceId)
+
+    operationTraceAndExecutionSpecifications.flatMap(_.map { case (originOperationTrace, executionSpecs) =>
+      dbBinding.findDeploymentRequestByIdWithProduct(originOperationTrace.deploymentRequestId).flatMap(_.map { deploymentRequest =>
+        operationStarter.retry(plugins.dispatcher, deploymentRequest, originOperationTrace, executionSpecs, initiatorName).map { case (operationTrace, (started, _)) =>
+          if (started == 0)
+            closeOperation(operationTrace, deploymentRequest)
+          Some(operationTrace)
+        }
+      }.getOrElse(Future.successful(None)))
+    }.getOrElse(Future.successful(None)))
+  }
+
   def findOperationTracesByDeploymentRequest(deploymentRequestId: Long): Future[Option[Seq[OperationTrace]]] =
     dbBinding.findOperationTracesByDeploymentRequest(deploymentRequestId).flatMap { traces =>
       if (traces.isEmpty) {

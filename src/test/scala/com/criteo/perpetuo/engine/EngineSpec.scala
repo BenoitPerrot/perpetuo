@@ -104,6 +104,39 @@ class EngineSpec extends Test with TestDb {
         2.second
       ) shouldBe(2, true, true)
     }
+
+    "keep track of retried operation" in {
+      Await.result(
+        for {
+          product <- engine.insertProduct("martian")
+          deploymentRequestId <- engine.createDeploymentRequest(new DeploymentRequestAttrs(product.name, Version(JsString("42").compactPrint), """["moon","mars"]}""", "", "robert", new Timestamp(System.currentTimeMillis)), immediateStart = false).map(_ ("id").toString.toLong)
+          _ <- engine.startDeploymentRequest(deploymentRequestId, "ignace")
+          operationTraces <- engine.findOperationTracesByDeploymentRequest(deploymentRequestId).map(_.get)
+          operationTraceId = operationTraces.head.id
+          executionTrace <- engine.dbBinding.findExecutionTracesByDeploymentRequest(deploymentRequestId)
+          _ <- engine.updateExecutionTrace(executionTrace.head.id, ExecutionState.completed, "", Map(
+            "moon" -> TargetAtomStatus(Status.success, "no surprise"),
+            "mars" -> TargetAtomStatus(Status.hostFailure, "no surprise")))
+          retriedOperation <- engine.retryOperationTrace(operationTraceId, "b.lightning").map(_.get)
+          executionTracesAfterRetry <- engine.dbBinding.findExecutionTracesByDeploymentRequest(deploymentRequestId)
+          _ <- engine.updateExecutionTrace(executionTracesAfterRetry.tail.head.id, ExecutionState.completed, "", Map(
+            "moon" -> TargetAtomStatus(Status.success, "no surprise"),
+            "mars" -> TargetAtomStatus(Status.success, "no surprise")))
+          hasOpenExecutionAfter <- engine.dbBinding.hasOpenExecutionTracesForOperation(retriedOperation.id)
+          operationReClosingSucceeded <- engine.dbBinding.closeOperationTrace(retriedOperation.id)
+          (_, initialExecutionSpecs) <- engine.dbBinding.findOperationTraceAndExecutionSpecs(operationTraceId).map(_.get)
+          (_, retriedExecutionSpecs) <- engine.dbBinding.findOperationTraceAndExecutionSpecs(retriedOperation.id).map(_.get)
+        } yield {
+          (executionTrace.length, executionTracesAfterRetry.length,
+            retriedOperation.id == operationTraceId,
+            hasOpenExecutionAfter, operationReClosingSucceeded,
+            initialExecutionSpecs.length == retriedExecutionSpecs.length,
+            initialExecutionSpecs == retriedExecutionSpecs
+          )
+        },
+        2.second
+      ) shouldBe (1, 2, false, false, false, true, true)
+    }
   }
 
 }

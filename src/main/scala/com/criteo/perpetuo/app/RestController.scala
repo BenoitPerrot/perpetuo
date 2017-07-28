@@ -203,6 +203,16 @@ class RestController @Inject()(val engine: Engine)
     )
   )
 
+  put("/api/operation-traces/:id/retry") { r: RequestWithId =>
+    // todo: Use AD group to give escalation team permissions to deploy in prod
+    authenticate(r.request) { case user if user.name == deployBotName || escalationTeamNames.contains(user.name) || AppConfig.env != "prod" =>
+      withIdAndRequest(
+        (id, _: RequestWithId) => engine.retryOperationTrace(id, user.name).map(_.map { _ => response.ok.json(Map("id" -> id)) }),
+        2.seconds
+      )(r)
+    }
+  }
+
   get("/api/unstable/deployment-requests") { _: Request =>
     timeBoxed(
       engine.queryDeepDeploymentRequests(where = Seq(), orderBy = Seq(), limit = 20, offset = 0),
