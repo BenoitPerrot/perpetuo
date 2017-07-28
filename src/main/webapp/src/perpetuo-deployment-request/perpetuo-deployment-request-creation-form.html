@@ -32,43 +32,46 @@
     </div>
   </template>
   <script>
-  Polymer({
-    is: 'perpetuo-input-suggester',
-
-    properties: {
-      selection: { type: String, notify: true },
-      suggestions: { type: Array, value: () => [] }
-    },
-
-    onFocus(e) {
-      this.$.suggester.hidden = false;
-    },
-
-    onFocusOut(e) {
-      if (e.relatedTarget) {
-        let parent = e.relatedTarget.parentElement;
-        while (parent && parent !== this) {
-          parent = parent.parentElement;
-        }
-        if (parent !== this) {
-          this.$.suggester.hidden = true;
-        }
-      } else {
-        this.$.suggester.hidden = true;
+  (function () {
+    function isChildOf(node, possibleParent) {
+      while (node) {
+        if (node === possibleParent)
+          return true;
+        node = node.parentElement;
       }
-    },
+      return false;
+    }
 
-    selectSuggestion(e) {
-      this.selection = e.model.item.full;
-    },
+    Polymer({
+      is: 'perpetuo-input-suggester',
 
-    highlight(suggestions, selection) {
-      const x = suggestions.map(_ =>
-        _.startsWith(selection) ? { high: selection, low: _.substring(selection.length), full: _ } : null
-      ).filter(_ => _ !== null);
-      return x;
-    },
-  })
+      properties: {
+        selection: { type: String, notify: true },
+        suggestions: { type: Array, value: () => [] }
+      },
+
+      onFocus(e) {
+        this.$.suggester.hidden = false;
+      },
+
+      onFocusOut(e) {
+        if (! (e.relatedTarget && isChildOf(e.relatedTarget, this.$.suggester)))
+          this.$.suggester.hidden = true;
+      },
+
+      selectSuggestion(e) {
+        this.selection = e.model.item.full;
+      },
+
+      highlight(suggestions, selection) {
+        const x = suggestions.map(_ =>
+          _.startsWith(selection) ? { high: selection, low: _.substring(selection.length), full: _ } : null
+        ).filter(_ => _ !== null);
+        return x;
+      },
+    })
+
+  } ());
   </script>
 </dom-module>
 
