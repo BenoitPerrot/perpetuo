@@ -10,6 +10,7 @@ import com.twitter.finagle.http.{Http, Request, Status => HttpStatus}
 import com.twitter.util.{Await => TwitterAwait}
 import spray.json._
 
+import scala.collection.breakOut
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.{SortedMap, mutable}
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -283,7 +284,16 @@ class DbBinding @Inject()(val dbContext: DbContext)
     )
   }
 
-  def findSoundExecutionIdsForRollback(o: OperationTrace): Future[Map[TargetAtom.Type, Long]] = {
+  private def findTargetAtomsForOperation(o: OperationTrace): Future[Seq[TargetAtom.Type]] = {
+    val queryTargetAtomsForOperation =
+      executionQuery
+        .join(targetStatusQuery)
+        .filter { case (execution, targetStatus) => execution.operationTraceId === o.id && execution.id === targetStatus.executionId }
+        .map { case (execution, targetStatus) => targetStatus.targetAtom }
+    dbContext.db.run(queryTargetAtomsForOperation.result)
+  }
+
+  private def findSoundExecutionIdsForRollback(o: OperationTrace): Future[Map[TargetAtom.Type, Long]] = {
     val productIdAndTargetAtomsForOperation =
       executionQuery
         .join(targetStatusQuery)
@@ -313,5 +323,13 @@ class DbBinding @Inject()(val dbContext: DbContext)
       assert(res.size == seq.size)
       res
     }
+  }
+
+  def findExecutionIdsForRollback(o: OperationTrace): Future[Map[TargetAtom.Type, Option[Long]]] = {
+    // TODO: find a way to do this in a single query instead of two
+    Future.sequence(Seq(findTargetAtomsForOperation(o), findSoundExecutionIdsForRollback(o)))
+      .map { case Seq(targetAtomsForOperation: Seq[TargetAtom.Type], soundExecutionIdsForRollback: Map[TargetAtom.Type, Long]) =>
+        targetAtomsForOperation.map(targetAtom => (targetAtom, soundExecutionIdsForRollback.get(targetAtom)))(breakOut)
+      }
   }
 }

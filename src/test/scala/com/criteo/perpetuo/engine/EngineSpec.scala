@@ -67,12 +67,39 @@ class EngineSpec extends Test with TestDb {
 
           // Rolling back
           operationToRollback <- engine.dbBinding.findOperationTracesByDeploymentRequest(thirdDeploymentRequestId).map(_.head)
-          executionIdsForRollback <- engine.dbBinding.findSoundExecutionIdsForRollback(operationToRollback)
+          executionIdsForRollback <- engine.dbBinding.findExecutionIdsForRollback(operationToRollback)
 
         } yield {
           (executionIdsForRollback.size,
-            executionIdsForRollback("mars") == firstExecutionTraceId,
-            executionIdsForRollback("moon") == secondExecutionTraceId)
+            executionIdsForRollback("mars") == Some(firstExecutionTraceId),
+            executionIdsForRollback("moon") == Some(secondExecutionTraceId))
+        },
+        2.second
+      ) shouldBe(2, true, true)
+    }
+
+    "identify that the very first operation cannot be rolled back" in {
+      Await.result(
+        for {
+          product <- engine.insertProduct("monkey")
+
+          (firstDeploymentRequestId, firstExecutionTraceId) <- mockDeployExecution(product.name, "12", Map("orbit" -> Status.success))
+          // Status = orbit: monkey@12
+
+          (secondDeploymentRequestId, secondExecutionTraceId) <- mockDeployExecution(product.name, "55", Map("orbit" -> Status.success, "venus" -> Status.hostFailure))
+          // Status = orbit: monkey@55, venus: (none)
+
+          (thirdDeploymentRequestId, thirdExecutionTraceId) <- mockDeployExecution(product.name, "69", Map("orbit" -> Status.success, "venus" -> Status.success))
+          // Status = orbit: monkey@69, venus: monkey@69
+
+          // Rolling back
+          operationToRollback <- engine.dbBinding.findOperationTracesByDeploymentRequest(thirdDeploymentRequestId).map(_.head)
+          executionIdsForRollback <- engine.dbBinding.findExecutionIdsForRollback(operationToRollback)
+
+        } yield {
+          (executionIdsForRollback.size,
+            executionIdsForRollback("orbit") == Some(secondExecutionTraceId),
+            executionIdsForRollback("venus").isEmpty)
         },
         2.second
       ) shouldBe(2, true, true)
