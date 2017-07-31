@@ -23,10 +23,12 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
     // generation of specific parameters
     val executionKind = Operation.executionKind(operation)
     val specificParameters = dispatcher.freezeParameters(executionKind, deploymentRequest.product.name, deploymentRequest.version)
+    // target resolution
+    val expandedTarget = dispatcher.expandTarget(deploymentRequest.product.name, deploymentRequest.version, deploymentRequest.parsedTarget)
 
     dbBinding.addToDeploymentRequest(deploymentRequest.id, operation, userName).flatMap(operationTrace =>
       dbBinding.insert(specificParameters, deploymentRequest.version).flatMap(executionSpecification =>
-        startExecution(dispatcher, deploymentRequest, operationTrace, executionSpecification).map {
+        startExecution(dispatcher, deploymentRequest, operationTrace, executionSpecification, expandedTarget).map {
           case (successes, failures) => (operationTrace, successes, failures)
         }
       )
@@ -52,12 +54,10 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
   def startExecution(dispatcher: TargetDispatcher,
                      deploymentRequest: DeploymentRequest,
                      operationTrace: OperationTrace,
-                     executionSpecification: ExecutionSpecification): Future[(Int, Int)] = {
+                     executionSpecification: ExecutionSpecification,
+                     expandedTarget: TargetExpr): Future[(Int, Int)] = {
     val productName = deploymentRequest.product.name
     val version = executionSpecification.version
-
-    // target resolution
-    val expandedTarget = dispatcher.expandTarget(productName, version, deploymentRequest.parsedTarget)
 
     // execution dispatching
     val invocations = dispatch(dispatcher, expandedTarget).toSeq
