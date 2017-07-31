@@ -209,6 +209,15 @@ class RestController @Inject()(val engine: Engine)
   )
   // >>
 
+  post("/api/operation-traces/:id/rollback") { r: RequestWithId =>
+    authenticate(r.request) { case user if isAuthorized(user) =>
+      withIdAndRequest(
+        (id, _: RequestWithId) => engine.rollbackOperationTrace(id, user.name).map(_.map { _ => response.ok.json(Map("id" -> id)) }),
+        2.seconds
+      )(r)
+    }
+  }
+
   put(RestApi.executionCallbackPath(":id")) {
     // todo: give the permission to Rundeck only
     withIdAndRequest(
