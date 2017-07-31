@@ -2,7 +2,7 @@ package com.criteo.perpetuo.dao
 
 import com.criteo.perpetuo.auth.User
 import com.criteo.perpetuo.model.Operation.Operation
-import com.criteo.perpetuo.model.{Operation, ShallowOperationTrace, Status, TargetAtomStatus}
+import com.criteo.perpetuo.model._
 import spray.json._
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -23,7 +23,7 @@ private[dao] case class OperationTraceRecord(id: Option[Long],
 
 
 trait OperationTraceBinder extends TableBinder {
-  this: DeploymentRequestBinder with DbContextProvider =>
+  this: DeploymentRequestBinder with ProductBinder with DbContextProvider =>
 
   import dbContext.driver.api._
 
@@ -66,6 +66,16 @@ trait OperationTraceBinder extends TableBinder {
     dbContext.db.run((operationTraceQuery returning operationTraceQuery.map(_.id)) += operationTrace).map { id =>
       ShallowOperationTrace(id, operationTrace.deploymentRequestId, operationTrace.operation, operationTrace.creator, operationTrace.creationDate, operationTrace.closingDate, operationTrace.targetStatus.get)
     }
+  }
+
+  def findOperationTrace(operationTraceId: Long): Future[Option[DeepOperationTrace]] = {
+    dbContext.db.run(operationTraceQuery.filter(_.id === operationTraceId)
+      .join(deploymentRequestQuery).on(_.deploymentRequestId === _.id)
+      .join(productQuery).on(_._2.productId === _.id).result).map(
+      _.headOption.map { case ((op, dr), p) =>
+        DeepOperationTrace(op.id.get, dr.toDeploymentRequest(p.toProduct), op.operation, op.creator, op.creationDate, op.closingDate)
+      }
+    )
   }
 
   def findOperationTracesByDeploymentRequest(deploymentRequestId: Long): Future[Seq[ShallowOperationTrace]] = {
