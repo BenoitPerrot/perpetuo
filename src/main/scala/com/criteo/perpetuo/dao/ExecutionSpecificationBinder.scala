@@ -40,4 +40,8 @@ trait ExecutionSpecificationBinder extends TableBinder {
       ExecutionSpecification(_, version, specificParameters)
     )
   }
+
+  def findExecutionSpecificationById(executionSpecificationId: Long): Future[Option[ExecutionSpecification]] =
+    dbContext.db.run(executionSpecificationQuery.filter(_.id === executionSpecificationId).result)
+      .map(_.headOption.map(_.toExecutionSpecification))
 }
