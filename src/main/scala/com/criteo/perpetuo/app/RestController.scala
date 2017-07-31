@@ -59,8 +59,9 @@ class RestController @Inject()(val engine: Engine)
   private val futurePool = FuturePools.unboundedPool("RequestFuturePool")
   private val deployBotName = "qabot"
   private val escalationTeamNames = List(
-    "d.caroff", "e.peroumalnaik", "g.bourguignon", "m.runtz", "m.molongo",
-    "m.nguyen", "m.soltani", "s.guerrier", "t.tellier", "t.zhuang"
+    "e.peroumalnaik", "g.bourguignon", "m.runtz", "m.molongo",
+    "m.nguyen", "m.soltani", "s.guerrier", "t.tellier", "t.zhuang",
+    "e.moutarde", "d.michau"
   )
 
   private def handleTimeout[T](action: => T): T =
