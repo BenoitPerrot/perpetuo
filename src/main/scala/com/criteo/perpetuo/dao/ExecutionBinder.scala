@@ -1,5 +1,6 @@
 package com.criteo.perpetuo.dao
 
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
 
@@ -30,5 +31,9 @@ trait ExecutionBinder extends TableBinder {
 
   def insert(operationTraceId: Long, executionSpecificationId: Long): Future[Long] = {
     dbContext.db.run((executionQuery returning executionQuery.map(_.id)) += ExecutionRecord(None, operationTraceId, executionSpecificationId))
+  }
+
+  def findExecutionSpecificationId(executionId: Long): Future[Option[Long]] = {
+    dbContext.db.run(executionQuery.filter(_.id === executionId).map(_.executionSpecificationId).result).map(_.headOption)
   }
 }

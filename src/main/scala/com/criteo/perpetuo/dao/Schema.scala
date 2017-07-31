@@ -309,7 +309,7 @@ class DbBinding @Inject()(val dbContext: DbContext)
     dbContext.db.run(queryTargetAtomsForOperation.result)
   }
 
-  private def findSoundExecutionIdsForRollback(o: OperationTrace): Future[Map[TargetAtom.Type, Long]] = {
+  private def findSoundExecutionSpecIdsForRollback(o: OperationTrace): Future[Map[TargetAtom.Type, ExecutionSpecificationRecord]] = {
     val productIdAndTargetAtomsForOperation =
       executionQuery
         .join(targetStatusQuery)
@@ -317,7 +317,7 @@ class DbBinding @Inject()(val dbContext: DbContext)
         .filter { case ((execution, targetStatus), deploymentRequest) =>
           execution.operationTraceId === o.id && execution.id === targetStatus.executionId && deploymentRequest.id === o.deploymentRequestId
         }
-        .map { case ((execution, targetStatus), deploymentRequest) => (deploymentRequest.productId, targetStatus.targetAtom) }
+        .map { case ((_, targetStatus), deploymentRequest) => (deploymentRequest.productId, targetStatus.targetAtom) }
 
     val executionIds =
       productIdAndTargetAtomsForOperation
@@ -330,9 +330,13 @@ class DbBinding @Inject()(val dbContext: DbContext)
             targetStatus.targetAtom === targetAtom && targetStatus.code === Status.success && deploymentRequest.productId === productId &&
             operationTrace.closingDate.map(_ < o.creationDate)
         }
-        .map { case (((((productId, targetAtom), targetStatus), execution), operationTrace), deploymentRequest) => (targetAtom, execution.id) }
-        .groupBy { case (targetAtom, executionId) => targetAtom }
-        .map { case (targetAtom, q) => targetAtom -> q.map { case (_, executionId) => executionId }.max.get }
+        .map { case (((((_, targetAtom), _), execution), _), _) => (targetAtom, execution.id) }
+        .groupBy { case (targetAtom, _) => targetAtom }
+        .map { case (targetAtom, q) => (targetAtom, q.map { case (_, executionId) => executionId }.max) }
+        .join(executionQuery)
+        .join(executionSpecificationQuery)
+        .filter { case (((_, executionId), execution), execSpec) => executionId.map(_ === execution.id) && execution.executionSpecificationId === execSpec.id }
+        .map { case (((targetAtom, _), _), execSpec) => (targetAtom, execSpec) }
 
     dbContext.db.run(executionIds.result).map { seq =>
       val res = seq.toMap
@@ -341,11 +345,12 @@ class DbBinding @Inject()(val dbContext: DbContext)
     }
   }
 
-  def findExecutionIdsForRollback(o: OperationTrace): Future[Map[TargetAtom.Type, Option[Long]]] = {
+  def findExecutionSpecIdsForRollback(o: OperationTrace): Future[Map[TargetAtom.Type, Option[ExecutionSpecificationRecord]]] = {
     // TODO: find a way to do this in a single query instead of two
-    Future.sequence(Seq(findTargetAtomsForOperation(o), findSoundExecutionIdsForRollback(o)))
-      .map { case Seq(targetAtomsForOperation: Seq[TargetAtom.Type], soundExecutionIdsForRollback: Map[TargetAtom.Type, Long]) =>
-        targetAtomsForOperation.map(targetAtom => (targetAtom, soundExecutionIdsForRollback.get(targetAtom)))(breakOut)
-      }
+    val atoms = findTargetAtomsForOperation(o)
+    findSoundExecutionSpecIdsForRollback(o).flatMap {
+      specifications =>
+        atoms.map(_.map(targetAtom => (targetAtom, specifications.get(targetAtom)))(breakOut))
+    }
   }
 }

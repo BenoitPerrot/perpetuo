@@ -44,10 +44,11 @@ class EngineSpec extends Test with TestDb {
       for {
         deploymentRequestId <- engine.createDeploymentRequest(new DeploymentRequestAttrs(productName, Version(JsString(v).compactPrint), targetAtomToStatus.keys.toJson.compactPrint, "", "r.equestor", new Timestamp(System.currentTimeMillis)), immediateStart = false).map(_ ("id").toString.toLong)
         _ <- engine.startDeploymentRequest(deploymentRequestId, "s.tarter")
-        executionTraceId <- engine.dbBinding.findExecutionTracesByDeploymentRequest(deploymentRequestId).map(_.head).map(_.id)
+        executionTraceId <- engine.dbBinding.findExecutionTracesByDeploymentRequest(deploymentRequestId).map(_.head.id)
+        executionSpecId <- engine.dbBinding.findExecutionSpecificationId(executionTraceId)
         _ <- engine.updateExecutionTrace(executionTraceId, ExecutionState.completed, "", targetAtomToStatus.mapValues(c => TargetAtomStatus(c, "")))
       } yield {
-        (deploymentRequestId, executionTraceId)
+        (deploymentRequestId, executionSpecId.get)
       }
     }
 
@@ -56,23 +57,23 @@ class EngineSpec extends Test with TestDb {
         for {
           product <- engine.insertProduct("mice")
 
-          (firstDeploymentRequestId, firstExecutionTraceId) <- mockDeployExecution(product.name, "27", Map("moon" -> Status.success, "mars" -> Status.success))
+          (firstDeploymentRequestId, firstExecSpecId) <- mockDeployExecution(product.name, "27", Map("moon" -> Status.success, "mars" -> Status.success))
           // Status = moon: mice@27, mars: mice@27
 
-          (secondDeploymentRequestId, secondExecutionTraceId) <- mockDeployExecution(product.name, "54", Map("moon" -> Status.success, "mars" -> Status.productFailure))
+          (secondDeploymentRequestId, secondExecSpecId) <- mockDeployExecution(product.name, "54", Map("moon" -> Status.success, "mars" -> Status.productFailure))
           // Status = moon: mice@54, mars: mice@27
 
-          (thirdDeploymentRequestId, _) <- mockDeployExecution(product.name, "69", Map("moon" -> Status.success, "mars" -> Status.productFailure))
+          (thirdDeploymentRequestId, thirdExecSpecId) <- mockDeployExecution(product.name, "69", Map("moon" -> Status.success, "mars" -> Status.productFailure))
           // Status = moon: mice@69, mars: mice@27
 
           // Rolling back
           operationToRollback <- engine.dbBinding.findOperationTracesByDeploymentRequest(thirdDeploymentRequestId).map(_.head)
-          executionIdsForRollback <- engine.dbBinding.findExecutionIdsForRollback(operationToRollback)
+          executionSpecsForRollback <- engine.dbBinding.findExecutionSpecIdsForRollback(operationToRollback)
 
         } yield {
-          (executionIdsForRollback.size,
-            executionIdsForRollback("mars") == Some(firstExecutionTraceId),
-            executionIdsForRollback("moon") == Some(secondExecutionTraceId))
+          (executionSpecsForRollback.size,
+            executionSpecsForRollback("mars").get.id.get == firstExecSpecId,
+            executionSpecsForRollback("moon").get.id.get == secondExecSpecId)
         },
         2.second
       ) shouldBe(2, true, true)
@@ -83,23 +84,23 @@ class EngineSpec extends Test with TestDb {
         for {
           product <- engine.insertProduct("monkey")
 
-          (firstDeploymentRequestId, firstExecutionTraceId) <- mockDeployExecution(product.name, "12", Map("orbit" -> Status.success))
+          (firstDeploymentRequestId, firstExecSpecId) <- mockDeployExecution(product.name, "12", Map("orbit" -> Status.success))
           // Status = orbit: monkey@12
 
-          (secondDeploymentRequestId, secondExecutionTraceId) <- mockDeployExecution(product.name, "55", Map("orbit" -> Status.success, "venus" -> Status.hostFailure))
+          (secondDeploymentRequestId, secondExecSpecId) <- mockDeployExecution(product.name, "55", Map("orbit" -> Status.success, "venus" -> Status.hostFailure))
           // Status = orbit: monkey@55, venus: (none)
 
-          (thirdDeploymentRequestId, thirdExecutionTraceId) <- mockDeployExecution(product.name, "69", Map("orbit" -> Status.success, "venus" -> Status.success))
+          (thirdDeploymentRequestId, thirdExecSpecId) <- mockDeployExecution(product.name, "69", Map("orbit" -> Status.success, "venus" -> Status.success))
           // Status = orbit: monkey@69, venus: monkey@69
 
           // Rolling back
           operationToRollback <- engine.dbBinding.findOperationTracesByDeploymentRequest(thirdDeploymentRequestId).map(_.head)
-          executionIdsForRollback <- engine.dbBinding.findExecutionIdsForRollback(operationToRollback)
+          executionSpecsForRollback <- engine.dbBinding.findExecutionSpecIdsForRollback(operationToRollback)
 
         } yield {
-          (executionIdsForRollback.size,
-            executionIdsForRollback("orbit") == Some(secondExecutionTraceId),
-            executionIdsForRollback("venus").isEmpty)
+          (executionSpecsForRollback.size,
+            executionSpecsForRollback("orbit").get.id.get == secondExecSpecId,
+            executionSpecsForRollback("venus").isEmpty)
         },
         2.second
       ) shouldBe(2, true, true)
