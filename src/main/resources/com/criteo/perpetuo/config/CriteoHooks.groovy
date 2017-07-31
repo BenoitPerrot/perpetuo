@@ -248,9 +248,10 @@ class CriteoHooks extends Hooks {
 
     @Override
     void onDeploymentRequestStarted(DeploymentRequest deploymentRequest, int startedExecutions, int failedToStart, boolean atCreation) {
-        if (appConfig.env() != 'preprod' && !atCreation) {
+        if (jiraClient && !atCreation) {
             // fixme: !atCreation is for short-term transition only, while we support dep.req. creation without ticket
             String parentTicketKey = findJiraTicket(deploymentRequest)
+            assert(parentTicketKey)
             jiraClient.transitionTicket(parentTicketKey, startingParentTransitions())
             def issues = jiraClient.fetchTicketChildren(parentTicketKey)
             assert issues.size() == 1
