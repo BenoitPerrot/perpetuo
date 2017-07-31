@@ -1,10 +1,7 @@
 <link rel="import" href="../../bower_components/polymer/polymer.html">
-
-<link rel="import" href="../../bower_components/iron-collapse/iron-collapse.html">
-<link rel="import" href="../../bower_components/paper-icon-button/paper-icon-button.html">
+<link rel="import" href="../../bower_components/iron-icons/iron-icons.html">
 
 <link rel="import" href="../perpetuo-client/perpetuo-client.html">
-<link rel="import" href="../perpetuo-deployment-request/perpetuo-deployment-operation-condensed.html">
 
 <dom-module id="perpetuo-deployment-request-entry">
   <template>
@@ -33,11 +30,14 @@
       padding-right: 40px;
       box-sizing: border-box;
     }
-    span.product-name > span {
-      cursor: pointer;
+    iron-icon {
+      margin-left: 10px;
+      width: 16px;
+      height: 16px;
+      vertical-align: bottom;
     }
-    span.product-name > paper-icon-button:first-of-type {
-      margin-left: -40px;
+    a:not(:hover) span.product-name iron-icon {
+      display: none;
     }
     span.version {
       font-size: 20px;
@@ -77,55 +77,27 @@
       color: #fff;
       background: repeating-linear-gradient(-45deg, #009688, #009688 10px, #26a69a 10px, #26a69a 20px);
     }
-    paper-icon-button#singleOpener {
-      margin-right: -40px;
+
+    a {
+      text-decoration: none;
       color: initial;
     }
-
-    div.comment {
-      margin: 0.5em 2em;
-      background-color: #eee;
-      border: solid 1px #ddd;
-      padding-left: 1em;
-    }
-
-    div.comment > p {
-      margin: 0;
-    }
-
-    div.operations {
-      display: flex;
-      flex-direction: column;
-      padding: 0 0 1em 1em;
-    }
     </style>
-    <div class="heading">
-      <span class="product-name"><paper-icon-button icon="[[expanderIcon(expanded, hasMore)]]" disabled="[[!hasMore]]" on-tap="toggle"></paper-icon-button><span on-tap="toggle">[[data.productName]]</span></span>
-      <span class="version">
-        <template is="dom-repeat" items="[[shortVersion]]">
-          [[item.value]]<template is="dom-if" if="[[item.ratio]]">&nbsp;<span class="ratio">[[asPercentage(item.ratio)]]%</span></template><br/>
-        </template>
-      </span>
-      <span class="target">[[data.target]]</span>
-      <span class="creation-date">[[data.dateString]]</span>
-      <div class="state">
-        <span class$="[[data.state]]">[[data.state]]</span>
+    <a href$="/deployment-requests/[[data.id]]">
+      <div class="heading">
+        <span class="product-name">[[data.productName]]<iron-icon icon="launch"></iron-icon></span>
+        <span class="version">
+          <template is="dom-repeat" items="[[shortVersion]]">
+            [[item.value]]<template is="dom-if" if="[[item.ratio]]">&nbsp;<span class="ratio">[[asPercentage(item.ratio)]]%</span></template><br/>
+          </template>
+        </span>
+        <span class="target">[[data.target]]</span>
+        <span class="creation-date">[[data.dateString]]</span>
+        <div class="state">
+          <span class$="[[data.state]]">[[data.state]]</span>
+        </div>
       </div>
-      <a href$="/deployment-requests/[[data.id]]"><paper-icon-button id="singleOpener" icon="launch"></paper-icon-button></a>
-    </div>
-    <iron-collapse opened="[[expanded]]" no-animation>
-      <div class="comment" hidden$="[[!data.comment]]">
-        <p hidden$="[[!comment.description]]">[[comment.description]]</p>
-        <p hidden$="[[!comment.ticket]]">JIRA: <a href="[[comment.ticket.url]]">[[comment.ticket.reference]]</a></p>
-      </div>
-      <div class="operations">
-        <template is="dom-repeat" items="[[data.operations]]">
-          <paper-card>
-            <perpetuo-deployment-operation-condensed data="[[item]]"></perpetuo-deployment-operation-condensed>
-          </paper-card>
-        </template>
-      </div>
-    </iron-collapse>
+    </a>
   </template>
   <script>
   Polymer({
@@ -133,21 +105,7 @@
 
     properties: {
       data: Object,
-      expanded: { type: Boolean, notify: true },
-      hasMore: { type: Boolean, computed: 'computeHasMore(data)' },
       shortVersion: { type: Array, computed: 'computeShortVersion(data)' },
-      comment: { type: Object, computed: 'computeComment(data)' }
-    },
-
-    toggle() {
-      this.expanded = !this.expanded;
-    },
-    expanderIcon(expanded, hasMore) {
-      return hasMore ? (expanded ? 'expand-less' : 'expand-more') : '';
-    },
-
-    computeHasMore(data) {
-      return data.comment || 0 < data.operations.length;
     },
 
     computeShortVersion(data) {
@@ -160,14 +118,6 @@
 
     asPercentage(ratio) {
       return ratio * 100;
-    },
-
-    computeComment(data) {
-      const fields = data.comment.split("ticket: ");
-      let ret = { description: fields[0] };
-      if (fields[1])
-        ret.ticket = { url: fields[1], reference: fields[1].split("/").splice(-1)[0] };
-      return ret;
     }
   });
   </script>
