@@ -2,7 +2,7 @@ package com.criteo.perpetuo.dao
 
 import com.criteo.perpetuo.auth.User
 import com.criteo.perpetuo.model.Operation.Operation
-import com.criteo.perpetuo.model.{Operation, OperationTrace, Status, TargetAtomStatus}
+import com.criteo.perpetuo.model.{Operation, ShallowOperationTrace, Status, TargetAtomStatus}
 import spray.json._
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -16,8 +16,8 @@ private[dao] case class OperationTraceRecord(id: Option[Long],
                                              creator: String,
                                              creationDate: java.sql.Timestamp,
                                              closingDate: Option[java.sql.Timestamp]) {
-  def toOperationTrace: OperationTrace = {
-    OperationTrace(id.get, deploymentRequestId, operation, creator, creationDate, targetStatus.get)
+  def toOperationTrace: ShallowOperationTrace = {
+    ShallowOperationTrace(id.get, deploymentRequestId, operation, creator, creationDate, targetStatus.get)
   }
 }
 
@@ -61,14 +61,14 @@ trait OperationTraceBinder extends TableBinder {
 
   val operationTraceQuery = TableQuery[OperationTraceTable]
 
-  def addToDeploymentRequest(requestId: Long, operation: Operation, creator: String): Future[OperationTrace] = {
+  def addToDeploymentRequest(requestId: Long, operation: Operation, creator: String): Future[ShallowOperationTrace] = {
     val operationTrace = OperationTraceRecord(None, requestId, operation, Some(Map()), creator, new java.sql.Timestamp(System.currentTimeMillis), None)
     dbContext.db.run((operationTraceQuery returning operationTraceQuery.map(_.id)) += operationTrace).map { id =>
-      OperationTrace(id, operationTrace.deploymentRequestId, operationTrace.operation, operationTrace.creator, operationTrace.creationDate, operationTrace.targetStatus.get)
+      ShallowOperationTrace(id, operationTrace.deploymentRequestId, operationTrace.operation, operationTrace.creator, operationTrace.creationDate, operationTrace.targetStatus.get)
     }
   }
 
-  def findOperationTracesByDeploymentRequest(deploymentRequestId: Long): Future[Seq[OperationTrace]] = {
+  def findOperationTracesByDeploymentRequest(deploymentRequestId: Long): Future[Seq[ShallowOperationTrace]] = {
     dbContext.db.run(operationTraceQuery.filter(_.deploymentRequestId === deploymentRequestId).sortBy(_.id).result).map(
       _.map(_.toOperationTrace)
     )

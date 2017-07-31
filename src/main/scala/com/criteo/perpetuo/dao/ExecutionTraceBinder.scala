@@ -1,7 +1,7 @@
 package com.criteo.perpetuo.dao
 
 import com.criteo.perpetuo.model.ExecutionState._
-import com.criteo.perpetuo.model.{ExecutionState, ExecutionTrace, OperationTrace}
+import com.criteo.perpetuo.model.{ExecutionState, ExecutionTrace, ShallowOperationTrace}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
@@ -13,7 +13,7 @@ private[dao] case class ExecutionTraceRecord(id: Option[Long],
                                              state: ExecutionState = ExecutionState.pending,
                                              executionSpecificationId: Option[Long] = None,
                                              executionId: Option[Long] = None) {
-  def toExecutionTrace(operationTrace: OperationTrace): ExecutionTrace = {
+  def toExecutionTrace(operationTrace: ShallowOperationTrace): ExecutionTrace = {
     ExecutionTrace(id.get, executionId.getOrElse(0), operationTrace, logHref, state)
   }
 }

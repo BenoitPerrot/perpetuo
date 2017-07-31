@@ -8,6 +8,6 @@ import com.fasterxml.jackson.annotation.{JsonIgnore, JsonInclude}
 @JsonInclude(Include.ALWAYS)
 case class ExecutionTrace(id: Long,
                           executionId: Long,
-                          @JsonIgnore operationTrace: OperationTrace,
+                          @JsonIgnore operationTrace: ShallowOperationTrace,
                           logHref: Option[String],
                           state: ExecutionState)
