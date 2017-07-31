@@ -43,13 +43,22 @@ class CriteoTargetDispatcher extends TargetDispatcher {
 
     @Override
     String freezeParameters(String executionKind, String productName, Version version) {
-        String productType = CriteoExternalData.fetchManifest(productName)?.get('type') ?: 'marathon'
-        // fixme: only accept active products here (https://jira.criteois.com/browse/DREDD-309)
-
+        String jobName
+        String uploaderVersion = null
+        switch (productName) {
+            case 'config-as-code':
+                jobName = 'deploy-cac'
+                break
+            default:
+                String productType = CriteoExternalData.fetchManifest(productName)?.get('type') ?: 'marathon'
+                // fixme: only accept active products here (https://jira.criteois.com/browse/DREDD-309)
+                jobName = "$executionKind-to-$productType"
+                uploaderVersion = System.getenv("${productType.toUpperCase()}_UPLOADER")
+                break
+        }
         JsonOutput.toJson([
-                jobName        : "$executionKind-to-$productType",
-                // todo: read uploader version from version itself or infer the latest
-                uploaderVersion: System.getenv("${productType.toUpperCase()}_UPLOADER")
+                jobName: jobName,
+                uploaderVersion: uploaderVersion
         ].findAll { it.value })
     }
 }
