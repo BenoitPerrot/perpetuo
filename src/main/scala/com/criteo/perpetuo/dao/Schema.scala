@@ -10,9 +10,8 @@ import com.twitter.finagle.http.{Http, Request, Status => HttpStatus}
 import com.twitter.util.{Await => TwitterAwait}
 import spray.json._
 
-import scala.collection.breakOut
 import scala.collection.mutable.ArrayBuffer
-import scala.collection.{SortedMap, mutable}
+import scala.collection.{SortedMap, breakOut, mutable}
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}
@@ -285,7 +284,7 @@ class DbBinding @Inject()(val dbContext: DbContext)
       executionQuery
         .join(targetStatusQuery)
         .filter { case (execution, targetStatus) => execution.operationTraceId === o.id && execution.id === targetStatus.executionId }
-        .map { case (execution, targetStatus) => targetStatus.targetAtom }
+        .map { case (_, targetStatus) => targetStatus.targetAtom }
     dbContext.db.run(queryTargetAtomsForOperation.result)
   }
 

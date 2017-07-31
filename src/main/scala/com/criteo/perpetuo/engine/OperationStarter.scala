@@ -137,13 +137,13 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
     }
   }
 
-  def dispatch(dispatcher: TargetDispatcher, target: TargetExpr): Iterable[(ExecutorInvoker, TargetExpr)] =
+  private[engine] def dispatch(dispatcher: TargetDispatcher, target: TargetExpr): Iterable[(ExecutorInvoker, TargetExpr)] =
     dispatchAlternatives(dispatcher, target).map {
       // return the shortest target expression for the executor
       case (executor, expressions) => (executor, expressions.minBy(_.toJson.compactPrint.length))
     }
 
-  def dispatchAlternatives(dispatcher: TargetDispatcher, target: TargetExpr): Iterable[(ExecutorInvoker, Set[TargetExpr])] = {
+  private[engine] def dispatchAlternatives(dispatcher: TargetDispatcher, target: TargetExpr): Iterable[(ExecutorInvoker, Set[TargetExpr])] = {
     def groupOn1[A, B](it: Iterable[(A, B)]): Iterable[(A, Set[B])] =
       it.groupBy(_._1).map { case (k, v) => (k, v.map(_._2).toSet) }
 
