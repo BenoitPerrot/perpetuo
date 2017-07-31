@@ -37,7 +37,7 @@
     is: 'perpetuo-app-toolbar',
     properties: {
       pageTitle: String,
-      login: String
+      login: { type: String, notify: true }
     },
     fireDrawerToggleTap() {
       this.fire('drawer-toggle-tap')
