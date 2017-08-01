@@ -170,6 +170,7 @@ class RestControllerSpec extends FeatureTest with TestDb {
       "type" -> "deploy".toJson,
       "creator" -> "qabot".toJson,
       "creationDate" -> T,
+      "closingDate" -> T,
       "targetStatus" -> expectedTargetStatus.mapValues { case (s, d) => Map("code" -> s, "detail" -> d) }.toJson,
       "executions" -> JsArray(
         JsObject(
@@ -549,6 +550,7 @@ class RestControllerSpec extends FeatureTest with TestDb {
           "type" -> "deploy".toJson,
           "creator" -> "qabot".toJson,
           "creationDate" -> T,
+          "closingDate" -> T,
           "targetStatus" -> Map(
             "par" -> Map("code" -> "success", "detail" -> "").toJson,
             "am5" -> Map("code" -> "hostFailure", "detail" -> "some interesting details").toJson

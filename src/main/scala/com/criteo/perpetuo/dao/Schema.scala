@@ -277,7 +277,7 @@ class DbBinding @Inject()(val dbContext: DbContext)
                 "creationDate" -> op.creationDate,
                 "targetStatus" -> op.targetStatus,
                 "executions" -> execs
-              )
+              ) ++ op.closingDate.map("closingDate" -> _)
             }
           )
         }
