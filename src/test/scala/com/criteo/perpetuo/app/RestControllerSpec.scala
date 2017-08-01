@@ -498,6 +498,7 @@ class RestControllerSpec extends FeatureTest with TestDb {
         "type" -> JsString("deploy"),
         "creator" -> "qabot".toJson,
         "creationDate" -> T,
+        "closingDate" -> T,
         "targetStatus" -> JsObject()
       ) shouldEqual traces.head.asJsObject.fields
     }
