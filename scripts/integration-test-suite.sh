@@ -88,6 +88,7 @@ fi
 api_query products -d '{"name": "itest-project"}' 2> /dev/null || true
 api_query products -d '{"name": "videoproxy-app"}' 2> /dev/null || true
 api_query products -d '{"name": "rackguru/api"}' 2> /dev/null || true
+api_query products -d '{"name": "angryboards-app"}' 2> /dev/null || true
 api_query products -d '{"name": "xdp-slave"}' 2> /dev/null || true
 
 ### helpers
