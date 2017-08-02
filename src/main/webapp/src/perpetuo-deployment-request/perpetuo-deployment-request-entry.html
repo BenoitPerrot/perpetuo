@@ -110,12 +110,12 @@
       </span>
       <span class="target">[[data.target]]</span>
       <span class="creation-date">[[data.dateString]]</span>
-      <div class$="state [[state]]">
-        <template is="dom-if" if="[[isWaitingForApproval(state)]]">
+      <div class$="state [[data.state]]">
+        <template is="dom-if" if="[[isWaitingForApproval(data.state)]]">
           <paper-button on-tap="onStartTap" raised>Start!</paper-button>
         </template>
-        <template is="dom-if" if="[[!isWaitingForApproval(state)]]">
-          <span>[[state]]</span>
+        <template is="dom-if" if="[[!isWaitingForApproval(data.state)]]">
+          <span>[[data.state]]</span>
         </template>
       </div>
       <a href$="/deployment-requests/[[data.id]]"><paper-icon-button id="singleOpener" icon="launch"></paper-icon-button></a>
@@ -135,19 +135,11 @@
     </iron-collapse>
   </template>
   <script>
-  function aggregateOperationState(operation) {
-    const isFinished = operation.executions.every(_ => _.state !== 'pending' && _.state !== 'running');
-    const hasFailures = operation.executions.some(_ => _.state === 'initFailed') ||
-                        arrayifyTargetStatus(operation.targetStatus).some(_ => _.code !== 'success');
-    return { isFinished: isFinished, hasFailures: hasFailures };
-  }
-
   Polymer({
     is: 'perpetuo-deployment-request-entry',
 
     properties: {
       data: Object,
-      state: { type: String, computed: 'computeState(data)' },
       expanded: { type: Boolean, notify: true },
       hasMore: { type: Boolean, computed: 'computeHasMore(data)' },
       shortVersion: { type: Array, computed: 'computeShortVersion(data)' },
@@ -161,20 +153,6 @@
       return hasMore ? (expanded ? 'expand-less' : 'expand-more') : '';
     },
 
-    computeState(data) {
-      if (0 < data.operations.length) {
-        const aggregate = data.operations.map(aggregateOperationState);
-        const isFinished = aggregate.every(_ => _.isFinished);
-        const hasFailures = aggregate.some(_ => _.hasFailures);
-        if (isFinished)  {
-          return hasFailures ? 'failed' : 'success';
-        } else {
-          return 'in-progress' + (hasFailures ? ' (with failures)' : '');
-        }
-      } else {
-        return 'waiting-for-approval';
-      }
-    },
     isWaitingForApproval(state) {
       return state === 'waiting-for-approval';
     },

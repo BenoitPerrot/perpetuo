@@ -260,6 +260,34 @@ class DbBinding @Inject()(val dbContext: DbContext)
         groupByDeploymentRequestId(_).values.map { case (req, product, execs) =>
           val sortedGroupsOfExecutions = SortedMap(execs.groupBy(_.operationTrace.id).toStream: _*).values
 
+          // TODO: move this serialization to the caller = the RestController
+          val state =
+            if (sortedGroupsOfExecutions.isEmpty) {
+              "waiting-for-approval"
+            } else {
+              val x = sortedGroupsOfExecutions.foldLeft((true, false)) { case ((isFinishedSoFar, hasFailuresSoFar), executionTraces) =>
+                val operationTrace = executionTraces.head.operationTrace
+                val operationIsFinished = executionTraces.forall(executionTrace =>
+                  executionTrace.state != ExecutionState.pending && executionTrace.state != ExecutionState.running
+                )
+                val operationHasFailures = executionTraces.exists(_.state == ExecutionState.initFailed) ||
+                  operationTrace.targetStatus.values.exists(_.code != Status.success)
+                (isFinishedSoFar && operationIsFinished,
+                  hasFailuresSoFar || operationHasFailures)
+              }
+              val isFinished = x._1
+              val hasFailures = x._2
+              if (isFinished) {
+                if (hasFailures) {
+                  "failed"
+                } else {
+                  "success"
+                }
+              } else {
+                "in-progress" + (if (hasFailures) " (with failures)" else "")
+              }
+            }
+
           Map(
             "id" -> req.id,
             "comment" -> req.comment,
@@ -268,6 +296,7 @@ class DbBinding @Inject()(val dbContext: DbContext)
             "version" -> req.version,
             "target" -> RawJson(req.target),
             "productName" -> product.name,
+            "state" -> state,
             "operations" -> sortedGroupsOfExecutions.map { execs =>
               val op = execs.head.operationTrace
               Map(
