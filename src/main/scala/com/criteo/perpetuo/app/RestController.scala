@@ -7,7 +7,7 @@ import com.criteo.perpetuo.auth.UserFilter._
 import com.criteo.perpetuo.config.AppConfig
 import com.criteo.perpetuo.dao.{ProductCreationConflict, Schema, UnknownProduct}
 import com.criteo.perpetuo.engine.Engine
-import com.criteo.perpetuo.model.{DeploymentRequestParser, ExecutionState, Status, TargetAtomStatus}
+import com.criteo.perpetuo.model._
 import com.twitter.finagle.http.{Request, Response, Status => HttpStatus}
 import com.twitter.finatra.http.exceptions.{BadRequestException, ConflictException, HttpException}
 import com.twitter.finatra.http.{Controller => BaseController}
@@ -20,6 +20,7 @@ import spray.json.DeserializationException
 import spray.json.JsonParser.ParsingException
 import spray.json._
 
+import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future, TimeoutException}
@@ -213,15 +214,68 @@ class RestController @Inject()(val engine: Engine)
     }
   }
 
+  private def serialize(depReq: DeploymentRequest, sortedGroupsOfExecutions: Iterable[ArrayBuffer[ExecutionTrace]]) = {
+    val state =
+      if (sortedGroupsOfExecutions.isEmpty) {
+        "waiting-for-approval"
+      } else {
+        val x = sortedGroupsOfExecutions.foldLeft((true, false)) { case ((isFinishedSoFar, hasFailuresSoFar), executionTraces) =>
+          val operationTrace = executionTraces.head.operationTrace
+          val operationIsFinished = executionTraces.forall(executionTrace =>
+            executionTrace.state != ExecutionState.pending && executionTrace.state != ExecutionState.running
+          )
+          val operationHasFailures = executionTraces.exists(_.state == ExecutionState.initFailed) ||
+            operationTrace.targetStatus.values.exists(_.code != Status.success)
+          (isFinishedSoFar && operationIsFinished,
+            hasFailuresSoFar || operationHasFailures)
+        }
+        val isFinished = x._1
+        val hasFailures = x._2
+        if (isFinished) {
+          if (hasFailures) {
+            "failed"
+          } else {
+            "success"
+          }
+        } else {
+          "in-progress" + (if (hasFailures) " (with failures)" else "")
+        }
+      }
+
+    Map(
+      "id" -> depReq.id,
+      "comment" -> depReq.comment,
+      "creationDate" -> depReq.creationDate,
+      "creator" -> depReq.creator,
+      "version" -> depReq.version,
+      "target" -> RawJson(depReq.target),
+      "productName" -> depReq.product.name,
+      "state" -> state,
+      "operations" -> sortedGroupsOfExecutions.map { execs =>
+        val op = execs.head.operationTrace
+        Map(
+          "id" -> op.id,
+          "type" -> op.operation.toString,
+          "creator" -> op.creator,
+          "creationDate" -> op.creationDate,
+          "targetStatus" -> op.targetStatus,
+          "executions" -> execs
+        ) ++ op.closingDate.map("closingDate" -> _)
+      }
+    )
+  }
+
   get("/api/unstable/deployment-requests") { _: Request =>
     timeBoxed(
-      engine.queryDeepDeploymentRequests(where = Seq(), orderBy = Seq(), limit = 20, offset = 0),
+      engine.queryDeepDeploymentRequests(where = Seq(), orderBy = Seq(), limit = 20, offset = 0)
+        .map(_.map { case (deploymentRequest, executionTraces) => serialize(deploymentRequest, executionTraces) }),
       5.seconds
     )
   }
   get("/api/unstable/deployment-requests/:id")(
-    withLongId(
-      engine.getDeepDeploymentRequest,
+    withLongId(id =>
+      engine.getDeepDeploymentRequest(id)
+        .map(_.map { case (deploymentRequest, executionTraces) => serialize(deploymentRequest, executionTraces) }),
       2.seconds
     )
   )
@@ -233,6 +287,7 @@ class RestController @Inject()(val engine: Engine)
         }
         try {
           engine.queryDeepDeploymentRequests(r.where, r.orderBy, r.limit, r.offset)
+            .map(_.map { case (deploymentRequest, executionTraces) => serialize(deploymentRequest, executionTraces) })
         } catch {
           case e: IllegalArgumentException => throw BadRequestException(e.getMessage)
         }

@@ -156,7 +156,7 @@ class DbBinding @Inject()(val dbContext: DbContext)
 
   import dbContext.driver.api._
 
-  def deepQueryDeploymentRequests(id: Long): Future[Option[Map[String, Object]]] = {
+  def deepQueryDeploymentRequests(id: Long): Future[Option[(DeploymentRequest, Iterable[ArrayBuffer[ExecutionTrace]])]] = {
     deepQueryDeploymentRequests(
       deploymentRequestQuery
         filter { _.id === id }
@@ -217,7 +217,7 @@ class DbBinding @Inject()(val dbContext: DbContext)
   }
   // >>
 
-  def deepQueryDeploymentRequests(where: Seq[Map[String, Any]], orderBy: Seq[Map[String, Any]], limit: Int, offset: Int): Future[Iterable[Map[String, Object]]] = {
+  def deepQueryDeploymentRequests(where: Seq[Map[String, Any]], orderBy: Seq[Map[String, Any]], limit: Int, offset: Int): Future[Iterable[(DeploymentRequest, Iterable[ArrayBuffer[ExecutionTrace]])]] = {
 
     val filtered = where.foldLeft(this.deploymentRequestQuery join this.productQuery on (_.productId === _.id)) { (queries, spec) =>
       val value = spec.getOrElse("equals", throw new IllegalArgumentException(s"Filters tests must be `equals`"))
@@ -241,8 +241,8 @@ class DbBinding @Inject()(val dbContext: DbContext)
     )
   }
 
-  private def deepQueryDeploymentRequests(q: Query[(DeploymentRequestTable, ProductTable), (DeploymentRequestRecord, ProductRecord), scala.Seq], order: Seq[Map[String, Any]]): Future[Iterable[Map[String, Object]]] = {
-
+  private def deepQueryDeploymentRequests(q: Query[(DeploymentRequestTable, ProductTable), (DeploymentRequestRecord, ProductRecord), scala.Seq],
+                                          order: Seq[Map[String, Any]]): Future[Iterable[(DeploymentRequest, Iterable[ArrayBuffer[ExecutionTrace]])]] = {
     type StableMap = mutable.LinkedHashMap[Long, (DeploymentRequestRecord, ProductRecord, ArrayBuffer[ExecutionTrace])]
 
     def groupByDeploymentRequestId(x: Seq[(((DeploymentRequestRecord, ProductRecord), Option[OperationTraceRecord]), Option[ExecutionTraceRecord])]): StableMap = {
@@ -259,56 +259,7 @@ class DbBinding @Inject()(val dbContext: DbContext)
       .map {
         groupByDeploymentRequestId(_).values.map { case (req, product, execs) =>
           val sortedGroupsOfExecutions = SortedMap(execs.groupBy(_.operationTrace.id).toStream: _*).values
-
-          // TODO: move this serialization to the caller = the RestController
-          val state =
-            if (sortedGroupsOfExecutions.isEmpty) {
-              "waiting-for-approval"
-            } else {
-              val x = sortedGroupsOfExecutions.foldLeft((true, false)) { case ((isFinishedSoFar, hasFailuresSoFar), executionTraces) =>
-                val operationTrace = executionTraces.head.operationTrace
-                val operationIsFinished = executionTraces.forall(executionTrace =>
-                  executionTrace.state != ExecutionState.pending && executionTrace.state != ExecutionState.running
-                )
-                val operationHasFailures = executionTraces.exists(_.state == ExecutionState.initFailed) ||
-                  operationTrace.targetStatus.values.exists(_.code != Status.success)
-                (isFinishedSoFar && operationIsFinished,
-                  hasFailuresSoFar || operationHasFailures)
-              }
-              val isFinished = x._1
-              val hasFailures = x._2
-              if (isFinished) {
-                if (hasFailures) {
-                  "failed"
-                } else {
-                  "success"
-                }
-              } else {
-                "in-progress" + (if (hasFailures) " (with failures)" else "")
-              }
-            }
-
-          Map(
-            "id" -> req.id,
-            "comment" -> req.comment,
-            "creationDate" -> req.creationDate,
-            "creator" -> req.creator,
-            "version" -> req.version,
-            "target" -> RawJson(req.target),
-            "productName" -> product.name,
-            "state" -> state,
-            "operations" -> sortedGroupsOfExecutions.map { execs =>
-              val op = execs.head.operationTrace
-              Map(
-                "id" -> op.id,
-                "type" -> op.operation.toString,
-                "creator" -> op.creator,
-                "creationDate" -> op.creationDate,
-                "targetStatus" -> op.targetStatus,
-                "executions" -> execs
-              ) ++ op.closingDate.map("closingDate" -> _)
-            }
-          )
+          (req.toDeploymentRequest(product.toProduct), sortedGroupsOfExecutions)
         }
       }
   }

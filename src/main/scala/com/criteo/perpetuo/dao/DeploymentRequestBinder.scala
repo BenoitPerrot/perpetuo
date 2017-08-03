@@ -1,7 +1,7 @@
 package com.criteo.perpetuo.dao
 
 import com.criteo.perpetuo.auth.User
-import com.criteo.perpetuo.model.{DeploymentRequest, DeploymentRequestAttrs, Version}
+import com.criteo.perpetuo.model.{DeploymentRequest, DeploymentRequestAttrs, Product, Version}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
@@ -13,7 +13,12 @@ private[dao] case class DeploymentRequestRecord(id: Option[Long],
                                                 target: String,
                                                 comment: String, // Not an `Option` because it's easier to consider that no comment <=> empty
                                                 creator: String,
-                                                creationDate: java.sql.Timestamp)
+                                                creationDate: java.sql.Timestamp) {
+  def toDeploymentRequest(product: Product): DeploymentRequest = {
+    DeploymentRequest(id.get, product, version, target, comment, creator, creationDate)
+  }
+
+}
 
 
 trait DeploymentRequestBinder extends TableBinder {
