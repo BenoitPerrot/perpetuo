@@ -112,7 +112,7 @@
       <span class="creation-date">[[data.dateString]]</span>
       <div class$="state [[data.state]]">
         <template is="dom-if" if="[[isNotStarted(data.state)]]">
-          <paper-button on-tap="onStartTap" raised>Start!</paper-button>
+          <paper-button disabled="[[!isStartAuthorized(data.actions)]]" on-tap="onStartTap" raised>Start!</paper-button>
         </template>
         <template is="dom-if" if="[[!isNotStarted(data.state)]]">
           <span>[[data.state]]</span>
@@ -155,6 +155,9 @@
 
     isNotStarted(state) {
       return state === 'not-started';
+    },
+    isStartAuthorized(actions) {
+      return actions.some(action => action.name === 'start' && action.authorized)
     },
 
     computeHasMore(data) {
