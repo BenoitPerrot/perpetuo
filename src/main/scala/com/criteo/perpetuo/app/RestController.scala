@@ -49,7 +49,8 @@ private case class ExecutionTracePut(@RouteParam @NotEmpty id: String,
 private case class SortingFilteringPost(orderBy: Seq[Map[String, Any]] = Seq(),
                                         where: Seq[Map[String, Any]] = Seq(),
                                         limit: Int = 20,
-                                        offset: Int = 0)
+                                        offset: Int = 0,
+                                        @Inject request: Request)
 
 /**
   * Controller that handles deployment requests as a REST API.
@@ -216,7 +217,7 @@ class RestController @Inject()(val engine: Engine)
     }
   }
 
-  private def serialize(depReq: DeploymentRequest, sortedGroupsOfExecutions: Iterable[ArrayBuffer[ExecutionTrace]]) = {
+  private def serialize(isAuthorized: Boolean, depReq: DeploymentRequest, sortedGroupsOfExecutions: Iterable[ArrayBuffer[ExecutionTrace]]) = {
     val state =
       if (sortedGroupsOfExecutions.isEmpty) {
         "not-started"
@@ -263,24 +264,26 @@ class RestController @Inject()(val engine: Engine)
           "targetStatus" -> op.targetStatus,
           "executions" -> execs
         ) ++ op.closingDate.map("closingDate" -> _)
-      }
+      },
+      "actions" ->
+        (if (sortedGroupsOfExecutions.isEmpty) Seq(Map("name" -> "start", "authorized" -> isAuthorized)) else Seq())
     )
   }
 
-  get("/api/unstable/deployment-requests") { _: Request =>
+  get("/api/unstable/deployment-requests") { r: Request =>
     timeBoxed(
       engine.queryDeepDeploymentRequests(where = Seq(), orderBy = Seq(), limit = 20, offset = 0)
-        .map(_.map { case (deploymentRequest, executionTraces) => serialize(deploymentRequest, executionTraces) }),
+        .map(_.map { case (deploymentRequest, executionTraces) => serialize(r.user.exists(isAuthorized), deploymentRequest, executionTraces) }),
       5.seconds
     )
   }
-  get("/api/unstable/deployment-requests/:id")(
+  get("/api/unstable/deployment-requests/:id") { r: RequestWithId =>
     withLongId(id =>
       engine.getDeepDeploymentRequest(id)
-        .map(_.map { case (deploymentRequest, executionTraces) => serialize(deploymentRequest, executionTraces) }),
+        .map(_.map { case (deploymentRequest, executionTraces) => serialize(r.request.user.exists(isAuthorized), deploymentRequest, executionTraces) }),
       2.seconds
-    )
-  )
+    )(r)
+  }
   post("/api/unstable/deployment-requests") { r: SortingFilteringPost =>
     timeBoxed(
       {
@@ -289,7 +292,7 @@ class RestController @Inject()(val engine: Engine)
         }
         try {
           engine.queryDeepDeploymentRequests(r.where, r.orderBy, r.limit, r.offset)
-            .map(_.map { case (deploymentRequest, executionTraces) => serialize(deploymentRequest, executionTraces) })
+            .map(_.map { case (deploymentRequest, executionTraces) => serialize(r.request.user.exists(isAuthorized), deploymentRequest, executionTraces) })
         } catch {
           case e: IllegalArgumentException => throw BadRequestException(e.getMessage)
         }
