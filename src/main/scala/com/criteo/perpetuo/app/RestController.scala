@@ -95,6 +95,10 @@ class RestController @Inject()(val engine: Engine)
       .getOrElse(TwitterFuture(Some(response.unauthorized)))
   }
 
+  // todo: Use AD group to give escalation team permissions to deploy in prod
+  private def isAuthorized(user: User): Boolean =
+    user.name == deployBotName || escalationTeamNames.contains(user.name) || AppConfig.env != "prod"
+
   get("/api/products") { _: Request =>
     timeBoxed(
       engine.getProductNames,
@@ -157,8 +161,7 @@ class RestController @Inject()(val engine: Engine)
   }
 
   put("/api/deployment-requests/:id") { r: RequestWithId =>
-    // todo: Use AD group to give escalation team permissions to deploy in prod
-    authenticate(r.request) { case user if user.name == deployBotName || escalationTeamNames.contains(user.name) || AppConfig.env != "prod" =>
+    authenticate(r.request) { case user if isAuthorized(user) =>
       withIdAndRequest(
         (id, _: RequestWithId) => engine.startDeploymentRequest(id, user.name).map(_.map { _ => response.ok.json(Map("id" -> id)) }),
         2.seconds
@@ -205,8 +208,7 @@ class RestController @Inject()(val engine: Engine)
   )
 
   put("/api/operation-traces/:id/retry") { r: RequestWithId =>
-    // todo: Use AD group to give escalation team permissions to deploy in prod
-    authenticate(r.request) { case user if user.name == deployBotName || escalationTeamNames.contains(user.name) || AppConfig.env != "prod" =>
+    authenticate(r.request) { case user if isAuthorized(user) =>
       withIdAndRequest(
         (id, _: RequestWithId) => engine.retryOperationTrace(id, user.name).map(_.map { _ => response.ok.json(Map("id" -> id)) }),
         2.seconds
