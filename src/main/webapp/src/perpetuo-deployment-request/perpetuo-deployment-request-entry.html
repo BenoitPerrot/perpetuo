@@ -67,7 +67,7 @@
       text-transform: uppercase;
       @apply --shadow-elevation-2dp;
     }
-    div.state.success > span {
+    div.state.succeeded > span {
       color: #fff;
       background-color: #0f9d58;
     }
@@ -111,10 +111,10 @@
       <span class="target">[[data.target]]</span>
       <span class="creation-date">[[data.dateString]]</span>
       <div class$="state [[data.state]]">
-        <template is="dom-if" if="[[isWaitingForApproval(data.state)]]">
+        <template is="dom-if" if="[[isNotStarted(data.state)]]">
           <paper-button on-tap="onStartTap" raised>Start!</paper-button>
         </template>
-        <template is="dom-if" if="[[!isWaitingForApproval(data.state)]]">
+        <template is="dom-if" if="[[!isNotStarted(data.state)]]">
           <span>[[data.state]]</span>
         </template>
       </div>
@@ -153,8 +153,8 @@
       return hasMore ? (expanded ? 'expand-less' : 'expand-more') : '';
     },
 
-    isWaitingForApproval(state) {
-      return state === 'waiting-for-approval';
+    isNotStarted(state) {
+      return state === 'not-started';
     },
 
     computeHasMore(data) {

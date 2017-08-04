@@ -217,7 +217,7 @@ class RestController @Inject()(val engine: Engine)
   private def serialize(depReq: DeploymentRequest, sortedGroupsOfExecutions: Iterable[ArrayBuffer[ExecutionTrace]]) = {
     val state =
       if (sortedGroupsOfExecutions.isEmpty) {
-        "waiting-for-approval"
+        "not-started"
       } else {
         val x = sortedGroupsOfExecutions.foldLeft((true, false)) { case ((isFinishedSoFar, hasFailuresSoFar), executionTraces) =>
           val operationTrace = executionTraces.head.operationTrace
@@ -235,10 +235,10 @@ class RestController @Inject()(val engine: Engine)
           if (hasFailures) {
             "failed"
           } else {
-            "success"
+            "succeeded"
           }
         } else {
-          "in-progress" + (if (hasFailures) " (with failures)" else "")
+          "in-progress"
         }
       }
 
