@@ -78,7 +78,10 @@ this.Perpetuo.Client = this.Perpetuo.Client || (function () {
       }) });
     }
     startDeploymentRequest(deploymentRequestId) {
-      return jsonFetch(`/api/deployment-requests/${deploymentRequestId}`, { method: 'PUT' });
+      return this.actOnDeploymentRequest(deploymentRequestId, 'start');
+    }
+    actOnDeploymentRequest(deploymentRequestId, actionName) {
+      return jsonFetch(`/api/deployment-requests/${deploymentRequestId}/actions`, {method: 'POST', body: JSON.stringify({name: actionName})});
     }
 
     fetchProducts() {
