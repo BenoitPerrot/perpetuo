@@ -135,6 +135,14 @@ class RestControllerSpec extends FeatureTest with TestDb {
       andExpect = expect
     )
 
+  private def actOnDeploymentRequest(deploymentRequestId: Long, body: JsValue, expect: Status) =
+    server.httpPost(
+      path = s"/api/deployment-requests/$deploymentRequestId/actions",
+      headers = Map("Cookie" -> s"jwt=$stdUserJWT"),
+      postBody = body.compactPrint,
+      andExpect = expect
+    )
+
   private def updateExecTrace(execId: Int, state: String, logHref: Option[String],
                               targetStatus: Option[Map[String, JsValue]] = None,
                               expectedTargetStatus: Map[String, (String, String)]) = {
@@ -258,7 +266,7 @@ class RestControllerSpec extends FeatureTest with TestDb {
   }
 
   "The DeploymentRequest's PUT entry-point" should {
-    "start a deployment that was not started yet" in {
+    "start a deployment that was not started yet (using deprecated API)" in {
       val id = requestDeployment("my product", "not ready yet", "par".toJson, None, None, start = false)
         .fields("id").asInstanceOf[JsNumber].value
       httpPut(
@@ -268,12 +276,34 @@ class RestControllerSpec extends FeatureTest with TestDb {
       ).contentString.parseJson.asJsObject shouldEqual JsObject("id" -> id.toJson)
     }
 
-    "return 404 when trying to start a non-existing DeploymentRequest" in {
+    "return 404 when trying to start a non-existing DeploymentRequest (using deprecated API)" in {
       httpPut(
         "/api/deployment-requests/4242",
         "".toJson,
         NotFound
       )
+    }
+
+    "start a deployment that was not started yet" in {
+      val id = requestDeployment("my product", "456", "ams".toJson, None, None, start = false).fields("id").asInstanceOf[JsNumber].value
+      actOnDeploymentRequest(id.longValue(), Map("name" -> "start").toJson,
+        Ok)
+        .contentString.parseJson.asJsObject shouldEqual JsObject("id" -> id.toJson)
+    }
+
+    "return 404 when trying to start a non-existing DeploymentRequest" in {
+      actOnDeploymentRequest(4242, Map("name" -> "start").toJson,
+        NotFound)
+    }
+
+    "return 400 when putting nonsense" in {
+      actOnDeploymentRequest(1, "hello".toJson,
+        BadRequest)
+    }
+
+    "return 400 when putting a non-existing action" in {
+      actOnDeploymentRequest(1, Map("name" -> "ploup").toJson,
+        BadRequest)
     }
   }
 
@@ -526,7 +556,7 @@ class RestControllerSpec extends FeatureTest with TestDb {
     "display correctly formatted versions" in {
       val depReqs = deepGetDepReq()
       depReqs.map(_ ("version").asInstanceOf[JsString].value) shouldEqual Vector(
-        "v21", "buggy", "42", " 10402", "42", "420", "not ready yet", "v2097", "v", "51"
+        "v21", "buggy", "42", " 10402", "42", "420", "not ready yet", "456", "v2097", "v", "51"
       )
     }
 

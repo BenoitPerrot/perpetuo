@@ -161,10 +161,34 @@ class RestController @Inject()(val engine: Engine)
     }
   }
 
+  // TODO: migrate clients then remove <<
   put("/api/deployment-requests/:id") { r: RequestWithId =>
     authenticate(r.request) { case user if isAuthorized(user) =>
       withIdAndRequest(
         (id, _: RequestWithId) => engine.startDeploymentRequest(id, user.name).map(_.map { _ => response.ok.json(Map("id" -> id)) }),
+        2.seconds
+      )(r)
+    }
+  }
+  // >>
+
+  post("/api/deployment-requests/:id/actions") { r: RequestWithId =>
+    authenticate(r.request) { case user if isAuthorized(user) =>
+      withIdAndRequest(
+        (id, _: RequestWithId) =>
+          try {
+            val actionName = r.request.contentString.parseJson.asJsObject.fields("name").asInstanceOf[JsString].value
+            actionName match {
+              case "start" => engine.startDeploymentRequest(id, user.name).map(_.map { _ => response.ok.json(Map("id" -> id)) })
+                // TODO: case "retry" => // ensure that the last (or specified one?) operation can be retry, and proceed
+                // TODO: case "rollback" => // ensure that the last (or specified one?) operation can be rolled back, and proceed
+              case _ => throw new ParsingException(s"Action `$actionName` does not exist")
+            }
+          } catch {
+            case e@(_: ParsingException | _: DeserializationException | _: NoSuchElementException) =>
+              throw BadRequestException(e.getMessage)
+          }
+        ,
         2.seconds
       )(r)
     }
