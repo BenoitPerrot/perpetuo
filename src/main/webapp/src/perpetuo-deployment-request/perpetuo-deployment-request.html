@@ -31,6 +31,10 @@
       color: gray;
     }
 
+    .actions {
+      margin: 0 1em 1em 0;
+    }
+
     #general, #target, #operations {
       padding: 24px 16px;
     }
@@ -61,6 +65,11 @@
             </template>
           </span>
         </h1>
+        <div class="actions">
+          <template is="dom-repeat" items="[[data.actions]]">
+            <paper-button disabled="[[computeDisabled(isInAction, item.authorized)]]" on-tap="onActionTap" raised>[[item.name]]</paper-button>
+          </template>
+        </div>
         <paper-card id="general">
           <h1>General</h1>
           <p>Requested by [[data.creator]] on [[timestampToDates(data.creationDate)]]</p>
@@ -88,7 +97,8 @@
       data: Object,
       version: {type: Array, computed: 'computeVersion(data)'},
       comment: { type: Object, computed: 'computeComment(data)' },
-      showExecutions: Boolean
+      showExecutions: Boolean,
+      isInAction: Boolean,
     },
 
     timestampToDates(t) {
@@ -104,6 +114,20 @@
       return `${isoYMD} at ${isoTime} UTC (` + (localYMD !== isoYMD ? localYMD + ' ' : '') + localTime + ' local time)';
     },
 
+    onActionTap(e) {
+      if (!this.isInAction) {
+        this.isInAction = true;
+        new Perpetuo.Client().actOnDeploymentRequest(this.data.id, e.model.item.name).then(_ => {
+          this.reload().then(_ => {
+            this.isInAction = false;
+          });
+        });
+      }
+    },
+
+    computeDisabled(isInAction, isAuthorized) {
+      return isInAction || !isAuthorized;
+    },
 
     computeVersion(data) {
       return Array.isArray(data.version) ? data.version : [{value: data.version}];
@@ -135,6 +159,12 @@
                              'e.moutarde', 'd.michau'].includes(e.detail.value);
     },
     // >>
+
+    reload() {
+      return new Perpetuo.Client().fetchDeploymentRequest(this.data.id).then(_ => {
+        this.data = _;
+      });
+    }
 
   })
   </script>
