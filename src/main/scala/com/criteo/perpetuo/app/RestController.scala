@@ -194,12 +194,20 @@ class RestController @Inject()(val engine: Engine)
     }
   }
 
+  get("/api/deployment-requests/:id/execution-traces")(
+    withLongId(
+      engine.findExecutionTracesByDeploymentRequest,
+      2.seconds
+    )
+  )
+  // TODO: migrate clients to "/api/deployment-requests/:id/execution-traces" then remove <<
   get("/api/execution-traces/by-deployment-request/:id")(
     withLongId(
       engine.findExecutionTracesByDeploymentRequest,
       2.seconds
     )
   )
+  // >>
 
   put(RestApi.executionCallbackPath(":id")) {
     // todo: give the permission to Rundeck only
@@ -225,12 +233,20 @@ class RestController @Inject()(val engine: Engine)
     )
   }
 
+  get("/api/deployment-requests/:id/operation-traces")(
+    withLongId(
+      engine.findOperationTracesByDeploymentRequest,
+      2.seconds
+    )
+  )
+  // TODO: migrate clients to "/api/deployment-requests/:id/operation-traces" then remove <<
   get("/api/operation-traces/by-deployment-request/:id")(
     withLongId(
       engine.findOperationTracesByDeploymentRequest,
       2.seconds
     )
   )
+  // >>
 
   put("/api/operation-traces/:id/retry") { r: RequestWithId =>
     authenticate(r.request) { case user if isAuthorized(user) =>
