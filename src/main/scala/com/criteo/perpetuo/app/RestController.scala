@@ -353,28 +353,6 @@ class RestController @Inject()(val engine: Engine)
   // TODO: remove once DB migration done
   val schema = new Schema(engine.dbBinding.dbContext)
 
-  post("/api/unstable/db/operation-traces/set-missing-creation-date") { _: Request =>
-    Await.result(schema.setOperationTracesMissingCreationDate().map(x => Map("status" -> x)), 2.hours)
-  }
-  get("/api/unstable/db/operation-traces/missing-creation-date-count") { _: Request =>
-    Await.result(schema.countOperationTracesMissingCreationDate().map(x => Map("count" -> x)), 2.seconds)
-  }
-
-  post("/api/unstable/db/operation-traces/set-missing-closing-date") { _: Request =>
-    Await.result(schema.setOperationTracesMissingClosingDate().map(x => Map("status" -> x)), 2.hours)
-  }
-  get("/api/unstable/db/operation-traces/missing-closing-date-count") { _: Request =>
-    Await.result(schema.countOperationTracesMissingClosingDate().map(x => Map("count" -> x)), 2.seconds)
-  }
-
-  post("/api/unstable/db/executions/create-all") { r: Request =>
-    Await.result(schema.createAllExecutions(r.contentString).map(x => Map("not done" -> x)), 2.hours)
-  }
-
-  get("/api/unstable/db/executions/missing-count") { _: Request =>
-    Await.result(schema.countMissingExecutions().map(x => Map("count" -> x)), 2.seconds)
-  }
-
   post("/api/unstable/db/target-status/set-missing") { _: Request =>
     Await.result(schema.setMissingTargetStatuses().map(x => Map("count" -> x)), 2.hours)
   }
