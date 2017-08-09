@@ -34,7 +34,7 @@ class Engine @Inject()(val dbBinding: DbBinding) {
   // >>
 
   def findDeploymentRequestByIdWithProduct(deploymentRequestId: Long): Future[Option[DeploymentRequest]] =
-    dbBinding.findDeploymentRequestByIdWithProduct(deploymentRequestId)
+    dbBinding.findDeploymentRequestById(deploymentRequestId)
 
   def createDeploymentRequest(attrs: DeploymentRequestAttrs, immediateStart: Boolean): Future[Map[String, Any]] = {
     if (AppConfig.transition(attrs.productName) && !immediateStart) {
@@ -80,7 +80,7 @@ class Engine @Inject()(val dbBinding: DbBinding) {
   }
 
   def startDeploymentRequest(deploymentRequestId: Long, initiatorName: String): Future[Option[(OperationTrace, Int, Int)]] =
-    dbBinding.findDeploymentRequestByIdWithProduct(deploymentRequestId).flatMap(
+    dbBinding.findDeploymentRequestById(deploymentRequestId).flatMap(
       _.map { req =>
         startDeploymentRequest(req, initiatorName, atCreation = false).map(Some(_))
       }.getOrElse(Future.successful(None))
@@ -90,7 +90,7 @@ class Engine @Inject()(val dbBinding: DbBinding) {
     val operationTraceAndExecutionSpecifications = dbBinding.findOperationTraceAndExecutionSpecs(operationTraceId)
 
     operationTraceAndExecutionSpecifications.flatMap(_.map { case (originOperationTrace, executionSpecs) =>
-      dbBinding.findDeploymentRequestByIdWithProduct(originOperationTrace.deploymentRequestId).flatMap(_.map { deploymentRequest =>
+      dbBinding.findDeploymentRequestById(originOperationTrace.deploymentRequestId).flatMap(_.map { deploymentRequest =>
         operationStarter.retry(plugins.dispatcher, deploymentRequest, originOperationTrace, executionSpecs, initiatorName).map { case (operationTrace, (started, _)) =>
           if (started == 0)
             closeOperation(operationTrace, deploymentRequest)
@@ -149,7 +149,7 @@ class Engine @Inject()(val dbBinding: DbBinding) {
               if (hasOpenExecutions)
                 Future.successful(false)
               else
-                dbBinding.findDeploymentRequestByIdWithProduct(op.deploymentRequestId).flatMap { depReq =>
+                dbBinding.findDeploymentRequestById(op.deploymentRequestId).flatMap { depReq =>
                   closeOperation(op, depReq.get)
                 }
             }
