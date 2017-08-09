@@ -29,12 +29,12 @@ class ExecutionTraceSpec extends FunSuite with ScalaFutures
   test("Execution traces can be bound to operation traces, and retrieved") {
     Await.result(
       for {
-        product <- insert("perpetuo-app")
-        request <- insert(new DeploymentRequestAttrs(product.name, Version("v42"), "*", "No fear", "c.norris", new Timestamp(123456789)))
-        deployOperationTrace <- addToDeploymentRequest(request.id, Operation.deploy, "c.norris")
-        execSpec <- insert("{}", Version("456"))
-        execId <- insert(deployOperationTrace.id, execSpec.id)
-        execTraceIds <- attach(deployOperationTrace.id, execId, 1)
+        product <- insertProduct("perpetuo-app")
+        request <- insertDeploymentRequest(new DeploymentRequestAttrs(product.name, Version("v42"), "*", "No fear", "c.norris", new Timestamp(123456789)))
+        deployOperationTrace <- insertOperationTrace(request.id, Operation.deploy, "c.norris")
+        execSpec <- insertExecutionSpecification("{}", Version("456"))
+        execId <- insertExecution(deployOperationTrace.id, execSpec.id)
+        execTraceIds <- insertExecutionTraces(deployOperationTrace.id, execId, 1)
         execTraces <- dbContext.db.run(executionTraceQuery.result)
       } yield {
         assert(execTraces.length == 1)

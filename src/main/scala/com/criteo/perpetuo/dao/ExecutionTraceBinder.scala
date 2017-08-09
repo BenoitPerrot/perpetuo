@@ -51,7 +51,7 @@ trait ExecutionTraceBinder extends TableBinder {
 
   val executionTraceQuery = TableQuery[ExecutionTraceTable]
 
-  def attach(operationTraceId: Long, executionId: Long, numberOfTraces: Int): Future[Seq[Long]] = { // fixme: deprecated
+  def insertExecutionTraces(operationTraceId: Long, executionId: Long, numberOfTraces: Int): Future[Seq[Long]] = { // fixme: deprecated
     val execTrace = ExecutionTraceRecord(None, Some(operationTraceId), executionId = Some(executionId))
     dbContext.db.run((executionTraceQuery returning executionTraceQuery.map(_.id)) ++= List.fill(numberOfTraces)(execTrace)).map { seq =>
       assert(seq.length == numberOfTraces)

@@ -47,7 +47,7 @@ trait DeploymentRequestBinder extends TableBinder {
 
   val deploymentRequestQuery = TableQuery[DeploymentRequestTable]
 
-  def insert(d: DeploymentRequestAttrs): Future[DeploymentRequest] = {
+  def insertDeploymentRequest(d: DeploymentRequestAttrs): Future[DeploymentRequest] = {
     // find the product to which the corresponding foreign key is pointing to
     findProductByName(d.productName).map(_.getOrElse {
       throw new UnknownProduct(d.productName)

@@ -29,7 +29,7 @@ trait ExecutionBinder extends TableBinder {
 
   val executionQuery: TableQuery[ExecutionTable] = TableQuery[ExecutionTable]
 
-  def insert(operationTraceId: Long, executionSpecificationId: Long): Future[Long] = {
+  def insertExecution(operationTraceId: Long, executionSpecificationId: Long): Future[Long] = {
     dbContext.db.run((executionQuery returning executionQuery.map(_.id)) += ExecutionRecord(None, operationTraceId, executionSpecificationId))
   }
 

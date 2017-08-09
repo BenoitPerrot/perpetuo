@@ -23,8 +23,8 @@ class DeploymentRequestSpec extends FunSuite with ScalaFutures
   test("Deployment requests can be inserted and retrieved") {
     Await.result(
       for {
-        product <- insert("perpetuo-app")
-        request <- insert(new DeploymentRequestAttrs(product.name, Version("v42"), "*", "No fear", "c.norris", new Timestamp(123456789)))
+        product <- insertProduct("perpetuo-app")
+        request <- insertDeploymentRequest(new DeploymentRequestAttrs(product.name, Version("v42"), "*", "No fear", "c.norris", new Timestamp(123456789)))
         requests <- dbContext.db.run(deploymentRequestQuery.result)
         lookup <- findDeploymentRequestById(request.id)
       } yield {

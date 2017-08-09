@@ -22,7 +22,7 @@ class Engine @Inject()(val dbBinding: DbBinding) {
     dbBinding.getProductNames
 
   def insertProduct(productName: String): Future[Product] =
-    dbBinding.insert(productName)
+    dbBinding.insertProduct(productName)
 
   // TODO: move out of Engine? <<
   def suggestVersions(productName: String): Seq[String] =
@@ -46,8 +46,7 @@ class Engine @Inject()(val dbBinding: DbBinding) {
         .map(depReq => Map("ticketUrl" -> plugins.listener.onDeploymentRequestCreated(depReq, immediateStart)))
     }
     else {
-      // first, log the user's general intent
-      val futureDepReq = dbBinding.insert(attrs)
+      val futureDepReq = dbBinding.insertDeploymentRequest(attrs)
 
       futureDepReq.foreach(plugins.listener.onDeploymentRequestCreated(_, immediateStart))
 
@@ -160,7 +159,7 @@ class Engine @Inject()(val dbBinding: DbBinding) {
             else
               dbBinding.updateOperationTrace(op.id, op.partialUpdate(statusMap))
 
-          val statusMapToExecution = dbBinding.addToExecution(execTrace.executionId, statusMap).map(_ => true)
+          val statusMapToExecution = dbBinding.insertTargetStatuses(execTrace.executionId, statusMap).map(_ => true)
 
           Future.sequence(Seq(operationClosingAttempt, statusMapUpdate, statusMapToExecution)).map(x => {
             Some(x.head)

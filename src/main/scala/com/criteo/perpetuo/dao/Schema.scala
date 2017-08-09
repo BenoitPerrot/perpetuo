@@ -43,7 +43,7 @@ class Schema(val dbContext: DbContext)
               }
               if (statusMap.isEmpty)
                 statusMap = Map("*" -> TargetAtomStatus(Status.hostFailure, "The job has been killed"))
-              addToExecution(execId, statusMap)
+              insertTargetStatuses(execId, statusMap)
             }
           },
           5.minutes

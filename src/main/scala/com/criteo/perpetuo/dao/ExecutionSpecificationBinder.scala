@@ -34,7 +34,7 @@ trait ExecutionSpecificationBinder extends TableBinder {
 
   val executionSpecificationQuery: TableQuery[ExecutionSpecificationTable] = TableQuery[ExecutionSpecificationTable]
 
-  def insert(specificParameters: String, version: Version): Future[ExecutionSpecification] = {
+  def insertExecutionSpecification(specificParameters: String, version: Version): Future[ExecutionSpecification] = {
     val record = ExecutionSpecificationRecord(None, 42, version, specificParameters)
     dbContext.db.run((executionSpecificationQuery returning executionSpecificationQuery.map(_.id)) += record).map(
       ExecutionSpecification(_, version, specificParameters)

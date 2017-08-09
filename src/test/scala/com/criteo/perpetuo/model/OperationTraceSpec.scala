@@ -33,10 +33,10 @@ class OperationTraceSpec extends FunSuite with ScalaFutures
   test("Operation traces can be bound to deployment requests, and retrieved") {
     Await.result(
       for {
-        product <- insert("perpetuo-app")
-        request <- insert(new DeploymentRequestAttrs(product.name, Version("v42"), "*", "No fear", "c.norris", new Timestamp(123456789)))
-        deployOperationTrace <- addToDeploymentRequest(request.id, Operation.deploy, "c.norris")
-        revertOperationTrace <- addToDeploymentRequest(request.id, Operation.revert, "c.norris")
+        product <- insertProduct("perpetuo-app")
+        request <- insertDeploymentRequest(new DeploymentRequestAttrs(product.name, Version("v42"), "*", "No fear", "c.norris", new Timestamp(123456789)))
+        deployOperationTrace <- insertOperationTrace(request.id, Operation.deploy, "c.norris")
+        revertOperationTrace <- insertOperationTrace(request.id, Operation.revert, "c.norris")
         traces <- dbContext.db.run(operationTraceQuery.result)
       } yield {
         assert(traces.length == 2)

@@ -25,12 +25,12 @@ class TargetStatusSpec extends FunSuite with ScalaFutures
   test("Target statuses can be inserted and retrieved") {
     Await.result(
       for {
-        product <- insert("perpetuo-app")
-        request <- insert(new DeploymentRequestAttrs(product.name, Version("v42"), "Moon", "That's one small step for man, one giant leap for mankind", "n.armstrong", new Timestamp(123456789)))
-        deployOperationTrace <- addToDeploymentRequest(request.id, Operation.deploy, "n.armstrong")
-        execSpec <- insert("{}", Version("456"))
-        execId <- insert(deployOperationTrace.id, execSpec.id)
-        _ <- addToExecution(execId, Map("Moon" -> TargetAtomStatus(Status.hostFailure, "Houston, we've got a problem")))
+        product <- insertProduct("perpetuo-app")
+        request <- insertDeploymentRequest(new DeploymentRequestAttrs(product.name, Version("v42"), "Moon", "That's one small step for man, one giant leap for mankind", "n.armstrong", new Timestamp(123456789)))
+        deployOperationTrace <- insertOperationTrace(request.id, Operation.deploy, "n.armstrong")
+        execSpec <- insertExecutionSpecification("{}", Version("456"))
+        execId <- insertExecution(deployOperationTrace.id, execSpec.id)
+        _ <- insertTargetStatuses(execId, Map("Moon" -> TargetAtomStatus(Status.hostFailure, "Houston, we've got a problem")))
         targetStatuses <- dbContext.db.run(targetStatusQuery.result)
       } yield {
         assert(targetStatuses.length == 1)

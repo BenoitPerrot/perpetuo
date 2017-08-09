@@ -45,7 +45,7 @@ trait TargetStatusBinder extends TableBinder {
 
   val targetStatusQuery: TableQuery[TargetStatusTable] = TableQuery[TargetStatusTable]
 
-  def addToExecution(executionId: Long, statusMap: Map[String, TargetAtomStatus]): Future[Unit] = {
+  def insertTargetStatuses(executionId: Long, statusMap: Map[String, TargetAtomStatus]): Future[Unit] = {
     val listOfTargetStatus = statusMap.map { case (targetAtom, targetStatus) =>
       TargetStatusRecord(None, executionId, -1, -1, targetAtom, targetStatus.code, targetStatus.detail) //TODO: Remove after migration to targetStatus
     }

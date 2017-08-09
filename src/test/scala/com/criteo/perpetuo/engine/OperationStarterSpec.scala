@@ -65,12 +65,12 @@ class OperationStarterSpec extends Test with TestDb {
     }
   }
 
-  private val product: Product = Await.result(execution.dbBinding.insert("perpetuo-app"), 1.second)
+  private val product: Product = Await.result(execution.dbBinding.insertProduct("perpetuo-app"), 1.second)
 
   private def getExecutions(dispatcher: TargetDispatcher): Future[Seq[(Long, Option[String])]] = {
     val req = new DeploymentRequestAttrs(product.name, Version("v42"), """"*"""", "No fear", "c.norris", new Timestamp(123456789))
 
-    val depReq = execution.dbBinding.insert(req)
+    val depReq = execution.dbBinding.insertDeploymentRequest(req)
     val asyncStart = depReq.flatMap(execution.start(dispatcher, _, Operation.deploy, "c.norris"))
     asyncStart.flatMap { case (_, successes, failures) =>
       depReq.map(_.id).flatMap(execution.dbBinding.findExecutionTracesByDeploymentRequest).map { traces =>
@@ -93,7 +93,7 @@ class OperationStarterSpec extends Test with TestDb {
   implicit class ComplexDispatchTest(private val target: TargetExpr) {
     private val rawTarget = target.toJson.compactPrint
     private val request = new DeploymentRequestAttrs(product.name, Version("v42"), rawTarget, "No fear", "c.norris", new Timestamp(123456789))
-    private val depReq = execution.dbBinding.insert(request)
+    private val depReq = execution.dbBinding.insertDeploymentRequest(request)
 
     def dispatchedAs(that: Map[ExecutorInvoker, TargetExpr]): Unit = {
       execLogs.clear()

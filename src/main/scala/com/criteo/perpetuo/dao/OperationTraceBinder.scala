@@ -61,7 +61,7 @@ trait OperationTraceBinder extends TableBinder {
 
   val operationTraceQuery = TableQuery[OperationTraceTable]
 
-  def addToDeploymentRequest(requestId: Long, operation: Operation, creator: String): Future[ShallowOperationTrace] = {
+  def insertOperationTrace(requestId: Long, operation: Operation, creator: String): Future[ShallowOperationTrace] = {
     val operationTrace = OperationTraceRecord(None, requestId, operation, Some(Map()), creator, new java.sql.Timestamp(System.currentTimeMillis), None)
     dbContext.db.run((operationTraceQuery returning operationTraceQuery.map(_.id)) += operationTrace).map { id =>
       ShallowOperationTrace(id, operationTrace.deploymentRequestId, operationTrace.operation, operationTrace.creator, operationTrace.creationDate, operationTrace.closingDate, operationTrace.targetStatus.get)

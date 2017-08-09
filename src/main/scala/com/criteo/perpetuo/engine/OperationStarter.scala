@@ -26,8 +26,8 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
     // target resolution
     val expandedTarget = dispatcher.expandTarget(deploymentRequest.product.name, deploymentRequest.version, deploymentRequest.parsedTarget)
 
-    dbBinding.addToDeploymentRequest(deploymentRequest.id, operation, userName).flatMap(operationTrace =>
-      dbBinding.insert(specificParameters, deploymentRequest.version).flatMap(executionSpecification =>
+    dbBinding.insertOperationTrace(deploymentRequest.id, operation, userName).flatMap(operationTrace =>
+      dbBinding.insertExecutionSpecification(specificParameters, deploymentRequest.version).flatMap(executionSpecification =>
         startExecution(dispatcher, deploymentRequest, operationTrace, executionSpecification, expandedTarget).map {
           case (successes, failures) => (operationTrace, successes, failures)
         }
@@ -41,7 +41,7 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
             executionSpecs: Seq[ExecutionSpecification],
             userName: String): Future[(OperationTrace, (Int, Int))] = {
 
-    dbBinding.addToDeploymentRequest(deploymentRequest.id, operationTrace.operation, userName).flatMap { newOperationTrace =>
+    dbBinding.insertOperationTrace(deploymentRequest.id, operationTrace.operation, userName).flatMap { newOperationTrace =>
       val allSuccessesAndFailures = executionSpecs.map { executionSpec =>
         // todo: retrieve the real target of the very retried execution
         val expandedTarget = dispatcher.expandTarget(deploymentRequest.product.name, deploymentRequest.version, deploymentRequest.parsedTarget)
@@ -64,9 +64,9 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
     // execution dispatching
     val invocations = dispatch(dispatcher, expandedTarget).toSeq
 
-    dbBinding.insert(operationTrace.id, executionSpecification.id).flatMap(executionId =>
+    dbBinding.insertExecution(operationTrace.id, executionSpecification.id).flatMap(executionId =>
       // create as many traces, all at the same time
-      dbBinding.attach(operationTrace.id, executionId, invocations.length)
+      dbBinding.insertExecutionTraces(operationTrace.id, executionId, invocations.length)
         .map(x => invocations.zip(x))
         .flatMap { executionSpecs =>
           // and only then, for each execution to do:
@@ -125,7 +125,7 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
         throw new IllegalArgumentException(s"Unknown previous state for target: $target")
       }
       else {
-        val opCreation = dbBinding.addToDeploymentRequest(operationTrace.deploymentRequestId, Operation.revert, userName)
+        val opCreation = dbBinding.insertOperationTrace(operationTrace.deploymentRequestId, Operation.revert, userName)
         Future.traverse(execSpecs.toStream.groupBy { case (_, execSpec) => execSpec.get.id }.values) { specifications =>
           val (_, execSpec) = specifications.head
           val targetAtoms = Set(TargetTerm(select = specifications.map(_._1).toSet))

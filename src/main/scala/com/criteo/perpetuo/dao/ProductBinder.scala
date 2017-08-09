@@ -36,7 +36,7 @@ trait ProductBinder extends TableBinder {
 
   val productQuery = TableQuery[ProductTable]
 
-  def insert(productName: String): Future[Product] = {
+  def insertProduct(productName: String): Future[Product] = {
     dbContext.db.run((productQuery returning productQuery.map(_.id)) += ProductRecord(None, productName)).map(
       Product(_, productName)
     ).recover {
