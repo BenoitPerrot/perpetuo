@@ -23,8 +23,7 @@
     "paper-dialog": "PolymerElements/paper-dialog#^2.0.0",
     "paper-checkbox": "PolymerElements/paper-checkbox#^2.0.1",
     "paper-dialog-scrollable": "PolymerElements/paper-dialog-scrollable#^2.1.0",
-    "paper-fab": "PolymerElements/paper-fab#^2.0.0",
-    "paper-styles": "PolymerElements/paper-styles#^2.0.0"
+    "paper-fab": "PolymerElements/paper-fab#^2.0.0"
   },
   "devDependencies": {
     "web-component-tester": "^6.0.0",

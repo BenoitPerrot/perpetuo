@@ -1,9 +1,7 @@
 <link rel="import" href="../../bower_components/polymer/polymer.html">
 
 <link rel="import" href="../../bower_components/iron-collapse/iron-collapse.html">
-<link rel="import" href="../../bower_components/paper-button/paper-button.html">
 <link rel="import" href="../../bower_components/paper-icon-button/paper-icon-button.html">
-<link rel="import" href="../../bower_components/paper-styles/shadow.html">
 
 <link rel="import" href="../perpetuo-client/perpetuo-client.html">
 <link rel="import" href="../perpetuo-deployment-request/perpetuo-deployment-operation-condensed.html">
@@ -65,17 +63,17 @@
       border-radius: 3px;
       padding: 0.7em 0.57em;
       text-transform: uppercase;
-      @apply --shadow-elevation-2dp;
+      background-color: #f5f5f5;
     }
-    div.state.succeeded > span {
+    div.state > span.succeeded {
       color: #fff;
       background-color: #0f9d58;
     }
-    div.state.failed > span {
+    div.state > span.failed {
       color: #fff;
       background-color: #f44336;
     }
-    div.state.in-progress > span {
+    div.state > span.in-progress {
       color: #fff;
       background: repeating-linear-gradient(-45deg, #009688, #009688 10px, #26a69a 10px, #26a69a 20px);
     }
@@ -110,13 +108,8 @@
       </span>
       <span class="target">[[data.target]]</span>
       <span class="creation-date">[[data.dateString]]</span>
-      <div class$="state [[data.state]]">
-        <template is="dom-if" if="[[isNotStarted(data.state)]]">
-          <paper-button disabled="[[!isStartAuthorized(data.actions)]]" on-tap="onStartTap" raised>Start!</paper-button>
-        </template>
-        <template is="dom-if" if="[[!isNotStarted(data.state)]]">
-          <span>[[data.state]]</span>
-        </template>
+      <div class="state">
+        <span class$="[[data.state]]">[[data.state]]</span>
       </div>
       <a href$="/deployment-requests/[[data.id]]"><paper-icon-button id="singleOpener" icon="launch"></paper-icon-button></a>
     </div>
@@ -153,13 +146,6 @@
       return hasMore ? (expanded ? 'expand-less' : 'expand-more') : '';
     },
 
-    isNotStarted(state) {
-      return state === 'not-started';
-    },
-    isStartAuthorized(actions) {
-      return actions.some(action => action.name === 'start' && action.authorized)
-    },
-
     computeHasMore(data) {
       return data.comment || 0 < data.operations.length;
     },
@@ -182,10 +168,6 @@
       if (fields[1])
         ret.ticket = { url: fields[1], reference: fields[1].split("/").splice(-1)[0] };
       return ret;
-    },
-
-    onStartTap() {
-      new Perpetuo.Client().startDeploymentRequest(this.data.id);
     }
   });
   </script>
