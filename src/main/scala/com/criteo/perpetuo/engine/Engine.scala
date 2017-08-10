@@ -8,6 +8,7 @@ import com.criteo.perpetuo.model.ExecutionState.ExecutionState
 import com.criteo.perpetuo.model._
 
 import scala.collection.JavaConverters._
+import scala.collection.SortedMap
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
@@ -172,10 +173,10 @@ class Engine @Inject()(val dbBinding: DbBinding) {
     }
   }
 
-  def getDeepDeploymentRequest(deploymentRequestId: Long): Future[Option[(DeploymentRequest, Iterable[ArrayBuffer[ExecutionTrace]])]] =
+  def getDeepDeploymentRequest(deploymentRequestId: Long): Future[Option[(DeploymentRequest, SortedMap[Long, ArrayBuffer[ExecutionTrace]])]] =
     dbBinding.deepQueryDeploymentRequests(deploymentRequestId)
 
-  def queryDeepDeploymentRequests(where: Seq[Map[String, Any]], orderBy: Seq[Map[String, Any]], limit: Int, offset: Int): Future[Iterable[(DeploymentRequest, Iterable[ArrayBuffer[ExecutionTrace]])]] =
+  def queryDeepDeploymentRequests(where: Seq[Map[String, Any]], orderBy: Seq[Map[String, Any]], limit: Int, offset: Int): Future[Iterable[(DeploymentRequest, SortedMap[Long, ArrayBuffer[ExecutionTrace]])]] =
     dbBinding.deepQueryDeploymentRequests(where, orderBy, limit, offset)
 
 }

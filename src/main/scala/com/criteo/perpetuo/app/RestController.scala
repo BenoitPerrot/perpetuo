@@ -20,6 +20,7 @@ import spray.json.DeserializationException
 import spray.json.JsonParser.ParsingException
 import spray.json._
 
+import scala.collection.SortedMap
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
@@ -266,25 +267,20 @@ class RestController @Inject()(val engine: Engine)
     }
   }
 
-  private def serialize(isAuthorized: Boolean, depReq: DeploymentRequest, sortedGroupsOfExecutions: Iterable[ArrayBuffer[ExecutionTrace]]) = {
+  private def serialize(isAuthorized: Boolean, depReq: DeploymentRequest, sortedGroupsOfExecutions: SortedMap[Long, ArrayBuffer[ExecutionTrace]]) = {
     val state =
       if (sortedGroupsOfExecutions.isEmpty) {
         "not-started"
       } else {
-        val x = sortedGroupsOfExecutions.foldLeft((true, false)) { case ((isFinishedSoFar, hasFailuresSoFar), executionTraces) =>
-          val operationTrace = executionTraces.head.operationTrace
-          val operationIsFinished = executionTraces.forall(executionTrace =>
-            executionTrace.state != ExecutionState.pending && executionTrace.state != ExecutionState.running
-          )
-          val operationHasFailures = executionTraces.exists(_.state == ExecutionState.initFailed) ||
-            operationTrace.targetStatus.values.exists(_.code != Status.success)
-          (isFinishedSoFar && operationIsFinished,
-            hasFailuresSoFar || operationHasFailures)
-        }
-        val isFinished = x._1
-        val hasFailures = x._2
-        if (isFinished) {
-          if (hasFailures) {
+        val lastOperationTrace = sortedGroupsOfExecutions.last._2.head.operationTrace
+        val lastExecutionTraces = sortedGroupsOfExecutions.last._2
+
+        val operationIsFinished = lastOperationTrace.closingDate.nonEmpty
+        val operationHasFailures =
+          lastExecutionTraces.exists(_.state == ExecutionState.initFailed) || lastOperationTrace.targetStatus.values.exists(_.code != Status.success)
+
+        val lastOperationState = if (operationIsFinished) {
+          if (operationHasFailures) {
             "failed"
           } else {
             "succeeded"
@@ -292,6 +288,8 @@ class RestController @Inject()(val engine: Engine)
         } else {
           "in-progress"
         }
+
+        s"${lastOperationTrace.operation.toString} $lastOperationState"
       }
 
     Map(
@@ -303,7 +301,7 @@ class RestController @Inject()(val engine: Engine)
       "target" -> RawJson(depReq.target),
       "productName" -> depReq.product.name,
       "state" -> state,
-      "operations" -> sortedGroupsOfExecutions.map { execs =>
+      "operations" -> sortedGroupsOfExecutions.map { case (_, execs) =>
         val op = execs.head.operationTrace
         Map(
           "id" -> op.id,

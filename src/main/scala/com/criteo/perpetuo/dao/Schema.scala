@@ -72,7 +72,7 @@ class DbBinding @Inject()(val dbContext: DbContext)
 
   import dbContext.driver.api._
 
-  def deepQueryDeploymentRequests(id: Long): Future[Option[(DeploymentRequest, Iterable[ArrayBuffer[ExecutionTrace]])]] = {
+  def deepQueryDeploymentRequests(id: Long): Future[Option[(DeploymentRequest, SortedMap[Long, ArrayBuffer[ExecutionTrace]])]] = {
     deepQueryDeploymentRequests(
       deploymentRequestQuery
         filter { _.id === id }
@@ -133,7 +133,7 @@ class DbBinding @Inject()(val dbContext: DbContext)
   }
   // >>
 
-  def deepQueryDeploymentRequests(where: Seq[Map[String, Any]], orderBy: Seq[Map[String, Any]], limit: Int, offset: Int): Future[Iterable[(DeploymentRequest, Iterable[ArrayBuffer[ExecutionTrace]])]] = {
+  def deepQueryDeploymentRequests(where: Seq[Map[String, Any]], orderBy: Seq[Map[String, Any]], limit: Int, offset: Int): Future[Iterable[(DeploymentRequest, SortedMap[Long, ArrayBuffer[ExecutionTrace]])]] = {
 
     val filtered = where.foldLeft(this.deploymentRequestQuery join this.productQuery on (_.productId === _.id)) { (queries, spec) =>
       val value = spec.getOrElse("equals", throw new IllegalArgumentException(s"Filters tests must be `equals`"))
@@ -158,7 +158,7 @@ class DbBinding @Inject()(val dbContext: DbContext)
   }
 
   private def deepQueryDeploymentRequests(q: Query[(DeploymentRequestTable, ProductTable), (DeploymentRequestRecord, ProductRecord), scala.Seq],
-                                          order: Seq[Map[String, Any]]): Future[Iterable[(DeploymentRequest, Iterable[ArrayBuffer[ExecutionTrace]])]] = {
+                                          order: Seq[Map[String, Any]]): Future[Iterable[(DeploymentRequest, SortedMap[Long, ArrayBuffer[ExecutionTrace]])]] = {
     type StableMap = mutable.LinkedHashMap[Long, (DeploymentRequestRecord, ProductRecord, ArrayBuffer[ExecutionTrace])]
 
     def groupByDeploymentRequestId(x: Seq[(DeploymentRequestRecord, ProductRecord, Option[OperationTraceRecord], Option[ExecutionTraceRecord])]): StableMap = {
@@ -180,8 +180,7 @@ class DbBinding @Inject()(val dbContext: DbContext)
           .map { case ((((deploymentRequest, product), operationTrace), execution), executionTrace) => (deploymentRequest, product, operationTrace, executionTrace) }
         , order).result
     ).map(groupByDeploymentRequestId(_).values.map { case (req, product, execs) =>
-      val sortedGroupsOfExecutions = SortedMap(execs.groupBy(_.operationTrace.id).toStream: _*).values
-      (req.toDeploymentRequest(product.toProduct), sortedGroupsOfExecutions)
+      (req.toDeploymentRequest(product.toProduct), SortedMap(execs.groupBy(_.operationTrace.id).toStream: _*))
     })
   }
 
