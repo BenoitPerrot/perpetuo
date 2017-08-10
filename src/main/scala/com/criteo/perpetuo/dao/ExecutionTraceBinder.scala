@@ -33,7 +33,7 @@ trait ExecutionTraceBinder extends TableBinder {
     def id = column[Long]("id", O.AutoInc)
     protected def pk = primaryKey(id)
 
-    def operationTraceId = column[Option[Long]]("operation_trace_id", O.Default(None))
+    protected def operationTraceId = column[Option[Long]]("operation_trace_id", O.Default(None))
     protected def oldFk = foreignKey(operationTraceId, operationTraceQuery)(_.id) // fixme: for the transition only, remove it
 
     def logHref = column[Option[String]]("log_href", O.SqlType("nvarchar(1024)"))
@@ -59,24 +59,40 @@ trait ExecutionTraceBinder extends TableBinder {
     }
   }
 
-  def findExecutionTracesByDeploymentRequest(deploymentRequestId: Long): Future[Seq[ExecutionTrace]] = {
-    val query = executionTraceQuery join operationTraceQuery on (_.operationTraceId === _.id) filter (_._2.deploymentRequestId === deploymentRequestId)
-    dbContext.db.run(query.result).map(_.map {
-      case (exec, op) => exec.toExecutionTrace(op.toOperationTrace)
+  def findExecutionTracesByDeploymentRequest(deploymentRequestId: Long): Future[Seq[ExecutionTrace]] =
+    dbContext.db.run(
+      operationTraceQuery
+        .filter(_.deploymentRequestId === deploymentRequestId)
+        .join(executionQuery).on { case (operationTrace, execution) => operationTrace.id === execution.operationTraceId }
+        .join(executionTraceQuery).on { case ((_, execution), executionTrace) => execution.id === executionTrace.executionId }
+        .map { case ((operationTrace, _), executionTrace) => (executionTrace, operationTrace) }
+        .result
+    ).map(_.map { case (exec, op) =>
+      exec.toExecutionTrace(op.toOperationTrace)
     })
-  }
 
-  def findExecutionTraceById(executionTraceId: Long): Future[Option[ExecutionTrace]] = {
-    val query = executionTraceQuery join operationTraceQuery on (_.operationTraceId === _.id) filter (_._1.id === executionTraceId)
-    dbContext.db.run(query.result).map(_.headOption.map {
-      case (exec, op) => exec.toExecutionTrace(op.toOperationTrace)
+  def findExecutionTraceById(executionTraceId: Long): Future[Option[ExecutionTrace]] =
+    dbContext.db.run(
+      executionTraceQuery
+        .filter(_.id === executionTraceId)
+        .join(executionQuery).on { case (executionTrace, execution) => executionTrace.executionId === execution.id }
+        .join(operationTraceQuery).on { case ((_, execution), operationTrace) => execution.operationTraceId === operationTrace.id }
+        .map { case ((executionTrace, _), operationTrace) => (executionTrace, operationTrace) }
+        .result
+    ).map(_.headOption.map { case (exec, op) =>
+      exec.toExecutionTrace(op.toOperationTrace)
     })
-  }
 
-  def hasOpenExecutionTracesForOperation(operationTraceId: Long): Future[Boolean] = {
-    val query = executionTraceQuery filter { t => t.operationTraceId === operationTraceId && (t.state === ExecutionState.pending || t.state === ExecutionState.running) }
-    dbContext.db.run(query.exists.result)
-  }
+  def hasOpenExecutionTracesForOperation(operationTraceId: Long): Future[Boolean] =
+    dbContext.db.run(
+      operationTraceQuery
+        .filter(_.id === operationTraceId)
+        .join(executionQuery).on { case (operationTrace, execution) => operationTrace.id === execution.operationTraceId }
+        .join(executionTraceQuery).on { case ((_, execution), executionTrace) => execution.id === executionTrace.executionId }
+        .filter { case ((_, _), executionTrace) => executionTrace.state === ExecutionState.pending || executionTrace.state === ExecutionState.running }
+        .exists
+        .result
+    )
 
   def updateExecutionTrace(id: Long, logHref: String, state: ExecutionState): Future[Boolean] =
     runUpdate(id, _.map(r => (r.logHref, r.state)).update((Some(logHref), state)))

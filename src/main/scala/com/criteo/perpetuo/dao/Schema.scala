@@ -115,18 +115,18 @@ class DbBinding @Inject()(val dbContext: DbContext)
     }
   }
 
-  def sortAllBy(q: Query[(((DeploymentRequestTable, ProductTable), Rep[Option[OperationTraceTable]]), Rep[Option[ExecutionTraceTable]]), (((DeploymentRequestRecord, ProductRecord), Option[OperationTraceRecord]), Option[ExecutionTraceRecord]), scala.Seq],
+  def sortAllBy(q: Query[(DeploymentRequestTable, ProductTable, Rep[Option[OperationTraceTable]], Rep[Option[ExecutionTraceTable]]), (DeploymentRequestRecord, ProductRecord, Option[OperationTraceRecord], Option[ExecutionTraceRecord]), scala.Seq],
                 order: Seq[Map[String, Any]]) = {
-    order.foldRight(q.sortBy(_._1._1._1.id)) { (spec, queries) =>
+    order.foldRight(q.sortBy(_._1.id)) { (spec, queries) =>
       val descending = try spec.getOrElse("desc", false).asInstanceOf[Boolean].value catch {
         case _: ClassCastException => throw new IllegalArgumentException("Orders `desc` must be true or false")
       }
       val fieldName = spec.getOrElse("field", throw new IllegalArgumentException(s"Orders must specify ̀`field`"))
       fieldName match {
-        case "creationDate" => queries.sortBy(if (descending) _._1._1._1.creationDate.desc else _._1._1._1.creationDate.asc)
-        case "creator" => queries.sortBy(if (descending) _._1._1._1.creator.desc else _._1._1._1.creator.asc)
-        case "version" => queries.sortBy(if (descending) _._1._1._1.version.desc else _._1._1._1.version.asc)
-        case "productName" => queries.sortBy(if (descending) _._1._1._2.name.desc else _._1._1._2.name.asc)
+        case "creationDate" => queries.sortBy(if (descending) _._1.creationDate.desc else _._1.creationDate.asc)
+        case "creator" => queries.sortBy(if (descending) _._1.creator.desc else _._1.creator.asc)
+        case "version" => queries.sortBy(if (descending) _._1.version.desc else _._1.version.asc)
+        case "productName" => queries.sortBy(if (descending) _._2.name.desc else _._2.name.asc)
         case _ => throw new IllegalArgumentException(s"Cannot sort by `$fieldName`")
       }
     }
@@ -161,8 +161,8 @@ class DbBinding @Inject()(val dbContext: DbContext)
                                           order: Seq[Map[String, Any]]): Future[Iterable[(DeploymentRequest, Iterable[ArrayBuffer[ExecutionTrace]])]] = {
     type StableMap = mutable.LinkedHashMap[Long, (DeploymentRequestRecord, ProductRecord, ArrayBuffer[ExecutionTrace])]
 
-    def groupByDeploymentRequestId(x: Seq[(((DeploymentRequestRecord, ProductRecord), Option[OperationTraceRecord]), Option[ExecutionTraceRecord])]): StableMap = {
-      x.foldLeft(new StableMap()) { case (result, (((deploymentRequest, product), operationTrace), executionTrace)) =>
+    def groupByDeploymentRequestId(x: Seq[(DeploymentRequestRecord, ProductRecord, Option[OperationTraceRecord], Option[ExecutionTraceRecord])]): StableMap = {
+      x.foldLeft(new StableMap()) { case (result, (deploymentRequest, product, operationTrace, executionTrace)) =>
         val execs = result.getOrElseUpdate(deploymentRequest.id.get, {
           (deploymentRequest, product, ArrayBuffer())
         })._3
@@ -171,13 +171,18 @@ class DbBinding @Inject()(val dbContext: DbContext)
       }
     }
 
-    dbContext.db.run(sortAllBy(q joinLeft operationTraceQuery on (_._1.id === _.deploymentRequestId) joinLeft executionTraceQuery on (_._2.map(_.id) === _.operationTraceId), order).result)
-      .map {
-        groupByDeploymentRequestId(_).values.map { case (req, product, execs) =>
-          val sortedGroupsOfExecutions = SortedMap(execs.groupBy(_.operationTrace.id).toStream: _*).values
-          (req.toDeploymentRequest(product.toProduct), sortedGroupsOfExecutions)
-        }
-      }
+    dbContext.db.run(
+      sortAllBy(
+        q
+          .joinLeft(operationTraceQuery).on(_._1.id === _.deploymentRequestId)
+          .joinLeft(executionQuery).on { case ((_, operationTrace), execution) => operationTrace.map(_.id) === execution.operationTraceId }
+          .joinLeft(executionTraceQuery).on { case (((_, operationTrace), execution), executionTrace) => execution.map(_.id) === executionTrace.executionId }
+          .map { case ((((deploymentRequest, product), operationTrace), execution), executionTrace) => (deploymentRequest, product, operationTrace, executionTrace) }
+        , order).result
+    ).map(groupByDeploymentRequestId(_).values.map { case (req, product, execs) =>
+      val sortedGroupsOfExecutions = SortedMap(execs.groupBy(_.operationTrace.id).toStream: _*).values
+      (req.toDeploymentRequest(product.toProduct), sortedGroupsOfExecutions)
+    })
   }
 
   /**
