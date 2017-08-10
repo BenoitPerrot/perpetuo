@@ -309,7 +309,6 @@ class CriteoListener extends DefaultListenerPlugin {
 
     static def startingChildrenTransitions() {
         [
-                11 : '[RM] DEPLOYMENT OPEN - Initiate -> AWAITING DEPLOYMENT',
                 311: '[RM] AWAITING DEPLOYMENT - Launch deployer -> [RM] DEPLOYING',
         ]
     }
