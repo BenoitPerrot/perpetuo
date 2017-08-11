@@ -143,7 +143,7 @@ class RestControllerSpec extends FeatureTest with TestDb {
       andExpect = expect
     )
 
-  private def updateExecTrace(execId: Int, state: String, logHref: Option[String],
+  private def updateExecTrace(deploymentRequestId: Long, execId: Int, state: String, logHref: Option[String],
                               targetStatus: Option[Map[String, JsValue]] = None,
                               expectedTargetStatus: Map[String, (String, String)]) = {
     val logHrefJson = logHref.map(_.toJson)
@@ -165,13 +165,9 @@ class RestControllerSpec extends FeatureTest with TestDb {
     )
     ret.contentLength shouldEqual Some(0)
 
-    val depReqs = deepGetDepReq()
-    val getFirst: (JsValue) => Option[Map[String, JsValue]] =
-      _.asInstanceOf[JsArray].elements.headOption.map(_.asJsObject.fields)
-    val depReq = depReqs.find(req =>
-      getFirst(req("operations")).map(_ ("executions")).flatMap(getFirst).exists(_ ("id") == execId.toJson)
-    ).get
-    val operations = depReq("operations").asInstanceOf[JsArray].elements.map(_.asJsObject.fields)
+    val depReq = deepGetDepReq(deploymentRequestId)
+
+    val operations = depReq.fields("operations").asInstanceOf[JsArray].elements.map(_.asJsObject.fields)
     operations.size shouldEqual 1
     Map(
       "id" -> T,
@@ -402,21 +398,21 @@ class RestControllerSpec extends FeatureTest with TestDb {
 
     "update one record's execution state on a PUT" in {
       updateExecTrace(
-        1, "completed", None,
+        1, 1, "completed", None,
         expectedTargetStatus = Map()
       )
     }
 
     "update one record's execution state and log href on a PUT" in {
       updateExecTrace(
-        2, "completed", Some("http://somewhe.re"),
+        2, 2, "completed", Some("http://somewhe.re"),
         expectedTargetStatus = Map()
       )
     }
 
     "update one record's execution state and target status on a PUT" in {
       updateExecTrace(
-        2, "initFailed", None,
+        2, 2, "initFailed", None,
         targetStatus = Some(Map("par" -> Map("code" -> "success", "detail" -> "").toJson)),
         expectedTargetStatus = Map("par" -> ("success", ""))
       )
@@ -424,7 +420,7 @@ class RestControllerSpec extends FeatureTest with TestDb {
 
     "update one record's execution state, log href and target status (partially) on a PUT" in {
       updateExecTrace(
-        2, "conflicting", Some("http://"),
+        2, 2, "conflicting", Some("http://"),
         targetStatus = Some(Map("am5" -> Map("code" -> "notDone", "detail" -> "").toJson)),
         expectedTargetStatus = Map("par" -> ("success", ""), "am5" -> ("notDone", ""))
       )
@@ -432,7 +428,7 @@ class RestControllerSpec extends FeatureTest with TestDb {
 
     "partially update one record's target status on a PUT" in {
       updateExecTrace(
-        2, "completed", Some("http://final"),
+        2, 2, "completed", Some("http://final"),
         targetStatus = Some(Map("am5" -> Map("code" -> "hostFailure", "detail" -> "some details...").toJson)),
         expectedTargetStatus = Map("par" -> ("success", ""), "am5" -> ("hostFailure", "some details..."))
       )
@@ -462,7 +458,7 @@ class RestControllerSpec extends FeatureTest with TestDb {
       ).contentString should include("targetStatus: Unable to parse")
 
       updateExecTrace(
-        2, "completed", None,
+        2, 2, "completed", None,
         expectedTargetStatus = Map("par" -> ("success", ""), "am5" -> ("hostFailure", "some details..."))
       )
     }
@@ -491,7 +487,7 @@ class RestControllerSpec extends FeatureTest with TestDb {
       ).contentString should include("Unknown target status `foobar`")
 
       updateExecTrace(
-        2, "completed", None,
+        2, 2, "completed", None,
         targetStatus = Some(Map("am5" -> Map("code" -> "hostFailure", "detail" -> "some interesting details").toJson)),
         expectedTargetStatus = Map("par" -> ("success", ""), "am5" -> ("hostFailure", "some interesting details"))
       )
@@ -563,16 +559,7 @@ class RestControllerSpec extends FeatureTest with TestDb {
     "return the right executions in a valid JSON" in {
       val depReqs = deepGetDepReq()
 
-      depReqs.length should be > 1
-      val operationsCounts = depReqs.map(_ ("operations").asInstanceOf[JsArray].elements.size).toSet
-      // there are deployment requests that triggered 1 operation, there is one with 0:
-      operationsCounts shouldEqual Set(0, 1)
-
-      val getFirst: (JsValue) => Option[Map[String, JsValue]] =
-        _.asInstanceOf[JsArray].elements.headOption.map(_.asJsObject.fields)
-      val depReq = depReqs.find(req =>
-        getFirst(req("operations")).map(_ ("executions")).flatMap(getFirst).exists(_ ("id") == 2.toJson)
-      ).get
+      val depReq = deepGetDepReq(2)
 
       JsArray(
         JsObject(
@@ -594,9 +581,10 @@ class RestControllerSpec extends FeatureTest with TestDb {
             )
           )
         )
-      ) shouldEqual depReq("operations")
+      ) shouldEqual depReq.fields("operations")
 
-      val wasDelayed = depReqs.find(_ ("version") == "not ready yet".toJson).get
+      val delayedDepReqId = depReqs.find(_ ("version") == "not ready yet".toJson).get("id").asInstanceOf[JsNumber].value.toLong
+      val delayedDepReq = deepGetDepReq(delayedDepReqId)
       JsArray(
         JsObject(
           "id" -> T,
@@ -613,7 +601,7 @@ class RestControllerSpec extends FeatureTest with TestDb {
             )
           )
         )
-      ) shouldEqual wasDelayed("operations")
+      ) shouldEqual delayedDepReq.fields("operations")
     }
 
     "paginate" in {

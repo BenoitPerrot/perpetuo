@@ -291,7 +291,7 @@ class RestController @Inject()(val engine: Engine)
       s"${lastOperationTrace.operation.toString} $lastOperationState"
     }
 
-  private def serialize(isAuthorized: Boolean, depReq: DeploymentRequest, sortedGroupsOfExecutions: SortedMap[Long, ArrayBuffer[ExecutionTrace]]) =
+  private def serialize(isAuthorized: Boolean, depReq: DeploymentRequest, sortedGroupsOfExecutions: SortedMap[Long, ArrayBuffer[ExecutionTrace]]): Map[String, Any] =
     Map(
       "id" -> depReq.id,
       "comment" -> depReq.comment,
@@ -301,25 +301,29 @@ class RestController @Inject()(val engine: Engine)
       "target" -> RawJson(depReq.target),
       "productName" -> depReq.product.name,
       "state" -> computeState(depReq, sortedGroupsOfExecutions),
-      "operations" -> sortedGroupsOfExecutions.map { case (_, execs) =>
-        val op = execs.head.operationTrace
-        Map(
-          "id" -> op.id,
-          "type" -> op.operation.toString,
-          "creator" -> op.creator,
-          "creationDate" -> op.creationDate,
-          "targetStatus" -> op.targetStatus,
-          "executions" -> execs
-        ) ++ op.closingDate.map("closingDate" -> _)
-      },
       "actions" ->
         (if (sortedGroupsOfExecutions.isEmpty) Seq(Map("name" -> "start", "authorized" -> isAuthorized)) else Seq())
     )
 
+  private def serialize(sortedGroupsOfExecutions: SortedMap[Long, ArrayBuffer[ExecutionTrace]]): Iterable[Map[String, Any]] =
+    sortedGroupsOfExecutions.map { case (_, execs) =>
+      val op = execs.head.operationTrace
+      Map(
+        "id" -> op.id,
+        "type" -> op.operation.toString,
+        "creator" -> op.creator,
+        "creationDate" -> op.creationDate,
+        "targetStatus" -> op.targetStatus,
+        "executions" -> execs
+      ) ++ op.closingDate.map("closingDate" -> _)
+    }
+
   get("/api/unstable/deployment-requests/:id") { r: RequestWithId =>
     withLongId(id =>
       engine.getDeepDeploymentRequest(id)
-        .map(_.map { case (deploymentRequest, executionTraces) => serialize(r.request.user.exists(isAuthorized), deploymentRequest, executionTraces) }),
+        .map(_.map { case (deploymentRequest, executionTraces) =>
+          serialize(r.request.user.exists(isAuthorized), deploymentRequest, executionTraces) ++ Map("operations" -> serialize(executionTraces))
+        }),
       2.seconds
     )(r)
   }
@@ -331,7 +335,8 @@ class RestController @Inject()(val engine: Engine)
         }
         try {
           engine.queryDeepDeploymentRequests(r.where, r.orderBy, r.limit, r.offset)
-            .map(_.map { case (deploymentRequest, executionTraces) => serialize(r.request.user.exists(isAuthorized), deploymentRequest, executionTraces) })
+            .map(_.map { case (deploymentRequest, executionTraces) =>
+              serialize(r.request.user.exists(isAuthorized), deploymentRequest, executionTraces) })
         } catch {
           case e: IllegalArgumentException => throw BadRequestException(e.getMessage)
         }
