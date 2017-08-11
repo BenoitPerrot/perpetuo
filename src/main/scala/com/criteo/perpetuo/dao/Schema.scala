@@ -28,40 +28,6 @@ class Schema(val dbContext: DbContext)
   def createTables(): Unit = {
     Await.result(dbContext.db.run(all.create), 2.seconds)
   }
-
-  // TODO: remove once migration done
-  // <<
-  def setMissingTargetStatuses(): Future[Int] = {
-    listExecutionsIdsMissingTargetStatus().map(_.grouped(100).flatMap {
-      batch =>
-        Await.result(
-          Future.sequence {
-            batch.map { case (execId, targetStatus) =>
-              var statusMap = targetStatus.parseJson.asJsObject.fields.mapValues { value =>
-                val Vector(JsNumber(statusId), JsString(detail)) = value.asInstanceOf[JsArray].elements
-                TargetAtomStatus(Status(statusId.toInt), detail)
-              }
-              if (statusMap.isEmpty)
-                statusMap = Map("*" -> TargetAtomStatus(Status.hostFailure, "The job has been killed"))
-              insertTargetStatuses(execId, statusMap)
-            }
-          },
-          5.minutes
-        )
-    }.length)
-  }
-
-  def countMissingTargetStatuses(): Future[Int] = {
-    listExecutionsIdsMissingTargetStatus().map(_.length)
-  }
-
-  def listExecutionsIdsMissingTargetStatus(): Future[Vector[(Long, String)]] = {
-    dbContext.db.run(
-      sql"""select execution.id, operation_trace.target_status from execution join operation_trace on operation_trace_id = operation_trace.id
-            where (select count(*) from target_status where execution_id = execution.id) = 0;""".as[(Long, String)]
-    )
-  }
-  // >>
 }
 
 

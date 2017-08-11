@@ -347,19 +347,6 @@ class RestController @Inject()(val engine: Engine)
       5.seconds)
   }
 
-  // <<
-  // TODO: remove once DB migration done
-  val schema = new Schema(engine.dbBinding.dbContext)
-
-  post("/api/unstable/db/target-status/set-missing") { _: Request =>
-    Await.result(schema.setMissingTargetStatuses().map(x => Map("count" -> x)), 2.hours)
-  }
-
-  get("/api/unstable/db/target-status/count-executions-not-set") { _: Request =>
-    Await.result(schema.countMissingTargetStatuses().map(x => Map("count" -> x)), 20.seconds)
-  }
-  // >>
-
   // Be sure to capture invalid calls to APIs
   get("/api/:*") { _: Request =>
     response.notFound
