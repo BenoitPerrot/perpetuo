@@ -267,31 +267,31 @@ class RestController @Inject()(val engine: Engine)
     }
   }
 
-  private def serialize(isAuthorized: Boolean, depReq: DeploymentRequest, sortedGroupsOfExecutions: SortedMap[Long, ArrayBuffer[ExecutionTrace]]) = {
-    val state =
-      if (sortedGroupsOfExecutions.isEmpty) {
-        "not-started"
-      } else {
-        val lastOperationTrace = sortedGroupsOfExecutions.last._2.head.operationTrace
-        val lastExecutionTraces = sortedGroupsOfExecutions.last._2
+  private def computeState(depReq: DeploymentRequest, sortedGroupsOfExecutions: SortedMap[Long, ArrayBuffer[ExecutionTrace]]): String =
+    if (sortedGroupsOfExecutions.isEmpty) {
+      "not-started"
+    } else {
+      val lastOperationTrace = sortedGroupsOfExecutions.last._2.head.operationTrace
+      val lastExecutionTraces = sortedGroupsOfExecutions.last._2
 
-        val operationIsFinished = lastOperationTrace.closingDate.nonEmpty
-        val operationHasFailures =
-          lastExecutionTraces.exists(_.state == ExecutionState.initFailed) || lastOperationTrace.targetStatus.values.exists(_.code != Status.success)
+      val operationIsFinished = lastOperationTrace.closingDate.nonEmpty
+      val operationHasFailures =
+        lastExecutionTraces.exists(_.state == ExecutionState.initFailed) || lastOperationTrace.targetStatus.values.exists(_.code != Status.success)
 
-        val lastOperationState = if (operationIsFinished) {
-          if (operationHasFailures) {
-            "failed"
-          } else {
-            "succeeded"
-          }
+      val lastOperationState = if (operationIsFinished) {
+        if (operationHasFailures) {
+          "failed"
         } else {
-          "in-progress"
+          "succeeded"
         }
-
-        s"${lastOperationTrace.operation.toString} $lastOperationState"
+      } else {
+        "in-progress"
       }
 
+      s"${lastOperationTrace.operation.toString} $lastOperationState"
+    }
+
+  private def serialize(isAuthorized: Boolean, depReq: DeploymentRequest, sortedGroupsOfExecutions: SortedMap[Long, ArrayBuffer[ExecutionTrace]]) =
     Map(
       "id" -> depReq.id,
       "comment" -> depReq.comment,
@@ -300,7 +300,7 @@ class RestController @Inject()(val engine: Engine)
       "version" -> depReq.version,
       "target" -> RawJson(depReq.target),
       "productName" -> depReq.product.name,
-      "state" -> state,
+      "state" -> computeState(depReq, sortedGroupsOfExecutions),
       "operations" -> sortedGroupsOfExecutions.map { case (_, execs) =>
         val op = execs.head.operationTrace
         Map(
@@ -315,7 +315,6 @@ class RestController @Inject()(val engine: Engine)
       "actions" ->
         (if (sortedGroupsOfExecutions.isEmpty) Seq(Map("name" -> "start", "authorized" -> isAuthorized)) else Seq())
     )
-  }
 
   get("/api/unstable/deployment-requests/:id") { r: RequestWithId =>
     withLongId(id =>
