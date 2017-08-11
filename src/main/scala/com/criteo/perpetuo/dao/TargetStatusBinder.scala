@@ -1,6 +1,6 @@
 package com.criteo.perpetuo.dao
 
-import com.criteo.perpetuo.model.{Status, TargetAtom, TargetAtomStatus}
+import com.criteo.perpetuo.model.{Status, TargetAtom, TargetAtomStatus, TargetStatus}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
@@ -10,7 +10,10 @@ private[dao] case class TargetStatusRecord(id: Option[Long],
                                            executionId: Long,
                                            targetAtom: String,
                                            code: Status.Code,
-                                           detail: String)
+                                           detail: String) {
+  def toTargetStatus: TargetStatus =
+    TargetStatus(id.get, executionId, targetAtom, code, detail)
+}
 
 
 trait TargetStatusBinder extends TableBinder {

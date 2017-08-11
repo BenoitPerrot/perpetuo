@@ -34,13 +34,37 @@ class DbBinding @Inject()(val dbContext: DbContext)
 
   import dbContext.driver.api._
 
-  def deepQueryDeploymentRequests(id: Long): Future[Option[(DeploymentRequest, SortedMap[Long, ArrayBuffer[ExecutionTrace]])]] = {
-    deepQueryDeploymentRequests(
-      deploymentRequestQuery
-        filter { _.id === id }
-        join productQuery on (_.productId === _.id),
-      Seq()
-    ).map { _.headOption }
+  def findDeepDeploymentRequest(deploymentRequestId: Long): Future[Option[(DeploymentRequest, SortedMap[Long, (Iterable[ExecutionTrace], Iterable[TargetStatus])])]] = {
+    dbContext.db.run(
+        deploymentRequestQuery
+          .filter(_.id === deploymentRequestId)
+          .join(productQuery).on { case (deploymentRequest, product) => deploymentRequest.productId === product.id }
+          .joinLeft(operationTraceQuery).on { case ((deploymentRequest, _), operationTrace) => deploymentRequest.id === operationTrace.deploymentRequestId }
+          .joinLeft(executionQuery).on { case ((_, operationTrace), execution) => operationTrace.map(_.id) === execution.operationTraceId }
+          .joinLeft(executionTraceQuery).on { case (((_, _), execution), executionTrace) => execution.map(_.id) === executionTrace.executionId }
+          .joinLeft(targetStatusQuery).on { case ((((_, _), execution), _), targetStatus) => execution.map(_.id) === targetStatus.executionId }
+          .map { case (((((deploymentRequest, product), operationTrace), _), executionTrace), targetStatus) => (deploymentRequest, product, operationTrace, executionTrace, targetStatus) }
+        .result)
+
+      .map(results =>
+        results.headOption.map { case (deploymentRequestRecord, productRecord, _, _, _) =>
+          val deploymentRequest = deploymentRequestRecord.toDeploymentRequest(productRecord.toProduct)
+
+          val executionResults = results
+            .map { case (_, _, operationTrace, executionTrace, targetStatus) => (operationTrace, executionTrace, targetStatus) }
+            .filter { case (operationTrace, executionTrace, targetStatus) => operationTrace.isDefined }
+            .groupBy { case (operationTrace, executionTrace, targetStatus) => operationTrace.get.id.get }
+            .mapValues { l =>
+              val (operationTraceRecord, _, _) = l.head
+              val operationTrace = operationTraceRecord.get.toOperationTrace
+              val executionTraces = l.map(_._2).filter(_.isDefined).map(_.get).distinct.map(_.toExecutionTrace(operationTrace))
+              val targetStatuses = l.map(_._3).filter(_.isDefined).map(_.get).distinct.map(_.toTargetStatus)
+              (executionTraces, targetStatuses)
+            }
+
+          (deploymentRequest, SortedMap(executionResults.toSeq: _*))
+        }
+      )
   }
 
   def findOperationTraceAndExecutionSpecs(operationTraceId: Long): Future[Option[(OperationTrace, Seq[ExecutionSpecification])]] = {

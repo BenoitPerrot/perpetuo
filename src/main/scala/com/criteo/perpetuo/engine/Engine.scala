@@ -3,7 +3,7 @@ package com.criteo.perpetuo.engine
 import javax.inject.{Inject, Singleton}
 
 import com.criteo.perpetuo.config.{AppConfig, Plugins}
-import com.criteo.perpetuo.dao.{DbBinding, UnknownProduct}
+import com.criteo.perpetuo.dao.{DbBinding, TargetStatusRecord, UnknownProduct}
 import com.criteo.perpetuo.model.ExecutionState.ExecutionState
 import com.criteo.perpetuo.model._
 
@@ -173,8 +173,8 @@ class Engine @Inject()(val dbBinding: DbBinding) {
     }
   }
 
-  def getDeepDeploymentRequest(deploymentRequestId: Long): Future[Option[(DeploymentRequest, SortedMap[Long, ArrayBuffer[ExecutionTrace]])]] =
-    dbBinding.deepQueryDeploymentRequests(deploymentRequestId)
+  def getDeepDeploymentRequest(deploymentRequestId: Long): Future[Option[(DeploymentRequest, SortedMap[Long, (Iterable[ExecutionTrace], Iterable[TargetStatus])])]] =
+    dbBinding.findDeepDeploymentRequest(deploymentRequestId)
 
   def queryDeepDeploymentRequests(where: Seq[Map[String, Any]], orderBy: Seq[Map[String, Any]], limit: Int, offset: Int): Future[Iterable[(DeploymentRequest, SortedMap[Long, ArrayBuffer[ExecutionTrace]])]] =
     dbBinding.deepQueryDeploymentRequests(where, orderBy, limit, offset)

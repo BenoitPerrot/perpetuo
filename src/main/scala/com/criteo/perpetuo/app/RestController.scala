@@ -20,7 +20,6 @@ import spray.json.JsonParser.ParsingException
 import spray.json.{DeserializationException, _}
 
 import scala.collection.SortedMap
-import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future, TimeoutException}
@@ -266,7 +265,7 @@ class RestController @Inject()(val engine: Engine)
     }
   }
 
-  private def computeState(depReq: DeploymentRequest, sortedGroupsOfExecutions: SortedMap[Long, ArrayBuffer[ExecutionTrace]]): String =
+  private def computeState(depReq: DeploymentRequest, sortedGroupsOfExecutions: SortedMap[Long, Seq[ExecutionTrace]]): String =
     if (sortedGroupsOfExecutions.isEmpty) {
       "not-started"
     } else {
@@ -290,7 +289,7 @@ class RestController @Inject()(val engine: Engine)
       s"${lastOperationTrace.operation.toString} $lastOperationState"
     }
 
-  private def serialize(isAuthorized: Boolean, depReq: DeploymentRequest, sortedGroupsOfExecutions: SortedMap[Long, ArrayBuffer[ExecutionTrace]]): Map[String, Any] =
+  private def serialize(isAuthorized: Boolean, depReq: DeploymentRequest, sortedGroupsOfExecutions: SortedMap[Long, Seq[ExecutionTrace]]): Map[String, Any] =
     Map(
       "id" -> depReq.id,
       "comment" -> depReq.comment,
@@ -304,24 +303,28 @@ class RestController @Inject()(val engine: Engine)
         (if (sortedGroupsOfExecutions.isEmpty) Seq(Map("name" -> "start", "authorized" -> isAuthorized)) else Seq())
     )
 
-  private def serialize(sortedGroupsOfExecutions: SortedMap[Long, ArrayBuffer[ExecutionTrace]]): Iterable[Map[String, Any]] =
-    sortedGroupsOfExecutions.map { case (_, execs) =>
-      val op = execs.head.operationTrace
+  private def serialize(executionResultsGroups: SortedMap[Long, (Iterable[ExecutionTrace], Iterable[TargetStatus])]): Iterable[Map[String, Any]] =
+    executionResultsGroups.map { case (_, (executionTraces, targetStatus)) =>
+      val op = executionTraces.head.operationTrace
       Map(
         "id" -> op.id,
         "type" -> op.operation.toString,
         "creator" -> op.creator,
         "creationDate" -> op.creationDate,
-        "targetStatus" -> op.targetStatus,
-        "executions" -> execs
+        "targetStatus" -> {
+          val x = targetStatus.map(targetAtomStatus =>
+            targetAtomStatus.targetAtom -> Map("code" -> targetAtomStatus.code.toString, "detail" -> targetAtomStatus.detail))
+          Map[String, Map[String, String]](x.toSeq: _*)
+        },
+        "executions" -> executionTraces
       ) ++ op.closingDate.map("closingDate" -> _)
     }
 
   get("/api/unstable/deployment-requests/:id") { r: RequestWithId =>
     withLongId(id =>
       engine.getDeepDeploymentRequest(id)
-        .map(_.map { case (deploymentRequest, executionTraces) =>
-          serialize(r.request.user.exists(isAuthorized), deploymentRequest, executionTraces) ++ Map("operations" -> serialize(executionTraces))
+        .map(_.map { case (deploymentRequest, executionResultGroups) =>
+          serialize(r.request.user.exists(isAuthorized), deploymentRequest, executionResultGroups.mapValues(_._1.toSeq)) ++ Map("operations" -> serialize(executionResultGroups))
         }),
       2.seconds
     )(r)
