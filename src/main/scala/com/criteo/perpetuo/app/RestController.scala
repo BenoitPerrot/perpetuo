@@ -317,13 +317,6 @@ class RestController @Inject()(val engine: Engine)
     )
   }
 
-  get("/api/unstable/deployment-requests") { r: Request =>
-    timeBoxed(
-      engine.queryDeepDeploymentRequests(where = Seq(), orderBy = Seq(), limit = 20, offset = 0)
-        .map(_.map { case (deploymentRequest, executionTraces) => serialize(r.user.exists(isAuthorized), deploymentRequest, executionTraces) }),
-      5.seconds
-    )
-  }
   get("/api/unstable/deployment-requests/:id") { r: RequestWithId =>
     withLongId(id =>
       engine.getDeepDeploymentRequest(id)
