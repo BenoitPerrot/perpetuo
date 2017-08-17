@@ -317,6 +317,20 @@ class RestControllerSpec extends FeatureTest with TestDb {
   private def getDeploymentRequest(id: String): JsObject =
     getDeploymentRequest(id, Ok).get
 
+  private def getExecutionTracesByDeploymentRequestId(deploymentRequestId: String, expectedStatus: Status): Option[JsArray] = {
+    val response = server.httpGet(
+      path = s"/api/execution-traces/by-deployment-request/$deploymentRequestId",
+      andExpect = expectedStatus
+    )
+    if (response.status == Ok)
+      Some(response.contentString.parseJson.asInstanceOf[JsArray])
+    else
+      None
+  }
+
+  private def getExecutionTracesByDeploymentRequestId(deploymentRequestId: String): JsArray =
+    getExecutionTracesByDeploymentRequestId(deploymentRequestId, Ok).get
+
   "The DeploymentRequest's GET entry-point" should {
 
     "return 404 when trying to access a non-existing DeploymentRequest" in {
@@ -368,27 +382,18 @@ class RestControllerSpec extends FeatureTest with TestDb {
   "The ExecutionTrace's entry-points" should {
 
     "return 404 when trying to access a non-existing DeploymentRequest" in {
-      server.httpGet(
-        path = "/api/execution-traces/by-deployment-request/4242",
-        andExpect = NotFound
-      )
+      getExecutionTracesByDeploymentRequestId("4242", NotFound)
     }
 
     "not fail when the existing DeploymentRequest doesn't have execution traces yet" in {
       val attrs = new DeploymentRequestAttrs("my product", Version("v"), "\"t\"", "c", "c", new Timestamp(System.currentTimeMillis))
       val depReq = Await.result(controller.engine.createDeploymentRequest(attrs, immediateStart = false), 1.second)
-      val traces = server.httpGet(
-        path = s"/api/execution-traces/by-deployment-request/${depReq("id")}",
-        andExpect = Ok
-      ).contentString.parseJson.asInstanceOf[JsArray].elements
+      val traces = getExecutionTracesByDeploymentRequestId(depReq("id").toString).elements
       traces shouldBe empty
     }
 
     "return a list of executions when trying to access an existing DeploymentRequest" in {
-      val traces = server.httpGet(
-        path = "/api/execution-traces/by-deployment-request/1",
-        andExpect = Ok
-      ).contentString.parseJson.asInstanceOf[JsArray].elements
+      val traces = getExecutionTracesByDeploymentRequestId("1").elements
       traces.length shouldEqual 1
       Map(
         "id" -> T,
