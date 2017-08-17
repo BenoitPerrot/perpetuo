@@ -256,8 +256,8 @@ class CriteoListener extends DefaultListenerPlugin {
             def issues = jiraClient.fetchTicketChildren(parentTicketKey)
             assert issues.size() == 1
             String childKey = issues[0].key
-            jiraClient.transitionTicket(childKey, startingChildrenTransitions())
             jiraClient.updateTicketField(childKey, "customfield_20300", 1)
+            jiraClient.transitionTicket(childKey, startingChildrenTransitions())
         }
     }
 
