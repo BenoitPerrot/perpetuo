@@ -103,8 +103,9 @@ class Engine @Inject()(val dbBinding: DbBinding) {
   def rollbackOperationTrace(operationTraceId: Long, initiatorName: String): Future[Option[OperationTrace]] =
     dbBinding.findOperationTrace(operationTraceId).flatMap(
       _.map { op =>
-        // todo: close operation on failure!
         operationStarter.rollbackOperation(plugins.dispatcher, op, initiatorName).map { case (operationTrace, started, _) =>
+          if (started == 0)
+            closeOperation(operationTrace, op.deploymentRequest)
           Some(operationTrace)
         }
       }.getOrElse(Future.successful(None))
