@@ -145,7 +145,7 @@ class RestControllerSpec extends FeatureTest with TestDb {
 
   private def updateExecTrace(deploymentRequestId: Long, execId: Int, state: String, logHref: Option[String],
                               targetStatus: Option[Map[String, JsValue]] = None,
-                              expectedTargetStatus: Map[String, (String, String)]) = {
+                              expectedTargetStatus: Map[String, (String, String)]): Unit = {
     val logHrefJson = logHref.map(_.toJson)
     val previousLogHrefJson = logHrefHistory.getOrElse(execId, JsNull)
     val expectedLogHrefJson = logHrefJson.getOrElse(previousLogHrefJson)
@@ -159,7 +159,7 @@ class RestControllerSpec extends FeatureTest with TestDb {
       case (k, v) if v.isDefined => k -> v.get
     }
     val ret = httpPut(
-      s"/api/execution-traces/$execId",
+      RestApi.executionCallbackPath(execId.toString),
       params.toJson,
       NoContent
     )
@@ -436,7 +436,7 @@ class RestControllerSpec extends FeatureTest with TestDb {
 
     "return 404 on non-integral ID" in {
       httpPut(
-        s"/api/execution-traces/abc",
+        RestApi.executionCallbackPath("abc"),
         Map("state" -> "conflicting").toJson,
         NotFound
       )
@@ -444,7 +444,7 @@ class RestControllerSpec extends FeatureTest with TestDb {
 
     "return 404 if trying to update an unknown execution trace" in {
       httpPut(
-        s"/api/execution-traces/12345",
+        RestApi.executionCallbackPath("12345"),
         Map("state" -> "conflicting").toJson,
         NotFound
       )
@@ -452,7 +452,7 @@ class RestControllerSpec extends FeatureTest with TestDb {
 
     "return 400 if the target status is badly formatted and not update the state" in {
       httpPut(
-        s"/api/execution-traces/1",
+        RestApi.executionCallbackPath("1"),
         JsObject("state" -> "conflicting".toJson, "targetStatus" -> Vector("par", "am5").toJson),
         BadRequest
       ).contentString should include("targetStatus: Unable to parse")
@@ -465,7 +465,7 @@ class RestControllerSpec extends FeatureTest with TestDb {
 
     "return 400 if no state is provided" in {
       httpPut(
-        s"/api/execution-traces/1",
+        RestApi.executionCallbackPath("1"),
         JsObject("targetStatus" -> Map("par" -> "success").toJson),
         BadRequest
       ).contentString should include("state: field is required")
@@ -473,7 +473,7 @@ class RestControllerSpec extends FeatureTest with TestDb {
 
     "return 400 if the provided state is unknown" in {
       httpPut(
-        s"/api/execution-traces/1",
+        RestApi.executionCallbackPath("1"),
         Map("state" -> "what?").toJson,
         BadRequest
       ).contentString should include("Unknown state `what?`")
@@ -481,7 +481,7 @@ class RestControllerSpec extends FeatureTest with TestDb {
 
     "return 400 and not update the state if a provided target status is unknown" in {
       httpPut(
-        s"/api/execution-traces/1",
+        RestApi.executionCallbackPath("1"),
         JsObject("state" -> "conflicting".toJson, "targetStatus" -> Map("par" -> Map("code" -> "foobar", "detail" -> "")).toJson),
         BadRequest
       ).contentString should include("Unknown target status `foobar`")
