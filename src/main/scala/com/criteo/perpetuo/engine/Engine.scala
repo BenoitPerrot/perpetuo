@@ -144,16 +144,6 @@ class Engine @Inject()(val dbBinding: DbBinding) {
         dbBinding.findExecutionTraceById(id).map(_.get).flatMap { execTrace =>
           val op = execTrace.operationTrace
 
-          val operationClosingAttempt =
-            dbBinding.hasOpenExecutionTracesForOperation(op.id).flatMap { hasOpenExecutions =>
-              if (hasOpenExecutions)
-                Future.successful(false)
-              else
-                dbBinding.findDeploymentRequestById(op.deploymentRequestId).flatMap { depReq =>
-                  closeOperation(op, depReq.get)
-                }
-            }
-
           val statusMapUpdate =
             if (statusMap.isEmpty)
               Future.successful(false)
@@ -162,9 +152,16 @@ class Engine @Inject()(val dbBinding: DbBinding) {
 
           val statusMapToExecution = dbBinding.insertTargetStatuses(execTrace.executionId, statusMap).map(_ => true)
 
-          Future.sequence(Seq(operationClosingAttempt, statusMapUpdate, statusMapToExecution)).map(x => {
-            Some(x.head)
-          })
+          Future.sequence(Seq(statusMapUpdate, statusMapToExecution))
+            .flatMap(_ => dbBinding.hasOpenExecutionTracesForOperation(op.id))
+            .flatMap { hasOpenExecutions =>
+              if (hasOpenExecutions)
+                Future.successful(Some(false))
+              else
+                dbBinding.findDeploymentRequestById(op.deploymentRequestId).flatMap { depReq =>
+                  closeOperation(op, depReq.get).map(Some(_))
+                }
+            }
         }
       }
       else
