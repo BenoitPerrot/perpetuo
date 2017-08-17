@@ -74,7 +74,6 @@ class DbBinding @Inject()(val dbContext: DbContext)
       fieldName match {
         case "creationDate" => queries.sortBy(if (descending) _._1.creationDate.desc else _._1.creationDate.asc)
         case "creator" => queries.sortBy(if (descending) _._1.creator.desc else _._1.creator.asc)
-        case "version" => queries.sortBy(if (descending) _._1.version.desc else _._1.version.asc)
         case "productName" => queries.sortBy(if (descending) _._2.name.desc else _._2.name.asc)
         case _ => throw new IllegalArgumentException(s"Cannot sort by `$fieldName`")
       }
@@ -91,7 +90,6 @@ class DbBinding @Inject()(val dbContext: DbContext)
       fieldName match {
         case "creationDate" => queries.sortBy(if (descending) _._1.creationDate.desc else _._1.creationDate.asc)
         case "creator" => queries.sortBy(if (descending) _._1.creator.desc else _._1.creator.asc)
-        case "version" => queries.sortBy(if (descending) _._1.version.desc else _._1.version.asc)
         case "productName" => queries.sortBy(if (descending) _._2.name.desc else _._2.name.asc)
         case _ => throw new IllegalArgumentException(s"Cannot sort by `$fieldName`")
       }

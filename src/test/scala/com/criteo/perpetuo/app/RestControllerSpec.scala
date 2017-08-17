@@ -667,12 +667,10 @@ class RestControllerSpec extends FeatureTest with TestDb {
 
         val sortNumbers = isSorted[BigDecimal, JsNumber](_: Seq[Map[String, JsValue]], _: String, BigDecimal.valueOf(-1), _ <= _)
         val sortStrings = isSorted[String, JsString](_: Seq[Map[String, JsValue]], _: String, "", _ <= _)
-        val sortVersions = isSorted[String, JsString](_: Seq[Map[String, JsValue]], _: String, "", Version(_).value <= Version(_).value)
         Map(
           "creationDate" -> sortNumbers,
           "productName" -> sortStrings,
-          "creator" -> sortStrings,
-          "version" -> sortVersions
+          "creator" -> sortStrings
         ).foreach { case (fieldName, isSorted) =>
             val sortedDepReqs = deepGetDepReq(orderBy = Seq(Map("field" -> fieldName.toJson, "desc" -> descending.toJson)))
             sortedDepReqs.isEmpty shouldBe false

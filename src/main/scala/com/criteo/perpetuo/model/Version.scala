@@ -24,27 +24,9 @@ class Version(serialized: String) extends MappedTo[String] {
     .getOrElse(Seq(PartialVersion(JsString(serialized))))
     .map(sv => PartialVersion(Version.replaceAllInStringLeaves(sv.value, Version.dropLeading0Regex, _.group(1)), sv.ratio))
 
-  // compute the standardized representation, usable by Slick's `sortBy` thanks to `MappedTo`
-  val value: String = try {
-    val uniformed = Version.compactPrint(
-      structured.map(sv => {
-        val value = Version.replaceAllInStringLeaves(sv.value, Version.numberRegex, { m =>
-          val nb = m.matched
-          val prefix = Version.numberBaseField.length - nb.length
-          assert(prefix >= 0)
-          Version.numberBaseField.slice(0, prefix) + nb
-        })
-        PartialVersion(value, sv.ratio)
-      })
-    )
-    assert(uniformed.length <= Version.maxSize)
-    uniformed
-  }
-  catch {
-    case _: AssertionError => toString
-  }
-
   override def toString: String = Version.compactPrint(structured)
+
+  override def value: String = toString
 
   override def equals(o: scala.Any): Boolean = o.isInstanceOf[Version] && o.asInstanceOf[Version].value == value
 }
@@ -53,8 +35,6 @@ class Version(serialized: String) extends MappedTo[String] {
 object Version {
   private val valueField = "value"
   private val ratioField = "ratio"
-  private val numberBaseField = "0" * System.currentTimeMillis.toString.length
-  private val numberRegex = """\d+""".r
   private val dropLeading0Regex = """0*(\d+)""".r
 
   private val parseVersion: JsValue => PartialVersion = {
