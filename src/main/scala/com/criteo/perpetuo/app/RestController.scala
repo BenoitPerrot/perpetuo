@@ -353,5 +353,5 @@ class RestController @Inject()(val engine: Engine)
 
 
 object RestApi {
-  def executionCallbackPath(executionId: String): String = s"/api/execution-traces/$executionId"
+  def executionCallbackPath(execTraceId: String): String = s"/api/execution-traces/$execTraceId"
 }

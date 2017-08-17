@@ -20,7 +20,7 @@ abstract class HttpInvoker(val host: String,
 
   // to implement in concrete classes
   /** `buildRequest` returns the HTTP request object ready to invoke the appropriate executor in charge of running the execution. */
-  protected def buildRequest(executionId: Long, executionKind: String, productName: String, version: Version, target: String, frozenParameters: String, initiator: String): Request
+  protected def buildRequest(execTraceId: Long, executionKind: String, productName: String, version: Version, target: String, frozenParameters: String, initiator: String): Request
   /** `logHref` gives a unique identifier allowing to find possible external execution logs. */
   protected def extractLogHref(executorAnswer: String): String // answer "" if no log href can be known (e.g. delayed execution)
   /** `extractMessage` extracts an error message from any error output returned by the contacted API. */
@@ -45,9 +45,9 @@ abstract class HttpInvoker(val host: String,
 
   override def toString: String = name
 
-  override def trigger(executionId: Long, executionKind: String, productName: String, version: Version, target: TargetExpr, frozenParameters: String, initiator: String): ScalaFuture[Option[String]] = {
+  override def trigger(execTraceId: Long, executionKind: String, productName: String, version: Version, target: TargetExpr, frozenParameters: String, initiator: String): ScalaFuture[Option[String]] = {
     // todo: while we only support deployment tactics, we directly give the select dimension, and formatted differently
-    val req = buildRequest(executionId, executionKind, productName, version, Target.getSimpleSelect(target).mkString(","), frozenParameters, initiator)
+    val req = buildRequest(execTraceId, executionKind, productName, version, Target.getSimpleSelect(target).mkString(","), frozenParameters, initiator)
 
     // trigger the job and return a future to the execution's log href
     ScalaFuture {

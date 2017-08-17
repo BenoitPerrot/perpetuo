@@ -143,13 +143,13 @@ class RestControllerSpec extends FeatureTest with TestDb {
       andExpect = expect
     )
 
-  private def updateExecTrace(deploymentRequestId: Long, execId: Int, state: String, logHref: Option[String],
+  private def updateExecTrace(deploymentRequestId: Long, execTraceId: Int, state: String, logHref: Option[String],
                               targetStatus: Option[Map[String, JsValue]] = None,
                               expectedTargetStatus: Map[String, (String, String)]): Unit = {
     val logHrefJson = logHref.map(_.toJson)
-    val previousLogHrefJson = logHrefHistory.getOrElse(execId, JsNull)
+    val previousLogHrefJson = logHrefHistory.getOrElse(execTraceId, JsNull)
     val expectedLogHrefJson = logHrefJson.getOrElse(previousLogHrefJson)
-    logHrefHistory(execId) = expectedLogHrefJson
+    logHrefHistory(execTraceId) = expectedLogHrefJson
 
     val params = Map(
       "state" -> Some(state.toJson),
@@ -159,7 +159,7 @@ class RestControllerSpec extends FeatureTest with TestDb {
       case (k, v) if v.isDefined => k -> v.get
     }
     val ret = httpPut(
-      RestApi.executionCallbackPath(execId.toString),
+      RestApi.executionCallbackPath(execTraceId.toString),
       params.toJson,
       NoContent
     )
@@ -178,7 +178,7 @@ class RestControllerSpec extends FeatureTest with TestDb {
       "targetStatus" -> expectedTargetStatus.mapValues { case (s, d) => Map("code" -> s, "detail" -> d) }.toJson,
       "executions" -> JsArray(
         JsObject(
-          "id" -> execId.toJson,
+          "id" -> execTraceId.toJson,
           "executionId" -> T,
           "logHref" -> expectedLogHrefJson,
           "state" -> state.toJson

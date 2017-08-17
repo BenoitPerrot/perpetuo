@@ -71,13 +71,13 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
         .flatMap { executionSpecs =>
           // and only then, for each execution to do:
           Future.traverse(executionSpecs) {
-            case ((executor, target), execId) =>
+            case ((executor, target), execTraceId) =>
               // log the execution
-              logger.debug(s"Triggering ${operationTrace.operation} job for execution #$execId of $productName v. $version on $executor")
+              logger.debug(s"Triggering ${operationTrace.operation} job for execution #$execTraceId of $productName v. $version on $executor")
               // trigger the execution
               executor
                 .trigger(
-                  execId,
+                  execTraceId,
                   Operation.executionKind(operationTrace.operation),
                   productName,
                   version,
@@ -89,7 +89,7 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
                   // if that answers a log href, update the trace with it, and consider that the job
                   // is running (i.e. already followable and not yet terminated, really)
                   _.map(logHref =>
-                    dbBinding.updateExecutionTrace(execId, logHref, ExecutionState.running).map { updated =>
+                    dbBinding.updateExecutionTrace(execTraceId, logHref, ExecutionState.running).map { updated =>
                       assert(updated)
                       (true, s"`$logHref` succeeded")
                     }
@@ -100,13 +100,13 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
                 .recoverWith {
                   // if triggering the job throws an error, mark the execution as failed at initialization
                   case e: Throwable =>
-                    dbBinding.updateExecutionTrace(execId, ExecutionState.initFailed).map { updated =>
+                    dbBinding.updateExecutionTrace(execTraceId, ExecutionState.initFailed).map { updated =>
                       assert(updated)
                       (false, s"failed (${e.getMessage})")
                     }
                 }
                 .map { case (succeeded, identifier) =>
-                  logExecution(identifier, execId, executor, target)
+                  logExecution(identifier, execTraceId, executor, target)
                   succeeded
                 }
           }.map { statuses =>

@@ -13,9 +13,9 @@ import scala.concurrent.Future
 abstract class ExecutorInvoker {
   ExecutorInvoker.registeredInvokers += this
 
-  protected def callbackUrl(executionId: Long): String = AppConfig.get[String]("selfUrl") + RestApi.executionCallbackPath(executionId.toString)
+  protected def callbackUrl(execTraceId: Long): String = AppConfig.get[String]("selfUrl") + RestApi.executionCallbackPath(execTraceId.toString)
 
-  def trigger(executionId: Long, executionKind: String, productName: String, version: Version, target: TargetExpr, frozenParameters: String, initiator: String): Future[Option[String]]
+  def trigger(execTraceId: Long, executionKind: String, productName: String, version: Version, target: TargetExpr, frozenParameters: String, initiator: String): Future[Option[String]]
 
   def getExecutionDetailsUrlIfApplicable(logHref: String): Option[String] = None
 }
@@ -43,8 +43,8 @@ object ExecutorInvoker {
 class DummyInvoker(name: String) extends ExecutorInvoker with Logging {
   override def toString: String = name
 
-  override def trigger(executionId: Long, executionKind: String, productName: String, version: Version, target: TargetExpr, frozenParameters: String, initiator: String): Future[Option[String]] = {
-    logger.info(s"Hi, I'm $name! I will run operation #$executionId on behalf of: $initiator")
+  override def trigger(execTraceId: Long, executionKind: String, productName: String, version: Version, target: TargetExpr, frozenParameters: String, initiator: String): Future[Option[String]] = {
+    logger.info(s"Hi, I'm $name! I will run operation #$execTraceId on behalf of: $initiator")
     Future.successful(None)
   }
 }
