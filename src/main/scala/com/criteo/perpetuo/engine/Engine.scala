@@ -91,7 +91,7 @@ class Engine @Inject()(val dbBinding: DbBinding) {
 
     operationTraceAndExecutionSpecifications.flatMap(_.map { case (originOperationTrace, executionSpecs) =>
       dbBinding.findDeploymentRequestById(originOperationTrace.deploymentRequestId).flatMap(_.map { deploymentRequest =>
-        operationStarter.retry(plugins.dispatcher, deploymentRequest, originOperationTrace, executionSpecs, initiatorName).map { case (operationTrace, (started, _)) =>
+        operationStarter.retry(plugins.dispatcher, deploymentRequest, originOperationTrace, executionSpecs, initiatorName).map { case (operationTrace, started, _) =>
           if (started == 0)
             closeOperation(operationTrace, deploymentRequest)
           Some(operationTrace)
@@ -100,11 +100,13 @@ class Engine @Inject()(val dbBinding: DbBinding) {
     }.getOrElse(Future.successful(None)))
   }
 
-  def rollbackOperationTrace(operationTraceId: Long, initiatorName: String): Future[Option[(OperationTrace, Int, Int)]] =
+  def rollbackOperationTrace(operationTraceId: Long, initiatorName: String): Future[Option[OperationTrace]] =
     dbBinding.findOperationTrace(operationTraceId).flatMap(
       _.map { op =>
         // todo: close operation on failure!
-        operationStarter.rollbackOperation(plugins.dispatcher, op, initiatorName).map(Some(_))
+        operationStarter.rollbackOperation(plugins.dispatcher, op, initiatorName).map { case (operationTrace, started, _) =>
+          Some(operationTrace)
+        }
       }.getOrElse(Future.successful(None))
     )
 
