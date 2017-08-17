@@ -303,30 +303,35 @@ class RestControllerSpec extends FeatureTest with TestDb {
     }
   }
 
+  private def getDeploymentRequest(id: String, expectedStatus: Status): Option[JsObject] = {
+    val response = server.httpGet(
+      path = s"/api/deployment-requests/$id",
+      andExpect = expectedStatus
+    )
+    if (response.status == Ok)
+      Some(response.contentString.parseJson.asJsObject)
+    else
+      None
+  }
+
+  private def getDeploymentRequest(id: String): JsObject =
+    getDeploymentRequest(id, Ok).get
+
   "The DeploymentRequest's GET entry-point" should {
 
     "return 404 when trying to access a non-existing DeploymentRequest" in {
-      server.httpGet(
-        path = "/api/deployment-requests/4242",
-        andExpect = NotFound
-      )
+      getDeploymentRequest("4242", NotFound)
     }
 
     "return 404 when trying to access a DeploymentRequest with a non-integral ID" in {
-      server.httpGet(
-        path = "/api/deployment-requests/..",
-        andExpect = NotFound
-      )
+      getDeploymentRequest("..", NotFound)
     }
 
     "return 200 and a JSON with all necessary info when accessing an existing DeploymentRequest" in {
       val o = requestDeployment("my product", "v2097", "to everywhere".toJson, Some("hello world"))
       val i = o.fields("id").asInstanceOf[JsNumber].value.toInt
 
-      val values1 = server.httpGet(
-        path = s"/api/deployment-requests/$i",
-        andExpect = Ok
-      ).contentString.parseJson.asJsObject.fields
+      val values1 = getDeploymentRequest(i.toString).fields
 
       checkCreationDate(values1)
 
@@ -341,10 +346,7 @@ class RestControllerSpec extends FeatureTest with TestDb {
       ) shouldEqual values1
     }
 
-    lazy val values3 = server.httpGet(
-      path = "/api/deployment-requests/3",
-      andExpect = Ok
-    ).contentString.parseJson.asJsObject.fields
+    lazy val values3 = getDeploymentRequest("3").fields
 
     "return 200 and a JSON without `comment` if none or an empty one was provided" in {
       values3 should not contain key("comment")
@@ -729,10 +731,7 @@ class RestControllerSpec extends FeatureTest with TestDb {
         ).toJson.compactPrint
       ).contentString.parseJson.asJsObject.fields("id")
 
-      server.httpGet(
-        path = s"/api/deployment-requests/$id",
-        andExpect = Ok
-      ).contentString.parseJson.asJsObject.fields("creator").asInstanceOf[JsString].value shouldEqual
+      getDeploymentRequest(id.toString).fields("creator").asInstanceOf[JsString].value shouldEqual
         "too-long-user-name/too-long-user-name/too-long-user-name/too-lon"
     }
   }
