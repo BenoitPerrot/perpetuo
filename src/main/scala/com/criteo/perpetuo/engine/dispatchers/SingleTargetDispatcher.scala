@@ -1,6 +1,7 @@
 package com.criteo.perpetuo.engine.dispatchers
 
 import com.criteo.perpetuo.engine.executors.{DummyInvoker, ExecutorInvoker}
+
 import scala.collection.JavaConverters._
 
 

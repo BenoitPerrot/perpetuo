@@ -10,8 +10,8 @@ import org.scalatest.concurrent._
 import org.scalatest.junit.JUnitRunner
 
 import scala.concurrent.Await
-import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.duration._
 
 
 @RunWith(classOf[JUnitRunner])

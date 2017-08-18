@@ -9,9 +9,9 @@ import com.twitter.inject.Test
 import spray.json.DefaultJsonProtocol._
 import spray.json._
 
-import scala.concurrent.{Await, Future}
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
+import scala.concurrent.{Await, Future}
 
 class EngineSpec extends Test with TestDb {
 

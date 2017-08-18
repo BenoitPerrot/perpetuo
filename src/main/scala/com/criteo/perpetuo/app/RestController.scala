@@ -5,7 +5,7 @@ import javax.inject.Inject
 import com.criteo.perpetuo.auth.User
 import com.criteo.perpetuo.auth.UserFilter._
 import com.criteo.perpetuo.config.AppConfig
-import com.criteo.perpetuo.dao.{ProductCreationConflict, Schema, UnknownProduct}
+import com.criteo.perpetuo.dao.{ProductCreationConflict, UnknownProduct}
 import com.criteo.perpetuo.engine.Engine
 import com.criteo.perpetuo.model._
 import com.twitter.finagle.http.{Request, Response, Status => HttpStatus}
@@ -16,9 +16,8 @@ import com.twitter.finatra.utils.FuturePools
 import com.twitter.finatra.validation._
 import com.twitter.util.{Future => TwitterFuture}
 import spray.json.DefaultJsonProtocol._
-import spray.json.DeserializationException
 import spray.json.JsonParser.ParsingException
-import spray.json._
+import spray.json.{DeserializationException, _}
 
 import scala.collection.SortedMap
 import scala.collection.mutable.ArrayBuffer

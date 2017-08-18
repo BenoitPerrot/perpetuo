@@ -1,7 +1,6 @@
 package com.criteo.perpetuo.app
 
-import com.criteo.perpetuo.auth.UserFilter
-import com.criteo.perpetuo.auth.{Controller => AuthenticationController}
+import com.criteo.perpetuo.auth.{UserFilter, Controller => AuthenticationController}
 import com.criteo.perpetuo.config.AppConfig
 import com.twitter.finagle.http.{Request, Response}
 import com.twitter.finatra.http.HttpServer

@@ -1,14 +1,10 @@
 package com.criteo.perpetuo.dao
 
-import java.net.InetSocketAddress
 import javax.inject.{Inject, Singleton}
 
-import com.criteo.perpetuo.app.RawJson
 import com.criteo.perpetuo.model._
-import com.twitter.finagle.builder.ClientBuilder
-import com.twitter.finagle.http.{Http, Request, Status => HttpStatus}
+import com.twitter.finagle.http.{Status => HttpStatus}
 import com.twitter.util.{Await => TwitterAwait}
-import spray.json._
 
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.{SortedMap, breakOut, mutable}
