@@ -42,7 +42,6 @@ CREATE INDEX "ix_operation_trace_creation_date"
 
 CREATE TABLE "execution_specification" (
   "id"                  BIGINT          NOT NULL IDENTITY,
-  "operation_trace_id"  BIGINT          NOT NULL,
   "version"             NVARCHAR(1024)  NOT NULL,
   "specific_parameters" NVARCHAR(16000) NOT NULL
 )
@@ -64,8 +63,6 @@ CREATE UNIQUE INDEX "ix_execution"
 CREATE TABLE "target_status" (
   "id"                         BIGINT         NOT NULL IDENTITY,
   "execution_id"               BIGINT         NOT NULL,
-  "operation_trace_id"         BIGINT         NOT NULL,
-  "execution_specification_id" BIGINT         NOT NULL,
   "target"                     NVARCHAR(128)  NOT NULL,
   "code"                       SMALLINT       NOT NULL,
   "detail"                     NVARCHAR(4000) NOT NULL
@@ -81,7 +78,6 @@ CREATE TABLE "execution_trace" (
   "operation_trace_id"         BIGINT      DEFAULT NULL,
   "log_href"                   NVARCHAR(1024),
   "state"                      SMALLINT    NOT NULL,
-  "execution_specification_id" BIGINT,
   "execution_id"               BIGINT      DEFAULT NULL
 )
 ALTER TABLE "execution_trace"
