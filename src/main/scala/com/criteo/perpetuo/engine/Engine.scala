@@ -91,11 +91,14 @@ class Engine @Inject()(val dbBinding: DbBinding) {
 
     operationTraceAndExecutionSpecifications.flatMap(_.map { case (originOperationTrace, executionSpecs) =>
       dbBinding.findDeploymentRequestById(originOperationTrace.deploymentRequestId).flatMap(_.map { deploymentRequest =>
-        operationStarter.retry(plugins.dispatcher, deploymentRequest, originOperationTrace, executionSpecs, initiatorName).map { case (operationTrace, started, _) =>
-          if (started == 0)
-            closeOperation(operationTrace, deploymentRequest)
-          Some(operationTrace)
-        }
+        operationStarter
+          .retry(plugins.dispatcher, deploymentRequest, originOperationTrace, executionSpecs, initiatorName)
+          .map { case (operationTrace, started, failed) =>
+            Future(plugins.listener.onDeploymentRequestRetried(deploymentRequest, started, failed))
+            if (started == 0)
+              closeOperation(operationTrace, deploymentRequest)
+            Some(operationTrace)
+          }
       }.getOrElse(Future.successful(None)))
     }.getOrElse(Future.successful(None)))
   }
@@ -103,11 +106,14 @@ class Engine @Inject()(val dbBinding: DbBinding) {
   def rollbackOperationTrace(operationTraceId: Long, initiatorName: String): Future[Option[OperationTrace]] =
     dbBinding.findOperationTrace(operationTraceId).flatMap(
       _.map { op =>
-        operationStarter.rollbackOperation(plugins.dispatcher, op, initiatorName).map { case (operationTrace, started, _) =>
-          if (started == 0)
-            closeOperation(operationTrace, op.deploymentRequest)
-          Some(operationTrace)
-        }
+        operationStarter
+          .rollbackOperation(plugins.dispatcher, op, initiatorName)
+          .map { case (operationTrace, started, failed) =>
+            Future(plugins.listener.onDeploymentRequestRolledBack(op.deploymentRequest, started, failed))
+            if (started == 0)
+              closeOperation(operationTrace, op.deploymentRequest)
+            Some(operationTrace)
+          }
       }.getOrElse(Future.successful(None))
     )
 
