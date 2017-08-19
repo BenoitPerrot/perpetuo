@@ -136,13 +136,19 @@ class RestControllerSpec extends FeatureTest with TestDb {
       andExpect = expect
     )
 
-  private def actOnDeploymentRequest(deploymentRequestId: Long, body: JsValue, expect: Status) =
+  private def actOnDeploymentRequest(deploymentRequestId: Long, body: JsValue, expect: Status): Response =
     server.httpPost(
       path = s"/api/deployment-requests/$deploymentRequestId/actions",
       headers = Map("Cookie" -> s"jwt=$stdUserJWT"),
       postBody = body.compactPrint,
       andExpect = expect
     )
+
+  private def startDeploymentRequest(deploymentRequestId: Long, expect: Status): Response =
+    actOnDeploymentRequest(deploymentRequestId, Map("name" -> "start").toJson, expect)
+
+  private def startDeploymentRequest(deploymentRequestId: Long): JsObject =
+    startDeploymentRequest(deploymentRequestId, Ok).contentString.parseJson.asJsObject
 
   private def updateExecTrace(deploymentRequestId: Long, execTraceId: Int, state: String, logHref: Option[String],
                               targetStatus: Option[Map[String, JsValue]] = None,
@@ -283,19 +289,15 @@ class RestControllerSpec extends FeatureTest with TestDb {
 
     "start a deployment that was not started yet" in {
       val id = requestDeployment("my product", "456", "ams".toJson, None, None, start = false).fields("id").asInstanceOf[JsNumber].value
-      actOnDeploymentRequest(id.longValue(), Map("name" -> "start").toJson,
-        Ok)
-        .contentString.parseJson.asJsObject shouldEqual JsObject("id" -> id.toJson)
+      startDeploymentRequest(id.longValue()) shouldEqual JsObject("id" -> id.toJson)
     }
 
     "return 404 when trying to start a non-existing DeploymentRequest" in {
-      actOnDeploymentRequest(4242, Map("name" -> "start").toJson,
-        NotFound)
+      startDeploymentRequest(4242, NotFound)
     }
 
     "return 400 when putting nonsense" in {
-      actOnDeploymentRequest(1, "hello".toJson,
-        BadRequest)
+      actOnDeploymentRequest(1, "hello".toJson, BadRequest)
     }
 
     "return 400 when putting a non-existing action" in {
