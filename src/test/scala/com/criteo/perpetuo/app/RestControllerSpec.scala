@@ -27,6 +27,10 @@ import scala.concurrent.duration._
   */
 class RestControllerSpec extends FeatureTest with TestDb {
 
+  implicit class JsObjectIdExtractor(private val o: JsValue) {
+    def idAsLong: Long = o.asJsObject.fields("id").asInstanceOf[JsNumber].value.longValue
+  }
+
   val authModule = new AuthModule(AppConfig.under("auth"))
   val deployUser = User("qabot")
   val deployUserJWT = deployUser.toJWT(authModule.jwtEncoder)
@@ -139,7 +143,7 @@ class RestControllerSpec extends FeatureTest with TestDb {
   private def actOnDeploymentRequest(deploymentRequestId: Long, body: JsValue, expect: Status): Response =
     server.httpPost(
       path = s"/api/deployment-requests/$deploymentRequestId/actions",
-      headers = Map("Cookie" -> s"jwt=$stdUserJWT"),
+      headers = Map("Cookie" -> s"jwt=$deployUserJWT"),
       postBody = body.compactPrint,
       andExpect = expect
     )
@@ -149,6 +153,12 @@ class RestControllerSpec extends FeatureTest with TestDb {
 
   private def startDeploymentRequest(deploymentRequestId: Long): JsObject =
     startDeploymentRequest(deploymentRequestId, Ok).contentString.parseJson.asJsObject
+
+  private def startDeployment(productName: String, version: String, target: JsValue): (Long, Seq[Long]) = {
+    val depReqId = requestDeployment(productName, version, target, None, start = false).idAsLong
+    startDeploymentRequest(depReqId)
+    (depReqId, getExecutionTracesByDeploymentRequestId(depReqId.toString).elements.map(_.idAsLong))
+  }
 
   private def updateExecTrace(deploymentRequestId: Long, execTraceId: Long, state: String, logHref: Option[String],
                               targetStatus: Option[Map[String, JsValue]] = None,
@@ -407,42 +417,59 @@ class RestControllerSpec extends FeatureTest with TestDb {
     }
 
     "update one record's execution state on a PUT" in {
+      val (depReqId, executionTraces) = startDeployment("my product", "1112", "paris".toJson)
       updateExecTrace(
-        1, 1, "completed", None,
+        depReqId, executionTraces.head, "completed", None,
         expectedTargetStatus = Map()
       )
     }
 
     "update one record's execution state and log href on a PUT" in {
+      val (depReqId, executionTraces) = startDeployment("my product", "1112", "paris".toJson)
       updateExecTrace(
-        2, 2, "completed", Some("http://somewhe.re"),
+        depReqId, executionTraces.head, "completed", Some("http://somewhe.re"),
         expectedTargetStatus = Map()
       )
     }
 
     "update one record's execution state and target status on a PUT" in {
+      val (depReqId, executionTraces) = startDeployment("my product", "653", Seq("paris", "ams").toJson)
       updateExecTrace(
-        2, 2, "initFailed", None,
-        targetStatus = Some(Map("par" -> Map("code" -> "success", "detail" -> "").toJson)),
-        expectedTargetStatus = Map("par" -> ("success", ""))
+        depReqId, executionTraces.head, "initFailed", None,
+        targetStatus = Some(Map("paris" -> Map("code" -> "success", "detail" -> "").toJson)),
+        expectedTargetStatus = Map("paris" -> ("success", ""))
       )
     }
 
+    // todo: restore once Engine supports partial update
+    /*
     "update one record's execution state, log href and target status (partially) on a PUT" in {
+      val depReqId = requestDeployment("my product", "653", Seq("paris", "amsterdam").toJson, None, start = false).idAsLong
+      startDeploymentRequest(depReqId)
+      val execTraceId = getExecutionTracesByDeploymentRequestId(depReqId.toString).elements(0).idAsLong
       updateExecTrace(
-        2, 2, "conflicting", Some("http://"),
-        targetStatus = Some(Map("am5" -> Map("code" -> "notDone", "detail" -> "").toJson)),
-        expectedTargetStatus = Map("par" -> ("success", ""), "am5" -> ("notDone", ""))
+        depReqId, execTraceId, "conflicting", Some("http://"),
+        targetStatus = Some(Map("amsterdam" -> Map("code" -> "notDone", "detail" -> "").toJson)),
+        expectedTargetStatus = Map("amsterdam" -> ("notDone", ""))
       )
     }
 
     "partially update one record's target status on a PUT" in {
+      val depReqId = requestDeployment("my product", "653", Seq("paris", "amsterdam").toJson, None, start = false).idAsLong
+      startDeploymentRequest(depReqId)
+      val execTraceId = getExecutionTracesByDeploymentRequestId(depReqId.toString).elements(0).idAsLong
       updateExecTrace(
-        2, 2, "completed", Some("http://final"),
-        targetStatus = Some(Map("am5" -> Map("code" -> "hostFailure", "detail" -> "some details...").toJson)),
-        expectedTargetStatus = Map("par" -> ("success", ""), "am5" -> ("hostFailure", "some details..."))
+        depReqId, execTraceId, "conflicting", None,
+        targetStatus = Some(Map("amsterdam" -> Map("code" -> "notDone", "detail" -> "").toJson)),
+        expectedTargetStatus = Map("amsterdam" -> ("notDone", ""))
+      )
+      updateExecTrace(
+        depReqId, execTraceId, "completed", Some("http://final"),
+        targetStatus = Some(Map("amsterdam" -> Map("code" -> "hostFailure", "detail" -> "some details...").toJson)),
+        expectedTargetStatus = Map("paris" -> ("success", ""), "amsterdam" -> ("hostFailure", "some details..."))
       )
     }
+    */
 
     "return 404 on non-integral ID" in {
       httpPut(
@@ -461,15 +488,18 @@ class RestControllerSpec extends FeatureTest with TestDb {
     }
 
     "return 400 if the target status is badly formatted and not update the state" in {
+      val (depReqId, executionTraces) = startDeployment("my product", "2456", Seq("paris", "amsterdam").toJson)
+      val execTraceId = executionTraces.head
+
       httpPut(
-        RestApi.executionCallbackPath("1"),
-        JsObject("state" -> "conflicting".toJson, "targetStatus" -> Vector("par", "am5").toJson),
+        RestApi.executionCallbackPath(execTraceId.toString),
+        JsObject("state" -> "conflicting".toJson, "targetStatus" -> Vector("paris", "amsterdam").toJson),
         BadRequest
       ).contentString should include("targetStatus: Unable to parse")
 
       updateExecTrace(
-        2, 2, "completed", None,
-        expectedTargetStatus = Map("par" -> ("success", ""), "am5" -> ("hostFailure", "some details..."))
+        depReqId, execTraceId, "completed", None,
+        expectedTargetStatus = Map()
       )
     }
 
@@ -482,24 +512,28 @@ class RestControllerSpec extends FeatureTest with TestDb {
     }
 
     "return 400 if the provided state is unknown" in {
+      val (depReqId, executionTraces) = startDeployment("my product", "2456", Seq("paris", "amsterdam").toJson)
+
       httpPut(
-        RestApi.executionCallbackPath("1"),
+        RestApi.executionCallbackPath(executionTraces.head.toString),
         Map("state" -> "what?").toJson,
         BadRequest
       ).contentString should include("Unknown state `what?`")
     }
 
     "return 400 and not update the state if a provided target status is unknown" in {
+      val (depReqId, executionTraces) = startDeployment("my product", "2456", Seq("paris", "amsterdam").toJson)
+      val execTraceId = executionTraces.head
+
       httpPut(
-        RestApi.executionCallbackPath("1"),
+        RestApi.executionCallbackPath(execTraceId.toString),
         JsObject("state" -> "conflicting".toJson, "targetStatus" -> Map("par" -> Map("code" -> "foobar", "detail" -> "")).toJson),
         BadRequest
       ).contentString should include("Unknown target status `foobar`")
 
       updateExecTrace(
-        2, 2, "completed", None,
-        targetStatus = Some(Map("am5" -> Map("code" -> "hostFailure", "detail" -> "some interesting details").toJson)),
-        expectedTargetStatus = Map("par" -> ("success", ""), "am5" -> ("hostFailure", "some interesting details"))
+        depReqId, execTraceId, "completed", None,
+        expectedTargetStatus = Map()
       )
     }
 
@@ -525,8 +559,10 @@ class RestControllerSpec extends FeatureTest with TestDb {
     }
 
     "return a list of operations when trying to access an existing DeploymentRequest" in {
+      val depReqId = requestDeployment("my product", "486", Seq("paris", "amsterdam").toJson, None, start = false).idAsLong
+      startDeploymentRequest(depReqId)
       val traces = server.httpGet(
-        path = "/api/operation-traces/by-deployment-request/1",
+        path = s"/api/operation-traces/by-deployment-request/$depReqId",
         andExpect = Ok
       ).contentString.parseJson.asInstanceOf[JsArray].elements
       traces.length shouldEqual 1
@@ -535,7 +571,6 @@ class RestControllerSpec extends FeatureTest with TestDb {
         "kind" -> "deploy".toJson,
         "creator" -> "qabot".toJson,
         "creationDate" -> T,
-        "closingDate" -> T,
         "targetStatus" -> JsObject()
       ) shouldEqual traces.head.asJsObject.fields
     }
@@ -560,16 +595,28 @@ class RestControllerSpec extends FeatureTest with TestDb {
     }
 
     "display correctly formatted versions" in {
-      val depReqs = deepGetDepReq()
-      depReqs.map(_ ("version").asInstanceOf[JsString].value) shouldEqual Vector(
-        "v21", "buggy", "42", " 10402", "0042", "420", "not ready yet", "456", "v2097", "v", "51"
-      )
+      val depReqId = requestDeployment("my product", "8080", "paris".toJson, None, start = false).idAsLong
+
+      val depReq = deepGetDepReq(depReqId)
+      depReq.fields("version").asInstanceOf[JsString].value shouldEqual "8080"
     }
 
     "return the right executions in a valid JSON" in {
       val depReqs = deepGetDepReq()
 
-      val depReq = deepGetDepReq(2)
+      val (depReqId, executionTraces) = startDeployment("my product", "3211", Seq("paris", "amsterdam").toJson)
+      val execTraceId = executionTraces.head
+      updateExecTrace(
+        depReqId, execTraceId, "completed", Some("http://final"),
+        targetStatus = Some(Map(
+          "paris" -> Map("code" -> "success", "detail" -> "").toJson,
+          "amsterdam" -> Map("code" -> "hostFailure", "detail" -> "some interesting details").toJson)),
+        expectedTargetStatus = Map(
+          "paris" -> ("success", ""),
+          "amsterdam" -> ("hostFailure", "some interesting details"))
+      )
+
+      val depReq = deepGetDepReq(depReqId)
 
       JsArray(
         JsObject(
@@ -579,12 +626,12 @@ class RestControllerSpec extends FeatureTest with TestDb {
           "creationDate" -> T,
           "closingDate" -> T,
           "targetStatus" -> Map(
-            "par" -> Map("code" -> "success", "detail" -> "").toJson,
-            "am5" -> Map("code" -> "hostFailure", "detail" -> "some interesting details").toJson
+            "paris" -> Map("code" -> "success", "detail" -> "").toJson,
+            "amsterdam" -> Map("code" -> "hostFailure", "detail" -> "some interesting details").toJson
           ).toJson,
           "executions" -> JsArray(
             JsObject(
-              "id" -> 2.toJson,
+              "id" -> execTraceId.toJson,
               "executionId" -> T,
               "logHref" -> "http://final".toJson,
               "state" -> "completed".toJson
@@ -593,13 +640,14 @@ class RestControllerSpec extends FeatureTest with TestDb {
         )
       ) shouldEqual depReq.fields("operations")
 
-      val delayedDepReqId = depReqs.find(_ ("version") == "not ready yet".toJson).get("id").asInstanceOf[JsNumber].value.toLong
+      val delayedDepReqId = requestDeployment("my product", "5133", "tokyo".toJson, None, start = false).idAsLong
+      startDeploymentRequest(delayedDepReqId)
       val delayedDepReq = deepGetDepReq(delayedDepReqId)
       JsArray(
         JsObject(
           "id" -> T,
           "kind" -> "deploy".toJson,
-          "creator" -> "stdUser".toJson,
+          "creator" -> "qabot".toJson,
           "creationDate" -> T,
           "targetStatus" -> JsObject(),
           "executions" -> JsArray(
@@ -615,13 +663,13 @@ class RestControllerSpec extends FeatureTest with TestDb {
     }
 
     "paginate" in {
-      val allDepReqs = deepGetDepReq()
+      val allDepReqs = deepGetDepReq(limit = Some(100))
       allDepReqs.length should be > 2
 
       val firstDepReqs = deepGetDepReq(limit = Some(2))
       firstDepReqs.length shouldEqual 2
 
-      val lastDepReqs = deepGetDepReq(offset = Some(2))
+      val lastDepReqs = deepGetDepReq(offset = Some(2), limit = Some(100))
       lastDepReqs.length shouldEqual (allDepReqs.length - 2)
     }
 
@@ -634,7 +682,7 @@ class RestControllerSpec extends FeatureTest with TestDb {
     }
 
     "filter" in {
-      val allDepReqs = deepGetDepReq()
+      val allDepReqs = deepGetDepReq(limit = Some(100))
       allDepReqs.length should be > 2
 
       val depReqsForUnkownProduct = deepGetDepReq(where = Seq(Map("field" -> "productName".toJson, "equals" -> "unknown product".toJson)))
