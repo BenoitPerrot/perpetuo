@@ -75,10 +75,10 @@ CREATE INDEX "ix_target_status_target"
 
 CREATE TABLE "execution_trace" (
   "id"                         BIGINT      NOT NULL IDENTITY,
+  "execution_id"               BIGINT      NOT NULL,
   "operation_trace_id"         BIGINT      DEFAULT NULL,
   "log_href"                   NVARCHAR(1024),
-  "state"                      SMALLINT    NOT NULL,
-  "execution_id"               BIGINT      DEFAULT NULL
+  "state"                      SMALLINT    NOT NULL
 )
 ALTER TABLE "execution_trace"
   ADD CONSTRAINT "pk_execution_trace" PRIMARY KEY ("id")
