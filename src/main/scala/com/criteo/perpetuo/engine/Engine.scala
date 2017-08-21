@@ -153,6 +153,7 @@ class Engine @Inject()(val dbBinding: DbBinding) {
             else
               dbBinding.updateOperationTrace(op.id, op.partialUpdate(statusMap))
 
+          // TODO: don't insert, always update a pre-inserted status, wrt the precedence of statuses (DREDD-174)
           val statusMapToExecution = dbBinding.insertTargetStatuses(execTrace.executionId, statusMap).map(_ => true)
 
           Future.sequence(Seq(statusMapUpdate, statusMapToExecution))

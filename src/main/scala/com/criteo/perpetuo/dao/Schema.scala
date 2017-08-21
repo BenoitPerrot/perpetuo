@@ -117,6 +117,7 @@ class DbBinding @Inject()(val dbContext: DbContext)
   }
   // >>
 
+  // todo: when the target status will be pre-registered, we won't need to get execution traces in this query anymore (and we will only need the last operation)
   def deepQueryDeploymentRequests(where: Seq[Map[String, Any]], orderBy: Seq[Map[String, Any]], limit: Int, offset: Int): Future[Iterable[(DeploymentRequest, SortedMap[Long, ArrayBuffer[ExecutionTrace]])]] = {
 
     val filtered = where.foldLeft(this.deploymentRequestQuery join this.productQuery on (_.productId === _.id)) { (queries, spec) =>
