@@ -9,7 +9,6 @@ import scala.concurrent.Future
 
 private[dao] case class ExecutionTraceRecord(id: Option[Long],
                                              executionId: Long,
-                                             operationTraceId: Option[Long],
                                              logHref: Option[String] = None,
                                              state: ExecutionState = ExecutionState.pending) {
   def toExecutionTrace(operationTrace: ShallowOperationTrace): ExecutionTrace = {
@@ -35,21 +34,18 @@ trait ExecutionTraceBinder extends TableBinder {
     def executionId = column[Long]("execution_id")
     protected def fk = foreignKey(executionId, executionQuery)(_.id)
 
-    protected def operationTraceId = column[Option[Long]]("operation_trace_id", O.Default(None))
-    protected def oldFk = foreignKey(operationTraceId, operationTraceQuery)(_.id) // fixme: for the transition only, remove it
-
     def logHref = column[Option[String]]("log_href", O.SqlType("nvarchar(1024)"))
     protected def logHrefIdx = index(logHref, unique = true)
 
     def state = column[ExecutionState]("state")
 
-    def * = (id.?, executionId, operationTraceId, logHref, state) <> (ExecutionTraceRecord.tupled, ExecutionTraceRecord.unapply)
+    def * = (id.?, executionId, logHref, state) <> (ExecutionTraceRecord.tupled, ExecutionTraceRecord.unapply)
   }
 
   val executionTraceQuery = TableQuery[ExecutionTraceTable]
 
-  def insertExecutionTraces(operationTraceId: Long, executionId: Long, numberOfTraces: Int): Future[Seq[Long]] = { // fixme: deprecated
-    val execTrace = ExecutionTraceRecord(None, executionId, Some(operationTraceId))
+  def insertExecutionTraces(executionId: Long, numberOfTraces: Int): Future[Seq[Long]] = { // fixme: deprecated
+    val execTrace = ExecutionTraceRecord(None, executionId)
     dbContext.db.run((executionTraceQuery returning executionTraceQuery.map(_.id)) ++= List.fill(numberOfTraces)(execTrace)).map { seq =>
       assert(seq.length == numberOfTraces)
       seq

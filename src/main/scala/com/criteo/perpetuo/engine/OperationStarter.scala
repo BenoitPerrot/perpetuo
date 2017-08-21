@@ -66,7 +66,7 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
 
     dbBinding.insertExecution(operationTrace.id, executionSpecification.id).flatMap(executionId =>
       // create as many traces, all at the same time
-      dbBinding.insertExecutionTraces(operationTrace.id, executionId, invocations.length)
+      dbBinding.insertExecutionTraces(executionId, invocations.length)
         .map(x => invocations.zip(x))
         .flatMap { executionSpecs =>
           // and only then, for each execution to do:

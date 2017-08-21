@@ -34,13 +34,12 @@ class ExecutionTraceSpec extends FunSuite with ScalaFutures
         deployOperationTrace <- insertOperationTrace(request.id, Operation.deploy, "c.norris")
         execSpec <- insertExecutionSpecification("{}", Version("456"))
         execId <- insertExecution(deployOperationTrace.id, execSpec.id)
-        execTraceIds <- insertExecutionTraces(deployOperationTrace.id, execId, 1)
+        execTraceIds <- insertExecutionTraces(execId, 1)
         execTraces <- dbContext.db.run(executionTraceQuery.result)
       } yield {
         assert(execTraces.length == 1)
         assert(execTraces.head.id.get == execTraceIds.head)
         assert(execTraces.head.executionId == execId)
-        assert(execTraces.head.operationTraceId.get == deployOperationTrace.id)
         assert(execTraces.head.logHref.isEmpty)
         assert(execTraces.head.state == ExecutionState.pending)
       },

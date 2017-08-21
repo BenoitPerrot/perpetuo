@@ -76,7 +76,6 @@ CREATE INDEX "ix_target_status_target"
 CREATE TABLE "execution_trace" (
   "id"                         BIGINT      NOT NULL IDENTITY,
   "execution_id"               BIGINT      NOT NULL,
-  "operation_trace_id"         BIGINT      DEFAULT NULL,
   "log_href"                   NVARCHAR(1024),
   "state"                      SMALLINT    NOT NULL
 )
@@ -116,10 +115,6 @@ ALTER TABLE "target_status"
   ON DELETE NO ACTION
 ALTER TABLE "execution_trace"
   ADD CONSTRAINT "fk_execution_trace_execution_id" FOREIGN KEY ("execution_id") REFERENCES "execution" ("id")
-  ON UPDATE NO ACTION
-  ON DELETE NO ACTION
-ALTER TABLE "execution_trace"
-  ADD CONSTRAINT "fk_execution_trace_operation_trace_id" FOREIGN KEY ("operation_trace_id") REFERENCES "operation_trace" ("id")
   ON UPDATE NO ACTION
   ON DELETE NO ACTION
 ALTER TABLE "lock"
