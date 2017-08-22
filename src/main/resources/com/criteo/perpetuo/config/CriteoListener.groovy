@@ -2,6 +2,7 @@ package com.criteo.perpetuo.config
 
 import com.criteo.perpetuo.dao.DbBinding
 import com.criteo.perpetuo.model.DeploymentRequest
+import com.criteo.perpetuo.model.Operation
 import com.criteo.perpetuo.model.OperationTrace
 import com.criteo.perpetuo.model.Target
 import groovy.json.JsonOutput
@@ -17,6 +18,8 @@ import org.apache.http.impl.client.CloseableHttpClient
 import org.apache.http.impl.client.HttpClients
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
+
+import java.util.concurrent.TimeoutException
 
 import static groovyx.net.http.ContentType.JSON
 
@@ -109,9 +112,16 @@ class CriteoListener extends DefaultListenerPlugin {
             def resp = makeAuthorizedClient().put(
                     path: "/rest/api/2/issue/$ticketKey",
                     requestContentType: JSON,
-                    body: [
-                            fields: [(fieldId): value]
-                    ]
+                    body: [fields: [(fieldId): value]]
+            )
+            assert resp.status < 300
+        }
+
+        def addCommentToTicket(String ticketKey, String comment) {
+            def resp = makeAuthorizedClient().post(
+                    path: "/rest/api/2/issue/$ticketKey/comment",
+                    requestContentType: JSON,
+                    body: [body: comment]
             )
             assert resp.status < 300
         }
@@ -251,7 +261,7 @@ class CriteoListener extends DefaultListenerPlugin {
         if (jiraClient && !atCreation) {
             // fixme: !atCreation is for short-term transition only, while we support dep.req. creation without ticket
             String parentTicketKey = findJiraTicket(deploymentRequest)
-            assert(parentTicketKey)
+            assert parentTicketKey
             jiraClient.transitionTicket(parentTicketKey, startingParentTransitions())
             def issues = jiraClient.fetchTicketChildren(parentTicketKey)
             assert issues.size() == 1
@@ -262,24 +272,27 @@ class CriteoListener extends DefaultListenerPlugin {
     }
 
     @Override
+    void onDeploymentRequestRetried(DeploymentRequest deploymentRequest, int startedExecutions, int failedToStart) {
+        if (jiraClient) {
+            String ticketKey = restartDeploymentTicket(deploymentRequest)
+            jiraClient.addCommentToTicket(ticketKey, "Retry launched from Perpetuo")
+        }
+    }
+
+    @Override
+    void onDeploymentRequestRolledBack(DeploymentRequest deploymentRequest, int startedExecutions, int failedToStart) {
+        if (jiraClient) {
+            String ticketKey = restartDeploymentTicket(deploymentRequest)
+            jiraClient.addCommentToTicket(ticketKey, "Rollback launched from Perpetuo")
+        }
+    }
+
+    @Override
     void onOperationClosed(OperationTrace operationTrace, DeploymentRequest deploymentRequest, boolean succeeded) {
         if (jiraClient) {
-            def parentTicketKey = findJiraTicket(deploymentRequest)
-            if (parentTicketKey) {
-                def deadline = System.currentTimeMillis() + timeout_s() * 1000
-                while (System.currentTimeMillis() < deadline) {
-                    def issues = jiraClient.fetchTicketChildren(parentTicketKey)
-                    assert issues.size() <= 1
-                    if (issues.size() == 1) {
-                        String childKey = issues[0].key
-                        if (jiraClient.fetchTicketStatusId(childKey) == "10396") { // aka "[RM] Deploying"
-                            jiraClient.transitionTicket(childKey, closingTransitions(succeeded))
-                            return
-                        }
-                    }
-                    sleep(1000)
-                }
-            }
+            def ticketKey = waitForDeploymentTicket(deploymentRequest, ["10396"]).first // aka "[RM] Deploying"
+            def transitions = operationTrace.operation() == Operation.revert() ? cancelTransitions() : closingTransitions(succeeded)
+            jiraClient.transitionTicket(ticketKey, transitions)
         }
     }
 
@@ -287,18 +300,6 @@ class CriteoListener extends DefaultListenerPlugin {
         def client = new HTTPBuilder()
         StringReader resp = client.get(uri: "http://review.criteois.lan/gitweb?p=release/release-management.git;a=blob_plain;f=src/python/releaseManagement/jiraMoab/tlaVsAppObject.json")
         return new JsonSlurper().parse(resp) as Map
-    }
-
-    static def closingTransitions(Boolean succeeded) {
-        succeeded ?
-                [
-                        371: '[RM] DEPLOYING - Partly deployed -> AWAITING DEPLOYMENT',
-                        401: 'AWAITING DEPLOYMENT - Deployed -> [RM] DEPLOYED',
-                        471: '[RM] DEPLOYED - Deploy [No validation] -> DONE'
-                ] :
-                [
-                        351: '[RM] DEPLOYING - Deployment failed -> [RM] DEPLOYMENT FAILED'
-                ]
     }
 
     static def startingParentTransitions() {
@@ -313,6 +314,36 @@ class CriteoListener extends DefaultListenerPlugin {
         ]
     }
 
+    static def cancelTransitions() {
+        [
+                371: '[RM] DEPLOYING - Partly deployed -> AWAITING DEPLOYMENT',
+                121: 'AWAITING DEPLOYMENT - Cancel -> [RM] Deploy cancelled'
+        ]
+    }
+
+    static def closingTransitions(Boolean succeeded) {
+        succeeded ?
+                [
+                        371: '[RM] DEPLOYING - Partly deployed -> AWAITING DEPLOYMENT',
+                        401: 'AWAITING DEPLOYMENT - Deployed -> [RM] DEPLOYED',
+                        471: '[RM] DEPLOYED - Deploy [No validation] -> DONE'
+                ] :
+                [
+                        351: '[RM] DEPLOYING - Deployment failed -> [RM] DEPLOYMENT FAILED'
+                ]
+    }
+
+    static def resetTransitions(Boolean afterSuccess) {
+        afterSuccess ?
+                [
+                        111: 'DONE - Reverse[Debug] -> [RM] DEPLOYED',
+                        331: '[RM] DEPLOYED - Reverse[Debug] -> AWAITING DEPLOYMENT'
+                ] :
+                [
+                        361: '[RM] DEPLOYMENT FAILED - Retry -> AWAITING DEPLOYMENT'
+                ]
+    }
+
     String findJiraTicket(DeploymentRequest deploymentRequest) {
         def ticketKey = null
         def comment = deploymentRequest.comment()
@@ -323,5 +354,34 @@ class CriteoListener extends DefaultListenerPlugin {
             }
         }
         ticketKey
+    }
+
+    Tuple2<String, String> waitForDeploymentTicket(DeploymentRequest deploymentRequest, Iterable<String> expectedStatusId) {
+        def parentTicketKey = null
+        def issues = null
+        def deadline = System.currentTimeMillis() + timeout_s() * 1000
+        while (System.currentTimeMillis() < deadline) {
+            parentTicketKey = parentTicketKey ?: findJiraTicket(deploymentRequest)
+            if (parentTicketKey) {
+                issues = issues ?: jiraClient.fetchTicketChildren(parentTicketKey)
+                assert issues.size() <= 1
+                if (issues.size() == 1) {
+                    def ticketKey = issues[0].key
+                    def statusId = jiraClient.fetchTicketStatusId(ticketKey)
+                    if (expectedStatusId.contains(statusId))
+                        return new Tuple(ticketKey, statusId)
+                }
+            }
+            sleep(1000)
+        }
+        throw new TimeoutException("Could not get deployment ticket for deployment request #${deploymentRequest.id()} in time")
+    }
+
+    String restartDeploymentTicket(DeploymentRequest deploymentRequest) {
+        def doneId = "10017" // aka "Done"
+        def deploymentFailedId = "10398" // aka "[RM] Deployment failed"
+        def (String ticketKey, String statusId) = waitForDeploymentTicket(deploymentRequest, [doneId, deploymentFailedId])
+        jiraClient.transitionTicket(ticketKey, resetTransitions(statusId == doneId) + startingChildrenTransitions())
+        return ticketKey
     }
 }
