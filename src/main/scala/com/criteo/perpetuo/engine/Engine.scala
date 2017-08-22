@@ -92,7 +92,7 @@ class Engine @Inject()(val dbBinding: DbBinding) {
     operationTraceAndExecutionSpecifications.flatMap(_.map { case (originOperationTrace, executionSpecs) =>
       dbBinding.findDeploymentRequestById(originOperationTrace.deploymentRequestId).flatMap(_.map { deploymentRequest =>
         operationStarter
-          .retry(plugins.dispatcher, deploymentRequest, originOperationTrace, executionSpecs, initiatorName)
+          .deployAgain(plugins.dispatcher, deploymentRequest, executionSpecs, initiatorName)
           .map { case (operationTrace, started, failed) =>
             Future(plugins.listener.onDeploymentRequestRetried(deploymentRequest, started, failed))
             if (started == 0)

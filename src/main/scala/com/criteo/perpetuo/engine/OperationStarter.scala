@@ -34,13 +34,12 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
     )
   }
 
-  def retry(dispatcher: TargetDispatcher,
-            deploymentRequest: DeploymentRequest,
-            operationTrace: OperationTrace,
-            executionSpecs: Seq[ExecutionSpecification],
-            userName: String): Future[(OperationTrace, Int, Int)] = {
+  def deployAgain(dispatcher: TargetDispatcher,
+                  deploymentRequest: DeploymentRequest,
+                  executionSpecs: Seq[ExecutionSpecification],
+                  userName: String): Future[(OperationTrace, Int, Int)] = {
 
-    dbBinding.insertOperationTrace(deploymentRequest.id, operationTrace.kind, userName).flatMap { newOperationTrace =>
+    dbBinding.insertOperationTrace(deploymentRequest.id, Operation.deploy, userName).flatMap { newOperationTrace =>
       val allSuccessesAndFailures = executionSpecs.map { executionSpec =>
         // todo: retrieve the real target of the very retried execution
         val expandedTarget = dispatcher.expandTarget(deploymentRequest.product.name, deploymentRequest.version, deploymentRequest.parsedTarget)
