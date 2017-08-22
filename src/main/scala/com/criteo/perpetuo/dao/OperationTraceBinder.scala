@@ -26,11 +26,11 @@ trait OperationTraceBinder extends TableBinder {
 
   import dbContext.driver.api._
 
-  private implicit lazy val operationMapper = MappedColumnType.base[Operation.Kind, Short](
+  protected implicit lazy val operationMapper = MappedColumnType.base[Operation.Kind, Short](
     op => op.id.toShort,
     short => Operation(short.toInt)
   )
-  private implicit lazy val targetStatusMapper = MappedColumnType.base[Status.TargetMap, String](
+  protected implicit lazy val targetStatusMapper = MappedColumnType.base[Status.TargetMap, String](
     obj => JsObject(obj.mapValues { status => JsArray(JsNumber(status.code.id), JsString(status.detail)) }).compactPrint,
     str => str.parseJson.asJsObject.fields.mapValues { value =>
       val Vector(JsNumber(statusId), JsString(detail)) = value.asInstanceOf[JsArray].elements

@@ -22,7 +22,7 @@ trait ExecutionTraceBinder extends TableBinder {
 
   import dbContext.driver.api._
 
-  private implicit lazy val stateMapper = MappedColumnType.base[ExecutionState, Short](
+  protected implicit lazy val stateMapper = MappedColumnType.base[ExecutionState, Short](
     es => es.id.toShort,
     short => ExecutionState(short.toInt)
   )
