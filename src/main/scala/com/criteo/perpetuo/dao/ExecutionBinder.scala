@@ -36,4 +36,13 @@ trait ExecutionBinder extends TableBinder {
   def findExecutionSpecificationId(executionId: Long): Future[Option[Long]] = {
     dbContext.db.run(executionQuery.filter(_.id === executionId).map(_.executionSpecificationId).result).map(_.headOption)
   }
+
+  // for tests only
+  def findExecutionSpecIdsByOperationTrace(operationTraceId: Long): Future[Seq[Long]] =
+    dbContext.db.run(
+      executionQuery
+        .filter { execution => execution.operationTraceId === operationTraceId }
+        .map { execution => execution.executionSpecificationId }
+        .result
+    )
 }

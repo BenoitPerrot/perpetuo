@@ -123,13 +123,15 @@ class EngineSpec extends Test with TestDb {
           // Rolling back
           operationTraceIdToRollback <- engine.findOperationTracesByDeploymentRequest(thirdDeploymentRequestId).map(_.get.head.id)
           rollbackOperationTrace <- engine.rollbackOperationTrace(operationTraceIdToRollback, "r.ollbacker").map(_.get)
-          (_, rollbackExecutionSpecs) <- engine.dbBinding.findOperationTraceAndExecutionSpecs(rollbackOperationTrace.id).map(_.get)
+          rollbackExecutionSpecIds <- engine.dbBinding.findExecutionSpecIdsByOperationTrace(rollbackOperationTrace.id)
 
         } yield {
-          (rollbackOperationTrace.deploymentRequestId == thirdDeploymentRequestId,
-            rollbackExecutionSpecs.length,
-            rollbackExecutionSpecs.exists(_.id == firstExecSpecId),
-            rollbackExecutionSpecs.exists(_.id == secondExecSpecId))
+          (
+            rollbackOperationTrace.deploymentRequestId == thirdDeploymentRequestId,
+            rollbackExecutionSpecIds.length,
+            rollbackExecutionSpecIds.contains(firstExecSpecId),
+            rollbackExecutionSpecIds.contains(secondExecSpecId)
+          )
         },
         2.second
       ) shouldBe(true, 2, true, true)
@@ -154,18 +156,20 @@ class EngineSpec extends Test with TestDb {
             "mars" -> TargetAtomStatus(Status.success, "no surprise")))
           hasOpenExecutionAfter <- engine.dbBinding.hasOpenExecutionTracesForOperation(retriedOperation.id)
           operationReClosingSucceeded <- engine.dbBinding.closeOperationTrace(retriedOperation.id)
-          (_, initialExecutionSpecs) <- engine.dbBinding.findOperationTraceAndExecutionSpecs(operationTraceId).map(_.get)
-          (_, retriedExecutionSpecs) <- engine.dbBinding.findOperationTraceAndExecutionSpecs(retriedOperation.id).map(_.get)
+          initialExecutionSpecIds <- engine.dbBinding.findExecutionSpecIdsByOperationTrace(operationTraceId)
+          retriedExecutionSpecIds <- engine.dbBinding.findExecutionSpecIdsByOperationTrace(retriedOperation.id)
         } yield {
-          (executionTrace.length, executionTracesAfterRetry.length,
+          (
+            executionTrace.length,
+            executionTracesAfterRetry.length,
             retriedOperation.id == operationTraceId,
             hasOpenExecutionAfter, operationReClosingSucceeded,
-            initialExecutionSpecs.length == retriedExecutionSpecs.length,
-            initialExecutionSpecs == retriedExecutionSpecs
+            initialExecutionSpecIds.length == retriedExecutionSpecIds.length,
+            initialExecutionSpecIds == retriedExecutionSpecIds
           )
         },
         2.second
-      ) shouldBe (1, 2, false, false, false, true, true)
+      ) shouldBe(1, 2, false, false, false, true, true)
     }
   }
 
