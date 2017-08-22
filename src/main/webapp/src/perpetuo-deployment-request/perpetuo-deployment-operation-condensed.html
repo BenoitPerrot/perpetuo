@@ -27,7 +27,7 @@ function arrayifyTargetStatus(targetStatusMap) {
       text-transform: capitalize;
     }
     </style>
-    <p>Operation: [[type]]</p>
+    <p>Operation: [[operationKind]]</p>
     <perpetuo-target-status-table data="[[targetStatus]]"></perpetuo-target-status-table>
   </template>
   <script>
@@ -38,12 +38,12 @@ function arrayifyTargetStatus(targetStatusMap) {
       data: { type: Object, observer: 'onDataChanged' },
 
       targetStatus: { type: Array, value: () => [] },
-      type: { type: String },
+      operationKind: { type: String },
     },
 
     onDataChanged(data) {
       this.targetStatus = arrayifyTargetStatus(data.targetStatus);
-      this.type = data.type;
+      this.operationKind = data.kind;
     },
   });
   </script>

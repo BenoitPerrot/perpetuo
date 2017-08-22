@@ -291,7 +291,7 @@ class CriteoListener extends DefaultListenerPlugin {
     void onOperationClosed(OperationTrace operationTrace, DeploymentRequest deploymentRequest, boolean succeeded) {
         if (jiraClient) {
             def ticketKey = waitForDeploymentTicket(deploymentRequest, ["10396"]).first // aka "[RM] Deploying"
-            def transitions = operationTrace.operation() == Operation.revert() ? cancelTransitions() : closingTransitions(succeeded)
+            def transitions = operationTrace.kind() == Operation.revert() ? cancelTransitions() : closingTransitions(succeeded)
             jiraClient.transitionTicket(ticketKey, transitions)
         }
     }

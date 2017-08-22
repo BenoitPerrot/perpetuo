@@ -3,7 +3,6 @@ package com.criteo.perpetuo.engine
 import com.criteo.perpetuo.dao._
 import com.criteo.perpetuo.engine.dispatchers.{TargetDispatcher, TargetExpr, TargetTerm}
 import com.criteo.perpetuo.engine.executors.ExecutorInvoker
-import com.criteo.perpetuo.model.Operation.Operation
 import com.criteo.perpetuo.model._
 import com.twitter.inject.Logging
 import spray.json.DefaultJsonProtocol._
@@ -19,7 +18,7 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
     * Start all relevant executions and return the numbers of successful
     * and failed execution starts.
     */
-  def start(dispatcher: TargetDispatcher, deploymentRequest: DeploymentRequest, operation: Operation, userName: String): Future[(OperationTrace, Int, Int)] = {
+  def start(dispatcher: TargetDispatcher, deploymentRequest: DeploymentRequest, operation: Operation.Kind, userName: String): Future[(OperationTrace, Int, Int)] = {
     // generation of specific parameters
     val executionKind = Operation.executionKind(operation)
     val specificParameters = dispatcher.freezeParameters(executionKind, deploymentRequest.product.name, deploymentRequest.version)
@@ -41,7 +40,7 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
             executionSpecs: Seq[ExecutionSpecification],
             userName: String): Future[(OperationTrace, Int, Int)] = {
 
-    dbBinding.insertOperationTrace(deploymentRequest.id, operationTrace.operation, userName).flatMap { newOperationTrace =>
+    dbBinding.insertOperationTrace(deploymentRequest.id, operationTrace.kind, userName).flatMap { newOperationTrace =>
       val allSuccessesAndFailures = executionSpecs.map { executionSpec =>
         // todo: retrieve the real target of the very retried execution
         val expandedTarget = dispatcher.expandTarget(deploymentRequest.product.name, deploymentRequest.version, deploymentRequest.parsedTarget)
@@ -73,12 +72,12 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
           Future.traverse(executionSpecs) {
             case ((executor, target), execTraceId) =>
               // log the execution
-              logger.debug(s"Triggering ${operationTrace.operation} job for execution #$execTraceId of $productName v. $version on $executor")
+              logger.debug(s"Triggering ${operationTrace.kind} job for execution #$execTraceId of $productName v. $version on $executor")
               // trigger the execution
               executor
                 .trigger(
                   execTraceId,
-                  Operation.executionKind(operationTrace.operation),
+                  Operation.executionKind(operationTrace.kind),
                   productName,
                   version,
                   target,

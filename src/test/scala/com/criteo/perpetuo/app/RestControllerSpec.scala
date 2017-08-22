@@ -171,7 +171,7 @@ class RestControllerSpec extends FeatureTest with TestDb {
     operations.size shouldEqual 1
     Map(
       "id" -> T,
-      "type" -> "deploy".toJson,
+      "kind" -> "deploy".toJson,
       "creator" -> "qabot".toJson,
       "creationDate" -> T,
       "closingDate" -> T,
@@ -529,7 +529,7 @@ class RestControllerSpec extends FeatureTest with TestDb {
       traces.length shouldEqual 1
       Map(
         "id" -> T,
-        "type" -> JsString("deploy"),
+        "kind" -> "deploy".toJson,
         "creator" -> "qabot".toJson,
         "creationDate" -> T,
         "closingDate" -> T,
@@ -571,7 +571,7 @@ class RestControllerSpec extends FeatureTest with TestDb {
       JsArray(
         JsObject(
           "id" -> T,
-          "type" -> "deploy".toJson,
+          "kind" -> "deploy".toJson,
           "creator" -> "qabot".toJson,
           "creationDate" -> T,
           "closingDate" -> T,
@@ -595,7 +595,7 @@ class RestControllerSpec extends FeatureTest with TestDb {
       JsArray(
         JsObject(
           "id" -> T,
-          "type" -> "deploy".toJson,
+          "kind" -> "deploy".toJson,
           "creator" -> "stdUser".toJson,
           "creationDate" -> T,
           "targetStatus" -> JsObject(),

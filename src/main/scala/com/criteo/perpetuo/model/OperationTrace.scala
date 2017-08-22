@@ -1,13 +1,12 @@
 package com.criteo.perpetuo.model
 
-import com.criteo.perpetuo.model.Operation.Operation
-import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty}
+import com.fasterxml.jackson.annotation.JsonIgnore
 
 
 trait OperationTrace {
   val id: Long
   val deploymentRequestId: Long
-  val operation: Operation
+  val kind: Operation.Kind
   val creator: String
   val creationDate: java.sql.Timestamp
   val closingDate: Option[java.sql.Timestamp]
@@ -16,7 +15,7 @@ trait OperationTrace {
 
 case class ShallowOperationTrace(id: Long,
                                  @JsonIgnore deploymentRequestId: Long,
-                                 @JsonProperty("type") operation: Operation,
+                                 kind: Operation.Kind,
                                  creator: String,
                                  creationDate: java.sql.Timestamp,
                                  closingDate: Option[java.sql.Timestamp],
@@ -30,7 +29,7 @@ case class ShallowOperationTrace(id: Long,
 
 case class DeepOperationTrace(id: Long,
                               deploymentRequest: DeploymentRequest,
-                              operation: Operation,
+                              kind: Operation.Kind,
                               creator: String,
                               creationDate: java.sql.Timestamp,
                               closingDate: Option[java.sql.Timestamp]) extends OperationTrace {

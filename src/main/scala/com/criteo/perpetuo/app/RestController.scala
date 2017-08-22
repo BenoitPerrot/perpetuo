@@ -286,7 +286,7 @@ class RestController @Inject()(val engine: Engine)
         "in-progress"
       }
 
-      s"${lastOperationTrace.operation.toString} $lastOperationState"
+      s"${lastOperationTrace.kind.toString} $lastOperationState"
     }
 
   private def serialize(isAuthorized: Boolean, depReq: DeploymentRequest, sortedGroupsOfExecutions: SortedMap[Long, Seq[ExecutionTrace]]): Map[String, Any] =
@@ -308,7 +308,7 @@ class RestController @Inject()(val engine: Engine)
       val op = executionTraces.head.operationTrace
       Map(
         "id" -> op.id,
-        "type" -> op.operation.toString,
+        "kind" -> op.kind.toString,
         "creator" -> op.creator,
         "creationDate" -> op.creationDate,
         "targetStatus" -> {

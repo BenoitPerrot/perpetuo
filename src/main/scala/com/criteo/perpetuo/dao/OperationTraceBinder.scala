@@ -1,7 +1,6 @@
 package com.criteo.perpetuo.dao
 
 import com.criteo.perpetuo.auth.User
-import com.criteo.perpetuo.model.Operation.Operation
 import com.criteo.perpetuo.model._
 import spray.json._
 
@@ -11,7 +10,7 @@ import scala.concurrent.Future
 
 private[dao] case class OperationTraceRecord(id: Option[Long],
                                              deploymentRequestId: Long,
-                                             operation: Operation,
+                                             operation: Operation.Kind,
                                              targetStatus: Option[Status.TargetMap],
                                              creator: String,
                                              creationDate: java.sql.Timestamp,
@@ -27,7 +26,7 @@ trait OperationTraceBinder extends TableBinder {
 
   import dbContext.driver.api._
 
-  private implicit lazy val operationMapper = MappedColumnType.base[Operation, Short](
+  private implicit lazy val operationMapper = MappedColumnType.base[Operation.Kind, Short](
     op => op.id.toShort,
     short => Operation(short.toInt)
   )
@@ -46,7 +45,7 @@ trait OperationTraceBinder extends TableBinder {
     def deploymentRequestId = column[Long]("deployment_request_id")
     protected def fk = foreignKey(deploymentRequestId, deploymentRequestQuery)(_.id)
 
-    def operation = column[Operation]("operation")
+    def operation = column[Operation.Kind]("operation")
     def targetStatus = column[Option[Status.TargetMap]]("target_status", O.SqlType("nvarchar(16000)")) // todo: remove after transition
 
     // todo: remove default values (they're for migration only)
@@ -61,7 +60,7 @@ trait OperationTraceBinder extends TableBinder {
 
   val operationTraceQuery = TableQuery[OperationTraceTable]
 
-  def insertOperationTrace(requestId: Long, operation: Operation, creator: String): Future[ShallowOperationTrace] = {
+  def insertOperationTrace(requestId: Long, operation: Operation.Kind, creator: String): Future[ShallowOperationTrace] = {
     val operationTrace = OperationTraceRecord(None, requestId, operation, Some(Map()), creator, new java.sql.Timestamp(System.currentTimeMillis), None)
     dbContext.db.run((operationTraceQuery returning operationTraceQuery.map(_.id)) += operationTrace).map { id =>
       ShallowOperationTrace(id, operationTrace.deploymentRequestId, operationTrace.operation, operationTrace.creator, operationTrace.creationDate, operationTrace.closingDate, operationTrace.targetStatus.get)
