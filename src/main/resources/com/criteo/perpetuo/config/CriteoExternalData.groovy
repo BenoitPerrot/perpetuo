@@ -101,7 +101,8 @@ class CriteoExternalData extends ExternalData { // fixme: this only works with J
             def resp = client.get(path: "/products/$productName/manifest.json")
             return resp.data
         } catch (HttpResponseException e) {
-            assert e.response.status == 404 // it's not an error to not have data (yet?) about a product
+            assert e.response.status == 404: e.response.statusLine
+            // it's not an error to not have data (yet?) about a product
             return null
         }
     }
@@ -116,7 +117,7 @@ class CriteoExternalData extends ExternalData { // fixme: this only works with J
                 }
             }.collectEntries { it }
         } catch (HttpResponseException e) {
-            assert e.response.status == 404 // it's allowed to not have data about this MOAB
+            assert e.response.status == 404: e.response.statusLine // it's allowed to not have data about this MOAB
             return null
         }
     }
@@ -128,7 +129,7 @@ class CriteoExternalData extends ExternalData { // fixme: this only works with J
 
             return resp.data
         } catch (HttpResponseException e) {
-            assert e.response.status == 404 // it's allowed to not have data about this MOAB
+            assert e.response.status == 404: e.response.statusLine // it's allowed to not have data about this MOAB
             return null
         }
     }
@@ -159,7 +160,7 @@ class CriteoExternalData extends ExternalData { // fixme: this only works with J
             )
             return resp.data
         } catch (HttpResponseException e) {
-            assert e.response.status == 404
+            assert e.response.status == 404: e.response.statusLine
             return []
         }
     }
