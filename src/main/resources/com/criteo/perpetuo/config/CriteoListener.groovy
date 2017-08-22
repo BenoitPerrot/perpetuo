@@ -227,16 +227,18 @@ class CriteoListener extends DefaultListenerPlugin {
                 logger().info("Jira ticket created $suffix: $ticket")
                 String ticketUrl = "${this.jiraClient.host}/browse/$ticket"
 
-                def changelog = CriteoExternalData.fetchChangeLog(productName, version, lastValidatedVersion)
-                if (changelog) {
-                    def jsonChangelog = JsonOutput.toJson(changelog)
-                    def uploadResponse = jiraClient.attachToTicket(ticket, jsonChangelog.bytes, 'changelog.json')
-                    if (uploadResponse.statusLine.statusCode == 200) {
+                try {
+                    def changelog = CriteoExternalData.fetchChangeLog(productName, version, lastValidatedVersion)
+                    if (changelog) {
+                        def jsonChangelog = JsonOutput.toJson(changelog)
+                        def uploadResponse = jiraClient.attachToTicket(ticket, jsonChangelog.bytes, 'changelog.json')
+                        assert uploadResponse.statusLine.statusCode == 200: "file attachment failed:" + uploadResponse.statusLine.toString()
                         def rangeMessage = lastValidatedVersion ? "from #$lastValidatedVersion to" : "for"
-                        logger().info("Changelog $rangeMessage #$version has been attached to JIRA Issue $ticket")
-                    } else {
-                        logger().warning('Could not attach changelog from file to JIRA Issue:' + uploadResponse.statusLine.toString())
+                        logger().info("Changelog $rangeMessage #$version has been attached to JIRA ticket $ticket")
                     }
+                }
+                catch (Throwable e) {
+                    logger().severe("Could not provide a changelog to the JIRA ticket $ticket: ${e.message}")
                 }
 
                 if (appConfig.transition(productName)) {
