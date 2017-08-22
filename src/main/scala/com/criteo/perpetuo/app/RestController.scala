@@ -5,7 +5,7 @@ import javax.inject.Inject
 import com.criteo.perpetuo.auth.User
 import com.criteo.perpetuo.auth.UserFilter._
 import com.criteo.perpetuo.config.AppConfig
-import com.criteo.perpetuo.dao.{ProductCreationConflict, UnknownProduct}
+import com.criteo.perpetuo.dao.{ProductCreationConflict, Schema, UnknownProduct}
 import com.criteo.perpetuo.engine.Engine
 import com.criteo.perpetuo.model._
 import com.twitter.finagle.http.{Request, Response, Status => HttpStatus}
@@ -349,6 +349,24 @@ class RestController @Inject()(val engine: Engine)
   // Be sure to capture invalid calls to APIs
   get("/api/:*") { _: Request =>
     response.notFound
+  }
+
+  // todo: remove, it's for migrating versions only
+  get("/api/unstable/db/deployment-requests/count-versions-to-migrate") { _: Request =>
+    val schema = new Schema(engine.dbBinding.dbContext)
+    Await.result(schema.versionsToMigrateInDepReqs, 1.minute).length
+  }
+  post("/api/unstable/db/deployment-requests/migrate-versions") { _: Request =>
+    val schema = new Schema(engine.dbBinding.dbContext)
+    Await.result(schema.migrateVersionsInDepReqs, 1.hour).length
+  }
+  get("/api/unstable/db/execution-specifications/count-versions-to-migrate") { _: Request =>
+    val schema = new Schema(engine.dbBinding.dbContext)
+    Await.result(schema.versionsToMigrateInExecSpecs, 1.minute).length
+  }
+  post("/api/unstable/db/execution-specifications/migrate-versions") { _: Request =>
+    val schema = new Schema(engine.dbBinding.dbContext)
+    Await.result(schema.migrateVersionsInExecSpecs, 1.hour).length
   }
 
 }

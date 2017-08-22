@@ -14,15 +14,22 @@ case class PartialVersion(value: JsValue, ratio: Float = 1f)
 
 
 class Version(serialized: String) extends MappedTo[String] {
+  var needsMigration = false // fixme: REMOVE
+
   // fixme (Try..getOrElse): for transition only, while there are non-structured versions in DB
   val structured: Iterable[PartialVersion] = Try(serialized.parseJson)
     .map {
       case JsArray(arr) => arr.map(Version.parseVersion)
-      case _: JsNumber => Seq(PartialVersion(JsString(serialized))) // fixme: transition only
+      case _: JsNumber =>
+        needsMigration = true
+        Seq(PartialVersion(JsString(serialized))) // fixme: transition only
       case other => Seq(PartialVersion(other))
     }
-    .getOrElse(Seq(PartialVersion(JsString(serialized))))
-    .map(sv => PartialVersion(Version.replaceAllInStringLeaves(sv.value, Version.dropLeading0Regex, _.group(1)), sv.ratio))
+    .getOrElse{
+      needsMigration = true
+      Seq(PartialVersion(JsString(serialized)))
+    }
+    .map(sv => PartialVersion(Version.replaceAllInStringLeaves(this, sv.value, Version.dropLeading0Regex, _.group(1)), sv.ratio))
 
   override def toString: String = Version.compactPrint(structured)
 
@@ -48,11 +55,14 @@ object Version {
     case unknown => throw new ParsingException(s"Expected JSON objects in `version`, got: $unknown")
   }
 
-  private def replaceAllInStringLeaves(value: JsValue, regex: Regex, replacer: Match => String): JsValue =
+  private def replaceAllInStringLeaves(root: Version, value: JsValue, regex: Regex, replacer: Match => String): JsValue =
     value match {
-      case JsString(s) => JsString(regex.replaceAllIn(s, replacer))
-      case JsArray(arr) => JsArray(arr.map(replaceAllInStringLeaves(_, regex, replacer)))
-      case JsObject(map) => JsObject(map.mapValues(replaceAllInStringLeaves(_, regex, replacer)))
+      case JsString(s) =>
+        val transformed = regex.replaceAllIn(s, replacer)
+        root.needsMigration |= transformed != s
+        JsString(transformed)
+      case JsArray(arr) => JsArray(arr.map(replaceAllInStringLeaves(root, _, regex, replacer)))
+      case JsObject(map) => JsObject(map.mapValues(replaceAllInStringLeaves(root, _, regex, replacer)))
       case other => other
     }
 
