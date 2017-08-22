@@ -113,19 +113,26 @@ class DbBinding @Inject()(val dbContext: DbContext)
       )
   }
 
-  def findOperationTraceAndExecutionSpecs(operationTraceId: Long): Future[Option[(OperationTrace, Seq[ExecutionSpecification])]] = {
+  def findDeploymentRequestAndSpecs(deploymentRequestId: Long): Future[Option[(DeploymentRequest, Seq[ExecutionSpecification])]] = {
     dbContext.db.run(operationTraceQuery
+      .filter(op => op.deploymentRequestId === deploymentRequestId && op.operation === Operation.deploy)
+      .take(1)
       .join(executionQuery)
+      .join(deploymentRequestQuery)
+      .join(productQuery)
       .join(executionSpecificationQuery)
-      .filter { case ((operationTrace, execution), executionSpec) =>
-        operationTrace.id === operationTraceId &&
-          execution.operationTraceId === operationTraceId &&
+      .filter { case ((((operationTrace, execution), deploymentRequest), product), executionSpec) =>
+        deploymentRequest.id === deploymentRequestId &&
+          product.id === deploymentRequest.productId &&
+          execution.operationTraceId === operationTrace.id &&
           execution.executionSpecificationId === executionSpec.id
-      }.map { case ((operationTrace, _), executionSpec) =>
-          (operationTrace, executionSpec)
-      }.result
-    ).map(allOperationTraceAndExecutionSpecs =>
-      allOperationTraceAndExecutionSpecs.headOption.map(x => (x._1.toOperationTrace, allOperationTraceAndExecutionSpecs.map(_._2.toExecutionSpecification)))
+      }
+      .map { case (((_, deploymentRequest), product), executionSpec) => (deploymentRequest, product, executionSpec) }
+      .result
+    ).map(depReqAndExecSpecs =>
+      depReqAndExecSpecs.headOption.map { case (deploymentRequest, product, _) =>
+        (deploymentRequest.toDeploymentRequest(product.toProduct), depReqAndExecSpecs.map(_._3.toExecutionSpecification))
+      }
     )
   }
 

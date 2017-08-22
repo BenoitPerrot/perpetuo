@@ -179,8 +179,9 @@ class RestController @Inject()(val engine: Engine)
             val actionName = r.request.contentString.parseJson.asJsObject.fields("name").asInstanceOf[JsString].value
             actionName match {
               case "start" => engine.startDeploymentRequest(id, user.name).map(_.map { _ => response.ok.json(Map("id" -> id)) })
-                // TODO: case "retry" => // ensure that the last (or specified one?) operation can be retry, and proceed
-                // TODO: case "rollback" => // ensure that the last (or specified one?) operation can be rolled back, and proceed
+              case "apply-again" => engine.deployAgain(id, user.name).map(_.map { _ => response.ok.json(Map("id" -> id)) })
+              // TODO: case "apply" => // ensure that the deployment request can be applied, and proceed
+              // TODO: case "rollback" => // ensure that the deployment request can be rolled back, and proceed
               case _ => throw new ParsingException(s"Action `$actionName` does not exist")
             }
           } catch {
@@ -255,15 +256,6 @@ class RestController @Inject()(val engine: Engine)
     )
   )
   // >>
-
-  put("/api/operation-traces/:id/retry") { r: RequestWithId =>
-    authenticate(r.request) { case user if isAuthorized(user) =>
-      withIdAndRequest(
-        (id, _: RequestWithId) => engine.retryOperationTrace(id, user.name).map(_.map { _ => response.ok.json(Map("id" -> id)) }),
-        2.seconds
-      )(r)
-    }
-  }
 
   private def computeState(depReq: DeploymentRequest, sortedGroupsOfExecutions: SortedMap[Long, Seq[ExecutionTrace]]): String =
     if (sortedGroupsOfExecutions.isEmpty || sortedGroupsOfExecutions.last._2.isEmpty) {

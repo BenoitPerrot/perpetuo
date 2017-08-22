@@ -149,7 +149,7 @@ class EngineSpec extends Test with TestDb {
           _ <- engine.updateExecutionTrace(executionTrace.head.id, ExecutionState.completed, "", Map(
             "moon" -> TargetAtomStatus(Status.success, "no surprise"),
             "mars" -> TargetAtomStatus(Status.hostFailure, "no surprise")))
-          retriedOperation <- engine.retryOperationTrace(operationTraceId, "b.lightning").map(_.get)
+          retriedOperation <- engine.deployAgain(deploymentRequestId, "b.lightning").map(_.get)
           executionTracesAfterRetry <- engine.dbBinding.findExecutionTracesByDeploymentRequest(deploymentRequestId)
           _ <- engine.updateExecutionTrace(executionTracesAfterRetry.tail.head.id, ExecutionState.completed, "", Map(
             "moon" -> TargetAtomStatus(Status.success, "no surprise"),
