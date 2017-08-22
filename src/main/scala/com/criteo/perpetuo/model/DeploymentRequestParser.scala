@@ -21,7 +21,7 @@ object DeploymentRequestParser {
 
         val productName = readStr("productName")
         val versionArray = read("version") match {
-          case JsString(string) => Version.compactPrint(Seq(PartialVersion(JsString(string)))) // fixme: transition only
+          case str: JsString => Version.compactPrint(Seq(PartialVersion(str))) // todo: uniform call from UI?
           case jsArr: JsArray if jsArr.elements.nonEmpty => jsArr.compactPrint
           case unknown => throw new ParsingException(s"Expected `version` to be a non-empty JSON array, got: $unknown")
         }

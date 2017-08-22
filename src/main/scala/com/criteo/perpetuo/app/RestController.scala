@@ -343,24 +343,6 @@ class RestController @Inject()(val engine: Engine)
     response.notFound
   }
 
-  // todo: remove, it's for migrating versions only
-  get("/api/unstable/db/deployment-requests/count-versions-to-migrate") { _: Request =>
-    val schema = new Schema(engine.dbBinding.dbContext)
-    Await.result(schema.versionsToMigrateInDepReqs, 1.minute).length
-  }
-  post("/api/unstable/db/deployment-requests/migrate-versions") { _: Request =>
-    val schema = new Schema(engine.dbBinding.dbContext)
-    Await.result(schema.migrateVersionsInDepReqs, 1.hour).length
-  }
-  get("/api/unstable/db/execution-specifications/count-versions-to-migrate") { _: Request =>
-    val schema = new Schema(engine.dbBinding.dbContext)
-    Await.result(schema.versionsToMigrateInExecSpecs, 1.minute).length
-  }
-  post("/api/unstable/db/execution-specifications/migrate-versions") { _: Request =>
-    val schema = new Schema(engine.dbBinding.dbContext)
-    Await.result(schema.migrateVersionsInExecSpecs, 1.hour).length
-  }
-
 }
 
 

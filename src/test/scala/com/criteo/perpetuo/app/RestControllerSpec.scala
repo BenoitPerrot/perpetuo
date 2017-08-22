@@ -386,7 +386,7 @@ class RestControllerSpec extends FeatureTest with TestDb {
     }
 
     "not fail when the existing DeploymentRequest doesn't have execution traces yet" in {
-      val attrs = new DeploymentRequestAttrs("my product", Version("v"), "\"t\"", "c", "c", new Timestamp(System.currentTimeMillis))
+      val attrs = new DeploymentRequestAttrs("my product", Version("\"v\""), "\"t\"", "c", "c", new Timestamp(System.currentTimeMillis))
       val depReq = Await.result(controller.engine.createDeploymentRequest(attrs, immediateStart = false), 1.second)
       val traces = getExecutionTracesByDeploymentRequestId(depReq("id").toString).elements
       traces shouldBe empty
@@ -512,7 +512,7 @@ class RestControllerSpec extends FeatureTest with TestDb {
     }
 
     "not fail when the existing DeploymentRequest doesn't have operation traces yet" in {
-      val attrs = new DeploymentRequestAttrs("my product", Version("51"), "\"t\"", "c", "c", new Timestamp(System.currentTimeMillis))
+      val attrs = new DeploymentRequestAttrs("my product", Version("\"51\""), "\"t\"", "c", "c", new Timestamp(System.currentTimeMillis))
       val depReq = Await.result(controller.engine.createDeploymentRequest(attrs, immediateStart = false), 1.second)
       val traces = server.httpGet(
         path = s"/api/operation-traces/by-deployment-request/${depReq("id")}",
@@ -559,7 +559,7 @@ class RestControllerSpec extends FeatureTest with TestDb {
     "display correctly formatted versions" in {
       val depReqs = deepGetDepReq()
       depReqs.map(_ ("version").asInstanceOf[JsString].value) shouldEqual Vector(
-        "v21", "buggy", "42", " 10402", "42", "420", "not ready yet", "456", "v2097", "v", "51"
+        "v21", "buggy", "42", " 10402", "0042", "420", "not ready yet", "456", "v2097", "v", "51"
       )
     }
 

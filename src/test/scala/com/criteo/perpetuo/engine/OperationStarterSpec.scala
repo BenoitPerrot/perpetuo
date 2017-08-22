@@ -68,7 +68,7 @@ class OperationStarterSpec extends Test with TestDb {
   private val product: Product = Await.result(execution.dbBinding.insertProduct("perpetuo-app"), 1.second)
 
   private def getExecutions(dispatcher: TargetDispatcher): Future[Seq[(Long, Option[String])]] = {
-    val req = new DeploymentRequestAttrs(product.name, Version("v42"), """"*"""", "No fear", "c.norris", new Timestamp(123456789))
+    val req = new DeploymentRequestAttrs(product.name, Version("\"v42\""), """"*"""", "No fear", "c.norris", new Timestamp(123456789))
 
     val depReq = execution.dbBinding.insertDeploymentRequest(req)
     val asyncStart = depReq.flatMap(execution.start(dispatcher, _, Operation.deploy, "c.norris"))
@@ -92,7 +92,7 @@ class OperationStarterSpec extends Test with TestDb {
 
   implicit class ComplexDispatchTest(private val target: TargetExpr) {
     private val rawTarget = target.toJson.compactPrint
-    private val request = new DeploymentRequestAttrs(product.name, Version("v42"), rawTarget, "No fear", "c.norris", new Timestamp(123456789))
+    private val request = new DeploymentRequestAttrs(product.name, Version("\"v42\""), rawTarget, "No fear", "c.norris", new Timestamp(123456789))
     private val depReq = execution.dbBinding.insertDeploymentRequest(request)
 
     def dispatchedAs(that: Map[ExecutorInvoker, TargetExpr]): Unit = {
@@ -143,7 +143,7 @@ class OperationStarterSpec extends Test with TestDb {
     }
 
     "raise if a target cannot be solved to atomic targets" in {
-      val thrown = the[IllegalArgumentException] thrownBy TestTargetDispatcher.expandTarget(null, Version(""), Set(TargetTerm(select = Set("ab", "-"))))
+      val thrown = the[IllegalArgumentException] thrownBy TestTargetDispatcher.expandTarget(null, Version("\"\""), Set(TargetTerm(select = Set("ab", "-"))))
       thrown.getMessage should endWith("Target word `-` doesn't resolve to any atomic target")
     }
 

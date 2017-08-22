@@ -26,9 +26,9 @@ class TargetStatusSpec extends FunSuite with ScalaFutures
     Await.result(
       for {
         product <- insertProduct("perpetuo-app")
-        request <- insertDeploymentRequest(new DeploymentRequestAttrs(product.name, Version("v42"), "Moon", "That's one small step for man, one giant leap for mankind", "n.armstrong", new Timestamp(123456789)))
+        request <- insertDeploymentRequest(new DeploymentRequestAttrs(product.name, Version("\"v42\""), "Moon", "That's one small step for man, one giant leap for mankind", "n.armstrong", new Timestamp(123456789)))
         deployOperationTrace <- insertOperationTrace(request.id, Operation.deploy, "n.armstrong")
-        execSpec <- insertExecutionSpecification("{}", Version("456"))
+        execSpec <- insertExecutionSpecification("{}", Version("\"456\""))
         execId <- insertExecution(deployOperationTrace.id, execSpec.id)
         _ <- insertTargetStatuses(execId, Map("Moon" -> TargetAtomStatus(Status.hostFailure, "Houston, we've got a problem")))
         targetStatuses <- dbContext.db.run(targetStatusQuery.result)

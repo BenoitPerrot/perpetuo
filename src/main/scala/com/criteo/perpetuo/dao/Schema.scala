@@ -24,52 +24,6 @@ class Schema(val dbContext: DbContext)
   def createTables(): Unit = {
     Await.result(dbContext.db.run(all.create), 2.seconds)
   }
-
-  // TODO: REMOVE
-  def versionsToMigrateInDepReqs: Future[Seq[(Long, Version)]] = {
-    dbContext.db
-      .run(deploymentRequestQuery.map(dr => (dr.id, dr.version)).result)
-      .map(_.filter { case (_, version) => version.needsMigration })
-  }
-
-  def migrateVersionsInDepReqs: Future[Iterator[Int]] = {
-    versionsToMigrateInDepReqs.map(
-      _.grouped(100).flatMap(batch =>
-        Await.result(
-          Future.sequence {
-            val updates = batch.map { case (id, version) =>
-              dbContext.db.run(deploymentRequestQuery.filter(_.id === id).map(_.version).update(version))
-            }
-            updates
-          },
-          1.hour
-        )
-      )
-    )
-  }
-
-  // sorry for the copy-paste, but it's so temporary I won't bother...
-  def versionsToMigrateInExecSpecs: Future[Seq[(Long, Version)]] = {
-    dbContext.db
-      .run(executionSpecificationQuery.map(dr => (dr.id, dr.version)).result)
-      .map(_.filter { case (_, version) => version.needsMigration })
-  }
-
-  def migrateVersionsInExecSpecs: Future[Iterator[Int]] = {
-    versionsToMigrateInExecSpecs.map(
-      _.grouped(100).flatMap(batch =>
-        Await.result(
-          Future.sequence {
-            val updates = batch.map { case (id, version) =>
-              dbContext.db.run(executionSpecificationQuery.filter(_.id === id).map(_.version).update(version))
-            }
-            updates
-          },
-          1.hour
-        )
-      )
-    )
-  }
 }
 
 
