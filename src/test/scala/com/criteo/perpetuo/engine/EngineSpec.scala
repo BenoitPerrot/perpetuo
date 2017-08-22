@@ -44,9 +44,9 @@ class EngineSpec extends Test with TestDb {
       for {
         deploymentRequestId <- engine.createDeploymentRequest(new DeploymentRequestAttrs(productName, Version(JsString(v).compactPrint), targetAtomToStatus.keys.toJson.compactPrint, "", "r.equestor", new Timestamp(System.currentTimeMillis)), immediateStart = false).map(_ ("id").toString.toLong)
         _ <- engine.startDeploymentRequest(deploymentRequestId, "s.tarter")
-        executionTraceId <- engine.dbBinding.findExecutionTracesByDeploymentRequest(deploymentRequestId).map(_.head.id)
-        executionSpecId <- engine.dbBinding.findExecutionSpecificationId(executionTraceId)
-        _ <- engine.updateExecutionTrace(executionTraceId, ExecutionState.completed, "", targetAtomToStatus.mapValues(c => TargetAtomStatus(c, "")))
+        executionTrace <- engine.dbBinding.findExecutionTracesByDeploymentRequest(deploymentRequestId).map(_.head)
+        executionSpecId <- engine.dbBinding.findExecutionSpecificationId(executionTrace.executionId)
+        _ <- engine.updateExecutionTrace(executionTrace.id, ExecutionState.completed, "", targetAtomToStatus.mapValues(c => TargetAtomStatus(c, "")))
       } yield {
         (deploymentRequestId, executionSpecId.get)
       }
