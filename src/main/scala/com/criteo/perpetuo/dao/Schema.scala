@@ -56,7 +56,7 @@ class Schema(val dbContext: DbContext)
   }
 
   def migrateVersionsInExecSpecs: Future[Iterator[Int]] = {
-    versionsToMigrateInDepReqs.map(
+    versionsToMigrateInExecSpecs.map(
       _.grouped(100).flatMap(batch =>
         Await.result(
           Future.sequence {
