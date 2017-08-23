@@ -19,7 +19,9 @@ class Version(serialized: String) extends MappedTo[String] {
   // fixme (Try..getOrElse): for transition only, while there are non-structured versions in DB
   val structured: Iterable[PartialVersion] = Try(serialized.parseJson)
     .map {
-      case JsArray(arr) => arr.map(Version.parseVersion)
+      case JsArray(arr) =>
+        needsMigration |= arr.length == 1
+        arr.map(Version.parseVersion)
       case _: JsNumber =>
         needsMigration = true
         Seq(PartialVersion(JsString(serialized))) // fixme: transition only
@@ -74,7 +76,10 @@ object Version {
   def compactPrint(versions: Iterable[PartialVersion]): String = {
     {
       if (versions.size == 1)
-        versions.head.value
+        versions.head.value match {
+          case JsObject(obj) => obj("main")
+          case x => x
+        }
       else
         versions.map { v => JsObject(valueField -> v.value, ratioField -> JsNumber(v.ratio - (v.ratio % ratioPrecision))) }.toJson
     }.compactPrint
