@@ -25,7 +25,9 @@ class Version(serialized: String) extends MappedTo[String] {
       case _: JsNumber =>
         needsMigration = true
         Seq(PartialVersion(JsString(serialized))) // fixme: transition only
-      case other => Seq(PartialVersion(other))
+      case other =>
+        needsMigration = true
+        Seq(PartialVersion(other))
     }
     .getOrElse{
       needsMigration = true
