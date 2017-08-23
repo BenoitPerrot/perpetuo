@@ -266,7 +266,7 @@ class RestController @Inject()(val engine: Engine)
   }
 
   private def computeState(depReq: DeploymentRequest, sortedGroupsOfExecutions: SortedMap[Long, Seq[ExecutionTrace]]): String =
-    if (sortedGroupsOfExecutions.isEmpty) {
+    if (sortedGroupsOfExecutions.isEmpty || sortedGroupsOfExecutions.last._2.isEmpty) {
       "not-started"
     } else {
       val lastOperationTrace = sortedGroupsOfExecutions.last._2.head.operationTrace
