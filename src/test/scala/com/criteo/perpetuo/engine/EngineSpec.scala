@@ -67,8 +67,8 @@ class EngineSpec extends Test with TestDb {
           // Status = moon: mice@69, mars: mice@27
 
           // Rolling back
-          operationToRollback <- engine.dbBinding.findOperationTracesByDeploymentRequest(thirdDeploymentRequestId).map(_.head)
-          executionSpecsForRollback <- engine.dbBinding.findExecutionSpecIdsForRollback(operationToRollback)
+          thirdDeploymentRequest <- engine.dbBinding.findDeploymentRequestById(thirdDeploymentRequestId).map(_.get)
+          executionSpecsForRollback <- engine.dbBinding.findExecutionSpecIdsForRollback(thirdDeploymentRequest)
 
         } yield {
           (executionSpecsForRollback.size,
@@ -94,8 +94,8 @@ class EngineSpec extends Test with TestDb {
           // Status = orbit: monkey@69, venus: monkey@69
 
           // Rolling back
-          operationToRollback <- engine.dbBinding.findOperationTracesByDeploymentRequest(thirdDeploymentRequestId).map(_.head)
-          executionSpecsForRollback <- engine.dbBinding.findExecutionSpecIdsForRollback(operationToRollback)
+          thirdDeploymentRequest <- engine.dbBinding.findDeploymentRequestById(thirdDeploymentRequestId).map(_.get)
+          executionSpecsForRollback <- engine.dbBinding.findExecutionSpecIdsForRollback(thirdDeploymentRequest)
 
         } yield {
           (executionSpecsForRollback.size,
@@ -121,8 +121,7 @@ class EngineSpec extends Test with TestDb {
           // Status = tic: poney@33, tac: poney@11
 
           // Rolling back
-          operationTraceIdToRollback <- engine.findOperationTracesByDeploymentRequest(thirdDeploymentRequestId).map(_.get.head.id)
-          rollbackOperationTrace <- engine.rollbackOperationTrace(operationTraceIdToRollback, "r.ollbacker").map(_.get)
+          rollbackOperationTrace <- engine.rollbackDeploymentRequest(thirdDeploymentRequestId, "r.ollbacker").map(_.get)
           rollbackExecutionSpecIds <- engine.dbBinding.findExecutionSpecIdsByOperationTrace(rollbackOperationTrace.id)
 
         } yield {

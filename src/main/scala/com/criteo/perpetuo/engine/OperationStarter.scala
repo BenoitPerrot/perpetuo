@@ -115,20 +115,20 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
     )
   }
 
-  def rollbackOperation(dispatcher: TargetDispatcher, operationTrace: DeepOperationTrace, userName: String): Future[(OperationTrace, Int, Int)] = {
-    dbBinding.findExecutionSpecIdsForRollback(operationTrace).flatMap { execSpecs =>
+  def rollbackOperation(dispatcher: TargetDispatcher, deploymentRequest: DeploymentRequest, userName: String): Future[(OperationTrace, Int, Int)] = {
+    dbBinding.findExecutionSpecIdsForRollback(deploymentRequest).flatMap { execSpecs =>
       val unknownPreviousState = execSpecs.find { case (_, execSpec) => execSpec.isEmpty }
       if (unknownPreviousState.isDefined) {
         val target: String = unknownPreviousState.get._1
-        throw new IllegalArgumentException(s"Unknown previous state for target: $target")
+        throw new IllegalArgumentException(s"Cannot rollback: unknown previous state for target `$target`")
       }
       else {
-        val opCreation = dbBinding.insertOperationTrace(operationTrace.deploymentRequestId, Operation.revert, userName)
+        val opCreation = dbBinding.insertOperationTrace(deploymentRequest.id, Operation.revert, userName)
         Future.traverse(execSpecs.toStream.groupBy { case (_, execSpec) => execSpec.get.id }.values) { specifications =>
           val (_, execSpec) = specifications.head
           val targetAtoms = Set(TargetTerm(select = specifications.map(_._1).toSet))
           opCreation.flatMap(newOp =>
-            startExecution(dispatcher, operationTrace.deploymentRequest, newOp, execSpec.get.toExecutionSpecification, targetAtoms)
+            startExecution(dispatcher, deploymentRequest, newOp, execSpec.get.toExecutionSpecification, targetAtoms)
           )
         }.map(_.fold((0, 0)) { case ((a, b), (c, d)) => (a + c, b + d) }).flatMap { case (successes, failures) => opCreation.map(o => (o, successes, failures)) }
       }

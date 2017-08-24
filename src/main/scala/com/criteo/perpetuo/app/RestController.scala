@@ -180,8 +180,8 @@ class RestController @Inject()(val engine: Engine)
             val action = actionName match {
               case "start" => engine.startDeploymentRequest _
               case "apply-again" => engine.deployAgain _
-              // TODO: case "apply" => // ensure that the deployment request can be applied, and proceed
-              // TODO: case "rollback" => // ensure that the deployment request can be rolled back, and proceed
+              case "rollback" => engine.rollbackDeploymentRequest _
+              // TODO: case "apply" to replace "start" + "apply-again"
               case _ => throw new ParsingException(s"Action `$actionName` does not exist")
             }
             (actionName, action)
@@ -218,15 +218,6 @@ class RestController @Inject()(val engine: Engine)
     )
   )
   // >>
-
-  post("/api/operation-traces/:id/rollback") { r: RequestWithId =>
-    authenticate(r.request) { case user if isAuthorized(user) =>
-      withIdAndRequest(
-        (id, _: RequestWithId) => engine.rollbackOperationTrace(id, user.name).map(_.map { _ => response.ok.json(Map("id" -> id)) }),
-        2.seconds
-      )(r)
-    }
-  }
 
   put(RestApi.executionCallbackPath(":id")) {
     // todo: give the permission to Rundeck only

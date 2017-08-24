@@ -67,16 +67,6 @@ trait OperationTraceBinder extends TableBinder {
     }
   }
 
-  def findOperationTrace(operationTraceId: Long): Future[Option[DeepOperationTrace]] = {
-    dbContext.db.run(operationTraceQuery.filter(_.id === operationTraceId)
-      .join(deploymentRequestQuery).on(_.deploymentRequestId === _.id)
-      .join(productQuery).on(_._2.productId === _.id).result).map(
-      _.headOption.map { case ((op, dr), p) =>
-        DeepOperationTrace(op.id.get, dr.toDeploymentRequest(p.toProduct), op.operation, op.creator, op.creationDate, op.closingDate)
-      }
-    )
-  }
-
   def findOperationTracesByDeploymentRequest(deploymentRequestId: Long): Future[Seq[ShallowOperationTrace]] = {
     dbContext.db.run(operationTraceQuery.filter(_.deploymentRequestId === deploymentRequestId).sortBy(_.id).result).map(
       _.map(_.toOperationTrace)

@@ -101,15 +101,15 @@ class Engine @Inject()(val dbBinding: DbBinding) {
     )
   }
 
-  def rollbackOperationTrace(operationTraceId: Long, initiatorName: String): Future[Option[OperationTrace]] =
-    dbBinding.findOperationTrace(operationTraceId).flatMap(
-      _.map { op =>
+  def rollbackDeploymentRequest(deploymentRequestId: Long, initiatorName: String): Future[Option[OperationTrace]] =
+    dbBinding.findDeploymentRequestById(deploymentRequestId).flatMap(
+      _.map { depReq =>
         operationStarter
-          .rollbackOperation(plugins.dispatcher, op, initiatorName)
+          .rollbackOperation(plugins.dispatcher, depReq, initiatorName)
           .map { case (operationTrace, started, failed) =>
-            Future(plugins.listener.onDeploymentRequestRolledBack(op.deploymentRequest, started, failed))
+            Future(plugins.listener.onDeploymentRequestRolledBack(depReq, started, failed))
             if (started == 0)
-              closeOperation(operationTrace, op.deploymentRequest)
+              closeOperation(operationTrace, depReq)
             Some(operationTrace)
           }
       }.getOrElse(Future.successful(None))
