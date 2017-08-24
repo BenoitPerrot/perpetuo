@@ -102,7 +102,7 @@ class RestController @Inject()(val engine: Engine)
   get("/api/products") { _: Request =>
     timeBoxed(
       engine.getProductNames,
-      2.seconds
+      5.seconds
     )
   }
 
@@ -114,7 +114,7 @@ class RestController @Inject()(val engine: Engine)
           .recover { case e: ProductCreationConflict =>
             throw ConflictException(e.getMessage)
           },
-        2.seconds
+        5.seconds
       )
     }
   }
@@ -138,7 +138,7 @@ class RestController @Inject()(val engine: Engine)
   get("/api/deployment-requests/:id")(
     withLongId(
       engine.findDeploymentRequestByIdWithProduct(_).map(_.map(_.toJsonReadyMap)),
-      2.seconds
+      5.seconds
     )
   )
 
@@ -189,7 +189,7 @@ class RestController @Inject()(val engine: Engine)
               throw BadRequestException(e.getMessage)
           }
         ,
-        2.seconds
+        5.seconds
       )(r)
     }
   }
@@ -197,14 +197,14 @@ class RestController @Inject()(val engine: Engine)
   get("/api/deployment-requests/:id/execution-traces")(
     withLongId(
       engine.findExecutionTracesByDeploymentRequest,
-      2.seconds
+      5.seconds
     )
   )
   // TODO: migrate clients to "/api/deployment-requests/:id/execution-traces" then remove <<
   get("/api/execution-traces/by-deployment-request/:id")(
     withLongId(
       engine.findExecutionTracesByDeploymentRequest,
-      2.seconds
+      5.seconds
     )
   )
   // >>
@@ -245,14 +245,14 @@ class RestController @Inject()(val engine: Engine)
   get("/api/deployment-requests/:id/operation-traces")(
     withLongId(
       engine.findOperationTracesByDeploymentRequest,
-      2.seconds
+      5.seconds
     )
   )
   // TODO: migrate clients to "/api/deployment-requests/:id/operation-traces" then remove <<
   get("/api/operation-traces/by-deployment-request/:id")(
     withLongId(
       engine.findOperationTracesByDeploymentRequest,
-      2.seconds
+      5.seconds
     )
   )
   // >>
@@ -318,7 +318,7 @@ class RestController @Inject()(val engine: Engine)
         .map(_.map { case (deploymentRequest, executionResultGroups) =>
           serialize(r.request.user.exists(isAuthorized), deploymentRequest, executionResultGroups.mapValues(_._1.toSeq)) ++ Map("operations" -> serialize(executionResultGroups))
         }),
-      2.seconds
+      5.seconds
     )(r)
   }
   post("/api/unstable/deployment-requests") { r: SortingFilteringPost =>
