@@ -10,7 +10,7 @@ import com.criteo.perpetuo.engine.dispatchers.TargetDispatcher
 import scala.collection.JavaConverters._
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
-import scala.concurrent.{Await, ExecutionException, Future}
+import scala.concurrent.{Await, ExecutionException, Future, blocking}
 import scala.reflect._
 
 
@@ -107,7 +107,9 @@ abstract class PluginRunner[P <: Plugin](implementation: Option[P], base: P) {
         plugin.logger.info(methodName)
         try {
           Await.result(Future {
-            toCallOnPlugin(plugin)
+            blocking {
+              toCallOnPlugin(plugin)
+            }
           }, plugin.timeout_s.seconds)
         }
         catch {
