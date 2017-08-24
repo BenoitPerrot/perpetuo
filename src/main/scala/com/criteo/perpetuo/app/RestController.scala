@@ -5,7 +5,7 @@ import javax.inject.Inject
 import com.criteo.perpetuo.auth.User
 import com.criteo.perpetuo.auth.UserFilter._
 import com.criteo.perpetuo.config.AppConfig
-import com.criteo.perpetuo.dao.{ProductCreationConflict, Schema, UnknownProduct}
+import com.criteo.perpetuo.dao.{ProductCreationConflict, UnknownProduct}
 import com.criteo.perpetuo.engine.Engine
 import com.criteo.perpetuo.model._
 import com.twitter.finagle.http.{Request, Response, Status => HttpStatus}
@@ -331,7 +331,8 @@ class RestController @Inject()(val engine: Engine)
         try {
           engine.queryDeepDeploymentRequests(r.where, r.orderBy, r.limit, r.offset)
             .map(_.map { case (deploymentRequest, executionTraces) =>
-              serialize(r.request.user.exists(isAuthorized), deploymentRequest, executionTraces) })
+              serialize(r.request.user.exists(isAuthorized), deploymentRequest, executionTraces)
+            })
         } catch {
           case e: IllegalArgumentException => throw BadRequestException(e.getMessage)
         }

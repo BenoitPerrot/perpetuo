@@ -33,10 +33,10 @@ class EngineSpec extends Test with TestDb {
             "mars" -> TargetAtomStatus(Status.hostFailure, "no surprise")))
           hasOpenExecutionAfter <- engine.dbBinding.hasOpenExecutionTracesForOperation(operationTraceId)
           operationReClosingSucceeded <- engine.dbBinding.closeOperationTrace(operationTraceId)
-        } yield {
-          (hasOpenExecutionBefore, hasOpenExecutionAfter, operationReClosingSucceeded)
-        },
-        2.second
+        } yield (
+          hasOpenExecutionBefore, hasOpenExecutionAfter, operationReClosingSucceeded
+        ),
+        2.seconds
       ) shouldBe(true, false, false)
     }
 
@@ -47,9 +47,7 @@ class EngineSpec extends Test with TestDb {
         executionTrace <- engine.dbBinding.findExecutionTracesByDeploymentRequest(deploymentRequestId).map(_.head)
         executionSpecId <- engine.dbBinding.findExecutionSpecificationId(executionTrace.executionId)
         _ <- engine.updateExecutionTrace(executionTrace.id, ExecutionState.completed, "", targetAtomToStatus.mapValues(c => TargetAtomStatus(c, "")))
-      } yield {
-        (deploymentRequestId, executionSpecId.get)
-      }
+      } yield (deploymentRequestId, executionSpecId.get)
     }
 
     "find executions for rolling back" in {
@@ -70,12 +68,12 @@ class EngineSpec extends Test with TestDb {
           thirdDeploymentRequest <- engine.dbBinding.findDeploymentRequestById(thirdDeploymentRequestId).map(_.get)
           executionSpecsForRollback <- engine.dbBinding.findExecutionSpecIdsForRollback(thirdDeploymentRequest)
 
-        } yield {
-          (executionSpecsForRollback.size,
-            executionSpecsForRollback("mars").get.id.get == firstExecSpecId,
-            executionSpecsForRollback("moon").get.id.get == secondExecSpecId)
-        },
-        2.second
+        } yield (
+          executionSpecsForRollback.size,
+          executionSpecsForRollback("mars").get.id.get == firstExecSpecId,
+          executionSpecsForRollback("moon").get.id.get == secondExecSpecId
+        ),
+        2.seconds
       ) shouldBe(2, true, true)
     }
 
@@ -97,42 +95,40 @@ class EngineSpec extends Test with TestDb {
           thirdDeploymentRequest <- engine.dbBinding.findDeploymentRequestById(thirdDeploymentRequestId).map(_.get)
           executionSpecsForRollback <- engine.dbBinding.findExecutionSpecIdsForRollback(thirdDeploymentRequest)
 
-        } yield {
-          (executionSpecsForRollback.size,
-            executionSpecsForRollback("orbit").get.id.get == secondExecSpecId,
-            executionSpecsForRollback("venus").isEmpty)
-        },
-        2.second
+        } yield (
+          executionSpecsForRollback.size,
+          executionSpecsForRollback("orbit").get.id.get == secondExecSpecId,
+          executionSpecsForRollback("venus").isEmpty
+        ),
+        2.seconds
       ) shouldBe(2, true, true)
     }
 
     "perform a roll back" in {
       Await.result(
         for {
-          product <- engine.insertProduct("poney")
+          product <- engine.insertProduct("pony")
 
           (firstDeploymentRequestId, firstExecSpecId) <- mockDeployExecution(product.name, "11", Map("tic" -> Status.success, "tac" -> Status.success))
-          // Status = tic: poney@11, tac: poney@11
+          // Status = tic: pony@11, tac: pony@11
 
           (secondDeploymentRequestId, secondExecSpecId) <- mockDeployExecution(product.name, "22", Map("tic" -> Status.success, "tac" -> Status.productFailure))
-          // Status = tic: poney@22, tac: poney@11
+          // Status = tic: pony@22, tac: pony@11
 
           (thirdDeploymentRequestId, thirdExecSpecId) <- mockDeployExecution(product.name, "33", Map("tic" -> Status.success, "tac" -> Status.productFailure))
-          // Status = tic: poney@33, tac: poney@11
+          // Status = tic: pony@33, tac: pony@11
 
           // Rolling back
           rollbackOperationTrace <- engine.rollbackDeploymentRequest(thirdDeploymentRequestId, "r.ollbacker").map(_.get)
           rollbackExecutionSpecIds <- engine.dbBinding.findExecutionSpecIdsByOperationTrace(rollbackOperationTrace.id)
 
-        } yield {
-          (
-            rollbackOperationTrace.deploymentRequestId == thirdDeploymentRequestId,
-            rollbackExecutionSpecIds.length,
-            rollbackExecutionSpecIds.contains(firstExecSpecId),
-            rollbackExecutionSpecIds.contains(secondExecSpecId)
-          )
-        },
-        2.second
+        } yield (
+          rollbackOperationTrace.deploymentRequestId == thirdDeploymentRequestId,
+          rollbackExecutionSpecIds.length,
+          rollbackExecutionSpecIds.contains(firstExecSpecId),
+          rollbackExecutionSpecIds.contains(secondExecSpecId)
+        ),
+        2.seconds
       ) shouldBe(true, 2, true, true)
     }
 
@@ -157,17 +153,15 @@ class EngineSpec extends Test with TestDb {
           operationReClosingSucceeded <- engine.dbBinding.closeOperationTrace(retriedOperation.id)
           initialExecutionSpecIds <- engine.dbBinding.findExecutionSpecIdsByOperationTrace(operationTraceId)
           retriedExecutionSpecIds <- engine.dbBinding.findExecutionSpecIdsByOperationTrace(retriedOperation.id)
-        } yield {
-          (
-            executionTrace.length,
-            executionTracesAfterRetry.length,
-            retriedOperation.id == operationTraceId,
-            hasOpenExecutionAfter, operationReClosingSucceeded,
-            initialExecutionSpecIds.length == retriedExecutionSpecIds.length,
-            initialExecutionSpecIds == retriedExecutionSpecIds
-          )
-        },
-        2.second
+        } yield (
+          executionTrace.length,
+          executionTracesAfterRetry.length,
+          retriedOperation.id == operationTraceId,
+          hasOpenExecutionAfter, operationReClosingSucceeded,
+          initialExecutionSpecIds.length == retriedExecutionSpecIds.length,
+          initialExecutionSpecIds == retriedExecutionSpecIds
+        ),
+        2.seconds
       ) shouldBe(1, 2, false, false, false, true, true)
     }
   }

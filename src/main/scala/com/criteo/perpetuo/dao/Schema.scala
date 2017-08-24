@@ -3,8 +3,6 @@ package com.criteo.perpetuo.dao
 import javax.inject.{Inject, Singleton}
 
 import com.criteo.perpetuo.model._
-import com.twitter.finagle.http.{Status => HttpStatus}
-import com.twitter.util.{Await => TwitterAwait}
 
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.{SortedMap, breakOut, mutable}
@@ -36,14 +34,14 @@ class DbBinding @Inject()(val dbContext: DbContext)
 
   def findDeepDeploymentRequest(deploymentRequestId: Long): Future[Option[(DeploymentRequest, SortedMap[Long, (Iterable[ExecutionTrace], Iterable[TargetStatus])])]] = {
     dbContext.db.run(
-        deploymentRequestQuery
-          .filter(_.id === deploymentRequestId)
-          .join(productQuery).on { case (deploymentRequest, product) => deploymentRequest.productId === product.id }
-          .joinLeft(operationTraceQuery).on { case ((deploymentRequest, _), operationTrace) => deploymentRequest.id === operationTrace.deploymentRequestId }
-          .joinLeft(executionQuery).on { case ((_, operationTrace), execution) => operationTrace.map(_.id) === execution.operationTraceId }
-          .joinLeft(executionTraceQuery).on { case (((_, _), execution), executionTrace) => execution.map(_.id) === executionTrace.executionId }
-          .joinLeft(targetStatusQuery).on { case ((((_, _), execution), _), targetStatus) => execution.map(_.id) === targetStatus.executionId }
-          .map { case (((((deploymentRequest, product), operationTrace), _), executionTrace), targetStatus) => (deploymentRequest, product, operationTrace, executionTrace, targetStatus) }
+      deploymentRequestQuery
+        .filter(_.id === deploymentRequestId)
+        .join(productQuery).on { case (deploymentRequest, product) => deploymentRequest.productId === product.id }
+        .joinLeft(operationTraceQuery).on { case ((deploymentRequest, _), operationTrace) => deploymentRequest.id === operationTrace.deploymentRequestId }
+        .joinLeft(executionQuery).on { case ((_, operationTrace), execution) => operationTrace.map(_.id) === execution.operationTraceId }
+        .joinLeft(executionTraceQuery).on { case (((_, _), execution), executionTrace) => execution.map(_.id) === executionTrace.executionId }
+        .joinLeft(targetStatusQuery).on { case ((((_, _), execution), _), targetStatus) => execution.map(_.id) === targetStatus.executionId }
+        .map { case (((((deploymentRequest, product), operationTrace), _), executionTrace), targetStatus) => (deploymentRequest, product, operationTrace, executionTrace, targetStatus) }
         .result)
 
       .map(results =>
