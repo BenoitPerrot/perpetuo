@@ -245,4 +245,43 @@ class DbBinding @Inject()(val dbContext: DbContext)
         atoms.map(_.map(targetAtom => (targetAtom, specifications.get(targetAtom)))(breakOut))
     }
   }
+
+  def findTargetAtomNotActionableBy(deploymentRequestId: Long): Future[Option[TargetAtom.Type]] = {
+    // The given deployment request has a specification for each target atom;
+    // once we put aside the possible revert operations on this very deployment request (only),
+    // for each target atom, if the last operation has the same specification as this deployment request,
+    // then the deployment request is actionable: it can be retried, it can be rolled back.
+    // Note that if this deployment request has never been applied, it's also actionable.
+    val query = operationTraceQuery
+      .filter { op => op.deploymentRequestId === deploymentRequestId && op.operation === Operation.deploy }
+      .take(1)
+      .join(
+        targetStatusQuery
+          .join(executionQuery)
+          .join(operationTraceQuery)
+          .join(deploymentRequestQuery)
+          .join(deploymentRequestQuery)
+          .filter { case ((((targetStatus, execution), operationTrace), deploymentRequest), testedDeploymentRequest) =>
+            targetStatus.executionId === execution.id && execution.operationTraceId === operationTrace.id &&
+              operationTrace.deploymentRequestId === deploymentRequest.id && deploymentRequest.productId === testedDeploymentRequest.productId &&
+              testedDeploymentRequest.id === deploymentRequestId &&
+              !(operationTrace.operation === Operation.revert && deploymentRequest.id === deploymentRequestId)
+          }
+          .groupBy { case ((((targetStatus, _), _), _), _) => targetStatus.targetAtom }
+          .map { case (targetAtom, q) => (targetAtom, q.map { case ((((_, execution), _), _), _) => execution.id }.max) }
+      )
+      .join(executionQuery)
+      .join(targetStatusQuery)
+      .join(executionQuery)
+      .filter { case ((((operationTrace, (targetAtom, lastExecutionId)), testedExecution), targetStatus), execution) =>
+        operationTrace.id === testedExecution.operationTraceId && testedExecution.id === targetStatus.executionId &&
+          targetStatus.targetAtom === targetAtom && lastExecutionId.map(_ === execution.id).getOrElse(false)
+      }
+      .map { case ((((_, (targetAtom, _)), testedExecution), _), lastExecution) =>
+        (targetAtom, testedExecution.executionSpecificationId === lastExecution.executionSpecificationId)
+      }
+
+    dbContext.db.run(query.result)
+      .map(_.collectFirst { case (targetAtom, actionable) if !actionable => targetAtom })
+  }
 }

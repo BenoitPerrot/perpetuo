@@ -115,6 +115,10 @@ class Engine @Inject()(val dbBinding: DbBinding) {
       }.getOrElse(Future.successful(None))
     )
 
+  def findTargetAtomNotActionableBy(deploymentRequestId: Long): Future[Option[TargetAtom.Type]] = {
+    dbBinding.findTargetAtomNotActionableBy(deploymentRequestId)
+  }
+
   def findOperationTracesByDeploymentRequest(deploymentRequestId: Long): Future[Option[Seq[OperationTrace]]] =
     dbBinding.findOperationTracesByDeploymentRequest(deploymentRequestId).flatMap { traces =>
       if (traces.isEmpty) {

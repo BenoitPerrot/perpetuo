@@ -174,21 +174,31 @@ class RestController @Inject()(val engine: Engine)
   post("/api/deployment-requests/:id/actions") { r: RequestWithId =>
     authenticate(r.request) { case user if isAuthorized(user) =>
       withIdAndRequest(
-        (id, _: RequestWithId) =>
-          try {
+        (id, _: RequestWithId) => {
+          val (actionName, action) = try {
             val actionName = r.request.contentString.parseJson.asJsObject.fields("name").asInstanceOf[JsString].value
-            actionName match {
-              case "start" => engine.startDeploymentRequest(id, user.name).map(_.map { _ => response.ok.json(Map("id" -> id)) })
-              case "apply-again" => engine.deployAgain(id, user.name).map(_.map { _ => response.ok.json(Map("id" -> id)) })
+            val action = actionName match {
+              case "start" => engine.startDeploymentRequest _
+              case "apply-again" => engine.deployAgain _
               // TODO: case "apply" => // ensure that the deployment request can be applied, and proceed
               // TODO: case "rollback" => // ensure that the deployment request can be rolled back, and proceed
               case _ => throw new ParsingException(s"Action `$actionName` does not exist")
             }
+            (actionName, action)
           } catch {
-            case e@(_: ParsingException | _: DeserializationException | _: NoSuchElementException) =>
+            case e@(_: ParsingException | _: DeserializationException | _: NoSuchElementException | _: ClassCastException) =>
               throw BadRequestException(e.getMessage)
           }
-        ,
+          engine.findTargetAtomNotActionableBy(id).flatMap { rejectingTargetAtom =>
+            rejectingTargetAtom.map(targetAtom =>
+              throw BadRequestException(s"Can't $actionName the deployment request #$id, " +
+                s"at least because the target `$targetAtom` is in a conflicting state.")
+            )
+            action(id, user.name).map(_.map { _ => response.ok.json(Map("id" -> id)) }).recover {
+              case e: IllegalArgumentException => throw BadRequestException(e.getMessage)
+            }
+          }
+        },
         5.seconds
       )(r)
     }
