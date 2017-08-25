@@ -265,7 +265,7 @@ class DbBinding @Inject()(val dbContext: DbContext)
       .join(executionQuery)
       .filter { case ((((operationTrace, (targetAtom, lastExecutionId)), testedExecution), targetStatus), execution) =>
         operationTrace.id === testedExecution.operationTraceId && testedExecution.id === targetStatus.executionId &&
-          targetStatus.targetAtom === targetAtom && lastExecutionId.map(_ === execution.id).getOrElse(false)
+          targetStatus.targetAtom === targetAtom && lastExecutionId === execution.id
       }
       .map { case ((((_, (targetAtom, _)), testedExecution), _), lastExecution) =>
         (targetAtom, testedExecution.executionSpecificationId === lastExecution.executionSpecificationId)
