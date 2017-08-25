@@ -28,9 +28,9 @@ CREATE TABLE "operation_trace" (
   "deployment_request_id" BIGINT        NOT NULL,
   "operation"             SMALLINT      NOT NULL,
   "target_status"         NVARCHAR(16000),
-  "creator"               NVARCHAR(64)  DEFAULT 'qabot' NOT NULL,
-  "creation_date"         DATETIME      DEFAULT(CONVERT(DATETIME,{TS '1970-01-01 00:00:00.0'})) NOT NULL,
-  "closing_date"          DATETIME      DEFAULT(CONVERT(DATETIME,{TS '1970-01-01 00:00:00.0'}))
+  "creator"               NVARCHAR(64)  NOT NULL,
+  "creation_date"         DATETIME      NOT NULL,
+  "closing_date"          DATETIME
 )
 ALTER TABLE "operation_trace"
   ADD CONSTRAINT "pk_operation_trace" PRIMARY KEY ("id")
