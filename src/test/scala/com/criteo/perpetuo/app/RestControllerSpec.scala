@@ -58,6 +58,7 @@ class RestControllerSpec extends FeatureTest with TestDb {
 
   object T extends JsNumber(0) {
     override def toString(): String = "?"
+
     override def equals(o: Any): Boolean = true
   }
 
@@ -638,8 +639,8 @@ class RestControllerSpec extends FeatureTest with TestDb {
       depReqsForUnkownProduct.isEmpty shouldBe true
 
       val depReqsForSingleProduct = deepGetDepReq(where = Seq(Map("field" -> "productName".toJson, "equals" -> "my product".toJson)))
-      depReqsForSingleProduct.length should(be > 0 and be < allDepReqs.length)
-      depReqsForSingleProduct.map(_("productName").asInstanceOf[JsString].value == "my product").reduce(_ && _) shouldBe true
+      depReqsForSingleProduct.length should (be > 0 and be < allDepReqs.length)
+      depReqsForSingleProduct.map(_ ("productName").asInstanceOf[JsString].value == "my product").reduce(_ && _) shouldBe true
     }
 
     "reject unknown field names in filters" in {
@@ -661,7 +662,7 @@ class RestControllerSpec extends FeatureTest with TestDb {
     "sort by individual fields" in {
       deepGetDepReq().length should be > 2
 
-      def isSorted[ValueType, T <: { val value: ValueType }](deploymentRequests: Seq[Map[String, JsValue]], key: String, absoluteMin: ValueType, isOrdered: (ValueType, ValueType) => Boolean): Boolean = {
+      def isSorted[ValueType, T <: {val value : ValueType}](deploymentRequests: Seq[Map[String, JsValue]], key: String, absoluteMin: ValueType, isOrdered: (ValueType, ValueType) => Boolean): Boolean = {
         deploymentRequests
           .foldLeft((absoluteMin, true)) { (lastResult, deploymentRequest) =>
             val value = deploymentRequest(key).asInstanceOf[T].value
@@ -679,9 +680,9 @@ class RestControllerSpec extends FeatureTest with TestDb {
           "productName" -> sortStrings,
           "creator" -> sortStrings
         ).foreach { case (fieldName, isSorted) =>
-            val sortedDepReqs = deepGetDepReq(orderBy = Seq(Map("field" -> fieldName.toJson, "desc" -> descending.toJson)))
-            sortedDepReqs.isEmpty shouldBe false
-            isSorted(if (descending) sortedDepReqs.reverse else sortedDepReqs, fieldName) shouldBe true
+          val sortedDepReqs = deepGetDepReq(orderBy = Seq(Map("field" -> fieldName.toJson, "desc" -> descending.toJson)))
+          sortedDepReqs.isEmpty shouldBe false
+          isSorted(if (descending) sortedDepReqs.reverse else sortedDepReqs, fieldName) shouldBe true
         }
       }
     }
