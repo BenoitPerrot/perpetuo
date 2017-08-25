@@ -14,10 +14,9 @@ private[dao] case class DeploymentRequestRecord(id: Option[Long],
                                                 comment: String, // Not an `Option` because it's easier to consider that no comment <=> empty
                                                 creator: String,
                                                 creationDate: java.sql.Timestamp) {
-  def toDeploymentRequest(product: Product): DeploymentRequest = {
-    DeploymentRequest(id.get, product, version, target, comment, creator, creationDate)
+  def toDeploymentRequest(product: ProductRecord): DeploymentRequest = {
+    DeploymentRequest(id.get, product.toProduct, version, target, comment, creator, creationDate)
   }
-
 }
 
 
@@ -68,7 +67,7 @@ trait DeploymentRequestBinder extends TableBinder {
   def findDeploymentRequestById(id: Long): Future[Option[DeploymentRequest]] = {
     dbContext.db.run((deploymentRequestQuery join productQuery on (_.productId === _.id) filter (_._1.id === id)).result)
       .map(_.headOption.map {
-        case (req, prod) => req.toDeploymentRequest(prod.toProduct)
+        case (req, prod) => req.toDeploymentRequest(prod)
       })
   }
 

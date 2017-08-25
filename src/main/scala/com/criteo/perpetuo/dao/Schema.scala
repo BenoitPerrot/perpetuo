@@ -46,7 +46,7 @@ class DbBinding @Inject()(val dbContext: DbContext)
 
       .map(results =>
         results.headOption.map { case (deploymentRequestRecord, productRecord, _, _, _) =>
-          val deploymentRequest = deploymentRequestRecord.toDeploymentRequest(productRecord.toProduct)
+          val deploymentRequest = deploymentRequestRecord.toDeploymentRequest(productRecord)
 
           val executionResults = results
             .map { case (_, _, operationTrace, executionTrace, targetStatus) => (operationTrace, executionTrace, targetStatus) }
@@ -83,7 +83,7 @@ class DbBinding @Inject()(val dbContext: DbContext)
       .result
     ).map(depReqAndExecSpecs =>
       depReqAndExecSpecs.headOption.map { case (deploymentRequest, product, _) =>
-        (deploymentRequest.toDeploymentRequest(product.toProduct), depReqAndExecSpecs.map(_._3.toExecutionSpecification))
+        (deploymentRequest.toDeploymentRequest(product), depReqAndExecSpecs.map(_._3.toExecutionSpecification))
       }
     )
   }
@@ -170,7 +170,7 @@ class DbBinding @Inject()(val dbContext: DbContext)
           .map { case ((((deploymentRequest, product), operationTrace), execution), executionTrace) => (deploymentRequest, product, operationTrace, executionTrace) }
         , order).result
     ).map(groupByDeploymentRequestId(_).values.map { case (req, product, execs) =>
-      (req.toDeploymentRequest(product.toProduct), SortedMap(execs.groupBy(_.operationTrace.id).toStream: _*))
+      (req.toDeploymentRequest(product), SortedMap(execs.groupBy(_.operationTrace.id).toStream: _*))
     })
   }
 
