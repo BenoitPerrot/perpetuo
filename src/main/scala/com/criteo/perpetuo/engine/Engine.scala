@@ -3,7 +3,7 @@ package com.criteo.perpetuo.engine
 import javax.inject.{Inject, Singleton}
 
 import com.criteo.perpetuo.config.{AppConfig, Plugins}
-import com.criteo.perpetuo.dao.{DbBinding, TargetStatusRecord, UnknownProduct}
+import com.criteo.perpetuo.dao.{DbBinding, UnknownProduct}
 import com.criteo.perpetuo.model.ExecutionState.ExecutionState
 import com.criteo.perpetuo.model._
 
@@ -12,6 +12,16 @@ import scala.collection.SortedMap
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
+
+
+object Action extends Enumeration {
+  type Kind = Value
+
+  val applyFirst = Value("start")
+  val applyAgain = Value
+  val rollback = Value
+}
+
 
 @Singleton
 class Engine @Inject()(val dbBinding: DbBinding) {

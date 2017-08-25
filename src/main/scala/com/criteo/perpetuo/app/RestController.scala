@@ -6,7 +6,7 @@ import com.criteo.perpetuo.auth.User
 import com.criteo.perpetuo.auth.UserFilter._
 import com.criteo.perpetuo.config.AppConfig
 import com.criteo.perpetuo.dao.{ProductCreationConflict, UnknownProduct}
-import com.criteo.perpetuo.engine.Engine
+import com.criteo.perpetuo.engine.{Action, Engine}
 import com.criteo.perpetuo.model._
 import com.twitter.finagle.http.{Request, Response, Status => HttpStatus}
 import com.twitter.finatra.http.exceptions.{BadRequestException, ConflictException, HttpException}
@@ -175,26 +175,29 @@ class RestController @Inject()(val engine: Engine)
     authenticate(r.request) { case user if isAuthorized(user) =>
       withIdAndRequest(
         (id, _: RequestWithId) => {
-          val (actionName, action) = try {
-            val actionName = r.request.contentString.parseJson.asJsObject.fields("name").asInstanceOf[JsString].value
-            val action = actionName match {
-              case "start" => engine.startDeploymentRequest _
-              case "apply-again" => engine.deployAgain _
-              case "rollback" => engine.rollbackDeploymentRequest _
-              // TODO: case "apply" to replace "start" + "apply-again"
-              case _ => throw new ParsingException(s"Action `$actionName` does not exist")
-            }
-            (actionName, action)
+          val actionName = try {
+            r.request.contentString.parseJson.asJsObject.fields("name").asInstanceOf[JsString].value
           } catch {
             case e@(_: ParsingException | _: DeserializationException | _: NoSuchElementException | _: ClassCastException) =>
               throw BadRequestException(e.getMessage)
           }
+          val action = try {
+            Action.withName(actionName)
+          } catch {
+            case _: NoSuchElementException => throw BadRequestException(s"Action $actionName doesn't exist")
+          }
+          val effect = action match {
+            case Action.applyFirst => engine.startDeploymentRequest _
+            case Action.applyAgain => engine.deployAgain _
+            case Action.rollback => engine.rollbackDeploymentRequest _
+          }
+
           engine.findTargetAtomNotActionableBy(id).flatMap { rejectingTargetAtom =>
             rejectingTargetAtom.map(targetAtom =>
               throw BadRequestException(s"Can't $actionName the deployment request #$id, " +
                 s"at least because the target `$targetAtom` is in a conflicting state.")
             )
-            action(id, user.name).map(_.map { _ => response.ok.json(Map("id" -> id)) }).recover {
+            effect(id, user.name).map(_.map { _ => response.ok.json(Map("id" -> id)) }).recover {
               case e: IllegalArgumentException => throw BadRequestException(e.getMessage)
             }
           }
