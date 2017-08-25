@@ -30,6 +30,7 @@ CREATE TABLE "operation_trace" (
   "target_status"         NVARCHAR(16000),
   "creator"               NVARCHAR(64)  NOT NULL,
   "creation_date"         DATETIME      NOT NULL,
+  "starting_date"         DATETIME      DEFAULT NULL,
   "closing_date"          DATETIME
 )
 ALTER TABLE "operation_trace"
@@ -38,6 +39,8 @@ CREATE INDEX "ix_operation_trace_closing_date"
   ON "operation_trace" ("closing_date")
 CREATE INDEX "ix_operation_trace_creation_date"
   ON "operation_trace" ("creation_date")
+CREATE INDEX "ix_operation_trace_starting_date"
+  ON "operation_trace" ("starting_date")
 
 
 CREATE TABLE "execution_specification" (
