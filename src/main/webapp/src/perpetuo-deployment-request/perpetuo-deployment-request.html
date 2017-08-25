@@ -91,7 +91,7 @@
         </h1>
         <div class="actions">
           <template is="dom-repeat" items="[[data.actions]]">
-            <paper-button disabled="[[computeDisabled(isInAction, item.authorized)]]" on-tap="onActionTap" raised>[[item.name]]</paper-button>
+            <paper-button disabled="[[computeDisabled(isInAction, item.authorized)]]" on-tap="onActionTap" raised>[[humanReadable(item.name)]]</paper-button>
           </template>
         </div>
         <paper-card id="general">
@@ -159,6 +159,10 @@
 
     asPercentage(ratio) {
       return ratio * 100;
+    },
+
+    humanReadable(actionName) {
+      return actionName.replace(/([A-Z])/g, ' $1');
     },
 
     // TODO: factor with perpetuo-deployment-request-entry, or remove it from -entry
