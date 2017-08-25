@@ -89,12 +89,29 @@ class Engine @Inject()(val dbBinding: DbBinding) {
     }
   }
 
-  def startDeploymentRequest(deploymentRequestId: Long, initiatorName: String): Future[Option[(OperationTrace, Int, Int)]] =
+  def isStarted(deploymentRequestId: Long): Future[Boolean] =
+    dbBinding.isStarted(deploymentRequestId)
+
+  def getConflictReason(deploymentRequestId: Long, isStarted: Boolean): Future[Option[String]] = {
+    if (isStarted)
+      dbBinding.findTargetAtomNotActionableBy(deploymentRequestId).map(
+        _.map(targetAtom => s"the target `$targetAtom` (at least) is in a conflicting state")
+      )
+    else
+      dbBinding.isOutdated(deploymentRequestId).map(if (_) Some("a newer one has already been applied") else None)
+  }
+
+  def getActionsIf(isStarted: Boolean): Seq[Action.Kind] = {
+    if (isStarted) Seq(Action.applyAgain, Action.rollback) else Seq(Action.applyFirst)
+  }
+
+  def startDeploymentRequest(deploymentRequestId: Long, initiatorName: String): Future[Option[(OperationTrace, Int, Int)]] = {
     dbBinding.findDeploymentRequestById(deploymentRequestId).flatMap(
       _.map { req =>
         startDeploymentRequest(req, initiatorName, atCreation = false).map(Some(_))
       }.getOrElse(Future.successful(None))
     )
+  }
 
   def deployAgain(deploymentRequestId: Long, initiatorName: String): Future[Option[OperationTrace]] = {
     dbBinding.findDeploymentRequestAndSpecs(deploymentRequestId).flatMap(
@@ -124,10 +141,6 @@ class Engine @Inject()(val dbBinding: DbBinding) {
           }
       }.getOrElse(Future.successful(None))
     )
-
-  def findTargetAtomNotActionableBy(deploymentRequestId: Long): Future[Option[TargetAtom.Type]] = {
-    dbBinding.findTargetAtomNotActionableBy(deploymentRequestId)
-  }
 
   def findOperationTracesByDeploymentRequest(deploymentRequestId: Long): Future[Option[Seq[OperationTrace]]] =
     dbBinding.findOperationTracesByDeploymentRequest(deploymentRequestId).flatMap { traces =>

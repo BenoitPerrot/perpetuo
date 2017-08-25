@@ -120,7 +120,7 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
       val unknownPreviousState = execSpecs.find { case (_, execSpec) => execSpec.isEmpty }
       if (unknownPreviousState.isDefined) {
         val target: String = unknownPreviousState.get._1
-        throw new IllegalArgumentException(s"Cannot rollback: unknown previous state for target `$target`")
+        throw new IllegalStateException(s"unknown previous state for target `$target`")
       }
       else {
         val opCreation = dbBinding.insertOperationTrace(deploymentRequest.id, Operation.revert, userName)

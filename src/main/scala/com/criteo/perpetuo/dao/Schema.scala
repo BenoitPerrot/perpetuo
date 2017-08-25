@@ -190,6 +190,16 @@ class DbBinding @Inject()(val dbContext: DbContext)
     )
   }
 
+  // todo: should rely on a nullable field `startDate` in OperationTrace
+  def isStarted(deploymentRequestId: Long): Future[Boolean] = {
+    dbContext.db.run(operationTraceQuery.filter(_.deploymentRequestId === deploymentRequestId).exists.result)
+  }
+
+  def isOutdated(deploymentRequestId: Long): Future[Boolean] = {
+    val outdatedByOperation = operationTraceQuery.filter(_.deploymentRequestId > deploymentRequestId).exists
+    dbContext.db.run(outdatedByOperation.result)
+  }
+
   private def targetAtomsFor(deploymentRequest: DeploymentRequest): Query[Rep[TargetAtom.Type], TargetAtom.Type, Seq] = {
     operationTraceQuery.filter(_.deploymentRequestId === deploymentRequest.id).take(1)
       .join(executionQuery)

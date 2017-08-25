@@ -192,15 +192,17 @@ class RestController @Inject()(val engine: Engine)
             case Action.rollback => engine.rollbackDeploymentRequest _
           }
 
-          engine.findTargetAtomNotActionableBy(id).flatMap { rejectingTargetAtom =>
-            rejectingTargetAtom.map(targetAtom =>
-              throw BadRequestException(s"Can't $actionName the deployment request #$id, " +
-                s"at least because the target `$targetAtom` is in a conflicting state.")
-            )
-            effect(id, user.name).map(_.map { _ => response.ok.json(Map("id" -> id)) }).recover {
-              case e: IllegalArgumentException => throw BadRequestException(e.getMessage)
+          engine.isStarted(id)
+            .flatMap { started =>
+              if (!engine.getActionsIf(started).contains(action))
+                throw new IllegalStateException(if (started) "it has been started already" else "it hasn't been applied yet")
+              engine.getConflictReason(id, started).map(_.map(reason => throw new IllegalStateException(reason)))
             }
-          }
+            .flatMap(_ => effect(id, user.name))
+            .map(_.map(_ => response.ok.json(Map("id" -> id))))
+            .recover { case e: IllegalStateException =>
+              throw BadRequestException(s"Cannot $actionName the deployment request #$id: ${e.getMessage}")
+            }
         },
         5.seconds
       )(r)
