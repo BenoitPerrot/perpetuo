@@ -22,6 +22,16 @@ class Schema(val dbContext: DbContext)
   def createTables(): Unit = {
     Await.result(dbContext.db.run(all.create), 2.seconds)
   }
+
+  def setOperationTracesMissingClosingDate() =
+    dbContext.db.run(
+      sqlu"""
+                        UPDATE operation_trace
+                        SET closing_date = DATEADD(MINUTE, 1, creation_date)
+                        WHERE closing_date IS {ts '1970-01-01 00:00:00.000'}""")
+
+  def countOperationTracesMissingClosingDate() =
+    dbContext.db.run((operationTraceQuery filter (_.closingDate.isEmpty) length).result)
 }
 
 

@@ -5,7 +5,7 @@ import javax.inject.Inject
 import com.criteo.perpetuo.auth.User
 import com.criteo.perpetuo.auth.UserFilter._
 import com.criteo.perpetuo.config.AppConfig
-import com.criteo.perpetuo.dao.{ProductCreationConflict, UnknownProduct}
+import com.criteo.perpetuo.dao.{ProductCreationConflict, Schema, UnknownProduct}
 import com.criteo.perpetuo.engine.{Action, Engine}
 import com.criteo.perpetuo.model._
 import com.twitter.finagle.http.{Request, Response, Status => HttpStatus}
@@ -345,6 +345,17 @@ class RestController @Inject()(val engine: Engine)
       },
       5.seconds)
   }
+
+  // todo: remove, it's for migration only
+  post("/api/unstable/db/operation-traces/set-missing-closing-date") { _: Request =>
+    val schema = new Schema(engine.dbBinding.dbContext)
+    Await.result(schema.setOperationTracesMissingClosingDate().map(x => Map("status" -> x)), 2.hours)
+  }
+  get("/api/unstable/db/operation-traces/missing-closing-date-count") { _: Request =>
+    val schema = new Schema(engine.dbBinding.dbContext)
+    Await.result(schema.countOperationTracesMissingClosingDate().map(x => Map("count" -> x)), 2.seconds)
+  }
+
 
   // Be sure to capture invalid calls to APIs
   get("/api/:*") { _: Request =>
