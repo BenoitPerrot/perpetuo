@@ -296,10 +296,7 @@ class RestController @Inject()(val engine: Engine)
       "version" -> depReq.version,
       "target" -> RawJson(depReq.target),
       "productName" -> depReq.product.name,
-      "state" -> computeState(sortedGroupsOfExecutions),
-      "actions" -> engine.getActionsIf(sortedGroupsOfExecutions.nonEmpty).map(action =>
-        Map("name" -> action.toString, "authorized" -> isAuthorized)
-      ) // todo: future workflow will provide different actions for different permissions
+      "state" -> computeState(sortedGroupsOfExecutions)
     )
 
   private def serialize(executionResultsGroups: SortedMap[Long, (Iterable[ExecutionTrace], Iterable[TargetStatus])]): Iterable[Map[String, Any]] =
@@ -323,7 +320,15 @@ class RestController @Inject()(val engine: Engine)
     withLongId(id =>
       engine.findDeepDeploymentRequestAndExecutions(id)
         .map(_.map { case (deploymentRequest, executionResultGroups) =>
-          serialize(r.request.user.exists(isAuthorized), deploymentRequest, executionResultGroups.mapValues(_._1.toSeq)) ++ Map("operations" -> serialize(executionResultGroups))
+          val authorized = r.request.user.exists(isAuthorized)
+          val sortedGroupsOfExecutions = executionResultGroups.mapValues(_._1.toSeq)
+          val actions = engine.getActionsIf(sortedGroupsOfExecutions.nonEmpty).map(action =>
+            Map("name" -> action.toString, "authorized" -> authorized)
+          ) // todo: future workflow will provide different actions for different permissions
+
+          serialize(authorized, deploymentRequest, sortedGroupsOfExecutions) ++
+            Map("operations" -> serialize(executionResultGroups)) ++
+            Map("actions" -> actions)
         }),
       5.seconds
     )(r)
