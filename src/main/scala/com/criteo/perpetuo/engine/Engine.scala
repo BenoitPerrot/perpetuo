@@ -103,7 +103,7 @@ class Engine @Inject()(val dbBinding: DbBinding) {
   }
 
   def getActionsIf(isStarted: Boolean): Seq[Action.Kind] = {
-    if (isStarted) Seq(Action.applyAgain, Action.rollback) else Seq(Action.applyFirst)
+    if (isStarted) Seq(Action.applyAgain) else Seq(Action.applyFirst)
   }
 
   def startDeploymentRequest(deploymentRequestId: Long, initiatorName: String): Future[Option[(OperationTrace, Int, Int)]] = {
