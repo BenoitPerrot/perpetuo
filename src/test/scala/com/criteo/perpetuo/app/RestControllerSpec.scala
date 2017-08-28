@@ -62,7 +62,7 @@ class RestControllerSpec extends FeatureTest with TestDb {
     override def equals(o: Any): Boolean = true
   }
 
-  private val logHrefHistory: mutable.Map[Int, JsValue] = mutable.Map()
+  private val logHrefHistory: mutable.Map[Long, JsValue] = mutable.Map()
 
   private def createProduct(name: String, expectedError: Option[(String, Status)] = None) = {
     val ans = server.httpPost(
@@ -150,7 +150,7 @@ class RestControllerSpec extends FeatureTest with TestDb {
   private def startDeploymentRequest(deploymentRequestId: Long): JsObject =
     startDeploymentRequest(deploymentRequestId, Ok).contentString.parseJson.asJsObject
 
-  private def updateExecTrace(deploymentRequestId: Long, execTraceId: Int, state: String, logHref: Option[String],
+  private def updateExecTrace(deploymentRequestId: Long, execTraceId: Long, state: String, logHref: Option[String],
                               targetStatus: Option[Map[String, JsValue]] = None,
                               expectedTargetStatus: Map[String, (String, String)]): Unit = {
     val logHrefJson = logHref.map(_.toJson)
