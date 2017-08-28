@@ -93,12 +93,13 @@ class Engine @Inject()(val dbBinding: DbBinding) {
     dbBinding.isStarted(deploymentRequestId)
 
   def getConflictReason(deploymentRequestId: Long, isStarted: Boolean): Future[Option[String]] = {
-    if (isStarted)
-      dbBinding.findTargetAtomNotActionableBy(deploymentRequestId).map(
-        _.map(targetAtom => s"the target `$targetAtom` (at least) is in a conflicting state")
-      )
-    else
-      dbBinding.isOutdated(deploymentRequestId).map(if (_) Some("a newer one has already been applied") else None)
+    // todo: once there is no more * in TargetStatus table, we can allow successive rollbacks:
+    //if (isStarted)
+    //  dbBinding.findTargetAtomNotActionableBy(deploymentRequestId).map(
+    //    _.map(targetAtom => s"the target `$targetAtom` (at least) is in a conflicting state")
+    //  )
+    //else
+    dbBinding.isOutdated(deploymentRequestId).map(if (_) Some("a newer one has already been applied") else None)
   }
 
   def getActionsIf(isStarted: Boolean): Seq[Action.Kind] = {
