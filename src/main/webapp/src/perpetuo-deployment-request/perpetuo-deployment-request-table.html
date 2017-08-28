@@ -124,6 +124,7 @@
 
     properties: {
       login: String,
+      active: {type: Boolean, observer: 'onActiveChanged'},
       data: {type: Array, observer: 'convertTimestamp' },
       indices: {type: Object, value: () => new Object()},
 
@@ -153,11 +154,18 @@
     attached() {
       this.$$('[key=creationDate]').state = 'down';
       this.client.fetchProducts().then(products => { this.productNames = products.map(_ => _.name); });
-      const refreshDelay = 1000;
-      (function installRefresh() {
-        const reinstallRefresh = () => installRefresh.apply(this);
-        setTimeout(() => this.refresh().then(reinstallRefresh, reinstallRefresh), refreshDelay);
-      }).apply(this);
+    },
+
+    onActiveChanged(active) {
+      if (active) {
+        const refreshDelay = 1000;
+        (function installRefresh() {
+          const reinstallRefresh = () => installRefresh.apply(this);
+          this.refreshTimeoutId = setTimeout(() => this.refresh().then(reinstallRefresh, reinstallRefresh), refreshDelay);
+        }).apply(this);
+      } else {
+        clearTimeout(this.refreshTimeoutId);
+      }
     },
 
     refresh(forced) {

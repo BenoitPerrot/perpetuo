@@ -15,7 +15,7 @@
       flex: 1;
     }
     </style>
-    <iron-pages id="pageSelector" selected="[[selectPage(route)]]" fallback-selection="single" attr-for-selected="id">
+    <iron-pages id="pageSelector" selected="[[selectPage(route)]]" fallback-selection="single" attr-for-selected="id" selected-attribute="active">
       <perpetuo-deployment-request-table id="all"></perpetuo-deployment-request-table>
       <perpetuo-deployment-request id="single"></perpetuo-deployment-request>
     </iron-pages>
