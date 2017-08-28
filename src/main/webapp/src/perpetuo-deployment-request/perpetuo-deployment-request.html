@@ -118,6 +118,8 @@
     is: 'perpetuo-deployment-request',
 
     properties: {
+      deploymentRequestId: {type: String, observer: 'refresh'},
+      active: {type: Boolean, observer: 'onActiveChanged'},
       data: Object,
       version: {type: Array, computed: 'computeVersion(data)'},
       comment: { type: Object, computed: 'computeComment(data)' },
@@ -138,11 +140,28 @@
       return `${isoYMD} at ${isoTime} UTC (` + (localYMD !== isoYMD ? localYMD + ' ' : '') + localTime + ' local time)';
     },
 
+    created() {
+      this.client = new Perpetuo.Client();
+    },
+
+    // TODO: factor with deployment-request-table
+    onActiveChanged(active) {
+      if (active) {
+        const refreshDelay = 1000;
+        (function installRefresh() {
+          const reinstallRefresh = () => installRefresh.apply(this);
+          this.refreshTimeoutId = setTimeout(() => this.refresh().then(reinstallRefresh, reinstallRefresh), refreshDelay);
+        }).apply(this);
+      } else {
+        clearTimeout(this.refreshTimeoutId);
+      }
+    },
+
     onActionTap(e) {
       if (!this.isInAction) {
         this.isInAction = true;
-        new Perpetuo.Client().actOnDeploymentRequest(this.data.id, e.model.item.name).then(_ => {
-          this.reload().then(_ => {
+        this.client.actOnDeploymentRequest(this.deploymentRequestId, e.model.item.name).then(_ => {
+          this.refresh().then(_ => {
             this.isInAction = false;
           });
         });
@@ -188,10 +207,12 @@
     },
     // >>
 
-    reload() {
-      return new Perpetuo.Client().fetchDeploymentRequest(this.data.id).then(_ => {
-        this.data = _;
-      });
+    refresh() {
+      return this.deploymentRequestId === undefined ?
+             Promise.resolve(false)
+           : this.client.fetchDeploymentRequest(this.deploymentRequestId).then(_ => {
+             this.data = _;
+           });
     }
 
   })

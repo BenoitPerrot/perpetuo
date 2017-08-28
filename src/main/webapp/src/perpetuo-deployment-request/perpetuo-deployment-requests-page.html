@@ -34,7 +34,7 @@
       if (route.path) {
         const m = route.path.match(new RegExp('/(\\d+)'))
         if (m) {
-          this.client.fetchDeploymentRequest(m[1]).then(_ => this.$$('perpetuo-deployment-request').data = _);
+          this.$$('perpetuo-deployment-request').deploymentRequestId = m[1];
           return 'single';
         }
       }
