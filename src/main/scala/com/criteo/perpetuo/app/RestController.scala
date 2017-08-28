@@ -297,8 +297,9 @@ class RestController @Inject()(val engine: Engine)
       "target" -> RawJson(depReq.target),
       "productName" -> depReq.product.name,
       "state" -> computeState(depReq, sortedGroupsOfExecutions),
-      "actions" ->
-        (if (sortedGroupsOfExecutions.isEmpty) Seq(Map("name" -> "start", "authorized" -> isAuthorized)) else Seq())
+      "actions" -> engine.getActionsIf(sortedGroupsOfExecutions.nonEmpty).map(action =>
+        Map("name" -> action.toString, "authorized" -> isAuthorized)
+      ) // todo: future workflow will provide different actions for different permissions
     )
 
   private def serialize(executionResultsGroups: SortedMap[Long, (Iterable[ExecutionTrace], Iterable[TargetStatus])]): Iterable[Map[String, Any]] =
