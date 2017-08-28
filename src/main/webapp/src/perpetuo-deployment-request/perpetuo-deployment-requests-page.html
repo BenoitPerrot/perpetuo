@@ -11,20 +11,13 @@
       display: flex;
       flex-direction: row;
     }
-    app-route {
-      display: none;
-    }
     #pageSelector {
       flex: 1;
     }
     </style>
     <iron-pages id="pageSelector" selected="[[selectPage(route)]]" fallback-selection="single" attr-for-selected="id">
-      <div id="all">
-        <perpetuo-deployment-request-table></perpetuo-deployment-request-table>
-      </div>
-      <div id="single">
-        <perpetuo-deployment-request></perpetuo-deployment-request>
-      </div>
+      <perpetuo-deployment-request-table id="all"></perpetuo-deployment-request-table>
+      <perpetuo-deployment-request id="single"></perpetuo-deployment-request>
     </iron-pages>
   </template>
   <script>
@@ -41,7 +34,7 @@
       if (route.path) {
         const m = route.path.match(new RegExp('/(\\d+)'))
         if (m) {
-          this.client.fetchDeploymentRequest(m[1]).then(_ => this.$$('#single perpetuo-deployment-request').data = _);
+          this.client.fetchDeploymentRequest(m[1]).then(_ => this.$$('perpetuo-deployment-request').data = _);
           return 'single';
         }
       }
