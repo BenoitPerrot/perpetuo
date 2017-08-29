@@ -262,29 +262,27 @@ class DbBinding @Inject()(val dbContext: DbContext)
     }
   }
 
-  def findTargetAtomNotActionableBy(deploymentRequestId: Long): Future[Option[TargetAtom.Type]] = {
+  def findTargetAtomNotActionableBy(deploymentRequest: DeploymentRequest): Future[Option[TargetAtom.Type]] = {
     // The given deployment request has a specification for each target atom;
     // once we put aside the possible revert operations on this very deployment request (only),
     // for each target atom, if the last operation has the same specification as this deployment request,
     // then the deployment request is actionable: it can be retried, it can be rolled back.
     // Note that if this deployment request has never been applied, it's also actionable.
     val query = operationTraceQuery
-      .filter { op => op.deploymentRequestId === deploymentRequestId && op.operation === Operation.deploy }
+      .filter { op => op.deploymentRequestId === deploymentRequest.id && op.operation === Operation.deploy }
       .take(1)
       .join(
         targetStatusQuery
           .join(executionQuery)
           .join(operationTraceQuery)
           .join(deploymentRequestQuery)
-          .join(deploymentRequestQuery)
-          .filter { case ((((targetStatus, execution), operationTrace), deploymentRequest), testedDeploymentRequest) =>
+          .filter { case (((targetStatus, execution), operationTrace), oldDeploymentRequest) =>
             targetStatus.executionId === execution.id && execution.operationTraceId === operationTrace.id &&
-              operationTrace.deploymentRequestId === deploymentRequest.id && deploymentRequest.productId === testedDeploymentRequest.productId &&
-              testedDeploymentRequest.id === deploymentRequestId &&
-              !(operationTrace.operation === Operation.revert && deploymentRequest.id === deploymentRequestId)
+              operationTrace.deploymentRequestId === deploymentRequest.id && oldDeploymentRequest.productId === deploymentRequest.productId &&
+              !(operationTrace.operation === Operation.revert && oldDeploymentRequest.id === deploymentRequest.id)
           }
-          .groupBy { case ((((targetStatus, _), _), _), _) => targetStatus.targetAtom }
-          .map { case (targetAtom, q) => (targetAtom, q.map { case ((((_, execution), _), _), _) => execution.id }.max) }
+          .groupBy { case (((targetStatus, _), _), _) => targetStatus.targetAtom }
+          .map { case (targetAtom, q) => (targetAtom, q.map { case (((_, execution), _), _) => execution.id }.max) }
       )
       .join(executionQuery)
       .join(targetStatusQuery)
