@@ -201,8 +201,13 @@ class DbBinding @Inject()(val dbContext: DbContext)
   }
 
   // todo: should rely on a nullable field `startDate` in OperationTrace
-  def isStarted(deploymentRequestId: Long): Future[Boolean] = {
-    dbContext.db.run(operationTraceQuery.filter(_.deploymentRequestId === deploymentRequestId).exists.result)
+  def isDeploymentRequestStarted(deploymentRequestId: Long): Future[Option[(ShallowDeploymentRequest, Boolean)]] = {
+    dbContext.db.run(
+      deploymentRequestQuery
+        .filter(_.id === deploymentRequestId)
+        .joinLeft(operationTraceQuery).on(_.id === _.deploymentRequestId)
+        .result
+    ).map(_.headOption.map { case (depReq, op) => (depReq.toShallowDeploymentRequest, op.isDefined) })
   }
 
   def isOutdated(deploymentRequestId: Long): Future[Boolean] = {
@@ -220,7 +225,7 @@ class DbBinding @Inject()(val dbContext: DbContext)
       .map { case (_, targetStatus) => targetStatus.targetAtom }
   }
 
-  private def findSoundExecutionSpecIdsForRollback(deploymentRequest: DeploymentRequest): Future[Map[TargetAtom.Type, ExecutionSpecificationRecord]] = {
+  def findSoundExecutionSpecIdsForRollback(deploymentRequest: DeploymentRequest): Future[Map[TargetAtom.Type, ExecutionSpecificationRecord]] = {
     val executionIds = targetAtomsFor(deploymentRequest)
       .join(targetStatusQuery)
       .join(executionQuery)

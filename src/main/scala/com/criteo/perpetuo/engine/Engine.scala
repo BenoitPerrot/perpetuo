@@ -89,21 +89,38 @@ class Engine @Inject()(val dbBinding: DbBinding) {
     }
   }
 
-  def isStarted(deploymentRequestId: Long): Future[Boolean] =
-    dbBinding.isStarted(deploymentRequestId)
+  def isDeploymentRequestStarted(deploymentRequestId: Long): Future[Option[(ShallowDeploymentRequest, Boolean)]] =
+    dbBinding.isDeploymentRequestStarted(deploymentRequestId)
 
-  def getConflictReason(deploymentRequestId: Long, isStarted: Boolean): Future[Option[String]] = {
-    // todo: once there is no more * in TargetStatus table, we can allow successive rollbacks:
-    //if (isStarted)
-    //  dbBinding.findTargetAtomNotActionableBy(deploymentRequestId).map(
-    //    _.map(targetAtom => s"the target `$targetAtom` (at least) is in a conflicting state")
-    //  )
-    //else
-    dbBinding.isOutdated(deploymentRequestId).map(if (_) Some("a newer one has already been applied") else None)
-  }
+  def actionChecker(deploymentRequest: DeploymentRequest, isStarted: Boolean): (Action.Kind) => Future[Option[String]] = {
+    lazy val outdated = dbBinding.isOutdated(deploymentRequest.id).map(
+      if (_) Some("a newer one has already been applied") else None
+    )
 
-  def getActionsIf(isStarted: Boolean): Seq[Action.Kind] = {
-    if (isStarted) Seq(Action.applyAgain) else Seq(Action.applyFirst)
+    {
+      case Action.applyFirst if isStarted => Future.successful(Some("it has already been applied"))
+      case Action.applyFirst => outdated
+      case _ if !isStarted => Future.successful(Some("it has not yet been applied"))
+      case Action.applyAgain => outdated
+      case Action.rollback => outdated.flatMap(x =>
+        // todo: once there is no more * in TargetStatus table, we can allow successive rollbacks,
+        // by using dbBinding.findTargetAtomNotActionableBy instead of `outdated` here
+        x.map(reason => Future.successful(Some(reason))).getOrElse(
+          dbBinding.findExecutionTracesByDeploymentRequest(deploymentRequest.id).flatMap(
+            // fixme: only as long as there can be * in TargetStatus table because of failure (and one executor!)
+            _.collectFirst { case trace if trace.state != ExecutionState.completed =>
+              "there is no need to rollback, nothing has been done"
+            }.map(reason => Future.successful(Some(reason))).getOrElse(
+              dbBinding.findExecutionSpecIdsForRollback(deploymentRequest).map(
+                _.collectFirst { case (target, execSpec) if execSpec.isEmpty =>
+                  s"unknown previous state for (at least) target `$target`"
+                }
+              )
+            )
+          )
+        )
+      )
+    }
   }
 
   def startDeploymentRequest(deploymentRequestId: Long, initiatorName: String): Future[Option[(OperationTrace, Int, Int)]] = {

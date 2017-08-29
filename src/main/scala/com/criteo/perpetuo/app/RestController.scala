@@ -192,17 +192,16 @@ class RestController @Inject()(val engine: Engine)
             case Action.rollback => engine.rollbackDeploymentRequest _
           }
 
-          engine.isStarted(id)
-            .flatMap { started =>
-              if (!engine.getActionsIf(started).contains(action))
-                throw new IllegalStateException(if (started) "it has been started already" else "it hasn't been applied yet")
-              engine.getConflictReason(id, started).map(_.map(reason => throw new IllegalStateException(reason)))
-            }
-            .flatMap(_ => effect(id, user.name))
-            .map(_.map(_ => response.ok.json(Map("id" -> id))))
-            .recover { case e: IllegalStateException =>
-              throw BadRequestException(s"Cannot $actionName the deployment request #$id: ${e.getMessage}")
-            }
+          engine.isDeploymentRequestStarted(id)
+            .flatMap(
+              _.map { case (deploymentRequest, isStarted) =>
+                val check = engine.actionChecker(deploymentRequest, isStarted)
+                check(action).flatMap { rejected =>
+                  rejected.map(reason => throw BadRequestException(s"Cannot $actionName the deployment request #$id: $reason"))
+                  effect(id, user.name)
+                }.map(_.map(_ => response.ok.json(Map("id" -> id))))
+              }.getOrElse(Future.successful(None))
+            )
         },
         5.seconds
       )(r)
@@ -319,17 +318,22 @@ class RestController @Inject()(val engine: Engine)
   get("/api/unstable/deployment-requests/:id") { r: RequestWithId =>
     withLongId(id =>
       engine.findDeepDeploymentRequestAndExecutions(id)
-        .map(_.map { case (deploymentRequest, executionResultGroups) =>
+        .flatMap(_.map { case (deploymentRequest, executionResultGroups) =>
           val authorized = r.request.user.exists(isAuthorized)
           val sortedGroupsOfExecutions = executionResultGroups.mapValues(_._1.toSeq)
-          val actions = engine.getActionsIf(sortedGroupsOfExecutions.nonEmpty).map(action =>
-            Map("name" -> action.toString, "authorized" -> authorized)
-          ) // todo: future workflow will provide different actions for different permissions
-
-          serialize(authorized, deploymentRequest, sortedGroupsOfExecutions) ++
-            Map("operations" -> serialize(executionResultGroups)) ++
-            Map("actions" -> actions)
-        }),
+          val check = engine.actionChecker(deploymentRequest, sortedGroupsOfExecutions.nonEmpty)
+          Future
+            .sequence(Action.values.map(action =>
+              check(action).map(_.map(_ => None).getOrElse(
+                Some(Map("name" -> action.toString, "authorized" -> authorized))
+              )) // todo: future workflow will provide different actions for different permissions
+            ))
+            .map(actions =>
+              Some(serialize(authorized, deploymentRequest, sortedGroupsOfExecutions) ++
+                Map("operations" -> serialize(executionResultGroups)) ++
+                Map("actions" -> actions.flatten))
+            )
+        }.getOrElse(Future.successful(None))),
       5.seconds
     )(r)
   }
