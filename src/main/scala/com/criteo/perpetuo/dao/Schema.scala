@@ -210,8 +210,12 @@ class DbBinding @Inject()(val dbContext: DbContext)
     ).map(_.headOption.map { case (depReq, op) => (depReq.toShallowDeploymentRequest, op.isDefined) })
   }
 
-  def isOutdated(deploymentRequestId: Long): Future[Boolean] = {
-    val outdatedByOperation = operationTraceQuery.filter(_.deploymentRequestId > deploymentRequestId).exists
+  def isOutdated(deploymentRequest: DeploymentRequest): Future[Boolean] = {
+    val outdatedByOperation =
+      deploymentRequestQuery
+        .filter(depReq => depReq.id > deploymentRequest.id && depReq.productId === deploymentRequest.productId)
+        .join(operationTraceQuery).on(_.id === _.deploymentRequestId)
+        .exists // fixme: look at the starting date when it will make sense
     dbContext.db.run(outdatedByOperation.result)
   }
 

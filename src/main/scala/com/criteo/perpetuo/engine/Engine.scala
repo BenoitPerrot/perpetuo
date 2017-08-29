@@ -93,7 +93,7 @@ class Engine @Inject()(val dbBinding: DbBinding) {
     dbBinding.isDeploymentRequestStarted(deploymentRequestId)
 
   def actionChecker(deploymentRequest: DeploymentRequest, isStarted: Boolean): (Action.Kind) => Future[Option[String]] = {
-    lazy val outdated = dbBinding.isOutdated(deploymentRequest.id).map(
+    lazy val outdated = dbBinding.isOutdated(deploymentRequest).map(
       if (_) Some("a newer one has already been applied") else None
     )
 
