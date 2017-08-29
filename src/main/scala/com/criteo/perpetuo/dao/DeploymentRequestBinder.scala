@@ -1,7 +1,7 @@
 package com.criteo.perpetuo.dao
 
 import com.criteo.perpetuo.auth.User
-import com.criteo.perpetuo.model.{DeepDeploymentRequest, DeploymentRequestAttrs, Product, Version}
+import com.criteo.perpetuo.model._
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
@@ -14,6 +14,10 @@ private[dao] case class DeploymentRequestRecord(id: Option[Long],
                                                 comment: String, // Not an `Option` because it's easier to consider that no comment <=> empty
                                                 creator: String,
                                                 creationDate: java.sql.Timestamp) {
+  def toShallowDeploymentRequest: ShallowDeploymentRequest = {
+    ShallowDeploymentRequest(id.get, productId, version, target, comment, creator, creationDate)
+  }
+
   def toDeepDeploymentRequest(product: ProductRecord): DeepDeploymentRequest = {
     DeepDeploymentRequest(id.get, product.toProduct, version, target, comment, creator, creationDate)
   }

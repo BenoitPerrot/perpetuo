@@ -47,6 +47,15 @@ class DeploymentRequestAttrs(val productName: String,
                              val creationDate: java.sql.Timestamp) extends ParsedTarget
 
 
+case class ShallowDeploymentRequest(id: Long,
+                                    productId: Int,
+                                    version: Version,
+                                    target: String,
+                                    comment: String,
+                                    creator: String,
+                                    creationDate: java.sql.Timestamp) extends DeploymentRequest
+
+
 case class DeepDeploymentRequest(id: Long,
                                  product: Product,
                                  version: Version,
