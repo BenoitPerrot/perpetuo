@@ -184,7 +184,7 @@ class CriteoListener extends DefaultListenerPlugin {
             }
 
             def target = Target.getSimpleSelectForGroovy(deploymentRequest.parsedTarget())
-            def originator = appConfig.transition(productName) ?
+            def originator = appConfig.isCoveredByOldWorkflow(productName) ?
                     "by Perpetuo" :
                     "here: ${appConfig.get('selfUrl')}/deployment-requests/${deploymentRequest.id()}"
             def desc = """
@@ -241,7 +241,7 @@ class CriteoListener extends DefaultListenerPlugin {
                     logger().severe("Could not provide a changelog to the JIRA ticket $ticket: ${e.message}")
                 }
 
-                if (appConfig.transition(productName)) {
+                if (appConfig.isCoveredByOldWorkflow(productName)) {
                     return ticketUrl
                 } else {
                     def newComment = deploymentRequest.comment()

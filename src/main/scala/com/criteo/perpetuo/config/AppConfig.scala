@@ -31,18 +31,25 @@ class AppConfig(override protected val config: Config,
 
 abstract class RootAppConfig extends BaseAppConfig {
 
-  private val listOfTransitionProjects = List(
+  // todo: remove once new workflow is completely in place <<
+  private val productsExcludedFromNewWorkflow = Seq(
+    "directbidder-app", "directbidder-canary-app", "imageproxy-app", "videoproxy-app"
+  )
+  private val productsExcludedFromOldWorkflow = Seq(
     "angryboards-app"
   )
+
+  lazy val useNewWorkflow: Boolean = config.hasPath("useNewWorkflow") && config.getBoolean("useNewWorkflow")
+
+  def isCoveredByOldWorkflow(productName: String): Boolean =
+    env == "prod" && (
+      if (useNewWorkflow) productsExcludedFromNewWorkflow.contains(productName)
+      else !productsExcludedFromOldWorkflow.contains(productName))
+  // >>
 
   override lazy val env: String = config.getString("env")
 
   lazy val db: AppConfig = under("db")
-
-  // just to make clear what's impacted by the transition to Perpetuo usage
-  def transition(projectName: String): Boolean = {
-    !listOfTransitionProjects.contains(projectName) && env == "prod"
-  } // todo: remove it
 }
 
 

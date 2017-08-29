@@ -48,14 +48,15 @@ class Engine @Inject()(val dbBinding: DbBinding) {
     dbBinding.findDeepDeploymentRequestById(deploymentRequestId)
 
   def createDeploymentRequest(attrs: DeploymentRequestAttrs, immediateStart: Boolean): Future[Map[String, Any]] = {
-    if (AppConfig.transition(attrs.productName) && !immediateStart) {
+    // todo: remove once new workflow is completely in place <<
+    if (AppConfig.isCoveredByOldWorkflow(attrs.productName) && !immediateStart) {
       dbBinding.findProductByName(attrs.productName)
         .map(_.map(DeepDeploymentRequest(0, _, attrs.version, attrs.target, attrs.comment, attrs.creator, attrs.creationDate))
           .getOrElse {
             throw new UnknownProduct(attrs.productName)
           })
         .map(depReq => Map("ticketUrl" -> plugins.listener.onDeploymentRequestCreated(depReq, immediateStart)))
-    }
+    } // >>
     else {
       val futureDepReq = dbBinding.insertDeploymentRequest(attrs)
 
