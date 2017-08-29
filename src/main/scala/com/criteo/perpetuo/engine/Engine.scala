@@ -44,13 +44,13 @@ class Engine @Inject()(val dbBinding: DbBinding) {
   }
   // >>
 
-  def findDeploymentRequestByIdWithProduct(deploymentRequestId: Long): Future[Option[DeploymentRequest]] =
-    dbBinding.findDeploymentRequestById(deploymentRequestId)
+  def findDeepDeploymentRequestById(deploymentRequestId: Long): Future[Option[DeepDeploymentRequest]] =
+    dbBinding.findDeepDeploymentRequestById(deploymentRequestId)
 
   def createDeploymentRequest(attrs: DeploymentRequestAttrs, immediateStart: Boolean): Future[Map[String, Any]] = {
     if (AppConfig.transition(attrs.productName) && !immediateStart) {
       dbBinding.findProductByName(attrs.productName)
-        .map(_.map(DeploymentRequest(0, _, attrs.version, attrs.target, attrs.comment, attrs.creator, attrs.creationDate))
+        .map(_.map(DeepDeploymentRequest(0, _, attrs.version, attrs.target, attrs.comment, attrs.creator, attrs.creationDate))
           .getOrElse {
             throw new UnknownProduct(attrs.productName)
           })
@@ -68,7 +68,7 @@ class Engine @Inject()(val dbBinding: DbBinding) {
     }
   }
 
-  private def startDeploymentRequest(req: DeploymentRequest, initiatorName: String, atCreation: Boolean): Future[(OperationTrace, Int, Int)] =
+  private def startDeploymentRequest(req: DeepDeploymentRequest, initiatorName: String, atCreation: Boolean): Future[(OperationTrace, Int, Int)] =
     operationStarter
       .start(plugins.dispatcher, req, Operation.deploy, initiatorName)
       .map { case (op, started, failed) =>
@@ -78,7 +78,7 @@ class Engine @Inject()(val dbBinding: DbBinding) {
         (op, started, failed)
       }
 
-  private def closeOperation(operationTrace: OperationTrace, deploymentRequest: DeploymentRequest): Future[Boolean] = {
+  private def closeOperation(operationTrace: OperationTrace, deploymentRequest: DeepDeploymentRequest): Future[Boolean] = {
     dbBinding.closeOperationTrace(operationTrace.id).map { closingSuccess =>
       if (closingSuccess)
         dbBinding.isOperationSuccessful(operationTrace.id).foreach { succeeded =>
@@ -107,7 +107,7 @@ class Engine @Inject()(val dbBinding: DbBinding) {
   }
 
   def startDeploymentRequest(deploymentRequestId: Long, initiatorName: String): Future[Option[(OperationTrace, Int, Int)]] = {
-    dbBinding.findDeploymentRequestById(deploymentRequestId).flatMap(
+    dbBinding.findDeepDeploymentRequestById(deploymentRequestId).flatMap(
       _.map { req =>
         startDeploymentRequest(req, initiatorName, atCreation = false).map(Some(_))
       }.getOrElse(Future.successful(None))
@@ -115,7 +115,7 @@ class Engine @Inject()(val dbBinding: DbBinding) {
   }
 
   def deployAgain(deploymentRequestId: Long, initiatorName: String): Future[Option[OperationTrace]] = {
-    dbBinding.findDeploymentRequestAndSpecs(deploymentRequestId).flatMap(
+    dbBinding.findDeepDeploymentRequestAndSpecs(deploymentRequestId).flatMap(
       _.map { case (deploymentRequest, executionSpecs) =>
         operationStarter
           .deployAgain(plugins.dispatcher, deploymentRequest, executionSpecs, initiatorName)
@@ -130,7 +130,7 @@ class Engine @Inject()(val dbBinding: DbBinding) {
   }
 
   def rollbackDeploymentRequest(deploymentRequestId: Long, initiatorName: String): Future[Option[OperationTrace]] =
-    dbBinding.findDeploymentRequestById(deploymentRequestId).flatMap(
+    dbBinding.findDeepDeploymentRequestById(deploymentRequestId).flatMap(
       _.map { depReq =>
         operationStarter
           .rollbackOperation(plugins.dispatcher, depReq, initiatorName)
@@ -194,7 +194,7 @@ class Engine @Inject()(val dbBinding: DbBinding) {
               if (hasOpenExecutions)
                 Future.successful(Some(false))
               else
-                dbBinding.findDeploymentRequestById(op.deploymentRequestId).flatMap { depReq =>
+                dbBinding.findDeepDeploymentRequestById(op.deploymentRequestId).flatMap { depReq =>
                   closeOperation(op, depReq.get).map(Some(_))
                 }
             }
@@ -206,10 +206,10 @@ class Engine @Inject()(val dbBinding: DbBinding) {
     }
   }
 
-  def getDeepDeploymentRequest(deploymentRequestId: Long): Future[Option[(DeploymentRequest, SortedMap[Long, (Iterable[ExecutionTrace], Iterable[TargetStatus])])]] =
-    dbBinding.findDeepDeploymentRequest(deploymentRequestId)
+  def findDeepDeploymentRequestAndExecutions(deploymentRequestId: Long): Future[Option[(DeepDeploymentRequest, SortedMap[Long, (Iterable[ExecutionTrace], Iterable[TargetStatus])])]] =
+    dbBinding.findDeepDeploymentRequestAndExecutions(deploymentRequestId)
 
-  def queryDeepDeploymentRequests(where: Seq[Map[String, Any]], orderBy: Seq[Map[String, Any]], limit: Int, offset: Int): Future[Iterable[(DeploymentRequest, SortedMap[Long, ArrayBuffer[ExecutionTrace]])]] =
+  def queryDeepDeploymentRequests(where: Seq[Map[String, Any]], orderBy: Seq[Map[String, Any]], limit: Int, offset: Int): Future[Iterable[(DeepDeploymentRequest, SortedMap[Long, ArrayBuffer[ExecutionTrace]])]] =
     dbBinding.deepQueryDeploymentRequests(where, orderBy, limit, offset)
 
 }

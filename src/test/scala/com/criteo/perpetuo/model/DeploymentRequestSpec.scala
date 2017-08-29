@@ -26,7 +26,7 @@ class DeploymentRequestSpec extends FunSuite with ScalaFutures
         product <- insertProduct("perpetuo-app")
         request <- insertDeploymentRequest(new DeploymentRequestAttrs(product.name, Version("\"v42\""), "*", "No fear", "c.norris", new Timestamp(123456789)))
         requests <- dbContext.db.run(deploymentRequestQuery.result)
-        lookup <- findDeploymentRequestById(request.id)
+        lookup <- findDeepDeploymentRequestById(request.id)
       } yield {
         assert(requests.nonEmpty)
         assert(lookup.isDefined)

@@ -1,7 +1,7 @@
 package com.criteo.perpetuo.dao
 
 import com.criteo.perpetuo.auth.User
-import com.criteo.perpetuo.model.{DeploymentRequest, DeploymentRequestAttrs, Product, Version}
+import com.criteo.perpetuo.model.{DeepDeploymentRequest, DeploymentRequestAttrs, Product, Version}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
@@ -14,8 +14,8 @@ private[dao] case class DeploymentRequestRecord(id: Option[Long],
                                                 comment: String, // Not an `Option` because it's easier to consider that no comment <=> empty
                                                 creator: String,
                                                 creationDate: java.sql.Timestamp) {
-  def toDeploymentRequest(product: ProductRecord): DeploymentRequest = {
-    DeploymentRequest(id.get, product.toProduct, version, target, comment, creator, creationDate)
+  def toDeepDeploymentRequest(product: ProductRecord): DeepDeploymentRequest = {
+    DeepDeploymentRequest(id.get, product.toProduct, version, target, comment, creator, creationDate)
   }
 }
 
@@ -46,14 +46,14 @@ trait DeploymentRequestBinder extends TableBinder {
 
   val deploymentRequestQuery = TableQuery[DeploymentRequestTable]
 
-  def insertDeploymentRequest(d: DeploymentRequestAttrs): Future[DeploymentRequest] = {
+  def insertDeploymentRequest(d: DeploymentRequestAttrs): Future[DeepDeploymentRequest] = {
     // find the product to which the corresponding foreign key is pointing to
     findProductByName(d.productName).map(_.getOrElse {
       throw new UnknownProduct(d.productName)
     }).flatMap { product =>
       val record = DeploymentRequestRecord(None, product.id, d.version, d.target, d.comment, d.creator, d.creationDate)
       dbContext.db.run((deploymentRequestQuery returning deploymentRequestQuery.map(_.id)) += record).map { id =>
-        val ret = DeploymentRequest(id, product, d.version, d.target, d.comment, d.creator, d.creationDate)
+        val ret = DeepDeploymentRequest(id, product, d.version, d.target, d.comment, d.creator, d.creationDate)
         ret.copyParsedTargetCacheFrom(d)
         ret
       }
@@ -64,10 +64,10 @@ trait DeploymentRequestBinder extends TableBinder {
     dbContext.db.run(deploymentRequestQuery.filter(_.id === id).exists.result)
   }
 
-  def findDeploymentRequestById(id: Long): Future[Option[DeploymentRequest]] = {
+  def findDeepDeploymentRequestById(id: Long): Future[Option[DeepDeploymentRequest]] = {
     dbContext.db.run((deploymentRequestQuery join productQuery on (_.productId === _.id) filter (_._1.id === id)).result)
       .map(_.headOption.map {
-        case (req, prod) => req.toDeploymentRequest(prod)
+        case (req, prod) => req.toDeepDeploymentRequest(prod)
       })
   }
 

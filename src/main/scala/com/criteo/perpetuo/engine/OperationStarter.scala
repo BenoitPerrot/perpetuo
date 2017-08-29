@@ -18,7 +18,7 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
     * Start all relevant executions and return the numbers of successful
     * and failed execution starts.
     */
-  def start(dispatcher: TargetDispatcher, deploymentRequest: DeploymentRequest, operation: Operation.Kind, userName: String): Future[(OperationTrace, Int, Int)] = {
+  def start(dispatcher: TargetDispatcher, deploymentRequest: DeepDeploymentRequest, operation: Operation.Kind, userName: String): Future[(OperationTrace, Int, Int)] = {
     // generation of specific parameters
     val executionKind = Operation.executionKind(operation)
     val specificParameters = dispatcher.freezeParameters(executionKind, deploymentRequest.product.name, deploymentRequest.version)
@@ -35,7 +35,7 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
   }
 
   def deployAgain(dispatcher: TargetDispatcher,
-                  deploymentRequest: DeploymentRequest,
+                  deploymentRequest: DeepDeploymentRequest,
                   executionSpecs: Seq[ExecutionSpecification],
                   userName: String): Future[(OperationTrace, Int, Int)] = {
 
@@ -52,7 +52,7 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
   }
 
   def startExecution(dispatcher: TargetDispatcher,
-                     deploymentRequest: DeploymentRequest,
+                     deploymentRequest: DeepDeploymentRequest,
                      operationTrace: OperationTrace,
                      executionSpecification: ExecutionSpecification,
                      expandedTarget: TargetExpr): Future[(Int, Int)] = {
@@ -115,7 +115,7 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
     )
   }
 
-  def rollbackOperation(dispatcher: TargetDispatcher, deploymentRequest: DeploymentRequest, userName: String): Future[(OperationTrace, Int, Int)] = {
+  def rollbackOperation(dispatcher: TargetDispatcher, deploymentRequest: DeepDeploymentRequest, userName: String): Future[(OperationTrace, Int, Int)] = {
     dbBinding.findExecutionSpecIdsForRollback(deploymentRequest).flatMap { execSpecs =>
       val unknownPreviousState = execSpecs.find { case (_, execSpec) => execSpec.isEmpty }
       if (unknownPreviousState.isDefined) {

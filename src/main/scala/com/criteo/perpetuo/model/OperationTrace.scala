@@ -28,7 +28,7 @@ case class ShallowOperationTrace(id: Long,
 
 
 case class DeepOperationTrace(id: Long,
-                              deploymentRequest: DeploymentRequest,
+                              deploymentRequest: DeepDeploymentRequest,
                               kind: Operation.Kind,
                               creator: String,
                               creationDate: java.sql.Timestamp,

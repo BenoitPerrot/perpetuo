@@ -65,7 +65,7 @@ class EngineSpec extends Test with TestDb {
           // Status = moon: mice@69, mars: mice@27
 
           // Rolling back
-          thirdDeploymentRequest <- engine.dbBinding.findDeploymentRequestById(thirdDeploymentRequestId).map(_.get)
+          thirdDeploymentRequest <- engine.dbBinding.findDeepDeploymentRequestById(thirdDeploymentRequestId).map(_.get)
           executionSpecsForRollback <- engine.dbBinding.findExecutionSpecIdsForRollback(thirdDeploymentRequest)
 
         } yield (
@@ -92,7 +92,7 @@ class EngineSpec extends Test with TestDb {
           // Status = orbit: monkey@69, venus: monkey@69
 
           // Rolling back
-          thirdDeploymentRequest <- engine.dbBinding.findDeploymentRequestById(thirdDeploymentRequestId).map(_.get)
+          thirdDeploymentRequest <- engine.dbBinding.findDeepDeploymentRequestById(thirdDeploymentRequestId).map(_.get)
           executionSpecsForRollback <- engine.dbBinding.findExecutionSpecIdsForRollback(thirdDeploymentRequest)
 
         } yield (

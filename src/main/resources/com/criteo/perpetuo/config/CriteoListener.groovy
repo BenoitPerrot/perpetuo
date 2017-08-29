@@ -1,7 +1,7 @@
 package com.criteo.perpetuo.config
 
 import com.criteo.perpetuo.dao.DbBinding
-import com.criteo.perpetuo.model.DeploymentRequest
+import com.criteo.perpetuo.model.DeepDeploymentRequest
 import com.criteo.perpetuo.model.Operation
 import com.criteo.perpetuo.model.OperationTrace
 import com.criteo.perpetuo.model.Target
@@ -160,7 +160,7 @@ class CriteoListener extends DefaultListenerPlugin {
     }
 
     @Override
-    String onDeploymentRequestCreated(DeploymentRequest deploymentRequest, boolean immediateStart) {
+    String onDeploymentRequestCreated(DeepDeploymentRequest deploymentRequest, boolean immediateStart) {
         if (jiraClient && !immediateStart) {
             def jsonSlurper = new JsonSlurper()
             def productName = deploymentRequest.product().name()
@@ -259,7 +259,7 @@ class CriteoListener extends DefaultListenerPlugin {
     }
 
     @Override
-    void onDeploymentRequestStarted(DeploymentRequest deploymentRequest, int startedExecutions, int failedToStart, boolean atCreation) {
+    void onDeploymentRequestStarted(DeepDeploymentRequest deploymentRequest, int startedExecutions, int failedToStart, boolean atCreation) {
         if (jiraClient && !atCreation) {
             // fixme: !atCreation is for short-term transition only, while we support dep.req. creation without ticket
             String parentTicketKey = findJiraTicket(deploymentRequest)
@@ -274,7 +274,7 @@ class CriteoListener extends DefaultListenerPlugin {
     }
 
     @Override
-    void onDeploymentRequestRetried(DeploymentRequest deploymentRequest, int startedExecutions, int failedToStart) {
+    void onDeploymentRequestRetried(DeepDeploymentRequest deploymentRequest, int startedExecutions, int failedToStart) {
         if (jiraClient) {
             String ticketKey = restartDeploymentTicket(deploymentRequest)
             jiraClient.addCommentToTicket(ticketKey, "Retry launched from Perpetuo")
@@ -282,7 +282,7 @@ class CriteoListener extends DefaultListenerPlugin {
     }
 
     @Override
-    void onDeploymentRequestRolledBack(DeploymentRequest deploymentRequest, int startedExecutions, int failedToStart) {
+    void onDeploymentRequestRolledBack(DeepDeploymentRequest deploymentRequest, int startedExecutions, int failedToStart) {
         if (jiraClient) {
             String ticketKey = restartDeploymentTicket(deploymentRequest)
             jiraClient.addCommentToTicket(ticketKey, "Rollback launched from Perpetuo")
@@ -290,7 +290,7 @@ class CriteoListener extends DefaultListenerPlugin {
     }
 
     @Override
-    void onOperationClosed(OperationTrace operationTrace, DeploymentRequest deploymentRequest, boolean succeeded) {
+    void onOperationClosed(OperationTrace operationTrace, DeepDeploymentRequest deploymentRequest, boolean succeeded) {
         if (jiraClient) {
             def ticketKey = waitForDeploymentTicket(deploymentRequest, ["10396"]).first // aka "[RM] Deploying"
             def transitions = operationTrace.kind() == Operation.revert() ? cancelTransitions() : closingTransitions(succeeded)
@@ -346,7 +346,7 @@ class CriteoListener extends DefaultListenerPlugin {
                 ]
     }
 
-    String findJiraTicket(DeploymentRequest deploymentRequest) {
+    String findJiraTicket(DeepDeploymentRequest deploymentRequest) {
         def ticketKey = null
         def comment = deploymentRequest.comment()
         if (comment) {
@@ -358,7 +358,7 @@ class CriteoListener extends DefaultListenerPlugin {
         ticketKey
     }
 
-    Tuple2<String, String> waitForDeploymentTicket(DeploymentRequest deploymentRequest, Iterable<String> expectedStatusId) {
+    Tuple2<String, String> waitForDeploymentTicket(DeepDeploymentRequest deploymentRequest, Iterable<String> expectedStatusId) {
         def parentTicketKey = null
         def issues = null
         def deadline = System.currentTimeMillis() + timeout_s() * 1000
@@ -379,7 +379,7 @@ class CriteoListener extends DefaultListenerPlugin {
         throw new TimeoutException("Could not get deployment ticket for deployment request #${deploymentRequest.id()} in time")
     }
 
-    String restartDeploymentTicket(DeploymentRequest deploymentRequest) {
+    String restartDeploymentTicket(DeepDeploymentRequest deploymentRequest) {
         def doneId = "10017" // aka "Done"
         def deploymentFailedId = "10398" // aka "[RM] Deployment failed"
         def (String ticketKey, String statusId) = waitForDeploymentTicket(deploymentRequest, [doneId, deploymentFailedId])

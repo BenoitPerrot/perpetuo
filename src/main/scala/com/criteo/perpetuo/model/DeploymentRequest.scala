@@ -28,6 +28,17 @@ object Target {
 }
 
 
+trait DeploymentRequest extends ParsedTarget {
+  val id: Long
+  val productId: Int
+  val version: Version
+  val target: String
+  val comment: String
+  val creator: String
+  val creationDate: java.sql.Timestamp
+}
+
+
 class DeploymentRequestAttrs(val productName: String,
                              val version: Version,
                              val target: String,
@@ -36,20 +47,22 @@ class DeploymentRequestAttrs(val productName: String,
                              val creationDate: java.sql.Timestamp) extends ParsedTarget
 
 
-case class DeploymentRequest(id: Long,
-                             product: Product,
-                             version: Version,
-                             target: String,
-                             comment: String,
-                             creator: String,
-                             creationDate: java.sql.Timestamp) extends ParsedTarget {
+case class DeepDeploymentRequest(id: Long,
+                                 product: Product,
+                                 version: Version,
+                                 target: String,
+                                 comment: String,
+                                 creator: String,
+                                 creationDate: java.sql.Timestamp) extends DeploymentRequest {
+
+  val productId: Int = product.id
 
   def copyParsedTargetCacheFrom(obj: ParsedTarget): Unit = {
     parsedTargetCache = obj.parsedTargetCache
   }
 
   def toJsonReadyMap: Map[String, Any] = {
-    val cls = classOf[DeploymentRequest]
+    val cls = classOf[DeepDeploymentRequest]
     cls.getDeclaredFields.map(_.getName).toIterator.zip(productIterator).flatMap({
       case ("comment", "") => None
       case (_, product: Product) => Some("productName" -> product.name)

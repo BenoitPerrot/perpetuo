@@ -137,7 +137,7 @@ class RestController @Inject()(val engine: Engine)
 
   get("/api/deployment-requests/:id")(
     withLongId(
-      engine.findDeploymentRequestByIdWithProduct(_).map(_.map(_.toJsonReadyMap)),
+      engine.findDeepDeploymentRequestById(_).map(_.map(_.toJsonReadyMap)),
       5.seconds
     )
   )
@@ -263,7 +263,7 @@ class RestController @Inject()(val engine: Engine)
   )
   // >>
 
-  private def computeState(depReq: DeploymentRequest, sortedGroupsOfExecutions: SortedMap[Long, Seq[ExecutionTrace]]): String =
+  private def computeState(sortedGroupsOfExecutions: SortedMap[Long, Seq[ExecutionTrace]]): String =
     if (sortedGroupsOfExecutions.isEmpty || sortedGroupsOfExecutions.last._2.isEmpty) {
       "not-started"
     } else {
@@ -287,7 +287,7 @@ class RestController @Inject()(val engine: Engine)
       s"${lastOperationTrace.kind.toString} $lastOperationState"
     }
 
-  private def serialize(isAuthorized: Boolean, depReq: DeploymentRequest, sortedGroupsOfExecutions: SortedMap[Long, Seq[ExecutionTrace]]): Map[String, Any] =
+  private def serialize(isAuthorized: Boolean, depReq: DeepDeploymentRequest, sortedGroupsOfExecutions: SortedMap[Long, Seq[ExecutionTrace]]): Map[String, Any] =
     Map(
       "id" -> depReq.id,
       "comment" -> depReq.comment,
@@ -296,7 +296,7 @@ class RestController @Inject()(val engine: Engine)
       "version" -> depReq.version,
       "target" -> RawJson(depReq.target),
       "productName" -> depReq.product.name,
-      "state" -> computeState(depReq, sortedGroupsOfExecutions),
+      "state" -> computeState(sortedGroupsOfExecutions),
       "actions" -> engine.getActionsIf(sortedGroupsOfExecutions.nonEmpty).map(action =>
         Map("name" -> action.toString, "authorized" -> isAuthorized)
       ) // todo: future workflow will provide different actions for different permissions
@@ -321,7 +321,7 @@ class RestController @Inject()(val engine: Engine)
 
   get("/api/unstable/deployment-requests/:id") { r: RequestWithId =>
     withLongId(id =>
-      engine.getDeepDeploymentRequest(id)
+      engine.findDeepDeploymentRequestAndExecutions(id)
         .map(_.map { case (deploymentRequest, executionResultGroups) =>
           serialize(r.request.user.exists(isAuthorized), deploymentRequest, executionResultGroups.mapValues(_._1.toSeq)) ++ Map("operations" -> serialize(executionResultGroups))
         }),
