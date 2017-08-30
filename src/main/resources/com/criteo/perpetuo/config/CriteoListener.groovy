@@ -127,7 +127,7 @@ class CriteoListener extends DefaultListenerPlugin {
         }
     }
 
-    def targetMap = [
+    static def targetMap = [
             "sv6": "NA-SV6",
             "ny8": "NA-NY8",
             "va1": "NA-VA1",
@@ -137,6 +137,45 @@ class CriteoListener extends DefaultListenerPlugin {
             "sh5": "CN-SH5",
             "ty5": "AS-TY5",
             "*"  : "Worldwide"
+    ]
+
+    // IDs of targeted ticket statuses (variables are named after the status names in Jira):
+    static def doneId = "10017"
+    static def deploymentFailedId = "10398"
+    static def deployCancelledId = "10233"
+
+    // IDs of transitions in Jira
+    static def startingParentTransitions = [
+            151: '[RM] Definition OK - Deploy -> [RM] Prod Deployment Ongoing'
+    ]
+    static def startingChildrenTransitions = [
+            311: '[RM] Awaiting Deployment - Launch deployer -> [RM] Deploying',
+    ]
+    static def closingTransitions = [ // transitions per targeted status
+            (doneId)            : [
+                    371: '[RM] Deploying - Partly deployed -> Awaiting Deployment',
+                    401: 'Awaiting Deployment - Deployed -> [RM] Deployed',
+                    471: '[RM] Deployed - Deploy [No validation] -> Done'
+            ],
+            (deploymentFailedId): [
+                    351: '[RM] Deploying - Deployment failed -> [RM] Deployment Failed'
+            ],
+            (deployCancelledId) : [
+                    371: '[RM] Deploying - Partly deployed -> Awaiting Deployment',
+                    121: 'Awaiting Deployment - Cancel -> [RM] Deploy cancelled'
+            ]
+    ]
+    static def resetTransitions = [ // transitions per current status
+            (doneId)            : [
+                    111: 'Done - Reverse[Debug] -> [RM] Deployed',
+                    331: '[RM] Deployed - Reverse[Debug] -> Awaiting Deployment'
+            ],
+            (deploymentFailedId): [
+                    361: '[RM] Deployment Failed - Retry -> Awaiting Deployment'
+            ],
+            (deployCancelledId) : [
+                    91: 'Reverse [Debug] -> Awaiting Deployment'
+            ]
     ]
 
     DbBinding dbBinding
@@ -264,12 +303,12 @@ class CriteoListener extends DefaultListenerPlugin {
             // fixme: !atCreation is for short-term transition only, while we support dep.req. creation without ticket
             String parentTicketKey = findJiraTicket(deploymentRequest)
             assert parentTicketKey
-            jiraClient.transitionTicket(parentTicketKey, startingParentTransitions())
+            jiraClient.transitionTicket(parentTicketKey, startingParentTransitions)
             def issues = jiraClient.fetchTicketChildren(parentTicketKey)
             assert issues.size() == 1
             String childKey = issues[0].key
             jiraClient.updateTicketField(childKey, "customfield_20300", 1)
-            jiraClient.transitionTicket(childKey, startingChildrenTransitions())
+            jiraClient.transitionTicket(childKey, startingChildrenTransitions)
         }
     }
 
@@ -293,8 +332,8 @@ class CriteoListener extends DefaultListenerPlugin {
     void onOperationClosed(OperationTrace operationTrace, DeepDeploymentRequest deploymentRequest, boolean succeeded) {
         if (jiraClient) {
             def ticketKey = waitForDeploymentTicket(deploymentRequest, ["10396"]).first // aka "[RM] Deploying"
-            def transitions = operationTrace.kind() == Operation.revert() ? cancelTransitions() : closingTransitions(succeeded)
-            jiraClient.transitionTicket(ticketKey, transitions)
+            def targetedStatus = operationTrace.kind() == Operation.revert() ? deployCancelledId : (succeeded ? doneId : deploymentFailedId)
+            jiraClient.transitionTicket(ticketKey, closingTransitions[targetedStatus])
         }
     }
 
@@ -302,48 +341,6 @@ class CriteoListener extends DefaultListenerPlugin {
         def client = new HTTPBuilder()
         StringReader resp = client.get(uri: "http://review.criteois.lan/gitweb?p=release/release-management.git;a=blob_plain;f=src/python/releaseManagement/jiraMoab/tlaVsAppObject.json")
         return new JsonSlurper().parse(resp) as Map
-    }
-
-    static def startingParentTransitions() {
-        [
-                151: '[RM] DEFINITION OK - Deploy -> [RM] PROD DEPLOYMENT ONGOING'
-        ]
-    }
-
-    static def startingChildrenTransitions() {
-        [
-                311: '[RM] AWAITING DEPLOYMENT - Launch deployer -> [RM] DEPLOYING',
-        ]
-    }
-
-    static def cancelTransitions() {
-        [
-                371: '[RM] DEPLOYING - Partly deployed -> AWAITING DEPLOYMENT',
-                121: 'AWAITING DEPLOYMENT - Cancel -> [RM] Deploy cancelled'
-        ]
-    }
-
-    static def closingTransitions(Boolean succeeded) {
-        succeeded ?
-                [
-                        371: '[RM] DEPLOYING - Partly deployed -> AWAITING DEPLOYMENT',
-                        401: 'AWAITING DEPLOYMENT - Deployed -> [RM] DEPLOYED',
-                        471: '[RM] DEPLOYED - Deploy [No validation] -> DONE'
-                ] :
-                [
-                        351: '[RM] DEPLOYING - Deployment failed -> [RM] DEPLOYMENT FAILED'
-                ]
-    }
-
-    static def resetTransitions(Boolean afterSuccess) {
-        afterSuccess ?
-                [
-                        111: 'DONE - Reverse[Debug] -> [RM] DEPLOYED',
-                        331: '[RM] DEPLOYED - Reverse[Debug] -> AWAITING DEPLOYMENT'
-                ] :
-                [
-                        361: '[RM] DEPLOYMENT FAILED - Retry -> AWAITING DEPLOYMENT'
-                ]
     }
 
     String findJiraTicket(DeepDeploymentRequest deploymentRequest) {
@@ -380,10 +377,9 @@ class CriteoListener extends DefaultListenerPlugin {
     }
 
     String restartDeploymentTicket(DeepDeploymentRequest deploymentRequest) {
-        def doneId = "10017" // aka "Done"
-        def deploymentFailedId = "10398" // aka "[RM] Deployment failed"
-        def (String ticketKey, String statusId) = waitForDeploymentTicket(deploymentRequest, [doneId, deploymentFailedId])
-        jiraClient.transitionTicket(ticketKey, resetTransitions(statusId == doneId) + startingChildrenTransitions())
+        def expectedStatusIds = [doneId, deploymentFailedId, deployCancelledId]
+        def (String ticketKey, String statusId) = waitForDeploymentTicket(deploymentRequest, expectedStatusIds)
+        jiraClient.transitionTicket(ticketKey, resetTransitions[statusId] + startingChildrenTransitions)
         return ticketKey
     }
 }
