@@ -58,7 +58,7 @@ class EngineSpec extends Test with TestDb {
           (firstDeploymentRequestId, firstExecSpecId) <- mockDeployExecution(product.name, "27", Map("moon" -> Status.success, "mars" -> Status.success))
           // Status = moon: mice@27, mars: mice@27
 
-          (secondDeploymentRequestId, secondExecSpecId) <- mockDeployExecution(product.name, "54", Map("moon" -> Status.success, "mars" -> Status.productFailure))
+          (secondDeploymentRequestId, secondExecSpecId) <- mockDeployExecution(product.name, "54", Map("moon" -> Status.productFailure, "venus" -> Status.success))
           // Status = moon: mice@54, mars: mice@27
 
           (thirdDeploymentRequestId, thirdExecSpecId) <- mockDeployExecution(product.name, "69", Map("moon" -> Status.success, "mars" -> Status.productFailure))
@@ -71,37 +71,40 @@ class EngineSpec extends Test with TestDb {
         } yield (
           executionSpecsForRollback.size,
           executionSpecsForRollback("mars").get.id.get == firstExecSpecId,
-          executionSpecsForRollback("moon").get.id.get == secondExecSpecId
+          executionSpecsForRollback("moon").get.id.get == secondExecSpecId,
+          executionSpecsForRollback("mars").get.version.toString,
+          executionSpecsForRollback("moon").get.version.toString
         ),
         2.seconds
-      ) shouldBe(2, true, true)
+      ) shouldBe(2, true, true, """"27"""", """"54"""")
     }
 
-    "identify that the very first operation cannot be rolled back" in {
+    "check if an operation can be rolled back" in {
       Await.result(
         for {
           product <- engine.insertProduct("monkey")
 
-          (firstDeploymentRequestId, firstExecSpecId) <- mockDeployExecution(product.name, "12", Map("orbit" -> Status.success))
+          _ <- mockDeployExecution(product.name, "12", Map("orbit" -> Status.success))
           // Status = orbit: monkey@12
 
-          (secondDeploymentRequestId, secondExecSpecId) <- mockDeployExecution(product.name, "55", Map("orbit" -> Status.success, "venus" -> Status.hostFailure))
+          (secondDeploymentRequestId, _) <- mockDeployExecution(product.name, "55", Map("orbit" -> Status.success, "venus" -> Status.hostFailure))
           // Status = orbit: monkey@55, venus: (none)
 
-          (thirdDeploymentRequestId, thirdExecSpecId) <- mockDeployExecution(product.name, "69", Map("orbit" -> Status.success, "venus" -> Status.success))
+          (thirdDeploymentRequestId, _) <- mockDeployExecution(product.name, "69", Map("orbit" -> Status.success, "venus" -> Status.success))
           // Status = orbit: monkey@69, venus: monkey@69
 
-          // Rolling back
+          // Second request can't be rolled back
+          secondDeploymentRequest <- engine.dbBinding.findDeepDeploymentRequestById(secondDeploymentRequestId).map(_.get)
+          rejectionOfSecond <- engine.actionChecker(secondDeploymentRequest, isStarted = true)(Action.rollback)
+          // Third one can be
           thirdDeploymentRequest <- engine.dbBinding.findDeepDeploymentRequestById(thirdDeploymentRequestId).map(_.get)
-          executionSpecsForRollback <- engine.dbBinding.findExecutionSpecIdsForRollback(thirdDeploymentRequest)
+          rejectionOfThird <- engine.actionChecker(thirdDeploymentRequest, isStarted = true)(Action.rollback)
 
         } yield (
-          executionSpecsForRollback.size,
-          executionSpecsForRollback("orbit").get.id.get == secondExecSpecId,
-          executionSpecsForRollback("venus").isEmpty
+          rejectionOfSecond, rejectionOfThird
         ),
         2.seconds
-      ) shouldBe(2, true, true)
+      ) shouldBe(Some("a newer one has already been applied"), None)
     }
 
     "perform a roll back" in {
@@ -109,27 +112,23 @@ class EngineSpec extends Test with TestDb {
         for {
           product <- engine.insertProduct("pony")
 
-          (firstDeploymentRequestId, firstExecSpecId) <- mockDeployExecution(product.name, "11", Map("tic" -> Status.success, "tac" -> Status.success))
+          (firstDeploymentRequestId, firstExecSpecId) <- mockDeployExecution(product.name, "11", Map("tic" -> Status.success, "tac" -> Status.productFailure))
           // Status = tic: pony@11, tac: pony@11
 
-          (secondDeploymentRequestId, secondExecSpecId) <- mockDeployExecution(product.name, "22", Map("tic" -> Status.success, "tac" -> Status.productFailure))
+          (secondDeploymentRequestId, secondExecSpecId) <- mockDeployExecution(product.name, "22", Map("tic" -> Status.success, "tac" -> Status.success))
           // Status = tic: pony@22, tac: pony@11
 
-          (thirdDeploymentRequestId, thirdExecSpecId) <- mockDeployExecution(product.name, "33", Map("tic" -> Status.success, "tac" -> Status.productFailure))
-          // Status = tic: pony@33, tac: pony@11
-
           // Rolling back
-          rollbackOperationTrace <- engine.rollbackDeploymentRequest(thirdDeploymentRequestId, "r.ollbacker").map(_.get)
+          rollbackOperationTrace <- engine.rollbackDeploymentRequest(secondDeploymentRequestId, "r.ollbacker").map(_.get)
           rollbackExecutionSpecIds <- engine.dbBinding.findExecutionSpecIdsByOperationTrace(rollbackOperationTrace.id)
 
         } yield (
-          rollbackOperationTrace.deploymentRequestId == thirdDeploymentRequestId,
+          rollbackOperationTrace.deploymentRequestId == secondDeploymentRequestId,
           rollbackExecutionSpecIds.length,
-          rollbackExecutionSpecIds.contains(firstExecSpecId),
-          rollbackExecutionSpecIds.contains(secondExecSpecId)
+          rollbackExecutionSpecIds.contains(firstExecSpecId)
         ),
         2.seconds
-      ) shouldBe(true, 2, true, true)
+      ) shouldBe(true, 1, true)
     }
 
     "keep track of retried operation" in {
