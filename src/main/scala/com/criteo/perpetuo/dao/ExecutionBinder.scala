@@ -22,7 +22,7 @@ trait ExecutionBinder extends TableBinder {
     protected def opFk = foreignKey(operationTraceId, operationTraceQuery)(_.id)
     def executionSpecificationId = column[Long]("execution_specification_id")
     protected def execFk = foreignKey(executionSpecificationId, executionSpecificationQuery)(_.id)
-    protected def idx = index("ix_execution", (operationTraceId, executionSpecificationId), unique = true)
+    protected def idx = index("ix_execution_operation_trace_id_execution_specification_id", (operationTraceId, executionSpecificationId), unique = true)
 
     def * = (id.?, operationTraceId, executionSpecificationId) <> (ExecutionRecord.tupled, ExecutionRecord.unapply)
   }

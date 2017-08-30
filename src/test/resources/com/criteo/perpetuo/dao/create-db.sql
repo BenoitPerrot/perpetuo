@@ -56,7 +56,7 @@ CREATE TABLE "execution" (
 )
 ALTER TABLE "execution"
   ADD CONSTRAINT "pk_execution" PRIMARY KEY ("id")
-CREATE UNIQUE INDEX "ix_execution"
+CREATE UNIQUE INDEX "ix_execution_operation_trace_id_execution_specification_id"
   ON "execution" ("operation_trace_id", "execution_specification_id")
 
 
@@ -81,8 +81,6 @@ CREATE TABLE "execution_trace" (
 )
 ALTER TABLE "execution_trace"
   ADD CONSTRAINT "pk_execution_trace" PRIMARY KEY ("id")
-CREATE UNIQUE INDEX "ix_execution_trace_log_href"
-  ON "execution_trace" ("log_href")
 
 
 CREATE TABLE "lock" (

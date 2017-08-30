@@ -35,8 +35,6 @@ trait ExecutionTraceBinder extends TableBinder {
     protected def fk = foreignKey(executionId, executionQuery)(_.id)
 
     def logHref = column[Option[String]]("log_href", O.SqlType("nvarchar(1024)"))
-    protected def logHrefIdx = index(logHref, unique = true)
-
     def state = column[ExecutionState]("state")
 
     def * = (id.?, executionId, logHref, state) <> (ExecutionTraceRecord.tupled, ExecutionTraceRecord.unapply)
