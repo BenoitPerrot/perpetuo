@@ -219,7 +219,6 @@ class Engine @Inject()(val dbBinding: DbBinding) {
         }
       }
       else
-      // FIXME: update failed; raise an exception?
         Future.successful(None)
     }
   }
