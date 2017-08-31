@@ -127,7 +127,7 @@ class CriteoListener extends DefaultListenerPlugin {
         }
     }
 
-    static def targetMap = [
+    private static final TARGET_MAP = [
             "sv6": "NA-SV6",
             "ny8": "NA-NY8",
             "va1": "NA-VA1",
@@ -140,40 +140,40 @@ class CriteoListener extends DefaultListenerPlugin {
     ]
 
     // IDs of targeted ticket statuses (variables are named after the status names in Jira):
-    static def doneId = "10017"
-    static def deploymentFailedId = "10398"
-    static def deployCancelledId = "10233"
+    private static final DONE_ID = "10017"
+    private static final DEPLOYMENT_FAILED_ID = "10398"
+    private static final DEPLOY_CANCELLED_ID = "10233"
 
     // IDs of transitions in Jira
-    static def startingParentTransitions = [
+    private static final STARTING_PARENT_TRANSITIONS = [
             151: '[RM] Definition OK - Deploy -> [RM] Prod Deployment Ongoing'
     ]
-    static def startingChildrenTransitions = [
+    private static final STARTING_CHILDREN_TRANSITIONS = [
             311: '[RM] Awaiting Deployment - Launch deployer -> [RM] Deploying',
     ]
-    static def closingTransitions = [ // transitions per targeted status
-            (doneId)            : [
+    private static final CLOSING_TRANSITIONS = [ // transitions per targeted status
+            (DONE_ID)             : [
                     371: '[RM] Deploying - Partly deployed -> Awaiting Deployment',
                     401: 'Awaiting Deployment - Deployed -> [RM] Deployed',
                     471: '[RM] Deployed - Deploy [No validation] -> Done'
             ],
-            (deploymentFailedId): [
+            (DEPLOYMENT_FAILED_ID): [
                     351: '[RM] Deploying - Deployment failed -> [RM] Deployment Failed'
             ],
-            (deployCancelledId) : [
+            (DEPLOY_CANCELLED_ID) : [
                     371: '[RM] Deploying - Partly deployed -> Awaiting Deployment',
                     121: 'Awaiting Deployment - Cancel -> [RM] Deploy cancelled'
             ]
     ]
-    static def resetTransitions = [ // transitions per current status
-            (doneId)            : [
+    private static final RESET_TRANSITIONS = [ // transitions per current status
+            (DONE_ID)             : [
                     111: 'Done - Reverse[Debug] -> [RM] Deployed',
                     331: '[RM] Deployed - Reverse[Debug] -> Awaiting Deployment'
             ],
-            (deploymentFailedId): [
+            (DEPLOYMENT_FAILED_ID): [
                     361: '[RM] Deployment Failed - Retry -> Awaiting Deployment'
             ],
-            (deployCancelledId) : [
+            (DEPLOY_CANCELLED_ID) : [
                     91: 'Reverse [Debug] -> Awaiting Deployment'
             ]
     ]
@@ -249,7 +249,7 @@ class CriteoListener extends DefaultListenerPlugin {
                     "customfield_12500": lastValidatedVersion,
                     "customfield_12702": ["value": bools[metadata.getOrDefault("preprodNeededField", false)]],
                     "customfield_12703": ["value": metadata.getOrDefault("deployType", "Worldwide")],
-                    "customfield_10922": target.collect { String dc -> ["value": targetMap[dc]] },
+                    "customfield_10922": target.collect { String dc -> ["value": TARGET_MAP[dc]] },
                     "customfield_15500": ["value": bools[metadata.getOrDefault("prodApprovalNeeded", false)]],
                     "customfield_27000": ["value": metadata["technicalData"]],
                     "customfield_12800": metadata.getOrDefault("validation", []).collect { ["value": it] },
@@ -303,12 +303,12 @@ class CriteoListener extends DefaultListenerPlugin {
             // fixme: !atCreation is for short-term transition only, while we support dep.req. creation without ticket
             String parentTicketKey = findJiraTicket(deploymentRequest)
             assert parentTicketKey
-            jiraClient.transitionTicket(parentTicketKey, startingParentTransitions)
+            jiraClient.transitionTicket(parentTicketKey, STARTING_PARENT_TRANSITIONS)
             def issues = jiraClient.fetchTicketChildren(parentTicketKey)
             assert issues.size() == 1
             String childKey = issues[0].key
             jiraClient.updateTicketField(childKey, "customfield_20300", 1)
-            jiraClient.transitionTicket(childKey, startingChildrenTransitions)
+            jiraClient.transitionTicket(childKey, STARTING_CHILDREN_TRANSITIONS)
         }
     }
 
@@ -332,8 +332,8 @@ class CriteoListener extends DefaultListenerPlugin {
     void onOperationClosed(OperationTrace operationTrace, DeepDeploymentRequest deploymentRequest, boolean succeeded) {
         if (jiraClient) {
             def ticketKey = waitForDeploymentTicket(deploymentRequest, ["10396"]).first // aka "[RM] Deploying"
-            def targetedStatus = operationTrace.kind() == Operation.revert() ? deployCancelledId : (succeeded ? doneId : deploymentFailedId)
-            jiraClient.transitionTicket(ticketKey, closingTransitions[targetedStatus])
+            def targetedStatus = operationTrace.kind() == Operation.revert() ? DEPLOY_CANCELLED_ID : (succeeded ? DONE_ID : DEPLOYMENT_FAILED_ID)
+            jiraClient.transitionTicket(ticketKey, CLOSING_TRANSITIONS[targetedStatus])
         }
     }
 
@@ -377,9 +377,9 @@ class CriteoListener extends DefaultListenerPlugin {
     }
 
     String restartDeploymentTicket(DeepDeploymentRequest deploymentRequest) {
-        def expectedStatusIds = [doneId, deploymentFailedId, deployCancelledId]
+        def expectedStatusIds = [DONE_ID, DEPLOYMENT_FAILED_ID, DEPLOY_CANCELLED_ID]
         def (String ticketKey, String statusId) = waitForDeploymentTicket(deploymentRequest, expectedStatusIds)
-        jiraClient.transitionTicket(ticketKey, resetTransitions[statusId] + startingChildrenTransitions)
+        jiraClient.transitionTicket(ticketKey, RESET_TRANSITIONS[statusId] + STARTING_CHILDREN_TRANSITIONS)
         return ticketKey
     }
 }

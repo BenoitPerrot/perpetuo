@@ -74,15 +74,15 @@ class RundeckInvoker extends HttpInvoker {
     }
 
     // how Rundeck is currently configured
-    private int apiVersion = 16
+    private static final API_VERSION = 16
 
     // Rundeck's API
     private String authenticated(String path) { "$path?authtoken=$authToken" }
 
     private String runPath(String jobName) {
-        authenticated("/api/$apiVersion/job/$jobName/executions")
+        authenticated("/api/$API_VERSION/job/$jobName/executions")
     }
-    private def errorInHtml = /.+<p>(.+)<\/p>.+/
+    private static final ERROR_IN_HTML = /.+<p>(.+)<\/p>.+/
 
     // internal purpose
     private def jsonSlurper = new JsonSlurper()
@@ -126,7 +126,7 @@ class RundeckInvoker extends HttpInvoker {
         try {
             (jsonSlurper.parseText(content) as Map).message
         } catch (JsonException ignored) {
-            def matcher = content =~ errorInHtml
+            def matcher = content =~ ERROR_IN_HTML
             matcher.matches() ? matcher[0][1] : ""
         } catch (Throwable ignored) {
             ""

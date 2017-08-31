@@ -7,7 +7,7 @@ import groovyx.net.http.RESTClient
 
 class CriteoExternalData extends ExternalData { // fixme: this only works with JMOAB for now
 
-    static final blacklisted = "Blacklisted"
+    private static final BLACKLISTED = "Blacklisted"
 
     @Override
     java.util.List<String> validateVersion(String productName, String version) {
@@ -31,7 +31,7 @@ class CriteoExternalData extends ExternalData { // fixme: this only works with J
                     errors += "Could not find artifact for ${repo}".toString()
                 } else if (!validation.valid) {
                     String reason = validation.reason
-                    if (reason == blacklisted && validation.comment) {
+                    if (reason == BLACKLISTED && validation.comment) {
                         reason = "${reason} because: ${validation.comment}"
                     }
                     errors += "${repo}: ${reason}".toString()
