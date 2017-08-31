@@ -50,6 +50,34 @@ class EngineSpec extends Test with TestDb {
       } yield (deploymentRequestId, executionSpecId.get)
     }
 
+    "check if an operation can be retried" in {
+      Await.result(
+        for {
+          product <- engine.insertProduct("horse")
+
+          (firstDeploymentRequestId, _) <- mockDeployExecution(product.name, "100", Map("corn-field" -> Status.hostFailure))
+          // Status = corn-field: horse@100?
+
+          (secondDeploymentRequestId, _) <- mockDeployExecution(product.name, "101", Map("racing" -> Status.success, "pool" -> Status.productFailure))
+          // Status = pool: horse@101?, racing: horse@101, corn-field: horse@100?
+
+          (thirdDeploymentRequestId, _) <- mockDeployExecution(product.name, "102", Map("racing" -> Status.success))
+          // Status = pool: horse@101?, racing: horse@102, corn-field: horse@100?
+
+          // fixme: one day, first deployment will be retryable:
+          // But second one can't be, because it impacts `racing`, whose status changed in the meantime
+          secondDeploymentRequest <- engine.dbBinding.findDeepDeploymentRequestById(secondDeploymentRequestId).map(_.get)
+          rejectionOfSecond <- engine.actionChecker(secondDeploymentRequest, isStarted = true)(Action.applyAgain)
+          // The last one of course is retryable
+          thirdDeploymentRequest <- engine.dbBinding.findDeepDeploymentRequestById(thirdDeploymentRequestId).map(_.get)
+          rejectionOfThird <- engine.actionChecker(thirdDeploymentRequest, isStarted = true)(Action.applyAgain)
+        } yield (
+          rejectionOfSecond, rejectionOfThird
+        ),
+        2.seconds
+      ) shouldBe(Some("a newer one has already been applied"), None)
+    }
+
     "find executions for rolling back" in {
       Await.result(
         for {
@@ -83,6 +111,7 @@ class EngineSpec extends Test with TestDb {
       Await.result(
         for {
           product <- engine.insertProduct("monkey")
+          otherProduct <- engine.insertProduct("donkey")
 
           _ <- mockDeployExecution(product.name, "12", Map("orbit" -> Status.success))
           // Status = orbit: monkey@12
@@ -93,18 +122,24 @@ class EngineSpec extends Test with TestDb {
           (thirdDeploymentRequestId, _) <- mockDeployExecution(product.name, "69", Map("orbit" -> Status.success, "venus" -> Status.success))
           // Status = orbit: monkey@69, venus: monkey@69
 
+          (otherDeploymentRequestId, _) <- mockDeployExecution(otherProduct.name, "215", Map("orbit" -> Status.success, "venus" -> Status.success))
+          // Status = orbit: monkey@69 + bonobo@215, venus: monkey@69 + bonobo@215
+
           // Second request can't be rolled back
           secondDeploymentRequest <- engine.dbBinding.findDeepDeploymentRequestById(secondDeploymentRequestId).map(_.get)
           rejectionOfSecond <- engine.actionChecker(secondDeploymentRequest, isStarted = true)(Action.rollback)
-          // Third one can be
+          // Third one can be rolled back, because it's the last one for its product
           thirdDeploymentRequest <- engine.dbBinding.findDeepDeploymentRequestById(thirdDeploymentRequestId).map(_.get)
           rejectionOfThird <- engine.actionChecker(thirdDeploymentRequest, isStarted = true)(Action.rollback)
+          // Meanwhile the deployment on another product can't be rolled back because it's the first for that product, even though it's globally the last
+          otherDeploymentRequest <- engine.dbBinding.findDeepDeploymentRequestById(otherDeploymentRequestId).map(_.get)
+          rejectionOfOther <- engine.actionChecker(otherDeploymentRequest, isStarted = true)(Action.rollback)
 
         } yield (
-          rejectionOfSecond, rejectionOfThird
+          rejectionOfSecond, rejectionOfThird, rejectionOfOther.map(_.slice(0, 22))
         ),
         2.seconds
-      ) shouldBe(Some("a newer one has already been applied"), None)
+      ) shouldBe(Some("a newer one has already been applied"), None, Some("unknown previous state"))
     }
 
     "perform a roll back" in {
