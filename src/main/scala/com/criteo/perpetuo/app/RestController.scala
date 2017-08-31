@@ -195,11 +195,10 @@ class RestController @Inject()(val engine: Engine)
           engine.isDeploymentRequestStarted(id)
             .flatMap(
               _.map { case (deploymentRequest, isStarted) =>
-                val check = engine.actionChecker(deploymentRequest, isStarted)
-                check(action).flatMap { rejected =>
-                  rejected.map(reason => throw BadRequestException(s"Cannot $actionName the deployment request #$id: $reason"))
-                  effect(id, user.name)
-                }.map(_.map(_ => response.ok.json(Map("id" -> id))))
+                engine.actionChecker(deploymentRequest, isStarted)(action)
+                  .recover { case e => throw BadRequestException(s"Cannot $actionName the deployment request #$id: ${e.getMessage}") }
+                  .flatMap(_ => effect(id, user.name))
+                  .map(_.map(_ => response.ok.json(Map("id" -> id))))
               }.getOrElse(Future.successful(None))
             )
         },
@@ -323,11 +322,13 @@ class RestController @Inject()(val engine: Engine)
           val sortedGroupsOfExecutions = executionResultGroups.mapValues(_._1.toSeq)
           val check = engine.actionChecker(deploymentRequest, sortedGroupsOfExecutions.nonEmpty)
           Future
-            .sequence(Action.values.map(action =>
-              check(action).map(_.map(_ => None).getOrElse(
-                Some(Map("name" -> action.toString, "authorized" -> authorized))
-              )) // todo: future workflow will provide different actions for different permissions
-            ))
+            .sequence(
+              Action.values.map(action =>
+                check(action)
+                  .map(_ => Some(Map("name" -> action.toString, "authorized" -> authorized)))
+                  .recover { case _ => None }
+              ) // todo: future workflow will provide different actions for different permissions
+            )
             .map(actions =>
               Some(serialize(authorized, deploymentRequest, sortedGroupsOfExecutions) ++
                 Map("operations" -> serialize(executionResultGroups)) ++
