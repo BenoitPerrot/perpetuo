@@ -81,16 +81,16 @@ class EngineSpec extends Test with TestDb {
     "find executions for rolling back" in {
       Await.result(
         for {
-          product <- engine.insertProduct("mice")
+          product <- engine.insertProduct("mouse")
 
           (firstDeploymentRequestId, firstExecSpecId) <- mockDeployExecution(product.name, "27", Map("moon" -> Status.success, "mars" -> Status.success))
-          // Status = moon: mice@27, mars: mice@27
+          // Status = moon: mouse@27, mars: mouse@27
 
           (secondDeploymentRequestId, secondExecSpecId) <- mockDeployExecution(product.name, "54", Map("moon" -> Status.productFailure, "venus" -> Status.success))
-          // Status = moon: mice@54, mars: mice@27
+          // Status = moon: mouse@54, mars: mouse@27
 
           (thirdDeploymentRequestId, thirdExecSpecId) <- mockDeployExecution(product.name, "69", Map("moon" -> Status.success, "mars" -> Status.productFailure))
-          // Status = moon: mice@69, mars: mice@27
+          // Status = moon: mouse@69, mars: mouse@27
 
           // Rolling back
           thirdDeploymentRequest <- engine.dbBinding.findDeepDeploymentRequestById(thirdDeploymentRequestId).map(_.get)
