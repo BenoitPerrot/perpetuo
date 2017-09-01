@@ -60,10 +60,19 @@ class Engine @Inject()(val dbBinding: DbBinding) {
     else {
       val futureDepReq = dbBinding.insertDeploymentRequest(attrs)
 
-      futureDepReq.foreach(plugins.listener.onDeploymentRequestCreated(_, immediateStart))
-
-      if (immediateStart)
-        futureDepReq.foreach(req => startDeploymentRequest(req, attrs.creator, atCreation = true))
+      futureDepReq.foreach { deploymentRequest =>
+        // todo: onDeploymentRequestCreated returning an extra comment feels wrong, probably it should not
+        Option(plugins.listener.onDeploymentRequestCreated(deploymentRequest, immediateStart)).map(moreComment => {
+          var comment = deploymentRequest.comment
+          if (comment.nonEmpty)
+            comment += "\n"
+          comment += moreComment
+          dbBinding.updateDeploymentRequestComment(deploymentRequest.id, comment)
+        }).getOrElse(Future.successful(true)).foreach { _ =>
+          if (immediateStart)
+            startDeploymentRequest(deploymentRequest, attrs.creator, atCreation = true)
+        }
+      }
 
       futureDepReq.map(depReq => Map("id" -> depReq.id))
     }

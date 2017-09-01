@@ -16,8 +16,6 @@ import org.apache.http.entity.ContentType
 import org.apache.http.entity.mime.MultipartEntityBuilder
 import org.apache.http.impl.client.CloseableHttpClient
 import org.apache.http.impl.client.HttpClients
-import scala.concurrent.Await
-import scala.concurrent.duration.Duration
 
 import java.util.concurrent.TimeoutException
 
@@ -283,13 +281,7 @@ class CriteoListener extends DefaultListenerPlugin {
                 if (appConfig.isCoveredByOldWorkflow(productName)) {
                     return ticketUrl
                 } else {
-                    def newComment = deploymentRequest.comment()
-                    if (newComment)
-                        newComment += "\n"
-                    newComment += "ticket: $ticketUrl"
-                    def update = dbBinding.updateDeploymentRequestComment(deploymentRequest.id(), newComment)
-                    Boolean updated = Await.result(update, Duration.apply(5, "s"))
-                    assert updated
+                    return "ticket: $ticketUrl"
                 }
             } catch (HttpResponseException e) {
                 logger().severe("Bad response from JIRA when creating ticket $suffix: ${e.response.status} ${e.message}: ${e.response.data.toString()}")
