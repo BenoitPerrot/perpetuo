@@ -3,6 +3,7 @@ package com.criteo.perpetuo.config
 import java.util.logging.Logger
 
 import com.criteo.perpetuo.engine.dispatchers.TargetDispatcher
+import com.typesafe.config.ConfigException
 
 import scala.collection.JavaConverters._
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -27,8 +28,20 @@ class Plugins(appConfig: BaseAppConfig = AppConfig) {
     selected.headOption.map(_.asInstanceOf[T])
   }
 
+  val dispatcher: TargetDispatcher = {
+    val desc = AppConfig.under("targetDispatcher")
+    try {
+      desc.get[String]("type") match {
+        case "groovyScript" =>
+          loader.instantiate(desc.get[String]("groovyScript")).asInstanceOf[TargetDispatcher]
+        // todo: support other forms (eg a class, via its qualified name), checking that no more than one is provided
+        case unknownType => throw new Exception(s"Unknown target dispatcher configured: $unknownType")
+      }
+    } catch {
+      case e: ConfigException.Missing => throw new Exception("No target dispatcher is configured, while one is required")
+    }
+  }
 
-  val dispatcher: TargetDispatcher = extractInstance[TargetDispatcher].get
   val externalData: ExternalDataGetter = new ExternalDataGetter(extractInstance[ExternalData])
   val listener: ListenerPluginWrapper = new ListenerPluginWrapper(extractInstance[DefaultListenerPlugin])
   assert(tempInstances.isEmpty, s"Unused plugin(s): ${tempInstances.map(_.getClass.getName).mkString(", ")}")
