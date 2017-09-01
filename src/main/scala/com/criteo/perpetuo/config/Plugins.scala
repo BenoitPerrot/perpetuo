@@ -2,7 +2,6 @@ package com.criteo.perpetuo.config
 
 import java.util.logging.Logger
 
-import com.criteo.perpetuo.dao.DbBinding
 import com.criteo.perpetuo.engine.dispatchers.TargetDispatcher
 
 import scala.collection.JavaConverters._
@@ -12,8 +11,8 @@ import scala.concurrent.{Await, ExecutionException, Future, blocking}
 import scala.reflect._
 
 
-class Plugins(dbBinding: DbBinding, appConfig: BaseAppConfig = AppConfig) {
-  private val loader = new GroovyScriptLoader(dbBinding, appConfig)
+class Plugins(appConfig: BaseAppConfig = AppConfig) {
+  private val loader = new GroovyScriptLoader(appConfig)
 
   // load the plugins in the declared order, because one plugin might use what has been defined by another
   private var tempInstances: Seq[AnyRef] =

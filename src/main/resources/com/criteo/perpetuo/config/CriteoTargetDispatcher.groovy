@@ -1,6 +1,5 @@
 package com.criteo.perpetuo.config
 
-import com.criteo.perpetuo.dao.DbBinding
 import com.criteo.perpetuo.engine.dispatchers.TargetDispatcher
 import com.criteo.perpetuo.engine.executors.DummyInvoker
 import com.criteo.perpetuo.engine.executors.ExecutorInvoker
@@ -21,7 +20,7 @@ import groovy.json.JsonSlurper
 class CriteoTargetDispatcher extends TargetDispatcher {
     ExecutorInvoker invoker
 
-    CriteoTargetDispatcher(DbBinding dbBinding, RootAppConfig appConfig) {
+    CriteoTargetDispatcher(RootAppConfig appConfig) {
         def env = appConfig.env()
         switch (env) {
             case 'test':

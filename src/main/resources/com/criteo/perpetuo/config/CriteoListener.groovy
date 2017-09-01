@@ -1,6 +1,5 @@
 package com.criteo.perpetuo.config
 
-import com.criteo.perpetuo.dao.DbBinding
 import com.criteo.perpetuo.model.DeepDeploymentRequest
 import com.criteo.perpetuo.model.Operation
 import com.criteo.perpetuo.model.OperationTrace
@@ -176,12 +175,10 @@ class CriteoListener extends DefaultListenerPlugin {
             ]
     ]
 
-    DbBinding dbBinding
     RootAppConfig appConfig
     JiraClient jiraClient
 
-    CriteoListener(DbBinding dbBinding, RootAppConfig appConfig) {
-        this.dbBinding = dbBinding
+    CriteoListener(RootAppConfig appConfig) {
         this.appConfig = appConfig
         if (appConfig.env() != 'preprod') {
             def jiraUser = appConfig.tryGet('jira.user')

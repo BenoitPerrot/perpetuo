@@ -26,7 +26,7 @@ object Action extends Enumeration {
 @Singleton
 class Engine @Inject()(val dbBinding: DbBinding) {
 
-  private val plugins = new Plugins(dbBinding)
+  private val plugins = new Plugins()
   private val operationStarter = new OperationStarter(dbBinding)
 
   def getProductNames: Future[Seq[String]] =

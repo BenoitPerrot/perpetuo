@@ -18,7 +18,7 @@ import scala.concurrent.duration._
 class RundeckInvokerSpec extends Test with TestDb {
   private def testWhenResponseIs(statusCode: Int, content: String) = {
     val testEnv = ConfigValueFactory.fromAnyRef("local")
-    val plugins = new Plugins(new DbBinding(dbContext), AppConfig.withValue("env", testEnv))
+    val plugins = new Plugins(AppConfig.withValue("env", testEnv))
     val rundeckInvoker = plugins.dispatcher.dispatchToExecutors("foo").head.asInstanceOf[HttpInvoker]
     assert(rundeckInvoker.getClass.getSimpleName == "RundeckInvoker")
     rundeckInvoker.client = request => {

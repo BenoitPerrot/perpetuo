@@ -3,9 +3,7 @@ package com.criteo.perpetuo.config
 import java.io.{File, InputStreamReader}
 import javax.script.{ScriptEngine, ScriptEngineManager}
 
-import com.criteo.perpetuo.dao.DbBinding
-
-class GroovyScriptLoader(dbBinding: DbBinding, appConfig: BaseAppConfig = AppConfig) {
+class GroovyScriptLoader(appConfig: BaseAppConfig = AppConfig) {
   private val engine: ScriptEngine = new ScriptEngineManager().getEngineByName("groovy") // todo? use GroovyScriptEngine
   assert(engine != null)
 
@@ -14,14 +12,14 @@ class GroovyScriptLoader(dbBinding: DbBinding, appConfig: BaseAppConfig = AppCon
     try {
       val cls = engine.eval(new InputStreamReader(resource.openStream())).asInstanceOf[Class[AnyRef]]
       Seq(// supported instantiation parameters:
-        Seq(dbBinding, appConfig),
+        Seq(appConfig),
         Seq()
       )
         .view // lazily:
         .flatMap(instantiate(cls, _))
         .headOption
         .getOrElse {
-          throw new NoSuchMethodException("Groovy scripts must implement either a constructor taking a DbBinding and a RootAppConfig as parameters or a default constructor")
+          throw new NoSuchMethodException("Groovy plugins' constructors can only take an AppConfig instance as parameter, optionally")
         }
     }
     catch {
