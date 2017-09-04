@@ -3,16 +3,9 @@ package com.criteo.perpetuo.config
 import com.criteo.perpetuo.engine.dispatchers.TargetDispatcher
 import com.criteo.perpetuo.engine.executors.DummyInvoker
 import com.criteo.perpetuo.engine.executors.ExecutorInvoker
-import com.criteo.perpetuo.engine.executors.HttpInvoker
+import com.criteo.perpetuo.engine.executors.RundeckInvoker
 import com.criteo.perpetuo.model.Version
-import com.twitter.finagle.http.Fields
-import com.twitter.finagle.http.Message$
-import com.twitter.finagle.http.Method
-import com.twitter.finagle.http.Request
-import groovy.json.JsonBuilder
-import groovy.json.JsonException
 import groovy.json.JsonOutput
-import groovy.json.JsonSlurper
 
 
 /* the "public" class to be loaded as the actual plugin must be the first statement after the imports */
@@ -21,6 +14,7 @@ class CriteoTargetDispatcher extends TargetDispatcher {
     ExecutorInvoker invoker
 
     CriteoTargetDispatcher(RootAppConfig appConfig) {
+        final def RUNDECK_API_VERSION = 16
         def env = appConfig.env()
         switch (env) {
             case 'test':
@@ -28,10 +22,10 @@ class CriteoTargetDispatcher extends TargetDispatcher {
                 break
             case 'local':
                 def rundeckPort = (System.getenv("RD_PORT") ?: "4440")
-                invoker = new RundeckInvoker("localhost", rundeckPort as int, appConfig)
+                invoker = new RundeckInvoker("rundeck", "localhost", rundeckPort as int, RUNDECK_API_VERSION, appConfig.under('tokens').get('rundeck').toString())
                 break
             default:
-                invoker = new RundeckInvoker("rundeck.central.criteo.${env}", 443, appConfig)
+                invoker = new RundeckInvoker("rundeck", "rundeck.central.criteo.${env}", 443, RUNDECK_API_VERSION, appConfig.under('tokens').get('rundeck').toString())
         }
     }
 
@@ -59,76 +53,5 @@ class CriteoTargetDispatcher extends TargetDispatcher {
                 jobName: jobName,
                 uploaderVersion: uploaderVersion
         ].findAll { it.value })
-    }
-}
-
-
-class RundeckInvoker extends HttpInvoker {
-    String host
-    private String authToken
-
-    RundeckInvoker(String host, int port, RootAppConfig appConfig) {
-        super(host, port, 'rundeck')
-        this.authToken = appConfig.under("tokens").get(name())
-    }
-
-    // how Rundeck is currently configured
-    private static final API_VERSION = 16
-
-    // Rundeck's API
-    private String authenticated(String path) { "$path?authtoken=$authToken" }
-
-    private String runPath(String jobName) {
-        authenticated("/api/$API_VERSION/job/$jobName/executions")
-    }
-    private static final ERROR_IN_HTML = /.+<p>(.+)<\/p>.+/
-
-    // internal purpose
-    private def jsonSlurper = new JsonSlurper()
-
-
-    @Override
-    Request buildRequest(long execTraceId, String executionKind, String productName, Version version, String target, String frozenParameters, String initiator) {
-        def parameters = jsonSlurper.parseText(frozenParameters) as Map
-        String jobName = parameters.jobName
-        String uploader = parameters.uploaderVersion
-        String quotedVersion = version.toString()
-        if (quotedVersion.startsWith('['))
-            quotedVersion = "'$quotedVersion'"
-
-        def args = "-callback-url '${callbackUrl(execTraceId)}' -product-name '$productName' -target '$target' -product-version $quotedVersion"
-        if (uploader)
-            args += " -uploader-version " + uploader
-        def body = [
-                // before version 18 of Rundeck, we can't pass options in a structured way
-                "argString": args
-        ]
-        body = new JsonBuilder(body).toString()
-        def jsonType = Message$.MODULE$.ContentTypeJson
-
-        Request req = Request.apply(Method.Post$.MODULE$, runPath(jobName))
-        def headers = req.headerMap()
-        headers[Fields.Host()] = host()
-        headers[Fields.ContentType()] = jsonType
-        headers[Fields.Accept()] = jsonType // default response format is XML
-        req.write(body)
-        req
-    }
-
-    @Override
-    String extractLogHref(String executorAnswer) {
-        (jsonSlurper.parseText(executorAnswer) as Map).permalink as String
-    }
-
-    @Override
-    String extractMessage(int status, String content) {
-        try {
-            (jsonSlurper.parseText(content) as Map).message
-        } catch (JsonException ignored) {
-            def matcher = content =~ ERROR_IN_HTML
-            matcher.matches() ? matcher[0][1] : ""
-        } catch (Throwable ignored) {
-            ""
-        }
     }
 }
