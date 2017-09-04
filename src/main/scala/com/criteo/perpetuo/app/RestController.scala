@@ -175,8 +175,9 @@ class RestController @Inject()(val engine: Engine)
     authenticate(r.request) { case user if isAuthorized(user) =>
       withIdAndRequest(
         (id, _: RequestWithId) => {
-          val actionName = try {
-            r.request.contentString.parseJson.asJsObject.fields("name").asInstanceOf[JsString].value
+          val (actionName, defaultVersion) = try {
+            val body = r.request.contentString.parseJson.asJsObject.fields
+            (body("name").asInstanceOf[JsString].value, body.get("defaultVersion").map(Version.apply))
           } catch {
             case e@(_: ParsingException | _: DeserializationException | _: NoSuchElementException | _: ClassCastException) =>
               throw BadRequestException(e.getMessage)
@@ -197,6 +198,14 @@ class RestController @Inject()(val engine: Engine)
               _.map { case (deploymentRequest, isStarted) =>
                 engine
                   .actionChecker(deploymentRequest, isStarted)(action)
+                  .flatMap { _ =>
+                    if (action == Action.rollback && defaultVersion.isEmpty)
+                      engine.findTargetMissingPreviousExecution(deploymentRequest).map(y => y.map(target =>
+                        throw new Exception(s"it requires a version to rollback to (for the target `$target` for instance)")
+                      ))
+                    else
+                      Future.successful()
+                  }
                   .recover {
                     case e => throw HttpException(HttpStatus.UnprocessableEntity, s"Cannot $actionName the deployment request #$id: ${e.getMessage}")
                   }

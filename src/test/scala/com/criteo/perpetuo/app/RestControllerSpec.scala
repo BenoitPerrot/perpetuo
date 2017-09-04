@@ -278,7 +278,7 @@ class RestControllerSpec extends FeatureTest with TestDb {
 
   }
 
-  "The DeploymentRequest's PUT entry-point" should {
+  "The DeploymentRequest's actions entry-point" should {
     "start a deployment that was not started yet (using deprecated API)" in {
       val id = requestDeployment("my product", "not ready yet", "par".toJson, None, None, start = false)
         .fields("id").asInstanceOf[JsNumber].value
@@ -311,8 +311,25 @@ class RestControllerSpec extends FeatureTest with TestDb {
     }
 
     "return 400 when putting a non-existing action" in {
-      actOnDeploymentRequest(1, Map("name" -> "ploup").toJson,
-        BadRequest)
+      actOnDeploymentRequest(1, Map("name" -> "ploup").toJson, BadRequest)
+    }
+
+    "return 422 when trying to rollback new targets" in {
+      def getError = (_: Response).contentString.parseJson.asJsObject.fields("errors").asInstanceOf[JsArray].elements.head.asInstanceOf[JsString].value
+
+      createProduct("my new product")
+      val id = requestDeployment("my new product", "789", "par".toJson, None, None, start = false).idAsLong
+      getError(actOnDeploymentRequest(id, Map("name" -> "rollback").toJson, UnprocessableEntity)) should include("it has not yet been applied")
+
+      startDeploymentRequest(id, Ok)
+      val execTraceId = getExecutionTracesByDeploymentRequestId(id.toString, Ok).get.elements.head.idAsLong
+      updateExecTrace(
+        id, execTraceId, "completed", None, Some(
+          Map("targetA" -> Map("code" -> "success", "detail" -> "").toJson,
+            "targetB" -> Map("code" -> "productFailure", "detail" -> "").toJson)),
+        expectedTargetStatus = Map("targetA" -> ("success", ""), "targetB" -> ("productFailure", ""))
+      )
+      getError(actOnDeploymentRequest(id, Map("name" -> "rollback").toJson, UnprocessableEntity)) should include("it requires a version to rollback to")
     }
   }
 

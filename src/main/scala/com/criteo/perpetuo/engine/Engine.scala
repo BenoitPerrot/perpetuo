@@ -113,17 +113,16 @@ class Engine @Inject()(val dbBinding: DbBinding) {
           // fixme: only as long as there can be * in TargetStatus table because of failure (and one executor!)
           _.collectFirst { case trace if trace.state != ExecutionState.completed =>
             rejected("there is no need to rollback, nothing has been done")
-          }.getOrElse(
-            dbBinding.findExecutionSpecificationsForRollback(deploymentRequest).flatMap(
-              _.collectFirst { case (target, execSpec) if execSpec.isEmpty =>
-                rejected(s"unknown previous state for (at least) target `$target`")
-              }.getOrElse(accepted)
-            )
-          )
+          }.getOrElse(accepted)
         )
       )
     }
   }
+
+  def findTargetMissingPreviousExecution(deploymentRequest: DeploymentRequest): Future[Option[TargetAtom.Type]] =
+    dbBinding.findExecutionSpecificationsForRollback(deploymentRequest).map(
+      _.collectFirst { case (atom, execSpec) if execSpec.isEmpty => atom }
+    )
 
   def startDeploymentRequest(deploymentRequestId: Long, initiatorName: String): Future[Option[(OperationTrace, Int, Int)]] = {
     dbBinding.findDeepDeploymentRequestById(deploymentRequestId).flatMap(

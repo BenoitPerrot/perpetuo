@@ -90,19 +90,24 @@ class EngineSpec extends Test with TestDb {
           (thirdDeploymentRequestId, thirdExecSpecId) <- mockDeployExecution(product.name, "69", Map("moon" -> Status.success, "mars" -> Status.productFailure))
           // Status = moon: mouse@69, mars: mouse@27
 
-          // Rolling back
+          // Can't rollback as-is the first deployment request: we need to know the default rollback version
+          firstDeploymentRequest <- engine.dbBinding.findDeepDeploymentRequestById(firstDeploymentRequestId).map(_.get)
+          rollbackSpecsForFirst <- engine.dbBinding.findExecutionSpecificationsForRollback(firstDeploymentRequest)
+
+          // Can rollback
           thirdDeploymentRequest <- engine.dbBinding.findDeepDeploymentRequestById(thirdDeploymentRequestId).map(_.get)
-          executionSpecsForRollback <- engine.dbBinding.findExecutionSpecificationsForRollback(thirdDeploymentRequest)
+          rollbackSpecsForThird <- engine.dbBinding.findExecutionSpecificationsForRollback(thirdDeploymentRequest)
 
         } yield (
-          executionSpecsForRollback.size,
-          executionSpecsForRollback("mars").get.id == firstExecSpecId,
-          executionSpecsForRollback("moon").get.id == secondExecSpecId,
-          executionSpecsForRollback("mars").get.version.toString,
-          executionSpecsForRollback("moon").get.version.toString
+          rollbackSpecsForFirst,
+          rollbackSpecsForThird.size,
+          rollbackSpecsForThird("mars").get.id == firstExecSpecId,
+          rollbackSpecsForThird("moon").get.id == secondExecSpecId,
+          rollbackSpecsForThird("mars").get.version.toString,
+          rollbackSpecsForThird("moon").get.version.toString
         ),
         2.seconds
-      ) shouldBe(2, true, true, """"27"""", """"54"""")
+      ) shouldBe(Map("mars" -> None, "moon" -> None), 2, true, true, """"27"""", """"54"""")
     }
 
     "check if an operation can be rolled back" in {
@@ -129,15 +134,12 @@ class EngineSpec extends Test with TestDb {
           // Third one can be rolled back, because it's the last one for its product
           thirdDeploymentRequest <- engine.dbBinding.findDeepDeploymentRequestById(thirdDeploymentRequestId).map(_.get)
           _ <- engine.actionChecker(thirdDeploymentRequest, isStarted = true)(Action.rollback)
-          // Meanwhile the deployment on another product can't be rolled back because it's the first for that product, even though it's globally the last
+          // Meanwhile the deployment on another product can be rolled back (even when it's the first one for that product: it just requires a default rollback version)
           otherDeploymentRequest <- engine.dbBinding.findDeepDeploymentRequestById(otherDeploymentRequestId).map(_.get)
-          rejectionOfOther <- engine.actionChecker(otherDeploymentRequest, isStarted = true)(Action.rollback).failed
-
-        } yield (
-          rejectionOfSecond.getMessage, rejectionOfOther.getMessage.slice(0, 22)
-        ),
+          _ <- engine.actionChecker(otherDeploymentRequest, isStarted = true)(Action.rollback)
+        } yield rejectionOfSecond.getMessage,
         2.seconds
-      ) shouldBe("a newer one has already been applied", "unknown previous state")
+      ) shouldBe "a newer one has already been applied"
     }
 
     "perform a roll back" in {
