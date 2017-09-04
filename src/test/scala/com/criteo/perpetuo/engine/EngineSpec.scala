@@ -92,12 +92,12 @@ class EngineSpec extends Test with TestDb {
 
           // Rolling back
           thirdDeploymentRequest <- engine.dbBinding.findDeepDeploymentRequestById(thirdDeploymentRequestId).map(_.get)
-          executionSpecsForRollback <- engine.dbBinding.findExecutionSpecIdsForRollback(thirdDeploymentRequest)
+          executionSpecsForRollback <- engine.dbBinding.findExecutionSpecificationsForRollback(thirdDeploymentRequest)
 
         } yield (
           executionSpecsForRollback.size,
-          executionSpecsForRollback("mars").get.id.get == firstExecSpecId,
-          executionSpecsForRollback("moon").get.id.get == secondExecSpecId,
+          executionSpecsForRollback("mars").get.id == firstExecSpecId,
+          executionSpecsForRollback("moon").get.id == secondExecSpecId,
           executionSpecsForRollback("mars").get.version.toString,
           executionSpecsForRollback("moon").get.version.toString
         ),

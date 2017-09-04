@@ -5,7 +5,7 @@ import javax.inject.{Inject, Singleton}
 import com.criteo.perpetuo.model._
 
 import scala.collection.mutable.ArrayBuffer
-import scala.collection.{SortedMap, breakOut, mutable}
+import scala.collection.{SortedMap, mutable}
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}
@@ -219,7 +219,7 @@ class DbBinding @Inject()(val dbContext: DbContext)
     dbContext.db.run(outdatedByOperation.result)
   }
 
-  private def targetAtomsFor(deploymentRequest: DeploymentRequest): Query[Rep[TargetAtom.Type], TargetAtom.Type, Seq] = {
+  private def targetAtomsQuery(deploymentRequest: DeploymentRequest) =
     operationTraceQuery.filter(_.deploymentRequestId === deploymentRequest.id).take(1)
       .join(executionQuery)
       .join(targetStatusQuery)
@@ -227,41 +227,41 @@ class DbBinding @Inject()(val dbContext: DbContext)
         operationTrace.id === execution.operationTraceId && execution.id === targetStatus.executionId
       }
       .map { case (_, targetStatus) => targetStatus.targetAtom }
-  }
 
-  def findSoundExecutionSpecIdsForRollback(deploymentRequest: DeploymentRequest): Future[Map[TargetAtom.Type, ExecutionSpecificationRecord]] = {
-    val executionIds = targetAtomsFor(deploymentRequest)
-      .join(targetStatusQuery)
+  def findExecutionSpecificationsForRollback(deploymentRequest: DeploymentRequest): Future[Map[TargetAtom.Type, Option[ExecutionSpecification]]] = {
+    val previousTargetStatuses = targetStatusQuery
       .join(executionQuery)
       .join(operationTraceQuery)
       .join(deploymentRequestQuery)
-      .filter { case ((((targetAtom, targetStatus), execution), operationTrace), oldDeploymentRequest) =>
-        targetStatus.executionId === execution.id && execution.operationTraceId === operationTrace.id &&
-          operationTrace.deploymentRequestId === oldDeploymentRequest.id &&
-          targetStatus.targetAtom === targetAtom && oldDeploymentRequest.productId === deploymentRequest.productId &&
-          oldDeploymentRequest.id < deploymentRequest.id // assumes that it's not possible to apply deployment requests in another order than creation one
+      .filter { case (((targetStatus, execution), operationTrace), oldDeploymentRequest) =>
+        targetStatus.executionId === execution.id && execution.operationTraceId === operationTrace.id && operationTrace.deploymentRequestId === oldDeploymentRequest.id &&
+          oldDeploymentRequest.productId === deploymentRequest.productId && oldDeploymentRequest.id < deploymentRequest.id
+        // because it's impossible to apply deployment requests in another order than creation one
       }
-      .map { case ((((targetAtom, _), execution), _), _) => (targetAtom, execution.id) }
-      .groupBy { case (targetAtom, _) => targetAtom }
-      .map { case (targetAtom, q) => (targetAtom, q.map { case (_, executionId) => executionId }.max) }
-      .join(executionQuery)
-      .join(executionSpecificationQuery)
-      .filter { case (((_, executionId), execution), execSpec) => executionId.map(_ === execution.id) && execution.executionSpecificationId === execSpec.id }
-      .map { case (((targetAtom, _), _), execSpec) => (targetAtom, execSpec) }
+      .map { case (((targetStatus, _), _), _) => targetStatus }
 
-    dbContext.db.run(executionIds.result).map { seq =>
-      val res = seq.toMap
+    val lastExecutionIdPerTarget = targetAtomsQuery(deploymentRequest)
+      .joinLeft(previousTargetStatuses)
+      .on { case (impactedTargetAtom, anyTargetStatus) => impactedTargetAtom === anyTargetStatus.targetAtom }
+      .groupBy { case (targetAtom, _) => targetAtom }
+      .map { case (targetAtom, q) =>
+        (targetAtom, q.map { case (_, targetStatus) => targetStatus.map(_.executionId) }.max)
+      }
+
+    val execSpecIds = lastExecutionIdPerTarget
+      .joinLeft(
+        executionQuery.join(executionSpecificationQuery).on(_.executionSpecificationId === _.id)
+          .map { case (execution, execSpec) => (execution.id, execSpec) }
+      )
+      .on { case ((_, targetExecutionId), (anyExecutionId, _)) => targetExecutionId === anyExecutionId }
+      .map { case ((targetAtom, _), specLink) => (targetAtom, specLink) }
+
+    dbContext.db.run(execSpecIds.result).map { seq =>
+      val res = seq.toStream.map { case (targetAtom, execSpec) =>
+        (targetAtom, execSpec.map { case (_, spec) => spec.toExecutionSpecification })
+      }.toMap
       assert(res.size == seq.size)
       res
-    }
-  }
-
-  def findExecutionSpecIdsForRollback(deploymentRequest: DeploymentRequest): Future[Map[TargetAtom.Type, Option[ExecutionSpecificationRecord]]] = {
-    // TODO: find a way to do this in a single query instead of two
-    val atoms = dbContext.db.run(targetAtomsFor(deploymentRequest).result)
-    findSoundExecutionSpecIdsForRollback(deploymentRequest).flatMap {
-      specifications =>
-        atoms.map(_.map(targetAtom => (targetAtom, specifications.get(targetAtom)))(breakOut))
     }
   }
 

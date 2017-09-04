@@ -114,7 +114,7 @@ class Engine @Inject()(val dbBinding: DbBinding) {
           _.collectFirst { case trace if trace.state != ExecutionState.completed =>
             rejected("there is no need to rollback, nothing has been done")
           }.getOrElse(
-            dbBinding.findExecutionSpecIdsForRollback(deploymentRequest).flatMap(
+            dbBinding.findExecutionSpecificationsForRollback(deploymentRequest).flatMap(
               _.collectFirst { case (target, execSpec) if execSpec.isEmpty =>
                 rejected(s"unknown previous state for (at least) target `$target`")
               }.getOrElse(accepted)
