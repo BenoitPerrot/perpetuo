@@ -37,6 +37,7 @@ class Server extends HttpServer {
   override def modules = Seq(
     Slf4jBridgeModule,
     new DbContextModule(AppConfig.db),
+    new PluginsModule,
     new AuthModule(AppConfig.under("auth"))
   )
 
