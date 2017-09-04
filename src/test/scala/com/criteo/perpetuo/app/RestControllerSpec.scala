@@ -154,7 +154,7 @@ class RestControllerSpec extends FeatureTest with TestDb {
   private def startDeploymentRequest(deploymentRequestId: Long): JsObject =
     startDeploymentRequest(deploymentRequestId, Ok).contentString.parseJson.asJsObject
 
-  private def startDeployment(productName: String, version: String, target: JsValue): (Long, Seq[Long]) = {
+  private def createAndStartDeployment(productName: String, version: String, target: JsValue): (Long, Seq[Long]) = {
     val depReqId = requestDeployment(productName, version, target, None, start = false).idAsLong
     startDeploymentRequest(depReqId)
     (depReqId, getExecutionTracesByDeploymentRequestId(depReqId.toString).elements.map(_.idAsLong))
@@ -280,8 +280,7 @@ class RestControllerSpec extends FeatureTest with TestDb {
 
   "The DeploymentRequest's actions entry-point" should {
     "start a deployment that was not started yet (using deprecated API)" in {
-      val id = requestDeployment("my product", "not ready yet", "par".toJson, None, None, start = false)
-        .fields("id").asInstanceOf[JsNumber].value
+      val id = requestDeployment("my product", "not ready yet", "par".toJson, None, None, start = false).idAsLong
       httpPut(
         s"/api/deployment-requests/$id",
         "".toJson,
@@ -298,7 +297,7 @@ class RestControllerSpec extends FeatureTest with TestDb {
     }
 
     "start a deployment that was not started yet" in {
-      val id = requestDeployment("my product", "456", "ams".toJson, None, None, start = false).fields("id").asInstanceOf[JsNumber].value
+      val id = requestDeployment("my product", "456", "ams".toJson, None, None, start = false).idAsLong
       startDeploymentRequest(id.longValue()) shouldEqual JsObject("id" -> id.toJson)
     }
 
@@ -373,7 +372,7 @@ class RestControllerSpec extends FeatureTest with TestDb {
 
     "return 200 and a JSON with all necessary info when accessing an existing DeploymentRequest" in {
       val o = requestDeployment("my product", "v2097", "to everywhere".toJson, Some("hello world"))
-      val i = o.fields("id").asInstanceOf[JsNumber].value.toInt
+      val i = o.idAsLong
 
       val values1 = getDeploymentRequest(i.toString).fields
 
@@ -434,7 +433,7 @@ class RestControllerSpec extends FeatureTest with TestDb {
     }
 
     "update one record's execution state on a PUT" in {
-      val (depReqId, executionTraces) = startDeployment("my product", "1112", "paris".toJson)
+      val (depReqId, executionTraces) = createAndStartDeployment("my product", "1112", "paris".toJson)
       updateExecTrace(
         depReqId, executionTraces.head, "completed", None,
         expectedTargetStatus = Map()
@@ -442,7 +441,7 @@ class RestControllerSpec extends FeatureTest with TestDb {
     }
 
     "update one record's execution state and log href on a PUT" in {
-      val (depReqId, executionTraces) = startDeployment("my product", "1112", "paris".toJson)
+      val (depReqId, executionTraces) = createAndStartDeployment("my product", "1112", "paris".toJson)
       updateExecTrace(
         depReqId, executionTraces.head, "completed", Some("http://somewhe.re"),
         expectedTargetStatus = Map()
@@ -450,7 +449,7 @@ class RestControllerSpec extends FeatureTest with TestDb {
     }
 
     "update one record's execution state and target status on a PUT" in {
-      val (depReqId, executionTraces) = startDeployment("my product", "653", Seq("paris", "ams").toJson)
+      val (depReqId, executionTraces) = createAndStartDeployment("my product", "653", Seq("paris", "ams").toJson)
       updateExecTrace(
         depReqId, executionTraces.head, "initFailed", None,
         targetStatus = Some(Map("paris" -> Map("code" -> "success", "detail" -> "").toJson)),
@@ -505,7 +504,7 @@ class RestControllerSpec extends FeatureTest with TestDb {
     }
 
     "return 400 if the target status is badly formatted and not update the state" in {
-      val (depReqId, executionTraces) = startDeployment("my product", "2456", Seq("paris", "amsterdam").toJson)
+      val (depReqId, executionTraces) = createAndStartDeployment("my product", "2456", Seq("paris", "amsterdam").toJson)
       val execTraceId = executionTraces.head
 
       httpPut(
@@ -529,7 +528,7 @@ class RestControllerSpec extends FeatureTest with TestDb {
     }
 
     "return 400 if the provided state is unknown" in {
-      val (depReqId, executionTraces) = startDeployment("my product", "2456", Seq("paris", "amsterdam").toJson)
+      val (depReqId, executionTraces) = createAndStartDeployment("my product", "2456", Seq("paris", "amsterdam").toJson)
 
       httpPut(
         RestApi.executionCallbackPath(executionTraces.head.toString),
@@ -539,7 +538,7 @@ class RestControllerSpec extends FeatureTest with TestDb {
     }
 
     "return 400 and not update the state if a provided target status is unknown" in {
-      val (depReqId, executionTraces) = startDeployment("my product", "2456", Seq("paris", "amsterdam").toJson)
+      val (depReqId, executionTraces) = createAndStartDeployment("my product", "2456", Seq("paris", "amsterdam").toJson)
       val execTraceId = executionTraces.head
 
       httpPut(
@@ -608,7 +607,7 @@ class RestControllerSpec extends FeatureTest with TestDb {
       allDepReqs.length should be > 2
 
       val depReqsForSingle = deepGetDepReq(1)
-      depReqsForSingle.fields("id") shouldBe JsNumber(1)
+      depReqsForSingle.idAsLong shouldBe 1
     }
 
     "display correctly formatted versions" in {
@@ -621,7 +620,7 @@ class RestControllerSpec extends FeatureTest with TestDb {
     "return the right executions in a valid JSON" in {
       val depReqs = deepGetDepReq()
 
-      val (depReqId, executionTraces) = startDeployment("my product", "3211", Seq("paris", "amsterdam").toJson)
+      val (depReqId, executionTraces) = createAndStartDeployment("my product", "3211", Seq("paris", "amsterdam").toJson)
       val execTraceId = executionTraces.head
       updateExecTrace(
         depReqId, execTraceId, "completed", Some("http://final"),
@@ -802,7 +801,7 @@ class RestControllerSpec extends FeatureTest with TestDb {
           "version" -> "v2097",
           "target" -> "to everywhere"
         ).toJson.compactPrint
-      ).contentString.parseJson.asJsObject.fields("id")
+      ).contentString.parseJson.idAsLong
 
       getDeploymentRequest(id.toString).fields("creator").asInstanceOf[JsString].value shouldEqual
         "too-long-user-name/too-long-user-name/too-long-user-name/too-lon"
