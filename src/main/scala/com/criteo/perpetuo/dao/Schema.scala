@@ -206,8 +206,9 @@ class DbBinding @Inject()(val dbContext: DbContext)
       deploymentRequestQuery
         .filter(_.id === deploymentRequestId)
         .joinLeft(operationTraceQuery).on(_.id === _.deploymentRequestId)
+        .map { case (depReq, op) => (depReq, op.isDefined) }
         .result
-    ).map(_.headOption.map { case (depReq, op) => (depReq.toShallowDeploymentRequest, op.isDefined) })
+    ).map(_.headOption.map { case (depReq, started) => (depReq.toShallowDeploymentRequest, started) })
   }
 
   def isOutdated(deploymentRequest: DeploymentRequest): Future[Boolean] = {
