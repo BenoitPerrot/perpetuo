@@ -1,7 +1,6 @@
 package com.criteo.perpetuo.config
 
 import com.criteo.perpetuo.engine.dispatchers.TargetDispatcher
-import com.criteo.perpetuo.engine.executors.DummyInvoker
 import com.criteo.perpetuo.engine.executors.ExecutorInvoker
 import com.criteo.perpetuo.engine.executors.RundeckInvoker
 import com.criteo.perpetuo.model.Version
@@ -17,9 +16,6 @@ class CriteoTargetDispatcher extends TargetDispatcher {
         final def RUNDECK_API_VERSION = 16
         def env = appConfig.env()
         switch (env) {
-            case 'test':
-                invoker = new DummyInvoker("test invoker")
-                break
             case 'local':
                 def rundeckPort = (System.getenv("RD_PORT") ?: "4440")
                 invoker = new RundeckInvoker("rundeck", "localhost", rundeckPort as int, RUNDECK_API_VERSION, appConfig.under('tokens').get('rundeck').toString())

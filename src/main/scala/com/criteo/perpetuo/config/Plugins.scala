@@ -2,8 +2,9 @@ package com.criteo.perpetuo.config
 
 import java.util.logging.Logger
 
-import com.criteo.perpetuo.engine.dispatchers.TargetDispatcher
 import com.typesafe.config.ConfigException
+import com.criteo.perpetuo.engine.dispatchers.{SingleTargetDispatcher, TargetDispatcher}
+import com.criteo.perpetuo.engine.executors.{DummyInvoker, ExecutorInvoker}
 
 import scala.collection.JavaConverters._
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -28,13 +29,24 @@ class Plugins(appConfig: RootAppConfig = AppConfig) {
     selected.headOption.map(_.asInstanceOf[T])
   }
 
+  def invoker(invokerConfig: AppConfig): ExecutorInvoker =
+    try {
+      invokerConfig.get[String]("type") match {
+        case "dummy" => new DummyInvoker(invokerConfig.get[String]("dummy.name"))
+        case unknownType => throw new Exception(s"Unknown invoker configured: $unknownType")
+      }
+    } catch {
+      case e: ConfigException.Missing => throw new Exception("No invoker is configured, while one is required")
+    }
+
   val dispatcher: TargetDispatcher = {
     val desc = AppConfig.under("targetDispatcher")
     try {
       desc.get[String]("type") match {
         case "groovyScript" =>
           loader.instantiate(desc.get[String]("groovyScript")).asInstanceOf[TargetDispatcher]
-        // todo: support other forms (eg a class, via its qualified name), checking that no more than one is provided
+        case "singleInvoker" =>
+          SingleTargetDispatcher(invoker(desc.under("singleInvoker")))
         case unknownType => throw new Exception(s"Unknown target dispatcher configured: $unknownType")
       }
     } catch {
