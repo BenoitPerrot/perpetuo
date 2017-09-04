@@ -149,7 +149,7 @@ class RestControllerSpec extends FeatureTest with TestDb {
     )
 
   private def startDeploymentRequest(deploymentRequestId: Long, expect: Status): Response =
-    actOnDeploymentRequest(deploymentRequestId, Map("name" -> "start").toJson, expect)
+    actOnDeploymentRequest(deploymentRequestId, Map("type" -> "start").toJson, expect)
 
   private def startDeploymentRequest(deploymentRequestId: Long): JsObject =
     startDeploymentRequest(deploymentRequestId, Ok).contentString.parseJson.asJsObject
@@ -311,7 +311,7 @@ class RestControllerSpec extends FeatureTest with TestDb {
     }
 
     "return 400 when putting a non-existing action" in {
-      actOnDeploymentRequest(1, Map("name" -> "ploup").toJson, BadRequest)
+      actOnDeploymentRequest(1, Map("type" -> "ploup").toJson, BadRequest)
     }
 
     "return 422 when trying to rollback new targets" in {
@@ -319,7 +319,7 @@ class RestControllerSpec extends FeatureTest with TestDb {
 
       createProduct("my new product")
       val id = requestDeployment("my new product", "789", "par".toJson, None, None, start = false).idAsLong
-      getError(actOnDeploymentRequest(id, Map("name" -> "rollback").toJson, UnprocessableEntity)) should include("it has not yet been applied")
+      getError(actOnDeploymentRequest(id, Map("type" -> "rollback").toJson, UnprocessableEntity)) should include("it has not yet been applied")
 
       startDeploymentRequest(id, Ok)
       val execTraceId = getExecutionTracesByDeploymentRequestId(id.toString, Ok).get.elements.head.idAsLong
@@ -329,7 +329,7 @@ class RestControllerSpec extends FeatureTest with TestDb {
             "targetB" -> Map("code" -> "productFailure", "detail" -> "").toJson)),
         expectedTargetStatus = Map("targetA" -> ("success", ""), "targetB" -> ("productFailure", ""))
       )
-      getError(actOnDeploymentRequest(id, Map("name" -> "rollback").toJson, UnprocessableEntity)) should include("it requires a version to rollback to")
+      getError(actOnDeploymentRequest(id, Map("type" -> "rollback").toJson, UnprocessableEntity)) should include("it requires a version to rollback to")
     }
   }
 

@@ -177,7 +177,7 @@ class RestController @Inject()(val engine: Engine)
         (id, _: RequestWithId) => {
           val (actionName, defaultVersion) = try {
             val body = r.request.contentString.parseJson.asJsObject.fields
-            (body("name").asInstanceOf[JsString].value, body.get("defaultVersion").map(Version.apply))
+            (body("type").asInstanceOf[JsString].value, body.get("defaultVersion").map(Version.apply))
           } catch {
             case e@(_: ParsingException | _: DeserializationException | _: NoSuchElementException | _: ClassCastException) =>
               throw BadRequestException(e.getMessage)
@@ -337,7 +337,7 @@ class RestController @Inject()(val engine: Engine)
             .sequence(
               Action.values.map(action =>
                 check(action)
-                  .map(_ => Some(Map("name" -> action.toString, "authorized" -> authorized)))
+                  .map(_ => Some(Map("type" -> action.toString, "authorized" -> authorized)))
                   .recover { case _ => None }
               ) // todo: future workflow will provide different actions for different permissions
             )

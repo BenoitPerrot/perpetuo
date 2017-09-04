@@ -91,7 +91,7 @@
         </h1>
         <div class="actions">
           <template is="dom-repeat" items="[[data.actions]]">
-            <paper-button disabled="[[computeDisabled(isInAction, item.authorized)]]" on-tap="onActionTap" raised>[[humanReadable(item.name)]]</paper-button>
+            <paper-button disabled="[[computeDisabled(isInAction, item.authorized)]]" on-tap="onActionTap" raised>[[humanReadable(item.type)]]</paper-button>
           </template>
         </div>
         <paper-card id="general">
@@ -160,7 +160,7 @@
     onActionTap(e) {
       if (!this.isInAction) {
         this.isInAction = true;
-        this.client.actOnDeploymentRequest(this.deploymentRequestId, e.model.item.name).then(_ => {
+        this.client.actOnDeploymentRequest(this.deploymentRequestId, e.model.item.type).then(_ => {
           this.refresh().then(_ => {
             this.isInAction = false;
           });
