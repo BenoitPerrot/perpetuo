@@ -195,8 +195,11 @@ class RestController @Inject()(val engine: Engine)
           engine.isDeploymentRequestStarted(id)
             .flatMap(
               _.map { case (deploymentRequest, isStarted) =>
-                engine.actionChecker(deploymentRequest, isStarted)(action)
-                  .recover { case e => throw BadRequestException(s"Cannot $actionName the deployment request #$id: ${e.getMessage}") }
+                engine
+                  .actionChecker(deploymentRequest, isStarted)(action)
+                  .recover {
+                    case e => throw HttpException(HttpStatus.UnprocessableEntity, s"Cannot $actionName the deployment request #$id: ${e.getMessage}")
+                  }
                   .flatMap(_ => effect(id, user.name))
                   .map(_.map(_ => response.ok.json(Map("id" -> id))))
               }.getOrElse(Future.successful(None))
