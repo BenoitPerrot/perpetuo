@@ -43,6 +43,22 @@ object Version {
 
   def apply(input: String): Version = new Version(input)
 
+  def apply(input: JsValue): Version = {
+    val versionArray = input match {
+      case str: JsString => Version.compactPrint(Seq(PartialVersion(str))) // todo: uniform call from UI?
+      case jsArr: JsArray if jsArr.elements.nonEmpty => jsArr.compactPrint
+      case unknown => throw new ParsingException(s"Expected `version` to be a non-empty JSON array, got: $unknown")
+    }
+    if (versionArray.contains("'")) // fixme: as long as we have Rundeck API 16, but maybe we should configure a validator in plugins
+      throw new ParsingException("Single quotes are not supported in versions")
+    if (versionArray.length > Version.maxSize)
+      throw new ParsingException(s"Version is too long")
+    val version = Version(versionArray)
+    if ((version.structured.map(_.ratio).sum - 1f).abs > Version.ratioPrecision)
+      throw new ParsingException("Sum of ratios must equal 1")
+    version
+  }
+
   def compactPrint(versions: Iterable[PartialVersion]): String = {
     {
       if (versions.size == 1)
