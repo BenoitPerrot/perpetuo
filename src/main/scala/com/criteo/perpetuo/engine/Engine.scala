@@ -7,7 +7,6 @@ import com.criteo.perpetuo.dao.{DbBinding, UnknownProduct}
 import com.criteo.perpetuo.model.ExecutionState.ExecutionState
 import com.criteo.perpetuo.model._
 
-import scala.collection.JavaConverters._
 import scala.collection.SortedMap
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -34,15 +33,6 @@ class Engine @Inject()(val dbBinding: DbBinding,
 
   def insertProduct(productName: String): Future[Product] =
     dbBinding.insertProduct(productName)
-
-  // TODO: move out of Engine? <<
-  def suggestVersions(productName: String): Seq[String] =
-    plugins.externalData.suggestVersions(productName).asScala
-
-  def validateVersion(productName: String, productVersion: String): Seq[String] = {
-    plugins.externalData.validateVersion(productName, productVersion).asScala
-  }
-  // >>
 
   def findDeepDeploymentRequestById(deploymentRequestId: Long): Future[Option[DeepDeploymentRequest]] =
     dbBinding.findDeepDeploymentRequestById(deploymentRequestId)

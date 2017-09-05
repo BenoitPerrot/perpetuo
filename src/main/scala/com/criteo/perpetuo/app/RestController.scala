@@ -55,7 +55,7 @@ private case class SortingFilteringPost(orderBy: Seq[Map[String, Any]] = Seq(),
   * Controller that handles deployment requests as a REST API.
   */
 class RestController @Inject()(val engine: Engine)
-  extends BaseController {
+  extends BaseController with TimeoutToHttpStatusTranslation {
 
   private val futurePool = FuturePools.unboundedPool("RequestFuturePool")
   private val deployBotName = "qabot"
@@ -64,17 +64,6 @@ class RestController @Inject()(val engine: Engine)
     "m.nguyen", "m.soltani", "s.guerrier", "t.tellier", "t.zhuang",
     "e.moutarde", "d.michau"
   )
-
-  private def handleTimeout[T](action: => T): T =
-    try {
-      action
-    }
-    catch {
-      case e: TimeoutException => throw HttpException(HttpStatus.GatewayTimeout, e.getMessage)
-    }
-
-  private def await[T](future: Future[T], maxDuration: Duration): T =
-    handleTimeout(Await.result(future, maxDuration))
 
   private def timeBoxed[T](view: => Future[T], maxDuration: Duration): TwitterFuture[T] =
     futurePool {
@@ -116,22 +105,6 @@ class RestController @Inject()(val engine: Engine)
           },
         5.seconds
       )
-    }
-  }
-
-  post("/api/products/suggest-versions") { r: ProductPost =>
-    handleTimeout(
-      engine.suggestVersions(r.name)
-    )
-  }
-
-  post("/api/products/validate-version") { r: ProductPostWithVersion =>
-    handleTimeout {
-      val reasonsForInvalidity = engine.validateVersion(r.name, r.version)
-      if (reasonsForInvalidity.isEmpty)
-        Map("valid" -> true)
-      else
-        Map("valid" -> false, "reason" -> reasonsForInvalidity)
     }
   }
 
