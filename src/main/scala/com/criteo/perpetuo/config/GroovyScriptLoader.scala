@@ -3,7 +3,8 @@ package com.criteo.perpetuo.config
 import java.io.{File, InputStreamReader}
 import javax.script.{ScriptEngine, ScriptEngineManager}
 
-class GroovyScriptLoader(appConfig: BaseAppConfig = AppConfig) {
+
+class GroovyScriptLoader(appConfig: RootAppConfig = AppConfig) {
   private val engine: ScriptEngine = new ScriptEngineManager().getEngineByName("groovy") // todo? use GroovyScriptEngine
   assert(engine != null)
 
@@ -19,7 +20,7 @@ class GroovyScriptLoader(appConfig: BaseAppConfig = AppConfig) {
         .flatMap(instantiate(cls, _))
         .headOption
         .getOrElse {
-          throw new NoSuchMethodException("Groovy plugins' constructors can only take an AppConfig instance as parameter, optionally")
+          throw new NoSuchMethodException("Groovy plugins must have at least a constructor taking either a RootAppConfig or nothing")
         }
     }
     catch {
