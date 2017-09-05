@@ -19,8 +19,9 @@ class Plugins(appConfig: RootAppConfig = AppConfig) {
   // load the plugins in the declared order, because one plugin might use what has been defined by another
   private var tempInstances: Seq[AnyRef] =
     AppConfig
-      .get[java.util.ArrayList[String]]("plugins").asScala
-      .map(loader.instantiate)
+      .tryGet[java.util.ArrayList[String]]("plugins")
+      .map(_.asScala.map(loader.instantiate))
+      .getOrElse(Seq())
 
   private def extractInstance[T: ClassTag]: Option[T] = {
     val (selected, rejected) = tempInstances.partition(classTag[T].runtimeClass.isInstance)
