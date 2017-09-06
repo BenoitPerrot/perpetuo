@@ -3,12 +3,13 @@ package com.criteo.perpetuo.app
 import com.criteo.perpetuo.auth.{UserFilter, Controller => AuthenticationController}
 import com.criteo.perpetuo.config.AppConfig
 import com.twitter.finagle.http.{Request, Response}
-import com.twitter.finatra.http.HttpServer
+import com.twitter.finatra.http.{Controller => BaseController, HttpServer}
 import com.twitter.finatra.http.filters.{LoggingMDCFilter, TraceIdMDCFilter}
 import com.twitter.finatra.http.routing.HttpRouter
 import com.twitter.finatra.json.modules.FinatraJacksonModule
 import com.twitter.finatra.logging.modules.Slf4jBridgeModule
 
+import scala.collection.JavaConverters._
 
 object CustomServerModules {
   val jackson = CustomJacksonModule
@@ -49,11 +50,17 @@ class Server extends HttpServer {
         .filter[TraceIdMDCFilter[Request, Response]]
         .filter[CommonFilters]
     }
+    router.filter[UserFilter]
+
+    AppConfig.tryGet[java.util.ArrayList[String]]("extraControllers")
+      .map(_.asScala
+        .map(extraControllerClassName =>
+          router.add(injector.instance(Class.forName(extraControllerClassName)).asInstanceOf[BaseController])
+        )
+      )
 
     router
-      .filter[UserFilter]
       .add[AuthenticationController]
-      .add[ExternalDataController]
       .add[RestController]
 
       // Add controller for serving static assets as the last one / fallback one
