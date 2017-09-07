@@ -155,7 +155,7 @@ class EngineSpec extends Test with TestDb {
           // Status = tic: pony@22, tac: pony@11
 
           // Rolling back
-          rollbackOperationTrace <- engine.rollbackDeploymentRequest(secondDeploymentRequestId, "r.ollbacker").map(_.get)
+          rollbackOperationTrace <- engine.rollbackDeploymentRequest(secondDeploymentRequestId, "r.ollbacker", None).map(_.get)
           rollbackExecutionSpecIds <- engine.dbBinding.findExecutionSpecIdsByOperationTrace(rollbackOperationTrace.id)
 
         } yield (

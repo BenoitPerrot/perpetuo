@@ -12,6 +12,9 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
 
+case class UnprocessableAction(msg: String) extends RuntimeException(msg)
+
+
 class OperationStarter(val dbBinding: DbBinding) extends Logging {
 
   /**
@@ -115,14 +118,25 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
     )
   }
 
-  def rollbackOperation(dispatcher: TargetDispatcher, deploymentRequest: DeepDeploymentRequest, userName: String): Future[(OperationTrace, Int, Int)] = {
+  def rollbackOperation(dispatcher: TargetDispatcher, deploymentRequest: DeepDeploymentRequest, userName: String, defaultVersion: Option[Version]): Future[(OperationTrace, Int, Int)] = {
     dbBinding.findExecutionSpecificationsForRollback(deploymentRequest).flatMap { execSpecs =>
+      execSpecs.collectFirst { case (atom, execSpec) if execSpec.isEmpty => atom }.map { targetWoStatus =>
+        defaultVersion.map { version =>
+          val specificParameters = dispatcher.freezeParameters(Operation.executionKind(Operation.revert), deploymentRequest.product.name, version)
+          dbBinding.insertExecutionSpecification(specificParameters, version).map(executionSpecification =>
+            execSpecs.mapValues(_.getOrElse(executionSpecification))
+          )
+        }.getOrElse(throw UnprocessableAction(s"it requires a version to rollback to (for the target `$targetWoStatus` for instance)"))
+      }.getOrElse(
+        Future.successful(execSpecs.mapValues(_.get))
+      )
+    }.flatMap { execSpecs =>
       val opCreation = dbBinding.insertOperationTrace(deploymentRequest.id, Operation.revert, userName)
-      Future.traverse(execSpecs.toStream.groupBy { case (_, execSpec) => execSpec.get.id }.values) { specifications =>
+      Future.traverse(execSpecs.toStream.groupBy { case (_, execSpec) => execSpec.id }.values) { specifications =>
         val (_, execSpec) = specifications.head
         val targetAtoms = Set(TargetTerm(select = specifications.map(_._1).toSet))
         opCreation.flatMap(newOp =>
-          startExecution(dispatcher, deploymentRequest, newOp, execSpec.get, targetAtoms)
+          startExecution(dispatcher, deploymentRequest, newOp, execSpec, targetAtoms)
         )
       }.map(_.fold((0, 0)) { case ((a, b), (c, d)) => (a + c, b + d) }).flatMap { case (successes, failures) => opCreation.map(o => (o, successes, failures)) }
     }

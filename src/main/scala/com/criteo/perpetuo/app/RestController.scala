@@ -6,7 +6,7 @@ import com.criteo.perpetuo.auth.User
 import com.criteo.perpetuo.auth.UserFilter._
 import com.criteo.perpetuo.config.AppConfig
 import com.criteo.perpetuo.dao.{ProductCreationConflict, Schema, UnknownProduct}
-import com.criteo.perpetuo.engine.{Action, Engine}
+import com.criteo.perpetuo.engine.{Action, Engine, UnprocessableAction}
 import com.criteo.perpetuo.model._
 import com.twitter.finagle.http.{Request, Response, Status => HttpStatus}
 import com.twitter.finatra.http.exceptions.{BadRequestException, ConflictException, HttpException}
@@ -163,7 +163,7 @@ class RestController @Inject()(val engine: Engine)
           val effect = action match {
             case Action.applyFirst => engine.startDeploymentRequest _
             case Action.applyAgain => engine.deployAgain _
-            case Action.rollback => engine.rollbackDeploymentRequest _
+            case Action.rollback => engine.rollbackDeploymentRequest(_: Long, _: String, defaultVersion)
           }
 
           engine.isDeploymentRequestStarted(id)
@@ -171,18 +171,10 @@ class RestController @Inject()(val engine: Engine)
               _.map { case (deploymentRequest, isStarted) =>
                 engine
                   .actionChecker(deploymentRequest, isStarted)(action)
-                  .flatMap { _ =>
-                    if (action == Action.rollback && defaultVersion.isEmpty)
-                      engine.findTargetMissingPreviousExecution(deploymentRequest).map(y => y.map(target =>
-                        throw new Exception(s"it requires a version to rollback to (for the target `$target` for instance)")
-                      ))
-                    else
-                      Future.successful()
-                  }
-                  .recover {
-                    case e => throw HttpException(HttpStatus.UnprocessableEntity, s"Cannot $actionName the deployment request #$id: ${e.getMessage}")
-                  }
                   .flatMap(_ => effect(id, user.name))
+                  .recover { case e: UnprocessableAction =>
+                    throw HttpException(HttpStatus.UnprocessableEntity, s"Cannot $actionName the deployment request #$id: ${e.getMessage}")
+                  }
                   .map(_.map(_ => response.ok.json(Map("id" -> id))))
               }.getOrElse(Future.successful(None))
             )

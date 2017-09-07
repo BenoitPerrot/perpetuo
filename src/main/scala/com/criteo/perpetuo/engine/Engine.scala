@@ -94,7 +94,7 @@ class Engine @Inject()(val dbBinding: DbBinding,
 
   def actionChecker(deploymentRequest: DeploymentRequest, isStarted: Boolean): (Action.Kind) => Future[Unit] = {
     val accepted = Future.successful()
-    def rejected(reason: String) = Future.failed(new Exception(reason))
+    def rejected(reason: String) = Future.failed(UnprocessableAction(reason))
 
     lazy val outdated = dbBinding.isOutdated(deploymentRequest).flatMap(
       if (_) rejected("a newer one has already been applied") else accepted
@@ -117,11 +117,6 @@ class Engine @Inject()(val dbBinding: DbBinding,
       )
     }
   }
-
-  def findTargetMissingPreviousExecution(deploymentRequest: DeploymentRequest): Future[Option[TargetAtom.Type]] =
-    dbBinding.findExecutionSpecificationsForRollback(deploymentRequest).map(
-      _.collectFirst { case (atom, execSpec) if execSpec.isEmpty => atom }
-    )
 
   def startDeploymentRequest(deploymentRequestId: Long, initiatorName: String): Future[Option[(OperationTrace, Int, Int)]] = {
     dbBinding.findDeepDeploymentRequestById(deploymentRequestId).flatMap(
@@ -146,11 +141,11 @@ class Engine @Inject()(val dbBinding: DbBinding,
     )
   }
 
-  def rollbackDeploymentRequest(deploymentRequestId: Long, initiatorName: String): Future[Option[OperationTrace]] =
+  def rollbackDeploymentRequest(deploymentRequestId: Long, initiatorName: String, defaultVersion: Option[Version]): Future[Option[OperationTrace]] =
     dbBinding.findDeepDeploymentRequestById(deploymentRequestId).flatMap(
       _.map { depReq =>
         operationStarter
-          .rollbackOperation(plugins.dispatcher, depReq, initiatorName)
+          .rollbackOperation(plugins.dispatcher, depReq, initiatorName, defaultVersion)
           .map { case (operationTrace, started, failed) =>
             Future(plugins.listener.onDeploymentRequestRolledBack(depReq, started, failed))
             if (started == 0)

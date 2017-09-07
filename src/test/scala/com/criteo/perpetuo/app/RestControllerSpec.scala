@@ -330,6 +330,8 @@ class RestControllerSpec extends FeatureTest with TestDb {
         expectedTargetStatus = Map("targetA" -> ("success", ""), "targetB" -> ("productFailure", ""))
       )
       getError(actOnDeploymentRequest(id, Map("type" -> "rollback").toJson, UnprocessableEntity)) should include("it requires a version to rollback to")
+
+      actOnDeploymentRequest(id, Map("type" -> "rollback", "defaultVersion" -> "42").toJson, Ok)
     }
   }
 
