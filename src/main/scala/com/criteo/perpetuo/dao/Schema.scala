@@ -194,10 +194,13 @@ class DbBinding @Inject()(val dbContext: DbContext)
       operationTraceQuery.filter(op => op.id === id && op.closingDate.isDefined)
         .joinLeft(
           executionQuery.join(targetStatusQuery).on(_.id === _.executionId)
-            .filter(_._2.code =!= Status.success).take(1).map(_._1)
-        ).on(_.id === _.operationTraceId).map(_._2).result).map(
-      _.headOption.map(_.isEmpty)
-    )
+            .filter(_._2.code =!= Status.success)
+            .map { case (execution, _) => execution }
+        ).on(_.id === _.operationTraceId)
+        .take(1)
+        .map { case (_, execution) => execution }
+        .result
+    ).map(_.headOption.map(_.isEmpty))
   }
 
   // todo: should rely on a nullable field `startDate` in OperationTrace
