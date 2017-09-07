@@ -9,7 +9,7 @@ import com.criteo.perpetuo.dao.{ProductCreationConflict, Schema, UnknownProduct}
 import com.criteo.perpetuo.engine.{Action, Engine, UnprocessableAction}
 import com.criteo.perpetuo.model._
 import com.twitter.finagle.http.{Request, Response, Status => HttpStatus}
-import com.twitter.finatra.http.exceptions.{BadRequestException, ConflictException, HttpException}
+import com.twitter.finatra.http.exceptions.{BadRequestException, ConflictException, HttpResponseException}
 import com.twitter.finatra.http.{Controller => BaseController}
 import com.twitter.finatra.request._
 import com.twitter.finatra.utils.FuturePools
@@ -22,7 +22,7 @@ import spray.json.{DeserializationException, _}
 import scala.collection.SortedMap
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
-import scala.concurrent.{Await, Future, TimeoutException}
+import scala.concurrent.{Await, Future}
 import scala.util.Try
 
 trait WithId {
@@ -173,7 +173,9 @@ class RestController @Inject()(val engine: Engine)
                   .actionChecker(deploymentRequest, isStarted)(action)
                   .flatMap(_ => effect(id, user.name))
                   .recover { case e: UnprocessableAction =>
-                    throw HttpException(HttpStatus.UnprocessableEntity, s"Cannot $actionName the deployment request #$id: ${e.getMessage}")
+                    val body = Map("errors" -> Seq(s"Cannot $actionName the deployment request #$id: ${e.msg}")) ++
+                      e.required.map("required" -> _)
+                    throw new HttpResponseException(response.EnrichedResponse(HttpStatus.UnprocessableEntity).json(body))
                   }
                   .map(_.map(_ => response.ok.json(Map("id" -> id))))
               }.getOrElse(Future.successful(None))

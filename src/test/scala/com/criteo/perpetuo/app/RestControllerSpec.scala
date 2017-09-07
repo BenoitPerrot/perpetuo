@@ -315,11 +315,16 @@ class RestControllerSpec extends FeatureTest with TestDb {
     }
 
     "return 422 when trying to rollback new targets" in {
-      def getError = (_: Response).contentString.parseJson.asJsObject.fields("errors").asInstanceOf[JsArray].elements.head.asInstanceOf[JsString].value
+      val getRespJson = (_: Response).contentString.parseJson.asJsObject.fields.map {
+        case ("errors", v: JsArray) => ("error", v.elements.head.asInstanceOf[JsString].value)
+        case (k, v) => (k, v.asInstanceOf[JsString].value)
+      }
 
       createProduct("my new product")
       val id = requestDeployment("my new product", "789", "par".toJson, None, None, start = false).idAsLong
-      getError(actOnDeploymentRequest(id, Map("type" -> "rollback").toJson, UnprocessableEntity)) should include("it has not yet been applied")
+      val respJson1 = getRespJson(actOnDeploymentRequest(id, Map("type" -> "rollback").toJson, UnprocessableEntity))
+      respJson1("error") should include("it has not yet been applied")
+      respJson1 shouldNot contain("required")
 
       startDeploymentRequest(id, Ok)
       val execTraceId = getExecutionTracesByDeploymentRequestId(id.toString, Ok).get.elements.head.idAsLong
@@ -329,7 +334,9 @@ class RestControllerSpec extends FeatureTest with TestDb {
             "targetB" -> Map("code" -> "productFailure", "detail" -> "").toJson)),
         expectedTargetStatus = Map("targetA" -> ("success", ""), "targetB" -> ("productFailure", ""))
       )
-      getError(actOnDeploymentRequest(id, Map("type" -> "rollback").toJson, UnprocessableEntity)) should include("it requires a version to rollback to")
+      val respJson2 = getRespJson(actOnDeploymentRequest(id, Map("type" -> "rollback").toJson, UnprocessableEntity))
+      respJson2("error") should include("a default rollback version is required")
+      respJson2("required") shouldEqual "defaultVersion"
 
       actOnDeploymentRequest(id, Map("type" -> "rollback", "defaultVersion" -> "42").toJson, Ok)
     }

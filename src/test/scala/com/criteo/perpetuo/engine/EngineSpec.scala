@@ -144,6 +144,7 @@ class EngineSpec extends Test with TestDb {
     }
 
     "perform a roll back" in {
+      val defaultRollbackVersion = Version(""""00"""")
       Await.result(
         for {
           product <- engine.insertProduct("pony")
@@ -154,17 +155,34 @@ class EngineSpec extends Test with TestDb {
           (secondDeploymentRequestId, secondExecSpecId) <- mockDeployExecution(product.name, "22", Map("tic" -> Status.success, "tac" -> Status.success))
           // Status = tic: pony@22, tac: pony@11
 
-          // Rolling back
-          rollbackOperationTrace <- engine.rollbackDeploymentRequest(secondDeploymentRequestId, "r.ollbacker", None).map(_.get)
-          rollbackExecutionSpecIds <- engine.dbBinding.findExecutionSpecIdsByOperationTrace(rollbackOperationTrace.id)
+          // Rollback the last deployment request
+          rollbackOperationTraceA <- engine.rollbackDeploymentRequest(secondDeploymentRequestId, "r.ollbacker", None).map(_.get)
+          rollbackExecutionSpecIdsA <- engine.dbBinding.findExecutionSpecIdsByOperationTrace(rollbackOperationTraceA.id)
+
+          // Can rollback the first one now that the second one has been rolled back, but it requires to specify to which version to rollback
+          required <- engine.rollbackDeploymentRequest(firstDeploymentRequestId, "r.ollbacker", None).recover { case e: UnprocessableAction => e.required }.map(_.get)
+
+          rollbackOperationTraceB <- engine.rollbackDeploymentRequest(firstDeploymentRequestId, "r.ollbacker", Some(defaultRollbackVersion)).map(_.get)
+          rollbackExecutionSpecIdsB <- engine.dbBinding.findExecutionSpecIdsByOperationTrace(rollbackOperationTraceB.id)
+          rollbackExecutionSpecB <- engine.dbBinding.findExecutionSpecificationById(rollbackExecutionSpecIdsB.head).map(_.get)
 
         } yield (
-          rollbackOperationTrace.deploymentRequestId == secondDeploymentRequestId,
-          rollbackExecutionSpecIds.length,
-          rollbackExecutionSpecIds.contains(firstExecSpecId)
+          rollbackOperationTraceA.deploymentRequestId == secondDeploymentRequestId,
+          rollbackExecutionSpecIdsA.length,
+          rollbackExecutionSpecIdsA.contains(firstExecSpecId),
+
+          required,
+
+          rollbackOperationTraceB.deploymentRequestId == firstDeploymentRequestId,
+          rollbackExecutionSpecIdsB.length,
+          rollbackExecutionSpecB.version == defaultRollbackVersion
         ),
         2.seconds
-      ) shouldBe(true, 1, true)
+      ) shouldBe(
+        true, 1, true,
+        "defaultVersion",
+        true, 1, true
+      )
     }
 
     "keep track of retried operation" in {
