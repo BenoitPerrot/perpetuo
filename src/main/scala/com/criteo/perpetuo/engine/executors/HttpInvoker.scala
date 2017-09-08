@@ -66,7 +66,7 @@ abstract class HttpInvoker(val host: String,
         case s =>
           val embeddedDetail = extractMessage(response.statusCode, content)
           val detail = if (embeddedDetail.nonEmpty) s"${s.reason}: $embeddedDetail" else s.reason
-          throw new Exception("Rundeck answered: " + detail)
+          throw new Exception(s"Bad response from $name: " + detail)
       }
     }
   }

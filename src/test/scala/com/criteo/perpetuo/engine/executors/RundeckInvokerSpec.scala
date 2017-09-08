@@ -43,7 +43,7 @@ class RundeckInvokerSpec extends Test with TestDb {
 
       "a connection problem occurs" in {
         val exc = the[Exception] thrownBy testWhenResponseIs(403, "<html>gibberish</html>")
-        exc.getMessage shouldEqual "Rundeck answered: Forbidden"
+        exc.getMessage shouldEqual "Bad response from rundeck: Forbidden"
       }
 
       "an internal server error occurs" in {
