@@ -73,6 +73,14 @@
       font-size: 24px;
     }
 
+    .cancel {
+      background-color: #f44336;
+      color: #fff;
+    }
+    .rollback {
+      background: #26a69a;
+      color: #fff;
+    }
     </style>
     <app-header-layout>
       <app-header reveals>
@@ -112,6 +120,19 @@
       </div>
     </app-header-layout>
     <perpetuo-app-drawer id="drawer"></perpetuo-app-drawer>
+
+    <paper-dialog id="rollbackDefaultVersionSpecifier" with-backdrop>
+      <h2>More information required for rolling back</h2>
+      <paper-dialog-scrollable>
+        <p>Some targets impacted by this deployment request have no previous version.</p>
+        <p>Please specify the version to use for them.<paper-input label="Default rollback version" value="{{rollbackDefaultVersion}}"></paper-input></p>
+      </paper-dialog-scrollable>
+      <div class="buttons">
+        <paper-button dialog-dismiss class="cancel" raised>Cancel</paper-button>
+        <paper-button dialog-confirm class="rollback" raised>Rollback</paper-button>
+      </div>
+    </paper-dialog>
+
   </template>
   <script>
   Polymer({
@@ -125,6 +146,7 @@
       comment: { type: Object, computed: 'computeComment(data)' },
       showExecutions: Boolean,
       isInAction: Boolean,
+      rollbackDefaultVersion: String,
     },
 
     timestampToDates(t) {
@@ -186,9 +208,39 @@
       );
     },
 
+    specifyRollbackDefaultVersion() {
+      return new Promise((resolve, reject) => {
+        const panel = this.$.rollbackDefaultVersionSpecifier;
+        const onOpenedChanged = (e) => {
+          if (!e.detail.value) {
+            panel.removeEventListener('opened-changed', onOpenedChanged);
+            if (panel.closingReason.confirmed) {
+              resolve(this.rollbackDefaultVersion);
+            } else {
+              reject();
+            }
+          }
+        }
+        panel.addEventListener('opened-changed', onOpenedChanged);
+        panel.open();
+      });
+    },
+
+    rollback(defaultVersion) {
+      return this.client.rollbackDeploymentRequest(this.deploymentRequestId, defaultVersion)
+                 .then(r => {
+                   if (r.status == 422) {
+                     return r.json()
+                             .then(() => this.specifyRollbackDefaultVersion())
+                             .then(rollbackDefaultVersion => this.rollback(rollbackDefaultVersion));
+                   }
+                   return this.refresh();
+                 })
+    },
+
     onRollbackTap(e) {
       this.actionLock(() =>
-        this.client.rollbackDeploymentRequest(this.deploymentRequestId).then(_ => this.refresh())
+        this.rollback()
       );
     },
 
