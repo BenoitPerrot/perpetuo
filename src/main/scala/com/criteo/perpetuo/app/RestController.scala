@@ -353,6 +353,14 @@ class RestController @Inject()(val engine: Engine)
     val schema = new Schema(engine.dbBinding.dbContext)
     Await.result(schema.countExecutionTracesMissingDetails().map(x => Map("count" -> x)), 2.seconds)
   }
+  post("/api/unstable/db/target-statuses/remove-init-failure-details") { _: Request =>
+    val schema = new Schema(engine.dbBinding.dbContext)
+    Await.result(schema.removeInitFailureDetails().map(x => Map("status" -> x)), 2.hours)
+  }
+  get("/api/unstable/db/target-statuses/count-init-failure-details") { _: Request =>
+    val schema = new Schema(engine.dbBinding.dbContext)
+    Await.result(schema.countInitFailureDetails().map(x => Map("count" -> x)), 2.seconds)
+  }
 
 
   // Be sure to capture invalid calls to APIs

@@ -51,6 +51,25 @@ class Schema(val dbContext: DbContext)
         }
         .length
         .result)
+
+  def removeInitFailureDetails() =
+    dbContext.db.run(
+      sqlu"""
+        DELETE target_status
+        FROM target_status JOIN execution_trace ON execution_trace.execution_id = target_status.execution_id
+        WHERE execution_trace.state = 3
+      """
+    )
+
+  def countInitFailureDetails() =
+    dbContext.db.run(
+      targetStatusQuery.join(executionTraceQuery)
+        .filter { case (status, trace) =>
+          status.executionId === trace.executionId &&
+            trace.state === ExecutionState.initFailed
+        }
+        .length
+        .result)
 }
 
 
