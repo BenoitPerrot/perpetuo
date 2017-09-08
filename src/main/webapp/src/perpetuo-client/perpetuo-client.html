@@ -80,6 +80,15 @@ this.Perpetuo.Client = this.Perpetuo.Client || (function () {
     startDeploymentRequest(deploymentRequestId) {
       return this.actOnDeploymentRequest(deploymentRequestId, 'start');
     }
+    applyAgainDeploymentRequest(deploymentRequestId) {
+      return this.actOnDeploymentRequest(deploymentRequestId, 'applyAgain');
+    }
+    rollbackDeploymentRequest(deploymentRequestId, defaultVersion) {
+      const body = {type: 'rollback'}
+      if (defaultVersion !== undefined)
+        body.defaultVersion = defaultVersion;
+      return jsonFetch(`/api/deployment-requests/${deploymentRequestId}/actions`, {method: 'POST', body: JSON.stringify(body)});
+    }
     actOnDeploymentRequest(deploymentRequestId, actionName) {
       return jsonFetch(`/api/deployment-requests/${deploymentRequestId}/actions`, {method: 'POST', body: JSON.stringify({type: actionName})});
     }

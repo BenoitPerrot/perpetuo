@@ -158,14 +158,38 @@
     },
 
     onActionTap(e) {
+      switch (e.model.item.type) {
+        case 'start': return this.onStartTap(e);
+        case 'applyAgain': return this.onApplyAgainTap(e);
+        case 'rollback': return this.onRollbackTap(e);
+      }
+    },
+
+    actionLock(f) {
       if (!this.isInAction) {
         this.isInAction = true;
-        this.client.actOnDeploymentRequest(this.deploymentRequestId, e.model.item.type).then(_ => {
-          this.refresh().then(_ => {
-            this.isInAction = false;
-          });
-        });
+        const releaseLock = () => { this.isInAction = false; };
+        f().then(releaseLock)
+           .catch(releaseLock);
       }
+    },
+
+    onStartTap(e) {
+      this.actionLock(() =>
+        this.client.startDeploymentRequest(this.deploymentRequestId).then(_ => this.refresh())
+      );
+    },
+
+    onApplyAgainTap(e) {
+      this.actionLock(() =>
+        this.client.applyAgainDeploymentRequest(this.deploymentRequestId).then(_ => this.refresh())
+      );
+    },
+
+    onRollbackTap(e) {
+      this.actionLock(() =>
+        this.client.rollbackDeploymentRequest(this.deploymentRequestId).then(_ => this.refresh())
+      );
     },
 
     computeDisabled(isInAction, isAuthorized) {
