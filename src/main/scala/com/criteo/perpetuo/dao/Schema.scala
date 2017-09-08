@@ -32,6 +32,25 @@ class Schema(val dbContext: DbContext)
 
   def countOperationTracesMissingClosingDate() =
     dbContext.db.run((operationTraceQuery filter (_.closingDate.isEmpty) length).result)
+
+  def setExecutionTracesMissingDetails() =
+    dbContext.db.run(
+      sqlu"""
+        UPDATE execution_trace
+        SET execution_trace.detail = target_status.detail
+        FROM execution_trace JOIN target_status ON execution_trace.execution_id = target_status.execution_id
+        WHERE execution_trace.state = 3 AND execution_trace.detail = '' AND target_status.detail != ''
+      """)
+
+  def countExecutionTracesMissingDetails() =
+    dbContext.db.run(
+      executionTraceQuery.join(targetStatusQuery)
+        .filter { case (trace, status) =>
+          trace.executionId === status.executionId &&
+            trace.state === ExecutionState.initFailed && trace.detail === "" && status.detail =!= ""
+        }
+        .length
+        .result)
 }
 
 

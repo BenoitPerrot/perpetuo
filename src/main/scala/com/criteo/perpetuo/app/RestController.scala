@@ -345,6 +345,14 @@ class RestController @Inject()(val engine: Engine)
     val schema = new Schema(engine.dbBinding.dbContext)
     Await.result(schema.countOperationTracesMissingClosingDate().map(x => Map("count" -> x)), 2.seconds)
   }
+  post("/api/unstable/db/execution-traces/set-missing-details") { _: Request =>
+    val schema = new Schema(engine.dbBinding.dbContext)
+    Await.result(schema.setExecutionTracesMissingDetails().map(x => Map("status" -> x)), 2.hours)
+  }
+  get("/api/unstable/db/execution-traces/missing-details-count") { _: Request =>
+    val schema = new Schema(engine.dbBinding.dbContext)
+    Await.result(schema.countExecutionTracesMissingDetails().map(x => Map("count" -> x)), 2.seconds)
+  }
 
 
   // Be sure to capture invalid calls to APIs
