@@ -1,15 +1,14 @@
 package com.criteo.perpetuo.engine.executors
 
 import com.criteo.perpetuo.TestDb
-import com.criteo.perpetuo.config.{AppConfig, Plugins}
+import com.criteo.perpetuo.config.AppConfig
 import com.criteo.perpetuo.engine.dispatchers.TargetTerm
 import com.criteo.perpetuo.model.{Operation, Version}
 import com.twitter.finagle.http.{Response, Status}
 import com.twitter.inject.Test
 import com.twitter.util.Future
-import com.typesafe.config.ConfigValueFactory
-import spray.json._
 import spray.json.DefaultJsonProtocol._
+import spray.json._
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
@@ -17,7 +16,6 @@ import scala.concurrent.duration._
 
 class RundeckInvokerSpec extends Test with TestDb {
   private def testWhenResponseIs(statusCode: Int, content: String) = {
-    val testEnv = ConfigValueFactory.fromAnyRef("local")
     val rundeckInvoker = new RundeckInvoker("rundeck", "localhost", 4440, 16, AppConfig.under("tokens").get[String]("rundeck")) // plugins.dispatcher.dispatchToExecutors("foo").head.asInstanceOf[HttpInvoker]
     assert(rundeckInvoker.getClass.getSimpleName == "RundeckInvoker")
     rundeckInvoker.client = request => {

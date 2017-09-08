@@ -2,9 +2,9 @@ package com.criteo.perpetuo.config
 
 import java.util.logging.Logger
 
-import com.typesafe.config.ConfigException
 import com.criteo.perpetuo.engine.dispatchers.{SingleTargetDispatcher, TargetDispatcher}
 import com.criteo.perpetuo.engine.executors.{DummyInvoker, ExecutorInvoker}
+import com.typesafe.config.ConfigException
 
 import scala.collection.JavaConverters._
 import scala.concurrent.ExecutionContext.Implicits.global

@@ -1,9 +1,9 @@
 package com.criteo.perpetuo.engine.executors
 
-import spray.json.DefaultJsonProtocol._
-import spray.json._
 import com.criteo.perpetuo.model.Version
 import com.twitter.finagle.http.{Message, Method, Request}
+import spray.json.DefaultJsonProtocol._
+import spray.json._
 
 class RundeckInvoker(name: String, host: String, port: Int, val apiVersion: Int, val authToken: String) extends HttpInvoker(host, port, name) {
 
