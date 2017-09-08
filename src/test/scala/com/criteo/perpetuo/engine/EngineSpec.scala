@@ -29,7 +29,7 @@ class EngineSpec extends Test with TestDb {
           operationTraceId = operationTraces.head.id
           hasOpenExecutionBefore <- engine.dbBinding.hasOpenExecutionTracesForOperation(operationTraceId)
           executionTrace <- engine.dbBinding.findExecutionTracesByDeploymentRequest(deploymentRequestId).map(_.head)
-          _ <- engine.updateExecutionTrace(executionTrace.id, ExecutionState.completed, "", Map(
+          _ <- engine.updateExecutionTrace(executionTrace.id, ExecutionState.completed, "", "", Map(
             "moon" -> TargetAtomStatus(Status.success, "no surprise"),
             "mars" -> TargetAtomStatus(Status.hostFailure, "no surprise")))
           hasOpenExecutionAfter <- engine.dbBinding.hasOpenExecutionTracesForOperation(operationTraceId)
@@ -47,7 +47,7 @@ class EngineSpec extends Test with TestDb {
         _ <- engine.startDeploymentRequest(deploymentRequestId, "s.tarter")
         executionTrace <- engine.dbBinding.findExecutionTracesByDeploymentRequest(deploymentRequestId).map(_.head)
         executionSpecId <- engine.dbBinding.findExecutionSpecificationId(executionTrace.executionId)
-        _ <- engine.updateExecutionTrace(executionTrace.id, ExecutionState.completed, "", targetAtomToStatus.mapValues(c => TargetAtomStatus(c, "")))
+        _ <- engine.updateExecutionTrace(executionTrace.id, ExecutionState.completed, "", "", targetAtomToStatus.mapValues(c => TargetAtomStatus(c, "")))
       } yield (deploymentRequestId, executionSpecId.get)
     }
 
@@ -194,12 +194,12 @@ class EngineSpec extends Test with TestDb {
           operationTraces <- engine.findOperationTracesByDeploymentRequest(deploymentRequestId).map(_.get)
           operationTraceId = operationTraces.head.id
           executionTrace <- engine.dbBinding.findExecutionTracesByDeploymentRequest(deploymentRequestId)
-          _ <- engine.updateExecutionTrace(executionTrace.head.id, ExecutionState.completed, "", Map(
+          _ <- engine.updateExecutionTrace(executionTrace.head.id, ExecutionState.completed, "", "", Map(
             "moon" -> TargetAtomStatus(Status.success, "no surprise"),
             "mars" -> TargetAtomStatus(Status.hostFailure, "no surprise")))
           retriedOperation <- engine.deployAgain(deploymentRequestId, "b.lightning").map(_.get)
           executionTracesAfterRetry <- engine.dbBinding.findExecutionTracesByDeploymentRequest(deploymentRequestId)
-          _ <- engine.updateExecutionTrace(executionTracesAfterRetry.tail.head.id, ExecutionState.completed, "", Map(
+          _ <- engine.updateExecutionTrace(executionTracesAfterRetry.tail.head.id, ExecutionState.completed, "", "", Map(
             "moon" -> TargetAtomStatus(Status.success, "no surprise"),
             "mars" -> TargetAtomStatus(Status.success, "no surprise")))
           hasOpenExecutionAfter <- engine.dbBinding.hasOpenExecutionTracesForOperation(retriedOperation.id)

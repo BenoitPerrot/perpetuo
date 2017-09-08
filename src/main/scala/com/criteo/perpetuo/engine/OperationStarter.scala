@@ -91,7 +91,7 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
                   // if that answers a log href, update the trace with it, and consider that the job
                   // is running (i.e. already followable and not yet terminated, really)
                   _.map(logHref =>
-                    dbBinding.updateExecutionTrace(execTraceId, logHref, ExecutionState.running).map { updated =>
+                    dbBinding.updateExecutionTrace(execTraceId, ExecutionState.running, "", logHref).map { updated =>
                       assert(updated)
                       (true, s"`$logHref` succeeded")
                     }
@@ -102,7 +102,7 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
                 .recoverWith {
                   // if triggering the job throws an error, mark the execution as failed at initialization
                   case e: Throwable =>
-                    dbBinding.updateExecutionTrace(execTraceId, ExecutionState.initFailed).map { updated =>
+                    dbBinding.updateExecutionTrace(execTraceId, ExecutionState.initFailed, e.getMessage).map { updated =>
                       assert(updated)
                       (false, s"failed (${e.getMessage})")
                     }

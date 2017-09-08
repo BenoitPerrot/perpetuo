@@ -41,6 +41,7 @@ private case class ProductPostWithVersion(@NotEmpty name: String,
 
 private case class ExecutionTracePut(@RouteParam @NotEmpty id: String,
                                      @NotEmpty state: String,
+                                     detail: String = "",
                                      logHref: String = "",
                                      targetStatus: Map[String, Map[String, String]] = Map(),
                                      @Inject request: Request) extends WithId
@@ -219,7 +220,7 @@ class RestController @Inject()(val engine: Engine)
           } catch {
             case e: DeserializationException => throw BadRequestException(e.getMessage)
           }
-        engine.updateExecutionTrace(id, executionState, r.logHref, statusMap).map(_.map(_ => response.noContent))
+        engine.updateExecutionTrace(id, executionState, r.detail, r.logHref, statusMap).map(_.map(_ => response.noContent))
       },
       3.seconds
     )
