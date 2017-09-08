@@ -37,7 +37,7 @@ class Plugins(appConfig: RootAppConfig = AppConfig) {
         case unknownType => throw new Exception(s"Unknown invoker configured: $unknownType")
       }
     } catch {
-      case e: ConfigException.Missing => throw new Exception("No invoker is configured, while one is required")
+      case _: ConfigException.Missing => throw new Exception("No invoker is configured, while one is required")
     }
 
   val dispatcher: TargetDispatcher = {
@@ -51,7 +51,7 @@ class Plugins(appConfig: RootAppConfig = AppConfig) {
         case unknownType => throw new Exception(s"Unknown target dispatcher configured: $unknownType")
       }
     } catch {
-      case e: ConfigException.Missing => throw new Exception("No target dispatcher is configured, while one is required")
+      case _: ConfigException.Missing => throw new Exception("No target dispatcher is configured, while one is required")
     }
   }
 

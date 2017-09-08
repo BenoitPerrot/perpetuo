@@ -60,8 +60,8 @@ class DbBinding @Inject()(val dbContext: DbContext)
 
           val executionResults = results
             .map { case (_, _, operationTrace, executionTrace, targetStatus) => (operationTrace, executionTrace, targetStatus) }
-            .filter { case (operationTrace, executionTrace, targetStatus) => operationTrace.isDefined }
-            .groupBy { case (operationTrace, executionTrace, targetStatus) => operationTrace.get.id.get }
+            .filter { case (operationTrace, _, _) => operationTrace.isDefined }
+            .groupBy { case (operationTrace, _, _) => operationTrace.get.id.get }
             .mapValues { l =>
               val (operationTraceRecord, _, _) = l.head
               val operationTrace = operationTraceRecord.get.toOperationTrace
@@ -176,8 +176,8 @@ class DbBinding @Inject()(val dbContext: DbContext)
         q
           .joinLeft(operationTraceQuery).on(_._1.id === _.deploymentRequestId)
           .joinLeft(executionQuery).on { case ((_, operationTrace), execution) => operationTrace.map(_.id) === execution.operationTraceId }
-          .joinLeft(executionTraceQuery).on { case (((_, operationTrace), execution), executionTrace) => execution.map(_.id) === executionTrace.executionId }
-          .map { case ((((deploymentRequest, product), operationTrace), execution), executionTrace) => (deploymentRequest, product, operationTrace, executionTrace) }
+          .joinLeft(executionTraceQuery).on { case ((_, execution), executionTrace) => execution.map(_.id) === executionTrace.executionId }
+          .map { case ((((deploymentRequest, product), operationTrace), _), executionTrace) => (deploymentRequest, product, operationTrace, executionTrace) }
         , order).result
     ).map(groupByDeploymentRequestId(_).values.map { case (req, product, execs) =>
       (req.toDeepDeploymentRequest(product), SortedMap(execs.groupBy(_.operationTrace.id).toStream: _*))

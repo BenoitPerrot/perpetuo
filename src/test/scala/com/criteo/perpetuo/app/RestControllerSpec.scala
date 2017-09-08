@@ -538,7 +538,7 @@ class RestControllerSpec extends FeatureTest with TestDb {
     }
 
     "return 400 if the provided state is unknown" in {
-      val (depReqId, executionTraces) = createAndStartDeployment("my product", "2456", Seq("paris", "amsterdam").toJson)
+      val (_, executionTraces) = createAndStartDeployment("my product", "2456", Seq("paris", "amsterdam").toJson)
 
       httpPut(
         RestApi.executionCallbackPath(executionTraces.head.toString),
@@ -628,8 +628,6 @@ class RestControllerSpec extends FeatureTest with TestDb {
     }
 
     "return the right executions in a valid JSON" in {
-      val depReqs = deepGetDepReq()
-
       val (depReqId, executionTraces) = createAndStartDeployment("my product", "3211", Seq("paris", "amsterdam").toJson)
       val execTraceId = executionTraces.head
       updateExecTrace(
