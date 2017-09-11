@@ -337,6 +337,14 @@ class RestController @Inject()(val engine: Engine)
   }
 
   // todo: remove, it's for migration only
+  post("/api/unstable/db/operation-traces/remove-old-fks") { _: Request =>
+    val schema = new Schema(engine.dbBinding.dbContext)
+    Await.result(schema.removeOldFks().map(x => Map("status" -> x)), 2.hours)
+  }
+  get("/api/unstable/db/operation-traces/count-old-fks") { _: Request =>
+    val schema = new Schema(engine.dbBinding.dbContext)
+    Await.result(schema.countOldFks().map(x => Map("count" -> x)), 2.seconds)
+  }
   post("/api/unstable/db/operation-traces/set-missing-closing-date") { _: Request =>
     val schema = new Schema(engine.dbBinding.dbContext)
     Await.result(schema.setOperationTracesMissingClosingDate().map(x => Map("status" -> x)), 2.hours)

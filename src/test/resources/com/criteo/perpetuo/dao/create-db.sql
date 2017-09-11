@@ -46,7 +46,8 @@ CREATE INDEX "ix_operation_trace_starting_date"
 CREATE TABLE "execution_specification" (
   "id"                  BIGINT          NOT NULL IDENTITY,
   "version"             NVARCHAR(1024)  NOT NULL,
-  "specific_parameters" NVARCHAR(16000) NOT NULL
+  "specific_parameters" NVARCHAR(16000) NOT NULL,
+  "operation_trace_id"  BIGINT
 )
 ALTER TABLE "execution_specification"
   ADD CONSTRAINT "pk_execution_specification" PRIMARY KEY ("id")
@@ -68,7 +69,9 @@ CREATE TABLE "target_status" (
   "execution_id"               BIGINT         NOT NULL,
   "target"                     NVARCHAR(128)  NOT NULL,
   "code"                       SMALLINT       NOT NULL,
-  "detail"                     NVARCHAR(4000) NOT NULL
+  "detail"                     NVARCHAR(4000) NOT NULL,
+  "operation_trace_id"         BIGINT,
+  "execution_specification_id" BIGINT
 )
 ALTER TABLE "target_status"
   ADD CONSTRAINT "pk_target_status" PRIMARY KEY ("id")

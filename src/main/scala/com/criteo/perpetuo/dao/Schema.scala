@@ -23,6 +23,16 @@ class Schema(val dbContext: DbContext)
     Await.result(dbContext.db.run(all.create), 2.seconds)
   }
 
+  def removeOldFks() = {
+    dbContext.db.run(executionSpecificationQuery.filter(_.operationTraceId.nonEmpty).map(_.operationTraceId).update(None))
+    dbContext.db.run(targetStatusQuery.filter(_.operationTraceId.nonEmpty).map(ts => (ts.operationTraceId, ts.executionSpecificationId)).update((None, None)))
+  }
+
+  def countOldFks() = {
+    dbContext.db.run(executionSpecificationQuery.filter(_.operationTraceId.nonEmpty).length.result)
+    dbContext.db.run(targetStatusQuery.filter(_.operationTraceId.nonEmpty).length.result)
+  }
+
   def setOperationTracesMissingClosingDate() =
     dbContext.db.run(
       sqlu"""
