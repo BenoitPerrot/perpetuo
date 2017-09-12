@@ -85,8 +85,13 @@ this.Perpetuo.Client = this.Perpetuo.Client || (function () {
     deployDeploymentRequest(deploymentRequestId) {
       return this.actOnDeploymentRequest(deploymentRequestId, {type: 'deploy'});
     }
-    revertDeploymentRequest(deploymentRequestId, defaultVersion) {
-      return this.actOnDeploymentRequest(deploymentRequestId, {type: 'revert', defaultVersion: defaultVersion});
+
+    revertDeploymentRequest(deploymentRequestId, extraInfo) {
+      let body = {type: 'revert'};
+      Object.keys(extraInfo || {}).forEach(function (key) {
+        body[key] = extraInfo[key];
+      });
+      return this.actOnDeploymentRequest(deploymentRequestId, body);
     }
     actOnDeploymentRequest(deploymentRequestId, body) {
       return jsonFetch(`/api/deployment-requests/${deploymentRequestId}/actions`, {method: 'POST', body: JSON.stringify(body)});

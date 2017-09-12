@@ -205,7 +205,7 @@
       );
     },
 
-    specifyRollbackDefaultVersion() {
+    requiresExtraInfo() {
       return new Promise((resolve, reject) => {
         const panel = this.$.rollbackDefaultVersionSpecifier;
         const onOpenedChanged = (e) => {
@@ -223,14 +223,15 @@
       });
     },
 
-    revert(defaultVersion) {
-      return this.client.revertDeploymentRequest(this.deploymentRequestId, defaultVersion)
+    revert(extraInfo) {
+      return this.client.revertDeploymentRequest(this.deploymentRequestId, extraInfo)
         .then(r => {
-          if (r.status === 422) {
+          if (r.status === 422)
             return r.json()
-              .then(() => this.specifyRollbackDefaultVersion())
-              .then(rollbackDefaultVersion => this.revert(rollbackDefaultVersion));
-          }
+              .then(body => {
+                if (body.required)
+                  this.requiresExtraInfo().then(extra => this.revert({[body.required]: extra}));
+              });
           return this.refresh();
         })
     },
