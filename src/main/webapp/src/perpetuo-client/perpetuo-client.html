@@ -83,16 +83,13 @@ this.Perpetuo.Client = this.Perpetuo.Client || (function () {
       });
     }
     deployDeploymentRequest(deploymentRequestId) {
-      return this.actOnDeploymentRequest(deploymentRequestId, 'deploy');
+      return this.actOnDeploymentRequest(deploymentRequestId, {type: 'deploy'});
     }
     revertDeploymentRequest(deploymentRequestId, defaultVersion) {
-      const body = {type: 'revert'};
-      if (defaultVersion !== undefined)
-        body.defaultVersion = defaultVersion;
-      return jsonFetch(`/api/deployment-requests/${deploymentRequestId}/actions`, {method: 'POST', body: JSON.stringify(body)});
+      return this.actOnDeploymentRequest(deploymentRequestId, {type: 'revert', defaultVersion: defaultVersion});
     }
-    actOnDeploymentRequest(deploymentRequestId, actionName) {
-      return jsonFetch(`/api/deployment-requests/${deploymentRequestId}/actions`, {method: 'POST', body: JSON.stringify({type: actionName})});
+    actOnDeploymentRequest(deploymentRequestId, body) {
+      return jsonFetch(`/api/deployment-requests/${deploymentRequestId}/actions`, {method: 'POST', body: JSON.stringify(body)});
     }
 
     fetchProducts() {
