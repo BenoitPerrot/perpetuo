@@ -3,12 +3,12 @@
 <script>
 'use strict';
 
-this.Perpetuo = this.Perpetuo || {}
+this.Perpetuo = this.Perpetuo || {};
 this.Perpetuo.Client = this.Perpetuo.Client || (function () {
 
   function jsonFetch(url, options) {
     return fetch(url, Object.assign({
-      headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
+      headers: {'Accept': 'application/json', 'Content-Type': 'application/json'},
       credentials: 'include'
     }, options || {}));
   }
@@ -39,7 +39,7 @@ this.Perpetuo.Client = this.Perpetuo.Client || (function () {
     }
 
     identify(accessToken) {
-      return jsonFetch('/api/auth/identify', { method: 'POST', body: JSON.stringify({ token: accessToken }) }).then(_ => {
+      return jsonFetch('/api/auth/identify', {method: 'POST', body: JSON.stringify({token: accessToken})}).then(_ => {
         if (_.status === 200)
           return _.text();
         throw _.statusText;
@@ -57,25 +57,30 @@ this.Perpetuo.Client = this.Perpetuo.Client || (function () {
       return jsonFetch(`/api/unstable/deployment-requests/${id}`)
         .then(_ => _.json());
     }
+
     fetchDeploymentRequests(options) {
-      options = Object.assign({ where: [], orderBy: [], limit: 20, offset: 0 }, options);
+      options = Object.assign({where: [], orderBy: [], limit: 20, offset: 0}, options);
       options.limit = options.limit + 1; // Ask for one more element to know if more are available TODO: remove
-      return jsonFetch('/api/unstable/deployment-requests', { method: 'POST', body: JSON.stringify(options) })
+      return jsonFetch('/api/unstable/deployment-requests', {method: 'POST', body: JSON.stringify(options)})
         .then(_ => _.json()).then(deploymentRequests => {
-          this.hasMoreDeploymentRequests = deploymentRequests.length == options.limit; // TODO: handle in caller
+          this.hasMoreDeploymentRequests = deploymentRequests.length === options.limit; // TODO: handle in caller
           if (this.hasMoreDeploymentRequests) {
             deploymentRequests.pop();
           }
-          return deploymentRequests.map(_ => Object.assign(_, { productType: 'mesos' })) // TODO: have the productType in the backend
+          return deploymentRequests.map(_ => Object.assign(_, {productType: 'mesos'})) // TODO: have the productType in the backend
         });
     }
+
     createDeploymentRequest(productName, version, target, comment) {
-      return jsonFetch('/api/deployment-requests', { method: 'POST', body: JSON.stringify({
-        productName: productName,
-        version: version,
-        target: target,
-        comment: comment
-      }) });
+      return jsonFetch('/api/deployment-requests', {
+        method: 'POST',
+        body: JSON.stringify({
+          productName: productName,
+          version: version,
+          target: target,
+          comment: comment
+        })
+      });
     }
     deployDeploymentRequest(deploymentRequestId) {
       return this.actOnDeploymentRequest(deploymentRequestId, 'deploy');
@@ -91,17 +96,22 @@ this.Perpetuo.Client = this.Perpetuo.Client || (function () {
     }
 
     fetchProducts() {
-      return jsonFetch('/api/products').then(_ => _.json()).then(products => products.map(_ => { return {type: 'mesos', name: _} })); // TODO: have the productType in the backend
+      return jsonFetch('/api/products').then(_ => _.json()).then(products => products.map(_ => {
+        return {type: 'mesos', name: _}
+      })); // TODO: have the productType in the backend
     }
+
     createProduct(productName) {
-      return jsonFetch('/api/products', { method: 'POST', body: JSON.stringify({name: productName}) });
+      return jsonFetch('/api/products', {method: 'POST', body: JSON.stringify({name: productName})});
     }
+
     validateProductVersion(productName, version) {
-      return jsonFetch(`/api/products/validate-version`, { method: 'POST', body: JSON.stringify({name: productName, version: version}) }).then(_ => _.json());
+      return jsonFetch(`/api/products/validate-version`, {method: 'POST', body: JSON.stringify({name: productName, version: version})}).then(_ => _.json());
     }
+
     suggestProductVersions(productName) {
-      return jsonFetch(`/api/products/suggest-versions`, { method: 'POST', body: JSON.stringify({name: productName}) }).then(_ => _.json());
+      return jsonFetch(`/api/products/suggest-versions`, {method: 'POST', body: JSON.stringify({name: productName})}).then(_ => _.json());
     }
   };
-} ());
+}());
 </script>

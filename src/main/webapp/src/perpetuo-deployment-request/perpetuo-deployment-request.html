@@ -143,7 +143,7 @@
       active: {type: Boolean, observer: 'onActiveChanged'},
       data: Object,
       version: {type: Array, computed: 'computeVersion(data)'},
-      comment: { type: Object, computed: 'computeComment(data)' },
+      comment: {type: Object, computed: 'computeComment(data)'},
       showExecutions: Boolean,
       isInAction: Boolean,
       rollbackDefaultVersion: String,
@@ -181,17 +181,21 @@
 
     onActionTap(e) {
       switch (e.model.item.type) {
-        case 'deploy': return this.onDeployTap(e);
-        case 'revert': return this.onRevertTap(e);
+        case 'deploy':
+          return this.onDeployTap(e);
+        case 'revert':
+          return this.onRevertTap(e);
       }
     },
 
     actionLock(f) {
       if (!this.isInAction) {
         this.isInAction = true;
-        const releaseLock = () => { this.isInAction = false; };
+        const releaseLock = () => {
+          this.isInAction = false;
+        };
         f().then(releaseLock)
-           .catch(releaseLock);
+          .catch(releaseLock);
       }
     },
 
@@ -213,7 +217,7 @@
               reject();
             }
           }
-        }
+        };
         panel.addEventListener('opened-changed', onOpenedChanged);
         panel.open();
       });
@@ -221,14 +225,14 @@
 
     revert(defaultVersion) {
       return this.client.revertDeploymentRequest(this.deploymentRequestId, defaultVersion)
-                 .then(r => {
-                   if (r.status == 422) {
-                     return r.json()
-                             .then(() => this.specifyRollbackDefaultVersion())
-                             .then(rollbackDefaultVersion => this.revert(rollbackDefaultVersion));
-                   }
-                   return this.refresh();
-                 })
+        .then(r => {
+          if (r.status === 422) {
+            return r.json()
+              .then(() => this.specifyRollbackDefaultVersion())
+              .then(rollbackDefaultVersion => this.revert(rollbackDefaultVersion));
+          }
+          return this.refresh();
+        })
     },
 
     onRevertTap(e) {
@@ -256,9 +260,9 @@
     // TODO: factor with perpetuo-deployment-request-entry, or remove it from -entry
     computeComment(data) {
       const fields = data.comment.split("ticket: ");
-      let ret = { description: fields[0] };
+      let ret = {description: fields[0]};
       if (fields[1])
-        ret.ticket = { url: fields[1], reference: fields[1].split("/").splice(-1)[0] };
+        ret.ticket = {url: fields[1], reference: fields[1].split("/").splice(-1)[0]};
       return ret;
     },
 
@@ -278,10 +282,10 @@
 
     refresh() {
       return this.deploymentRequestId === undefined ?
-             Promise.resolve(false)
-           : this.client.fetchDeploymentRequest(this.deploymentRequestId).then(_ => {
-             this.data = _;
-           });
+        Promise.resolve(false)
+        : this.client.fetchDeploymentRequest(this.deploymentRequestId).then(_ => {
+          this.data = _;
+        });
     }
 
   })
