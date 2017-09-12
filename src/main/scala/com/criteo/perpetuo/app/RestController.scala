@@ -6,7 +6,7 @@ import com.criteo.perpetuo.auth.User
 import com.criteo.perpetuo.auth.UserFilter._
 import com.criteo.perpetuo.config.AppConfig
 import com.criteo.perpetuo.dao.{ProductCreationConflict, Schema, UnknownProduct}
-import com.criteo.perpetuo.engine.{Action, Engine, UnprocessableAction}
+import com.criteo.perpetuo.engine.{Engine, UnprocessableAction}
 import com.criteo.perpetuo.model._
 import com.twitter.finagle.http.{Request, Response, Status => HttpStatus}
 import com.twitter.finatra.http.exceptions.{BadRequestException, ConflictException, HttpResponseException}
@@ -157,24 +157,24 @@ class RestController @Inject()(val engine: Engine)
               throw BadRequestException(e.getMessage)
           }
           val action = try {
-            Action.withName(actionName)
+            Operation.withName(actionName)
           } catch {
             case _: NoSuchElementException => throw BadRequestException(s"Action $actionName doesn't exist")
-          }
-          val effect = action match {
-            case Action.applyFirst => engine.startDeploymentRequest _
-            case Action.applyAgain => engine.deployAgain _
-            case Action.rollback => engine.rollbackDeploymentRequest(_: Long, _: String, defaultVersion)
           }
 
           engine.isDeploymentRequestStarted(id)
             .flatMap(
               _.map { case (deploymentRequest, isStarted) =>
+                val effect = action match {
+                  case Operation.deploy if isStarted => engine.deployAgain _
+                  case Operation.deploy => engine.startDeploymentRequest _
+                  case Operation.revert => engine.rollbackDeploymentRequest(_: Long, _: String, defaultVersion)
+                }
                 engine
                   .actionChecker(deploymentRequest, isStarted)(action)
                   .flatMap(_ => effect(id, user.name))
                   .recover { case e: UnprocessableAction =>
-                    val body = Map("errors" -> Seq(s"Cannot $actionName the deployment request #$id: ${e.msg}")) ++
+                    val body = Map("errors" -> Seq(s"Cannot $actionName: ${e.msg}")) ++
                       e.required.map("required" -> _)
                     throw new HttpResponseException(response.EnrichedResponse(HttpStatus.UnprocessableEntity).json(body))
                   }
@@ -303,7 +303,7 @@ class RestController @Inject()(val engine: Engine)
           val check = engine.actionChecker(deploymentRequest, sortedGroupsOfExecutions.nonEmpty)
           Future
             .sequence(
-              Action.values.map(action =>
+              Operation.values.map(action =>
                 check(action)
                   .map(_ => Some(Map("type" -> action.toString, "authorized" -> authorized)))
                   .recover { case _ => None }

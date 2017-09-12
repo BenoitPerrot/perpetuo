@@ -181,9 +181,8 @@
 
     onActionTap(e) {
       switch (e.model.item.type) {
-        case 'start': return this.onStartTap(e);
-        case 'applyAgain': return this.onApplyAgainTap(e);
-        case 'rollback': return this.onRollbackTap(e);
+        case 'deploy': return this.onDeployTap(e);
+        case 'revert': return this.onRevertTap(e);
       }
     },
 
@@ -196,15 +195,9 @@
       }
     },
 
-    onStartTap(e) {
+    onDeployTap(e) {
       this.actionLock(() =>
-        this.client.startDeploymentRequest(this.deploymentRequestId).then(_ => this.refresh())
-      );
-    },
-
-    onApplyAgainTap(e) {
-      this.actionLock(() =>
-        this.client.applyAgainDeploymentRequest(this.deploymentRequestId).then(_ => this.refresh())
+        this.client.deployDeploymentRequest(this.deploymentRequestId).then(_ => this.refresh())
       );
     },
 
@@ -226,21 +219,21 @@
       });
     },
 
-    rollback(defaultVersion) {
-      return this.client.rollbackDeploymentRequest(this.deploymentRequestId, defaultVersion)
+    revert(defaultVersion) {
+      return this.client.revertDeploymentRequest(this.deploymentRequestId, defaultVersion)
                  .then(r => {
                    if (r.status == 422) {
                      return r.json()
                              .then(() => this.specifyRollbackDefaultVersion())
-                             .then(rollbackDefaultVersion => this.rollback(rollbackDefaultVersion));
+                             .then(rollbackDefaultVersion => this.revert(rollbackDefaultVersion));
                    }
                    return this.refresh();
                  })
     },
 
-    onRollbackTap(e) {
+    onRevertTap(e) {
       this.actionLock(() =>
-        this.rollback()
+        this.revert()
       );
     },
 

@@ -12,15 +12,6 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
 
-object Action extends Enumeration {
-  type Kind = Value
-
-  val applyFirst = Value("start")
-  val applyAgain = Value
-  val rollback = Value
-}
-
-
 @Singleton
 class Engine @Inject()(val dbBinding: DbBinding,
                        val plugins: Plugins) {
@@ -91,7 +82,7 @@ class Engine @Inject()(val dbBinding: DbBinding,
   def isDeploymentRequestStarted(deploymentRequestId: Long): Future[Option[(ShallowDeploymentRequest, Boolean)]] =
     dbBinding.isDeploymentRequestStarted(deploymentRequestId)
 
-  def actionChecker(deploymentRequest: DeploymentRequest, isStarted: Boolean): (Action.Kind) => Future[Unit] = {
+  def actionChecker(deploymentRequest: DeploymentRequest, isStarted: Boolean): (Operation.Kind) => Future[Unit] = {
     val accepted = Future.successful()
     def rejected(reason: String) = Future.failed(UnprocessableAction(reason))
 
@@ -100,11 +91,9 @@ class Engine @Inject()(val dbBinding: DbBinding,
     )
 
     {
-      case Action.applyFirst if isStarted => rejected("it has already been applied")
-      case Action.applyFirst => outdated
+      case Operation.deploy => outdated
       case _ if !isStarted => rejected("it has not yet been applied")
-      case Action.applyAgain => outdated
-      case Action.rollback => outdated.flatMap(_ =>
+      case Operation.revert => outdated.flatMap(_ =>
         // todo: once there is no more * in TargetStatus table, we can allow successive rollbacks,
         // by using dbBinding.findTargetAtomNotActionableBy instead of `outdated` here
         dbBinding.findExecutionTracesByDeploymentRequest(deploymentRequest.id).flatMap(

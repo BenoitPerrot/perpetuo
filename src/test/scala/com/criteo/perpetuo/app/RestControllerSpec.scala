@@ -150,7 +150,7 @@ class RestControllerSpec extends FeatureTest with TestDb {
     )
 
   private def startDeploymentRequest(deploymentRequestId: Long, expect: Status): Response =
-    actOnDeploymentRequest(deploymentRequestId, Map("type" -> "start").toJson, expect)
+    actOnDeploymentRequest(deploymentRequestId, Map("type" -> "deploy").toJson, expect)
 
   private def startDeploymentRequest(deploymentRequestId: Long): JsObject =
     startDeploymentRequest(deploymentRequestId, Ok).contentString.parseJson.asJsObject
@@ -322,7 +322,7 @@ class RestControllerSpec extends FeatureTest with TestDb {
 
       createProduct("my new product")
       val id = requestDeployment("my new product", "789", "par".toJson, None, None, start = false).idAsLong
-      val respJson1 = getRespJson(actOnDeploymentRequest(id, Map("type" -> "rollback").toJson, UnprocessableEntity))
+      val respJson1 = getRespJson(actOnDeploymentRequest(id, Map("type" -> "revert").toJson, UnprocessableEntity))
       respJson1("error") should include("it has not yet been applied")
       respJson1 shouldNot contain("required")
 
@@ -334,11 +334,11 @@ class RestControllerSpec extends FeatureTest with TestDb {
             "targetB" -> Map("code" -> "productFailure", "detail" -> "").toJson)),
         expectedTargetStatus = Map("targetA" -> ("success", ""), "targetB" -> ("productFailure", ""))
       )
-      val respJson2 = getRespJson(actOnDeploymentRequest(id, Map("type" -> "rollback").toJson, UnprocessableEntity))
+      val respJson2 = getRespJson(actOnDeploymentRequest(id, Map("type" -> "revert").toJson, UnprocessableEntity))
       respJson2("error") should include("a default rollback version is required")
       respJson2("required") shouldEqual "defaultVersion"
 
-      actOnDeploymentRequest(id, Map("type" -> "rollback", "defaultVersion" -> "42").toJson, Ok)
+      actOnDeploymentRequest(id, Map("type" -> "revert", "defaultVersion" -> "42").toJson, Ok)
     }
   }
 

@@ -77,14 +77,11 @@ this.Perpetuo.Client = this.Perpetuo.Client || (function () {
         comment: comment
       }) });
     }
-    startDeploymentRequest(deploymentRequestId) {
-      return this.actOnDeploymentRequest(deploymentRequestId, 'start');
+    deployDeploymentRequest(deploymentRequestId) {
+      return this.actOnDeploymentRequest(deploymentRequestId, 'deploy');
     }
-    applyAgainDeploymentRequest(deploymentRequestId) {
-      return this.actOnDeploymentRequest(deploymentRequestId, 'applyAgain');
-    }
-    rollbackDeploymentRequest(deploymentRequestId, defaultVersion) {
-      const body = {type: 'rollback'}
+    revertDeploymentRequest(deploymentRequestId, defaultVersion) {
+      const body = {type: 'revert'};
       if (defaultVersion !== undefined)
         body.defaultVersion = defaultVersion;
       return jsonFetch(`/api/deployment-requests/${deploymentRequestId}/actions`, {method: 'POST', body: JSON.stringify(body)});
