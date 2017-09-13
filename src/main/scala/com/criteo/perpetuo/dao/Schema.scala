@@ -4,8 +4,8 @@ import javax.inject.{Inject, Singleton}
 
 import com.criteo.perpetuo.model._
 
+import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
-import scala.collection.{SortedMap, mutable}
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}
@@ -90,7 +90,7 @@ class DbBinding @Inject()(val dbContext: DbContext)
 
   import dbContext.driver.api._
 
-  def findDeepDeploymentRequestAndExecutions(deploymentRequestId: Long): Future[Option[(DeepDeploymentRequest, SortedMap[Long, (Iterable[ExecutionTrace], Iterable[TargetStatus])])]] = {
+  def findDeepDeploymentRequestAndExecutions(deploymentRequestId: Long): Future[Option[(DeepDeploymentRequest, Iterable[(Iterable[ExecutionTrace], Iterable[TargetStatus])])]] = {
     dbContext.db.run(
       deploymentRequestQuery
         .filter(_.id === deploymentRequestId)
@@ -106,19 +106,24 @@ class DbBinding @Inject()(val dbContext: DbContext)
         results.headOption.map { case (deploymentRequestRecord, productRecord, _, _, _) =>
           val deploymentRequest = deploymentRequestRecord.toDeepDeploymentRequest(productRecord)
 
-          val executionResults = results
-            .map { case (_, _, operationTrace, executionTrace, targetStatus) => (operationTrace, executionTrace, targetStatus) }
-            .filter { case (operationTrace, _, _) => operationTrace.isDefined }
+          val sortedGroupsOfExecutionsAndResults = results
+            .toStream
+            .collect { case (_, _, operationTrace, executionTrace, targetStatus) if operationTrace.isDefined =>
+              (operationTrace, executionTrace, targetStatus)
+            }
             .groupBy { case (operationTrace, _, _) => operationTrace.get.id.get }
-            .mapValues { l =>
+            .toStream
+            .sortBy(_._1)
+            .map { case (_, l) =>
               val (operationTraceRecord, _, _) = l.head
               val operationTrace = operationTraceRecord.get.toOperationTrace
               val executionTraces = l.map(_._2).filter(_.isDefined).map(_.get).distinct.map(_.toExecutionTrace(operationTrace))
               val targetStatuses = l.map(_._3).filter(_.isDefined).map(_.get).distinct.map(_.toTargetStatus)
               (executionTraces, targetStatuses)
             }
+            .filter { case (et, _) => et.nonEmpty }
 
-          (deploymentRequest, SortedMap(executionResults.toSeq: _*))
+          (deploymentRequest, sortedGroupsOfExecutionsAndResults)
         }
       )
   }
@@ -181,7 +186,7 @@ class DbBinding @Inject()(val dbContext: DbContext)
   // >>
 
   // todo: when the target status will be pre-registered, we won't need to get execution traces in this query anymore (and we will only need the last operation)
-  def deepQueryDeploymentRequests(where: Seq[Map[String, Any]], orderBy: Seq[Map[String, Any]], limit: Int, offset: Int): Future[Iterable[(DeepDeploymentRequest, SortedMap[Long, ArrayBuffer[ExecutionTrace]])]] = {
+  def deepQueryDeploymentRequests(where: Seq[Map[String, Any]], orderBy: Seq[Map[String, Any]], limit: Int, offset: Int): Future[Iterable[(DeepDeploymentRequest, Iterable[ArrayBuffer[ExecutionTrace]])]] = {
 
     val filtered = where.foldLeft(this.deploymentRequestQuery join this.productQuery on (_.productId === _.id)) { (queries, spec) =>
       val value = spec.getOrElse("equals", throw new IllegalArgumentException(s"Filters tests must be `equals`"))
@@ -206,7 +211,7 @@ class DbBinding @Inject()(val dbContext: DbContext)
   }
 
   private def deepQueryDeploymentRequests(q: Query[(DeploymentRequestTable, ProductTable), (DeploymentRequestRecord, ProductRecord), scala.Seq],
-                                          order: Seq[Map[String, Any]]): Future[Iterable[(DeepDeploymentRequest, SortedMap[Long, ArrayBuffer[ExecutionTrace]])]] = {
+                                          order: Seq[Map[String, Any]]): Future[Iterable[(DeepDeploymentRequest, Iterable[ArrayBuffer[ExecutionTrace]])]] = {
     type StableMap = mutable.LinkedHashMap[Long, (DeploymentRequestRecord, ProductRecord, ArrayBuffer[ExecutionTrace])]
 
     def groupByDeploymentRequestId(x: Seq[(DeploymentRequestRecord, ProductRecord, Option[OperationTraceRecord], Option[ExecutionTraceRecord])]): StableMap = {
@@ -228,7 +233,10 @@ class DbBinding @Inject()(val dbContext: DbContext)
           .map { case ((((deploymentRequest, product), operationTrace), _), executionTrace) => (deploymentRequest, product, operationTrace, executionTrace) }
         , order).result
     ).map(groupByDeploymentRequestId(_).values.map { case (req, product, execs) =>
-      (req.toDeepDeploymentRequest(product), SortedMap(execs.groupBy(_.operationTrace.id).toStream: _*))
+      (
+        req.toDeepDeploymentRequest(product),
+        execs.groupBy(_.operationTrace.id).toStream.sortBy(_._1).map(_._2)
+      )
     })
   }
 

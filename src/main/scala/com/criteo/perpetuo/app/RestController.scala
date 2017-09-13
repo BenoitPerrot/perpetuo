@@ -241,12 +241,12 @@ class RestController @Inject()(val engine: Engine)
   )
   // >>
 
-  private def computeState(sortedGroupsOfExecutions: SortedMap[Long, Seq[ExecutionTrace]]): String =
-    if (sortedGroupsOfExecutions.isEmpty || sortedGroupsOfExecutions.last._2.isEmpty) {
+  private def computeState(sortedGroupsOfExecutions: Iterable[Iterable[ExecutionTrace]]): String =
+    if (sortedGroupsOfExecutions.isEmpty) {
       "not-started"
     } else {
-      val lastOperationTrace = sortedGroupsOfExecutions.last._2.head.operationTrace
-      val lastExecutionTraces = sortedGroupsOfExecutions.last._2
+      val lastExecutionTraces = sortedGroupsOfExecutions.last
+      val lastOperationTrace = lastExecutionTraces.head.operationTrace
 
       val operationIsFinished = lastOperationTrace.closingDate.nonEmpty
       val operationHasFailures =
@@ -265,7 +265,7 @@ class RestController @Inject()(val engine: Engine)
       s"${lastOperationTrace.kind.toString} $lastOperationState"
     }
 
-  private def serialize(isAuthorized: Boolean, depReq: DeepDeploymentRequest, sortedGroupsOfExecutions: SortedMap[Long, Seq[ExecutionTrace]]): Map[String, Any] =
+  private def serialize(isAuthorized: Boolean, depReq: DeepDeploymentRequest, sortedGroupsOfExecutions: Iterable[Iterable[ExecutionTrace]]): Map[String, Any] =
     Map(
       "id" -> depReq.id,
       "comment" -> depReq.comment,
@@ -277,8 +277,8 @@ class RestController @Inject()(val engine: Engine)
       "state" -> computeState(sortedGroupsOfExecutions)
     )
 
-  private def serialize(executionResultsGroups: SortedMap[Long, (Iterable[ExecutionTrace], Iterable[TargetStatus])]): Iterable[Map[String, Any]] =
-    executionResultsGroups.map { case (_, (executionTraces, targetStatus)) =>
+  private def serialize(executionResultsGroups: Iterable[(Iterable[ExecutionTrace], Iterable[TargetStatus])]): Iterable[Map[String, Any]] =
+    executionResultsGroups.map { case (executionTraces, targetStatus) =>
       val op = executionTraces.head.operationTrace
       Map(
         "id" -> op.id,
@@ -297,9 +297,9 @@ class RestController @Inject()(val engine: Engine)
   get("/api/unstable/deployment-requests/:id") { r: RequestWithId =>
     withLongId(id =>
       engine.findDeepDeploymentRequestAndExecutions(id)
-        .flatMap(_.map { case (deploymentRequest, executionResultGroups) =>
+        .flatMap(_.map { case (deploymentRequest, sortedGroupsOfExecutionsAndResults) =>
           val authorized = r.request.user.exists(isAuthorized)
-          val sortedGroupsOfExecutions = executionResultGroups.mapValues(_._1.toSeq)
+          val sortedGroupsOfExecutions = sortedGroupsOfExecutionsAndResults.map(_._1)
           val check = engine.actionChecker(deploymentRequest, sortedGroupsOfExecutions.nonEmpty)
           Future
             .sequence(
@@ -311,7 +311,7 @@ class RestController @Inject()(val engine: Engine)
             )
             .map(actions =>
               Some(serialize(authorized, deploymentRequest, sortedGroupsOfExecutions) ++
-                Map("operations" -> serialize(executionResultGroups)) ++
+                Map("operations" -> serialize(sortedGroupsOfExecutionsAndResults)) ++
                 Map("actions" -> actions.flatten))
             )
         }.getOrElse(Future.successful(None))),
