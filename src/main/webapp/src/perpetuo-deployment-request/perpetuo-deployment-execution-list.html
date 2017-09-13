@@ -6,7 +6,7 @@
       <template is="dom-repeat" items="[[data]]">
         <li>
           <span>[[item.state]]</span>
-          <a hidden$="[[!item.logHref]]" href$="[[item.logHref]]">Logs...</a>
+          <a hidden$="[[hideLog(item.logHref)]]" href$="[[item.logHref]]">Logs...</a>
         </li>
       </template>
     </ul>
@@ -16,7 +16,12 @@
     is: 'perpetuo-deployment-execution-list',
 
     properties: {
-      data: { type: Array, value: () => [] }
+      data: { type: Array, value: () => [] },
+      showLogs: Boolean
+    },
+
+    hideLog(logHref) {
+      return !this.showLogs || !logHref;
     }
   });
   </script>

@@ -27,10 +27,8 @@
     <p>Started by [[data.creator]] on [[timestampToDates(data.creationDate)]]</p>
     <h2>Summary</h2>
     <perpetuo-target-status-table data="[[arrayifyTargetStatus(data.targetStatus)]]"></perpetuo-target-status-table>
-    <template is="dom-if" if="[[showExecutions]]">
-      <h2>Execution Logs</h2>
-      <perpetuo-deployment-execution-list data="[[data.executions]]"></perpetuo-deployment-execution-list>
-    </template>
+    <h2>Executions</h2>
+    <perpetuo-deployment-execution-list data="[[data.executions]]" show-logs="[[showExecutionLogs]]"></perpetuo-deployment-execution-list>
   </template>
   <script>
   Polymer({
@@ -39,7 +37,7 @@
     properties: {
       index: { type: Number },
       data: Object,
-      showExecutions: Boolean
+      showExecutionLogs: Boolean
     },
 
     timestampToDates(t) {
