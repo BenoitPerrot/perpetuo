@@ -28,7 +28,9 @@ class RundeckInvoker(name: String, host: String, port: Int, val apiVersion: Int,
       "product-name" -> squote(productName),
       "target" -> squote(target),
       "product-version" -> quotedVersion
-    ) ++ parameters.filter { case (parameterName, _) => parameterName != "jobName" }
+    ) ++ parameters.collect { case (parameterName, value) if parameterName != "jobName" =>
+        parameterName.replaceAll("([A-Z])", "-$1").toLowerCase -> value
+    }
 
     val argString = args.toStream
       .map { case (parameterName, value) =>
