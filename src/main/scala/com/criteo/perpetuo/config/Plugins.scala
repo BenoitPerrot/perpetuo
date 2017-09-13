@@ -6,7 +6,6 @@ import com.criteo.perpetuo.engine.dispatchers.{SingleTargetDispatcher, TargetDis
 import com.criteo.perpetuo.engine.executors.{DummyInvoker, ExecutorInvoker}
 import com.typesafe.config.ConfigException
 
-import scala.collection.JavaConverters._
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionException, Future, blocking}
@@ -19,8 +18,8 @@ class Plugins(appConfig: RootAppConfig = AppConfig) {
   // load the plugins in the declared order, because one plugin might use what has been defined by another
   private var tempInstances: Seq[AnyRef] =
     AppConfig
-      .tryGet[java.util.ArrayList[String]]("plugins")
-      .map(_.asScala.map(loader.instantiate))
+      .tryGet[Seq[String]]("plugins")
+      .map(_.map(loader.instantiate))
       .getOrElse(Seq())
 
   private def extractInstance[T: ClassTag]: Option[T] = {

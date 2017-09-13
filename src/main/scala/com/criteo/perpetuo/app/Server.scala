@@ -41,9 +41,9 @@ class Server extends HttpServer {
     }
     router.filter[UserFilter]
 
-    AppConfig.tryGet[java.util.ArrayList[String]]("extraControllers")
-      .map(_.asScala
-        .map(extraControllerClassName =>
+    AppConfig.tryGet[Iterable[String]]("extraControllers")
+      .foreach(_
+        .foreach(extraControllerClassName =>
           router.add(injector.instance(Class.forName(extraControllerClassName)).asInstanceOf[BaseController])
         )
       )

@@ -2,6 +2,8 @@ package com.criteo.perpetuo.config
 
 import com.typesafe.config.{Config, ConfigFactory, ConfigObject, ConfigValue}
 
+import scala.collection.JavaConverters._
+
 
 abstract class BaseAppConfig {
   protected val config: Config
@@ -15,11 +17,15 @@ abstract class BaseAppConfig {
   }
 
   def get[T](path: String): T = {
-    effectiveConfig.getValue(path) match {
+    val v = effectiveConfig.getValue(path) match {
       case conf: ConfigObject => conf.get(env)
       case value => value
     }
-  }.unwrapped().asInstanceOf[T]
+    v.unwrapped() match {
+      case arr: java.util.ArrayList[_] => arr.asScala
+      case value => value
+    }
+  }.asInstanceOf[T]
 
   def tryGet[T](path: String): Option[T] = if (effectiveConfig.hasPath(path)) Some(get(path)) else None
 }
