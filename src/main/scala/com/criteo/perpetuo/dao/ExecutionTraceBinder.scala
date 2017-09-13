@@ -13,7 +13,7 @@ private[dao] case class ExecutionTraceRecord(id: Option[Long],
                                              state: ExecutionState = ExecutionState.pending,
                                              detail: String = "") {
   def toExecutionTrace(operationTrace: ShallowOperationTrace): ExecutionTrace = {
-    ExecutionTrace(id.get, executionId, operationTrace, logHref, state)
+    ExecutionTrace(id.get, executionId, operationTrace, logHref, state, detail)
   }
 }
 

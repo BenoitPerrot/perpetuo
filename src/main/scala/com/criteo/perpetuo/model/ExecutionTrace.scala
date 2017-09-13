@@ -10,4 +10,5 @@ case class ExecutionTrace(id: Long,
                           executionId: Long,
                           @JsonIgnore operationTrace: ShallowOperationTrace,
                           logHref: Option[String],
-                          state: ExecutionState)
+                          state: ExecutionState,
+                          detail: String)

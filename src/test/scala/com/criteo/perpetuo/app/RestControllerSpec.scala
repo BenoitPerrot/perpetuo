@@ -163,6 +163,7 @@ class RestControllerSpec extends FeatureTest with TestDb {
 
   private def updateExecTrace(deploymentRequestId: Long, execTraceId: Long, state: String, logHref: Option[String],
                               targetStatus: Option[Map[String, JsValue]] = None,
+                              executionDetail: Option[String] = None,
                               expectedTargetStatus: Map[String, (String, String)]): Unit = {
     val logHrefJson = logHref.map(_.toJson)
     val previousLogHrefJson = logHrefHistory.getOrElse(execTraceId, JsNull)
@@ -172,6 +173,7 @@ class RestControllerSpec extends FeatureTest with TestDb {
     val params = Map(
       "state" -> Some(state.toJson),
       "logHref" -> logHrefJson,
+      "detail" -> executionDetail.map(_.toJson),
       "targetStatus" -> targetStatus.map(_.toJson)
     ).collect {
       case (k, v) if v.isDefined => k -> v.get
@@ -199,7 +201,8 @@ class RestControllerSpec extends FeatureTest with TestDb {
           "id" -> execTraceId.toJson,
           "executionId" -> T,
           "logHref" -> expectedLogHrefJson,
-          "state" -> state.toJson
+          "state" -> state.toJson,
+          "detail" -> executionDetail.getOrElse("").toJson
         )
       )
     ) shouldEqual operations.head
@@ -438,14 +441,15 @@ class RestControllerSpec extends FeatureTest with TestDb {
         "id" -> T,
         "executionId" -> T,
         "logHref" -> JsNull,
-        "state" -> JsString("pending")
+        "state" -> "pending".toJson,
+        "detail" -> "".toJson
       ) shouldEqual traces.head.asJsObject.fields
     }
 
     "update one record's execution state on a PUT" in {
       val (depReqId, executionTraces) = createAndStartDeployment("my product", "1112", "paris".toJson)
       updateExecTrace(
-        depReqId, executionTraces.head, "completed", None,
+        depReqId, executionTraces.head, "completed", None, None, Some("execution detail"),
         expectedTargetStatus = Map()
       )
     }
@@ -658,7 +662,8 @@ class RestControllerSpec extends FeatureTest with TestDb {
               "id" -> execTraceId.toJson,
               "executionId" -> T,
               "logHref" -> "http://final".toJson,
-              "state" -> "completed".toJson
+              "state" -> "completed".toJson,
+              "detail" -> "".toJson
             )
           )
         )
@@ -679,7 +684,8 @@ class RestControllerSpec extends FeatureTest with TestDb {
               "id" -> T,
               "executionId" -> T,
               "logHref" -> JsNull,
-              "state" -> "pending".toJson
+              "state" -> "pending".toJson,
+              "detail" -> "".toJson
             )
           )
         )
