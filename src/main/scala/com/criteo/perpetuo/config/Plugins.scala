@@ -43,10 +43,10 @@ class Plugins(appConfig: RootAppConfig = AppConfig) {
     val desc = AppConfig.under("targetDispatcher")
     try {
       desc.get[String]("type") match {
-        case "groovyScript" =>
-          loader.instantiate(desc.get[String]("groovyScript")).asInstanceOf[TargetDispatcher]
-        case "singleInvoker" =>
-          SingleTargetDispatcher(invoker(desc.under("singleInvoker")))
+        case t@"groovyScript" =>
+          loader.instantiate(desc.get(t)).asInstanceOf[TargetDispatcher]
+        case t@"singleInvoker" =>
+          SingleTargetDispatcher(invoker(desc.under(t)))
         case unknownType => throw new Exception(s"Unknown target dispatcher configured: $unknownType")
       }
     } catch {
