@@ -31,7 +31,7 @@ class Plugins(appConfig: RootAppConfig = AppConfig) {
     selected.headOption.map(_.asInstanceOf[T])
   }
 
-  private def resolve[T](config: AppConfig, typeName: String, groovySupported: Boolean = false)(f: PartialFunction[String, T]): T = {
+  private def resolve[T](config: AppConfig, typeName: String, groovySupported: Boolean = false)(f: PartialFunction[String, T] = PartialFunction.empty): T = {
     val t: String = try config.get("type") catch {
       case _: ConfigException.Missing => throw new Exception(s"No $typeName is configured, while one is required")
     }
@@ -67,7 +67,14 @@ class Plugins(appConfig: RootAppConfig = AppConfig) {
     }.getOrElse(new Unrestricted)
   }
 
-  val listener: ListenerPluginWrapper = new ListenerPluginWrapper(extractInstance[DefaultListenerPlugin])
+  val listener: ListenerPluginWrapper = {
+    new ListenerPluginWrapper(
+      Try(AppConfig.under("engineListener")).map { desc =>
+        resolve(desc, "engine listener", groovySupported = true)()
+      }.toOption
+    )
+  }
+
   assert(tempInstances.isEmpty, s"Unused plugin(s): ${tempInstances.map(_.getClass.getName).mkString(", ")}")
 }
 
