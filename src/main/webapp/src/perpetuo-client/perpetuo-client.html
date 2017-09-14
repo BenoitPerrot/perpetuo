@@ -67,7 +67,7 @@ this.Perpetuo.Client = this.Perpetuo.Client || (function () {
           if (this.hasMoreDeploymentRequests) {
             deploymentRequests.pop();
           }
-          return deploymentRequests.map(_ => Object.assign(_, {productType: 'mesos'})) // TODO: have the productType in the backend
+          return deploymentRequests;
         });
     }
 
@@ -99,8 +99,8 @@ this.Perpetuo.Client = this.Perpetuo.Client || (function () {
 
     fetchProducts() {
       return jsonFetch('/api/products').then(_ => _.json()).then(products => products.map(_ => {
-        return {type: 'mesos', name: _}
-      })); // TODO: have the productType in the backend
+        return {name: _}
+      }));
     }
 
     createProduct(productName) {
