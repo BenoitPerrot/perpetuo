@@ -54,7 +54,6 @@ class Plugins(appConfig: RootAppConfig = AppConfig) {
     }
   }
 
-  val externalData: ExternalDataGetter = new ExternalDataGetter(extractInstance[ExternalData])
   val listener: ListenerPluginWrapper = new ListenerPluginWrapper(extractInstance[DefaultListenerPlugin])
   assert(tempInstances.isEmpty, s"Unused plugin(s): ${tempInstances.map(_.getClass.getName).mkString(", ")}")
 }
