@@ -345,14 +345,6 @@ class RestController @Inject()(val engine: Engine)
     val schema = new Schema(engine.dbBinding.dbContext)
     Await.result(schema.countOldFks().map(x => Map("count" -> x)), 2.seconds)
   }
-  post("/api/unstable/db/operation-traces/set-missing-closing-date") { _: Request =>
-    val schema = new Schema(engine.dbBinding.dbContext)
-    Await.result(schema.setOperationTracesMissingClosingDate().map(x => Map("status" -> x)), 2.hours)
-  }
-  get("/api/unstable/db/operation-traces/missing-closing-date-count") { _: Request =>
-    val schema = new Schema(engine.dbBinding.dbContext)
-    Await.result(schema.countOperationTracesMissingClosingDate().map(x => Map("count" -> x)), 2.seconds)
-  }
   post("/api/unstable/db/execution-traces/set-missing-details") { _: Request =>
     val schema = new Schema(engine.dbBinding.dbContext)
     Await.result(schema.setExecutionTracesMissingDetails().map(x => Map("status" -> x)), 2.hours)
