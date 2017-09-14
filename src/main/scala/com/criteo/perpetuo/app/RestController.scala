@@ -66,6 +66,8 @@ class RestController @Inject()(val engine: Engine)
     "e.moutarde", "d.michau"
   )
 
+  private def permissions = engine.plugins.permissions
+
   private def timeBoxed[T](view: => Future[T], maxDuration: Duration): TwitterFuture[T] =
     futurePool {
       await(view, maxDuration)

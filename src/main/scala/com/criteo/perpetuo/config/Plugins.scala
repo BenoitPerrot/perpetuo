@@ -2,6 +2,7 @@ package com.criteo.perpetuo.config
 
 import java.util.logging.Logger
 
+import com.criteo.perpetuo.auth.{Unrestricted, Permissions, PermissionsByOperationAndUsername}
 import com.criteo.perpetuo.engine.dispatchers.{SingleTargetDispatcher, TargetDispatcher}
 import com.criteo.perpetuo.engine.executors.{DummyInvoker, ExecutorInvoker}
 import com.typesafe.config.ConfigException
@@ -10,6 +11,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionException, Future, blocking}
 import scala.reflect._
+import scala.util.Try
 
 
 class Plugins(appConfig: RootAppConfig = AppConfig) {
@@ -52,6 +54,23 @@ class Plugins(appConfig: RootAppConfig = AppConfig) {
     } catch {
       case _: ConfigException.Missing => throw new Exception("No target dispatcher is configured, while one is required")
     }
+  }
+
+  val permissions: Permissions = {
+    // fixme: "Try" only until we get back to a simpler config management system
+    Try(AppConfig.under("permissions")).map { desc =>
+      try {
+        desc.get[String]("type") match {
+          case t@"groovyScript" =>
+            loader.instantiate(desc.get(t)).asInstanceOf[Permissions]
+          case t@"filterUsernames" =>
+            new PermissionsByOperationAndUsername(desc.under(t))
+          case unknownType => throw new Exception(s"Unknown type of permissions configured: $unknownType")
+        }
+      } catch {
+        case _: ConfigException.Missing => throw new Exception("No type of permissions is configured")
+      }
+    }.getOrElse(new Unrestricted)
   }
 
   val listener: ListenerPluginWrapper = new ListenerPluginWrapper(extractInstance[DefaultListenerPlugin])
