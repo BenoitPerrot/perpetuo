@@ -25,9 +25,7 @@
     </style>
     <h1>Operation #[[plusOne(index)]]: [[data.kind]]</h1>
     <p>Started by [[data.creator]] on [[timestampToDates(data.creationDate)]]</p>
-    <h2>Summary</h2>
     <perpetuo-target-status-table data="[[arrayifyTargetStatus(data.targetStatus)]]"></perpetuo-target-status-table>
-    <h2>Executions</h2>
     <perpetuo-deployment-execution-list data="[[data.executions]]" show-logs="[[showExecutionLogs]]"></perpetuo-deployment-execution-list>
   </template>
   <script>

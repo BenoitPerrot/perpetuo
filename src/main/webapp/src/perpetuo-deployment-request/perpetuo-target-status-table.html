@@ -19,7 +19,7 @@
       height: 42px;
       border-bottom: solid 1px #ddd;
     }
-    table tr :first-child {
+    table tr td:first-child {
       padding-left: 24px;
     }
     table tbody tr:last-of-type {
@@ -32,16 +32,18 @@
       background-color: #eee;
     }
     </style>
-    <table class="target-status">
-      <thead>
+    <template is="dom-if" if="[[data.length]]">
+      <table>
+        <thead>
         <tr><th>Target</th><th>Status</th><th>Detail</th></tr>
-      </thead>
-      <tbody>
+        </thead>
+        <tbody>
         <template is="dom-repeat" items="[[data]]">
           <tr><td>[[item.targetAtom]]</td><td>[[item.code]]</td><td>[[item.detail]]</td></tr>
         </template>
-      </tbody>
-    </table>
+        </tbody>
+      </table>
+    </template>
   </template>
   <script>
   Polymer({
