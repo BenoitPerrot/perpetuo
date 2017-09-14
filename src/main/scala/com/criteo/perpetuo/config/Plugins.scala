@@ -31,44 +31,38 @@ class Plugins(appConfig: RootAppConfig = AppConfig) {
     selected.headOption.map(_.asInstanceOf[T])
   }
 
-  def invoker(invokerConfig: AppConfig): ExecutorInvoker =
-    try {
-      invokerConfig.get[String]("type") match {
-        case "dummy" => new DummyInvoker(invokerConfig.get[String]("dummy.name"))
-        case unknownType => throw new Exception(s"Unknown invoker configured: $unknownType")
-      }
-    } catch {
-      case _: ConfigException.Missing => throw new Exception("No invoker is configured, while one is required")
+  private def resolve[T](config: AppConfig, typeName: String, groovySupported: Boolean = false)(f: PartialFunction[String, T]): T = {
+    val t: String = try config.get("type") catch {
+      case _: ConfigException.Missing => throw new Exception(s"No $typeName is configured, while one is required")
     }
+    f.applyOrElse(t, (_: String) match {
+      case t@"groovyScript" =>
+        loader.instantiate(config.get(t)).asInstanceOf[T]
+      case unknownType: String =>
+        throw new Exception(s"Unknown $typeName configured: $unknownType")
+    })
+  }
+
+  def invoker(invokerConfig: AppConfig): ExecutorInvoker = {
+    resolve(invokerConfig, "invoker") {
+      case "dummy" => new DummyInvoker(invokerConfig.get("dummy.name"))
+    }
+  }
 
   val dispatcher: TargetDispatcher = {
     val desc = AppConfig.under("targetDispatcher")
-    try {
-      desc.get[String]("type") match {
-        case t@"groovyScript" =>
-          loader.instantiate(desc.get(t)).asInstanceOf[TargetDispatcher]
-        case t@"singleInvoker" =>
-          SingleTargetDispatcher(invoker(desc.under(t)))
-        case unknownType => throw new Exception(s"Unknown target dispatcher configured: $unknownType")
-      }
-    } catch {
-      case _: ConfigException.Missing => throw new Exception("No target dispatcher is configured, while one is required")
+    resolve(desc, "target dispatcher", groovySupported = true) {
+      case t@"singleInvoker" =>
+        SingleTargetDispatcher(invoker(desc.under(t)))
     }
   }
 
   val permissions: Permissions = {
     // fixme: "Try" only until we get back to a simpler config management system
     Try(AppConfig.under("permissions")).map { desc =>
-      try {
-        desc.get[String]("type") match {
-          case t@"groovyScript" =>
-            loader.instantiate(desc.get(t)).asInstanceOf[Permissions]
-          case t@"filterUsernames" =>
-            new PermissionsByOperationAndUsername(desc.under(t))
-          case unknownType => throw new Exception(s"Unknown type of permissions configured: $unknownType")
-        }
-      } catch {
-        case _: ConfigException.Missing => throw new Exception("No type of permissions is configured")
+      resolve(desc, "type of permissions", groovySupported = true) {
+        case t@"filterUsernames" =>
+          new PermissionsByOperationAndUsername(desc.under(t))
       }
     }.getOrElse(new Unrestricted)
   }
