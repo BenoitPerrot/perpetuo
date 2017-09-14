@@ -16,7 +16,8 @@ import scala.concurrent.{Await, Future}
 
 class EngineSpec extends Test with TestDb {
 
-  private val engine = new Engine(new DbBinding(dbContext), new Plugins())
+  private val plugins = new Plugins()
+  private val engine = new Engine(new DbBinding(dbContext), plugins.dispatcher, plugins.listener)
 
   "Engine" should {
     "keep track of open executions for an operation" in {

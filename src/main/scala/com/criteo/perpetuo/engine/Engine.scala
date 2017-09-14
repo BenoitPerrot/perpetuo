@@ -2,8 +2,9 @@ package com.criteo.perpetuo.engine
 
 import javax.inject.{Inject, Singleton}
 
-import com.criteo.perpetuo.config.{AppConfig, Plugins}
+import com.criteo.perpetuo.config.AppConfig
 import com.criteo.perpetuo.dao.{DbBinding, UnknownProduct}
+import com.criteo.perpetuo.engine.dispatchers.TargetDispatcher
 import com.criteo.perpetuo.model.ExecutionState.ExecutionState
 import com.criteo.perpetuo.model._
 
@@ -14,7 +15,8 @@ import scala.concurrent.Future
 
 @Singleton
 class Engine @Inject()(val dbBinding: DbBinding,
-                       val plugins: Plugins) {
+                       val targetDispatcher: TargetDispatcher,
+                       val listener: Listener) {
 
   private val operationStarter = new OperationStarter(dbBinding)
 
@@ -35,14 +37,14 @@ class Engine @Inject()(val dbBinding: DbBinding,
           .getOrElse {
             throw new UnknownProduct(attrs.productName)
           })
-        .map(depReq => Map("ticketUrl" -> plugins.listener.onDeploymentRequestCreated(depReq, immediateStart)))
+        .map(depReq => Map("ticketUrl" -> listener.onDeploymentRequestCreated(depReq, immediateStart)))
     } // >>
     else {
       val futureDepReq = dbBinding.insertDeploymentRequest(attrs)
 
       futureDepReq.foreach { deploymentRequest =>
         // todo: onDeploymentRequestCreated returning an extra comment feels wrong, probably it should not
-        Option(plugins.listener.onDeploymentRequestCreated(deploymentRequest, immediateStart)).map(moreComment => {
+        Option(listener.onDeploymentRequestCreated(deploymentRequest, immediateStart)).map(moreComment => {
           var comment = deploymentRequest.comment
           if (comment.nonEmpty)
             comment += "\n"
@@ -60,9 +62,9 @@ class Engine @Inject()(val dbBinding: DbBinding,
 
   private def startDeploymentRequest(req: DeepDeploymentRequest, initiatorName: String, atCreation: Boolean): Future[(OperationTrace, Int, Int)] =
     operationStarter
-      .start(plugins.dispatcher, req, Operation.deploy, initiatorName)
+      .start(targetDispatcher, req, Operation.deploy, initiatorName)
       .map { case (op, started, failed) =>
-        Future(plugins.listener.onDeploymentRequestStarted(req, started, failed, atCreation))
+        Future(listener.onDeploymentRequestStarted(req, started, failed, atCreation))
         if (started == 0)
           closeOperation(op, req)
         (op, started, failed)
@@ -73,7 +75,7 @@ class Engine @Inject()(val dbBinding: DbBinding,
       if (closingSuccess)
         dbBinding.isOperationSuccessful(operationTrace.id).foreach { succeeded =>
           assert(succeeded.isDefined, s"Operation #${operationTrace.id} doesn't exist or is not closed")
-          plugins.listener.onOperationClosed(operationTrace, deploymentRequest, succeeded.get)
+          listener.onOperationClosed(operationTrace, deploymentRequest, succeeded.get)
         }
       closingSuccess
     }
@@ -118,9 +120,9 @@ class Engine @Inject()(val dbBinding: DbBinding,
     dbBinding.findDeepDeploymentRequestAndSpecs(deploymentRequestId).flatMap(
       _.map { case (deploymentRequest, executionSpecs) =>
         operationStarter
-          .deployAgain(plugins.dispatcher, deploymentRequest, executionSpecs, initiatorName)
+          .deployAgain(targetDispatcher, deploymentRequest, executionSpecs, initiatorName)
           .map { case (operationTrace, started, failed) =>
-            Future(plugins.listener.onDeploymentRequestRetried(deploymentRequest, started, failed))
+            Future(listener.onDeploymentRequestRetried(deploymentRequest, started, failed))
             if (started == 0)
               closeOperation(operationTrace, deploymentRequest)
             Some(operationTrace)
@@ -133,9 +135,9 @@ class Engine @Inject()(val dbBinding: DbBinding,
     dbBinding.findDeepDeploymentRequestById(deploymentRequestId).flatMap(
       _.map { depReq =>
         operationStarter
-          .rollbackOperation(plugins.dispatcher, depReq, initiatorName, defaultVersion)
+          .rollbackOperation(targetDispatcher, depReq, initiatorName, defaultVersion)
           .map { case (operationTrace, started, failed) =>
-            Future(plugins.listener.onDeploymentRequestRolledBack(depReq, started, failed))
+            Future(listener.onDeploymentRequestRolledBack(depReq, started, failed))
             if (started == 0)
               closeOperation(operationTrace, depReq)
             Some(operationTrace)
