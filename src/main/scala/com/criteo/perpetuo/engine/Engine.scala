@@ -2,6 +2,7 @@ package com.criteo.perpetuo.engine
 
 import javax.inject.{Inject, Singleton}
 
+import com.criteo.perpetuo.auth.Permissions
 import com.criteo.perpetuo.config.AppConfig
 import com.criteo.perpetuo.dao.{DbBinding, UnknownProduct}
 import com.criteo.perpetuo.engine.dispatchers.TargetDispatcher
@@ -16,6 +17,7 @@ import scala.concurrent.Future
 @Singleton
 class Engine @Inject()(val dbBinding: DbBinding,
                        val targetDispatcher: TargetDispatcher,
+                       val permissions: Permissions,
                        val listener: Listener) {
 
   private val operationStarter = new OperationStarter(dbBinding)

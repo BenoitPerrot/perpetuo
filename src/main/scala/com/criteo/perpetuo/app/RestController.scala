@@ -19,7 +19,6 @@ import spray.json.DefaultJsonProtocol._
 import spray.json.JsonParser.ParsingException
 import spray.json.{DeserializationException, _}
 
-import scala.collection.SortedMap
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}
@@ -66,7 +65,7 @@ class RestController @Inject()(val engine: Engine)
     "e.moutarde", "d.michau"
   )
 
-  private def permissions = engine.plugins.permissions
+  private def permissions = engine.permissions
 
   private def timeBoxed[T](view: => Future[T], maxDuration: Duration): TwitterFuture[T] =
     futurePool {
