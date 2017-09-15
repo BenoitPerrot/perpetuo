@@ -10,26 +10,11 @@ import com.typesafe.config.ConfigException
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionException, Future, blocking}
-import scala.reflect._
 import scala.util.Try
 
 
 class Plugins(appConfig: RootAppConfig = AppConfig) {
   private val loader = new GroovyScriptLoader(appConfig)
-
-  // load the plugins in the declared order, because one plugin might use what has been defined by another
-  private var tempInstances: Seq[AnyRef] =
-    AppConfig
-      .tryGet[Seq[String]]("plugins")
-      .map(_.map(loader.instantiate))
-      .getOrElse(Seq())
-
-  private def extractInstance[T: ClassTag]: Option[T] = {
-    val (selected, rejected) = tempInstances.partition(classTag[T].runtimeClass.isInstance)
-    assert(selected.length <= 1, s"Expected to find at most one instance of ${classTag[T].runtimeClass.getName}, found instances of: ${selected.map(_.getClass.getName).mkString(", ")}")
-    tempInstances = rejected
-    selected.headOption.map(_.asInstanceOf[T])
-  }
 
   private def resolve[T](config: AppConfig, typeName: String, groovySupported: Boolean = false)(f: PartialFunction[String, T] = PartialFunction.empty): T = {
     val t: String = try config.get("type") catch {
@@ -74,8 +59,6 @@ class Plugins(appConfig: RootAppConfig = AppConfig) {
       }.toOption
     )
   }
-
-  assert(tempInstances.isEmpty, s"Unused plugin(s): ${tempInstances.map(_.getClass.getName).mkString(", ")}")
 }
 
 
