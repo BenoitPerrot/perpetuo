@@ -9,7 +9,6 @@ import com.twitter.finatra.http.{HttpServer, Controller => BaseController}
 import com.twitter.finatra.json.modules.FinatraJacksonModule
 import com.twitter.finatra.logging.modules.Slf4jBridgeModule
 
-import scala.collection.JavaConverters._
 
 object CustomServerModules {
   val jackson = CustomJacksonModule

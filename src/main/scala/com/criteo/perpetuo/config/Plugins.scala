@@ -2,7 +2,7 @@ package com.criteo.perpetuo.config
 
 import java.util.logging.Logger
 
-import com.criteo.perpetuo.auth.{Unrestricted, Permissions, PermissionsByOperationAndUsername}
+import com.criteo.perpetuo.auth.{Permissions, PermissionsByOperationAndUsername, Unrestricted}
 import com.criteo.perpetuo.engine.dispatchers.{SingleTargetDispatcher, TargetDispatcher}
 import com.criteo.perpetuo.engine.executors.{DummyInvoker, ExecutorInvoker}
 import com.typesafe.config.ConfigException
