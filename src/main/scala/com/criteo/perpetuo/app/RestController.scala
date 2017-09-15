@@ -270,7 +270,7 @@ class RestController @Inject()(val engine: Engine)
       s"${lastOperationTrace.kind.toString} $lastOperationState"
     }
 
-  private def serialize(isAuthorized: Boolean, depReq: DeepDeploymentRequest, sortedGroupsOfExecutions: Iterable[Iterable[ExecutionTrace]]): Map[String, Any] =
+  private def serialize(depReq: DeepDeploymentRequest, sortedGroupsOfExecutions: Iterable[Iterable[ExecutionTrace]]): Map[String, Any] =
     Map(
       "id" -> depReq.id,
       "comment" -> depReq.comment,
@@ -315,7 +315,7 @@ class RestController @Inject()(val engine: Engine)
               ) // todo: future workflow will provide different actions for different permissions
             )
             .map(actions =>
-              Some(serialize(authorized, deploymentRequest, sortedGroupsOfExecutions) ++
+              Some(serialize(deploymentRequest, sortedGroupsOfExecutions) ++
                 Map("operations" -> serialize(sortedGroupsOfExecutionsAndResults)) ++
                 Map("actions" -> actions.flatten))
             )
@@ -332,7 +332,7 @@ class RestController @Inject()(val engine: Engine)
         try {
           engine.queryDeepDeploymentRequests(r.where, r.orderBy, r.limit, r.offset)
             .map(_.map { case (deploymentRequest, executionTraces) =>
-              serialize(r.request.user.exists(isAuthorized), deploymentRequest, executionTraces)
+              serialize(deploymentRequest, executionTraces)
             })
         } catch {
           case e: IllegalArgumentException => throw BadRequestException(e.getMessage)
