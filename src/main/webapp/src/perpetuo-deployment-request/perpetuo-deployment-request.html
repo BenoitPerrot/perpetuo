@@ -84,7 +84,7 @@
     </style>
     <app-header-layout>
       <app-header reveals>
-        <perpetuo-app-toolbar on-drawer-toggle-tap="toggleDrawer" page-title="Deployment Requests" on-login-changed="onLoginChanged"></perpetuo-app-toolbar>
+        <perpetuo-app-toolbar on-drawer-toggle-tap="toggleDrawer" page-title="Deployment Requests"></perpetuo-app-toolbar>
       </app-header>
       <div class="body">
         <h1>
@@ -114,7 +114,7 @@
         </paper-card>
         <template is="dom-repeat" items="[[data.operations]]">
           <paper-card id="operations">
-            <perpetuo-deployment-operation index="[[index]]" data="[[item]]" show-execution-logs="[[showExecutionLogs]]"></perpetuo-deployment-operation>
+            <perpetuo-deployment-operation index="[[index]]" data="[[item]]" show-execution-logs="[[data.showExecutionLogs]]"></perpetuo-deployment-operation>
           </paper-card>
         </template>
       </div>
@@ -144,7 +144,6 @@
       data: Object,
       version: {type: Array, computed: 'computeVersion(data)'},
       comment: {type: Object, computed: 'computeComment(data)'},
-      showExecutionLogs: Boolean,
       isInAction: Boolean,
       rollbackDefaultVersion: String,
     },
@@ -270,16 +269,6 @@
     toggleDrawer() {
       this.$.drawer.toggle();
     },
-
-    // Show executions only to admins for the moment, as they only contain information relevant to Perpetuo's debug
-    // TODO: move authorization to back-end <<
-    onLoginChanged(e) {
-      this.showExecutionLogs = ['be.perrot', 'h.lerebours', 'r.guillard',
-                                'e.peroumalnaik', 'g.bourguignon', 'm.runtz', 'm.molongo',
-                                'm.nguyen', 'm.soltani', 's.guerrier', 't.zhuang',
-                                'e.moutarde', 'd.michau'].includes(e.detail.value);
-    },
-    // >>
 
     refresh() {
       return this.deploymentRequestId === undefined ?

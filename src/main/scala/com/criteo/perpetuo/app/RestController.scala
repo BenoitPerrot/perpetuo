@@ -319,7 +319,8 @@ class RestController @Inject()(val engine: Engine)
             .map(actions =>
               Some(serialize(deploymentRequest, sortedGroupsOfExecutions) ++
                 Map("operations" -> serialize(sortedGroupsOfExecutionsAndResults)) ++
-                Map("actions" -> actions.flatten))
+                Map("actions" -> actions.flatten) ++
+                Map("showExecutionLogs" -> authorized(Operation.deploy))) // fixme: only as long as we can't show the logs to anyone
             )
         }.getOrElse(Future.successful(None))),
       5.seconds
