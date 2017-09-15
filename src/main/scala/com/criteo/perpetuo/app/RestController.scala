@@ -120,16 +120,20 @@ class RestController @Inject()(val engine: Engine)
   post("/api/deployment-requests") { r: Request =>
     val autoStart = r.getBooleanParam("start", default = false)
     authenticate(r) { case user if user.name == deployBotName || !autoStart =>
+      val allAttrs = try {
+        val attrs = DeploymentRequestParser.parse(r.contentString, user.name)
+        attrs.parsedTarget
+        attrs
+      } catch {
+        case e: ParsingException => throw BadRequestException(e.getMessage)
+      }
+
       timeBoxed(
-        try {
-          engine.createDeploymentRequest(DeploymentRequestParser.parse(r.contentString, user.name), autoStart)
-            .map(x => Some(response.created.json(x)))
-            .recover {
-              case e: UnknownProduct => throw BadRequestException(s"Product `${e.productName}` could not be found")
-            }
-        } catch {
-          case e: ParsingException => throw BadRequestException(e.getMessage)
-        },
+        engine.createDeploymentRequest(allAttrs, autoStart)
+          .map(x => Some(response.created.json(x)))
+          .recover {
+            case e: UnknownProduct => throw BadRequestException(s"Product `${e.productName}` could not be found")
+          },
         5.seconds // fixme: get back to 2 seconds when the listener will be called asynchronously
       )
     }
