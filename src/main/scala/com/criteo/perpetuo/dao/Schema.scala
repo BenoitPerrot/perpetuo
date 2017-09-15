@@ -249,14 +249,15 @@ class DbBinding @Inject()(val dbContext: DbContext)
   }
 
   // todo: should rely on a nullable field `startDate` in OperationTrace
-  def isDeploymentRequestStarted(deploymentRequestId: Long): Future[Option[(ShallowDeploymentRequest, Boolean)]] = {
+  def isDeploymentRequestStarted(deploymentRequestId: Long): Future[Option[(DeepDeploymentRequest, Boolean)]] = {
     dbContext.db.run(
       deploymentRequestQuery
         .filter(_.id === deploymentRequestId)
-        .joinLeft(operationTraceQuery).on(_.id === _.deploymentRequestId)
-        .map { case (depReq, op) => (depReq, op.isDefined) }
+        .join(productQuery).on(_.productId === _.id)
+        .joinLeft(operationTraceQuery).on { case ((depReq, _), operation) => depReq.id === operation.deploymentRequestId }
+        .map { case (x, op) => (x, op.isDefined) }
         .result
-    ).map(_.headOption.map { case (depReq, started) => (depReq.toShallowDeploymentRequest, started) })
+    ).map(_.headOption.map { case ((depReq, product), started) => (depReq.toDeepDeploymentRequest(product), started) })
   }
 
   def isOutdated(deploymentRequest: DeploymentRequest): Future[Boolean] = {

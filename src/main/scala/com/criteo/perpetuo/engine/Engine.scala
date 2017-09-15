@@ -83,7 +83,7 @@ class Engine @Inject()(val dbBinding: DbBinding,
     }
   }
 
-  def isDeploymentRequestStarted(deploymentRequestId: Long): Future[Option[(ShallowDeploymentRequest, Boolean)]] =
+  def isDeploymentRequestStarted(deploymentRequestId: Long): Future[Option[(DeepDeploymentRequest, Boolean)]] =
     dbBinding.isDeploymentRequestStarted(deploymentRequestId)
 
   def actionChecker(deploymentRequest: DeploymentRequest, isStarted: Boolean): (Operation.Kind) => Future[Unit] = {
