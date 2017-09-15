@@ -2,9 +2,8 @@ package com.criteo.perpetuo.app
 
 import javax.inject.Inject
 
-import com.criteo.perpetuo.auth.User
 import com.criteo.perpetuo.auth.UserFilter._
-import com.criteo.perpetuo.config.AppConfig
+import com.criteo.perpetuo.auth.{DeploymentAction, GeneralAction, User}
 import com.criteo.perpetuo.dao.{ProductCreationConflict, Schema, UnknownProduct}
 import com.criteo.perpetuo.engine.{Engine, UnprocessableAction}
 import com.criteo.perpetuo.model._
@@ -17,7 +16,7 @@ import com.twitter.finatra.validation._
 import com.twitter.util.{Future => TwitterFuture}
 import spray.json.DefaultJsonProtocol._
 import spray.json.JsonParser.ParsingException
-import spray.json.{DeserializationException, _}
+import spray.json._
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
@@ -58,12 +57,6 @@ class RestController @Inject()(val engine: Engine)
   extends BaseController with TimeoutToHttpStatusTranslation {
 
   private val futurePool = FuturePools.unboundedPool("RequestFuturePool")
-  private val deployBotName = "qabot"
-  private val escalationTeamNames = List(
-    "e.peroumalnaik", "g.bourguignon", "m.runtz", "m.molongo",
-    "m.nguyen", "m.soltani", "s.guerrier", "t.tellier", "t.zhuang",
-    "e.moutarde", "d.michau"
-  )
 
   private def permissions = engine.permissions
 
@@ -86,10 +79,6 @@ class RestController @Inject()(val engine: Engine)
       .getOrElse(TwitterFuture(Some(response.unauthorized)))
   }
 
-  // todo: Use AD group to give escalation team permissions to deploy in prod
-  private def isAuthorized(user: User): Boolean =
-    user.name == deployBotName || escalationTeamNames.contains(user.name) || AppConfig.env != "prod"
-
   get("/api/products") { _: Request =>
     timeBoxed(
       engine.getProductNames,
@@ -98,7 +87,7 @@ class RestController @Inject()(val engine: Engine)
   }
 
   post("/api/products") { r: ProductPost =>
-    authenticate(r.request) { case user if user.name == deployBotName =>
+    authenticate(r.request) { case user if permissions.isAuthorized(user.name, GeneralAction.addProduct) =>
       timeBoxed(
         engine.insertProduct(r.name)
           .map(_ => Some(response.created.nothing))
@@ -119,14 +108,19 @@ class RestController @Inject()(val engine: Engine)
 
   post("/api/deployment-requests") { r: Request =>
     val autoStart = r.getBooleanParam("start", default = false)
-    authenticate(r) { case user if user.name == deployBotName || !autoStart =>
-      val allAttrs = try {
+    authenticate(r) { case user =>
+      val (allAttrs, targets) = try {
         val attrs = DeploymentRequestParser.parse(r.contentString, user.name)
-        attrs.parsedTarget
-        attrs
+        (attrs, attrs.parsedTarget.select)
       } catch {
         case e: ParsingException => throw BadRequestException(e.getMessage)
       }
+
+      def authorized(actionType: DeploymentAction.Value) =
+        permissions.isAuthorized(user.name, actionType, Operation.deploy, allAttrs.productName, targets)
+
+      if (!authorized(DeploymentAction.requestOperation) || (autoStart && !authorized(DeploymentAction.applyOperation)))
+        throw new HttpResponseException(response.forbidden)
 
       timeBoxed(
         engine.createDeploymentRequest(allAttrs, autoStart)
@@ -141,7 +135,7 @@ class RestController @Inject()(val engine: Engine)
 
   // TODO: migrate clients then remove <<
   put("/api/deployment-requests/:id") { r: RequestWithId =>
-    authenticate(r.request) { case user if isAuthorized(user) =>
+    authenticate(r.request) { case user if user.name == "qabot" =>
       withIdAndRequest(
         (id, _: RequestWithId) => engine.startDeploymentRequest(id, user.name).map(_.map { _ => response.ok.json(Map("id" -> id)) }),
         2.seconds
@@ -151,7 +145,7 @@ class RestController @Inject()(val engine: Engine)
   // >>
 
   post("/api/deployment-requests/:id/actions") { r: RequestWithId =>
-    authenticate(r.request) { case user if isAuthorized(user) =>
+    authenticate(r.request) { case user =>
       withIdAndRequest(
         (id, _: RequestWithId) => {
           val (actionName, defaultVersion) = try {
@@ -170,20 +164,25 @@ class RestController @Inject()(val engine: Engine)
           engine.isDeploymentRequestStarted(id)
             .flatMap(
               _.map { case (deploymentRequest, isStarted) =>
-                val effect = action match {
-                  case Operation.deploy if isStarted => engine.deployAgain _
-                  case Operation.deploy => engine.startDeploymentRequest _
-                  case Operation.revert => engine.rollbackDeploymentRequest(_: Long, _: String, defaultVersion)
-                }
-                engine
-                  .actionChecker(deploymentRequest, isStarted)(action)
-                  .flatMap(_ => effect(id, user.name))
-                  .recover { case e: UnprocessableAction =>
-                    val body = Map("errors" -> Seq(s"Cannot $actionName: ${e.msg}")) ++
-                      e.required.map("required" -> _)
-                    throw new HttpResponseException(response.EnrichedResponse(HttpStatus.UnprocessableEntity).json(body))
+                val targets = deploymentRequest.parsedTarget.select
+                if (permissions.isAuthorized(user.name, DeploymentAction.applyOperation, action, deploymentRequest.product.name, targets)) {
+                  val effect = action match {
+                    case Operation.deploy if isStarted => engine.deployAgain _
+                    case Operation.deploy => engine.startDeploymentRequest _
+                    case Operation.revert => engine.rollbackDeploymentRequest(_: Long, _: String, defaultVersion)
                   }
-                  .map(_.map(_ => response.ok.json(Map("id" -> id))))
+                  engine
+                    .actionChecker(deploymentRequest, isStarted)(action)
+                    .flatMap(_ => effect(id, user.name))
+                    .recover { case e: UnprocessableAction =>
+                      val body = Map("errors" -> Seq(s"Cannot $actionName the deployment request #$id: ${e.msg}")) ++
+                        e.required.map("required" -> _)
+                      throw new HttpResponseException(response.EnrichedResponse(HttpStatus.UnprocessableEntity).json(body))
+                    }
+                    .map(_.map(_ => response.ok.json(Map("id" -> id))))
+                }
+                else
+                  Future.successful(Some(response.forbidden))
               }.getOrElse(Future.successful(None))
             )
         },
@@ -303,16 +302,19 @@ class RestController @Inject()(val engine: Engine)
     withLongId(id =>
       engine.findDeepDeploymentRequestAndExecutions(id)
         .flatMap(_.map { case (deploymentRequest, sortedGroupsOfExecutionsAndResults) =>
-          val authorized = r.request.user.exists(isAuthorized)
+          val targets = deploymentRequest.parsedTarget.select
+          def authorized(op: Operation.Kind) = r.request.user.exists(user =>
+            permissions.isAuthorized(user.name, DeploymentAction.applyOperation, op, deploymentRequest.product.name, targets)
+          ) // todo: a future workflow will differentiate requests and applies
           val sortedGroupsOfExecutions = sortedGroupsOfExecutionsAndResults.map(_._1)
           val check = engine.actionChecker(deploymentRequest, sortedGroupsOfExecutions.nonEmpty)
           Future
             .sequence(
               Operation.values.map(action =>
                 check(action)
-                  .map(_ => Some(Map("type" -> action.toString, "authorized" -> authorized)))
+                  .map(_ => Some(Map("type" -> action.toString, "authorized" -> authorized(action))))
                   .recover { case _ => None }
-              ) // todo: future workflow will provide different actions for different permissions
+              )
             )
             .map(actions =>
               Some(serialize(deploymentRequest, sortedGroupsOfExecutions) ++

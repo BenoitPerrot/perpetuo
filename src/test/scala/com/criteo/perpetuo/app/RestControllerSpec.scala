@@ -32,10 +32,14 @@ class RestControllerSpec extends FeatureTest with TestDb {
   }
 
   val authModule = new AuthModule(AppConfig.under("auth"))
-  val deployUser = User("qabot")
+  val productUser = User("bob.the.producer")
+  val productUserJWT = productUser.toJWT(authModule.jwtEncoder)
+  val deployUser = User("r.eleaser")
   val deployUserJWT = deployUser.toJWT(authModule.jwtEncoder)
   val stdUser = User("stdUser")
   val stdUserJWT = stdUser.toJWT(authModule.jwtEncoder)
+  val deprecatedDeployUser = User("qabot") // todo: remove once the deprecated route for starting deployments is removed
+  val deprecatedDeployUserJWT = deprecatedDeployUser.toJWT(authModule.jwtEncoder)
 
   var controller: RestController = _
 
@@ -72,7 +76,7 @@ class RestControllerSpec extends FeatureTest with TestDb {
   private def createProduct(name: String, expectedError: Option[(String, Status)] = None) = {
     val ans = server.httpPost(
       path = s"/api/products",
-      headers = Map("Cookie" -> s"jwt=$deployUserJWT"),
+      headers = Map("Cookie" -> s"jwt=$productUserJWT"),
       andExpect = expectedError.map(_._2).getOrElse(Created),
       postBody = JsObject("name" -> JsString(name)).compactPrint
     ).contentString
@@ -136,7 +140,7 @@ class RestControllerSpec extends FeatureTest with TestDb {
   private def httpPut(path: String, body: JsValue, expect: Status) =
     server.httpPut(
       path = path,
-      headers = Map("Cookie" -> s"jwt=$stdUserJWT"),
+      headers = Map("Cookie" -> s"jwt=$deprecatedDeployUserJWT"),
       putBody = body.compactPrint,
       andExpect = expect
     )
@@ -192,7 +196,7 @@ class RestControllerSpec extends FeatureTest with TestDb {
     Map(
       "id" -> T,
       "kind" -> "deploy".toJson,
-      "creator" -> "qabot".toJson,
+      "creator" -> "r.eleaser".toJson,
       "creationDate" -> T,
       "closingDate" -> T,
       "targetStatus" -> expectedTargetStatus.mapValues { case (s, d) => Map("code" -> s, "detail" -> d) }.toJson,
@@ -397,7 +401,7 @@ class RestControllerSpec extends FeatureTest with TestDb {
         "version" -> JsString("v2097"),
         "target" -> JsString("to everywhere"),
         "comment" -> JsString("hello world"),
-        "creator" -> JsString("qabot"),
+        "creator" -> JsString("r.eleaser"),
         "creationDate" -> T
       ) shouldEqual values1
     }
@@ -599,7 +603,7 @@ class RestControllerSpec extends FeatureTest with TestDb {
       Map(
         "id" -> T,
         "kind" -> "deploy".toJson,
-        "creator" -> "qabot".toJson,
+        "creator" -> "r.eleaser".toJson,
         "creationDate" -> T,
         "targetStatus" -> JsObject()
       ) shouldEqual traces.head.asJsObject.fields
@@ -650,7 +654,7 @@ class RestControllerSpec extends FeatureTest with TestDb {
         JsObject(
           "id" -> T,
           "kind" -> "deploy".toJson,
-          "creator" -> "qabot".toJson,
+          "creator" -> "r.eleaser".toJson,
           "creationDate" -> T,
           "closingDate" -> T,
           "targetStatus" -> Map(
@@ -676,7 +680,7 @@ class RestControllerSpec extends FeatureTest with TestDb {
         JsObject(
           "id" -> T,
           "kind" -> "deploy".toJson,
-          "creator" -> "qabot".toJson,
+          "creator" -> "r.eleaser".toJson,
           "creationDate" -> T,
           "targetStatus" -> JsObject(),
           "executions" -> JsArray(

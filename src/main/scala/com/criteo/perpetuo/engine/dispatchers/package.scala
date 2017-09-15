@@ -11,4 +11,8 @@ package object dispatchers {
 
   case class TargetTerm(tactics: Tactics = Set(JsObject()), select: Select)
   implicit def targetTermJsonFormat: JsonFormat[TargetTerm] = jsonFormat2(TargetTerm)
+
+  implicit class ExprToSelect(targetExpr: TargetExpr) {
+    def select: Set[String] = targetExpr.flatMap(_.select)
+  }
 }
