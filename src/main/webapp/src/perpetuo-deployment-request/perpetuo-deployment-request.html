@@ -6,6 +6,7 @@
 
 <link rel="import" href="../perpetuo-app/perpetuo-app-drawer.html">
 <link rel="import" href="../perpetuo-app/perpetuo-app-toolbar.html">
+<link rel="import" href="../perpetuo-deployment-request/perpetuo-conflicting-deployment-requests.html">
 <link rel="import" href="../perpetuo-deployment-request/perpetuo-deployment-operation.html">
 
 <dom-module id="perpetuo-deployment-request">
@@ -133,6 +134,8 @@
       </div>
     </paper-dialog>
 
+    <perpetuo-conflicting-deployment-requests></perpetuo-conflicting-deployment-requests>
+
   </template>
   <script>
   Polymer({
@@ -200,7 +203,15 @@
 
     onDeployTap(e) {
       this.actionLock(() =>
-        this.client.deployDeploymentRequest(this.deploymentRequestId).then(_ => this.refresh())
+        this.client.deployDeploymentRequest(this.deploymentRequestId)
+            .then(_ => this.refresh())
+            .catch(error => {
+              if (error.type === 'conflicting-deployment-requests') {
+                const panel = this.$$('perpetuo-conflicting-deployment-requests');
+                panel.conflicts = error.detail.conflicts
+                panel.open();
+              }
+            })
       );
     },
 

@@ -1,0 +1,44 @@
+<link rel="import" href="../../bower_components/polymer/polymer.html">
+
+<link rel="import" href="../../bower_components/paper-dialog/paper-dialog.html">
+<link rel="import" href="../../bower_components/paper-dialog-scrollable/paper-dialog-scrollable.html">
+
+<dom-module id="perpetuo-conflicting-deployment-requests">
+  <template>
+    <style>
+    .ok {
+      background: #26a69a;
+      color: #fff;
+    }
+    </style>
+    <paper-dialog id="dialog" with-backdrop>
+      <h2>Conflicting deployment requests are still open</h2>
+      <paper-dialog-scrollable>
+        <p>This deployment request impacts targets that are being modified by on-going deployments.</p>
+        <p>Wait for them to end, or close them:</p>
+        <table>
+          <template is="dom-repeat" items="[[conflicts]]">
+            <tr>
+              <td>[[item.target]]</td>
+              <td><a href="/deployment-requests/[[item.id]]">Deployment Request #[[item.id]]</a></td>
+            </tr>
+          </template>
+        </table>
+      </paper-dialog-scrollable>
+      <div class="buttons">
+        <paper-button dialog-confirm class="ok" raised>OK</paper-button>
+      </div>
+    </paper-dialog>
+  </template>
+  <script>
+  Polymer({
+    is: 'perpetuo-conflicting-deployment-requests',
+    properties: {
+      conflicts: Array
+    },
+    open() {
+      this.$.dialog.open();
+    }
+  })
+  </script>
+</dom-module>
