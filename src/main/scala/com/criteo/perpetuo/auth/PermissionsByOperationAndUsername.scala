@@ -17,8 +17,8 @@ class PermissionsByOperationAndUsername(config: AppConfig) extends Permissions {
       case DeploymentAction.applyOperation => "apply"
     }
     config
-      .tryGet(prefix + action.toString.capitalize)
-      .orElse(config.tryGet(operation.toString))
+      .tryGet(prefix + operation.toString.capitalize)
+      .orElse(config.tryGet(action.toString))
       .forall { allowed: Seq[String] => allowed.contains(username) }
   }
 }
