@@ -166,13 +166,11 @@ class RestController @Inject()(val engine: Engine)
               _.map { case (deploymentRequest, isStarted) =>
                 val targets = deploymentRequest.parsedTarget.select
                 if (permissions.isAuthorized(user.name, DeploymentAction.applyOperation, action, deploymentRequest.product.name, targets)) {
-                  val effect = action match {
-                    case Operation.deploy if isStarted => engine.deployAgain _
-                    case Operation.deploy => engine.startDeploymentRequest _
-                    case Operation.revert => engine.rollbackDeploymentRequest(_: Long, _: String, defaultVersion)
+                  val (checking, effect) = action match {
+                    case Operation.deploy => (engine.canDeployDeploymentRequest(deploymentRequest), if (isStarted) engine.deployAgain _ else engine.startDeploymentRequest _)
+                    case Operation.revert => (engine.canRevertDeploymentRequest(deploymentRequest, isStarted), engine.rollbackDeploymentRequest(_: Long, _: String, defaultVersion))
                   }
-                  engine
-                    .actionChecker(deploymentRequest, isStarted)(action)
+                  checking
                     .flatMap(_ => effect(id, user.name))
                     .recover { case e: UnprocessableAction =>
                       val body = Map("errors" -> Seq(s"Cannot $actionName the deployment request #$id: ${e.msg}")) ++
@@ -307,11 +305,13 @@ class RestController @Inject()(val engine: Engine)
             permissions.isAuthorized(user.name, DeploymentAction.applyOperation, op, deploymentRequest.product.name, targets)
           ) // todo: a future workflow will differentiate requests and applies
           val sortedGroupsOfExecutions = sortedGroupsOfExecutionsAndResults.map(_._1)
-          val check = engine.actionChecker(deploymentRequest, sortedGroupsOfExecutions.nonEmpty)
           Future
             .sequence(
               Operation.values.map(action =>
-                check(action)
+                (action match {
+                  case Operation.deploy => engine.canDeployDeploymentRequest(deploymentRequest)
+                  case Operation.revert => engine.canRevertDeploymentRequest(deploymentRequest, sortedGroupsOfExecutions.nonEmpty)
+                })
                   .map(_ => Some(Map("type" -> action.toString, "authorized" -> authorized(action))))
                   .recover { case _ => None }
               )

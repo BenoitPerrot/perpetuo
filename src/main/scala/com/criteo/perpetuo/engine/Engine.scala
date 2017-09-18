@@ -86,29 +86,31 @@ class Engine @Inject()(val dbBinding: DbBinding,
   def isDeploymentRequestStarted(deploymentRequestId: Long): Future[Option[(DeepDeploymentRequest, Boolean)]] =
     dbBinding.isDeploymentRequestStarted(deploymentRequestId)
 
-  def actionChecker(deploymentRequest: DeploymentRequest, isStarted: Boolean): (Operation.Kind) => Future[Unit] = {
-    val accepted = Future.successful()
-    def rejected(reason: String) = Future.failed(UnprocessableAction(reason))
-
-    lazy val outdated = dbBinding.isOutdated(deploymentRequest).flatMap(
-      if (_) rejected("a newer one has already been applied") else accepted
+  private def rejectIfOutdated(deploymentRequest: DeploymentRequest): Future[Unit] =
+    dbBinding.isOutdated(deploymentRequest).flatMap(
+      if (_)
+        Future.failed(UnprocessableAction("a newer one has already been applied"))
+      else
+        Future.successful()
     )
 
-    {
-      case Operation.deploy => outdated
-      case _ if !isStarted => rejected("it has not yet been applied")
-      case Operation.revert => outdated.flatMap(_ =>
+  def canDeployDeploymentRequest(deploymentRequest: DeploymentRequest): Future[Unit] =
+    rejectIfOutdated(deploymentRequest)
+
+  def canRevertDeploymentRequest(deploymentRequest: DeploymentRequest, isStarted: Boolean): Future[Unit] =
+    if (!isStarted)
+      Future.failed(UnprocessableAction("it has not yet been applied"))
+    else
+      rejectIfOutdated(deploymentRequest).flatMap(_ =>
         // todo: once there is no more * in TargetStatus table, we can allow successive rollbacks,
         // by using dbBinding.findTargetAtomNotActionableBy instead of `outdated` here
         dbBinding.findExecutionTracesByDeploymentRequest(deploymentRequest.id).flatMap(
           // fixme: only as long as there can be * in TargetStatus table because of failure (and one executor!)
           _.collectFirst { case trace if trace.state != ExecutionState.completed =>
-            rejected("there is no need to rollback, nothing has been done")
-          }.getOrElse(accepted)
+            Future.failed(UnprocessableAction("there is no need to rollback, nothing has been done"))
+          }.getOrElse(Future.successful())
         )
       )
-    }
-  }
 
   def startDeploymentRequest(deploymentRequestId: Long, initiatorName: String): Future[Option[(OperationTrace, Int, Int)]] = {
     dbBinding.findDeepDeploymentRequestById(deploymentRequestId).flatMap(

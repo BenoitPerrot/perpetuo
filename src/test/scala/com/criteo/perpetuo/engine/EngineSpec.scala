@@ -69,10 +69,10 @@ class EngineSpec extends Test with TestDb {
           // fixme: one day, first deployment will be retryable:
           // But second one can't be, because it impacts `racing`, whose status changed in the meantime
           secondDeploymentRequest <- engine.dbBinding.findDeepDeploymentRequestById(secondDeploymentRequestId).map(_.get)
-          rejectionOfSecond <- engine.actionChecker(secondDeploymentRequest, isStarted = true)(Operation.deploy).failed
+          rejectionOfSecond <- engine.canDeployDeploymentRequest(secondDeploymentRequest).failed
           // The last one of course is retryable
           thirdDeploymentRequest <- engine.dbBinding.findDeepDeploymentRequestById(thirdDeploymentRequestId).map(_.get)
-          _ <- engine.actionChecker(thirdDeploymentRequest, isStarted = true)(Operation.deploy)
+          _ <- engine.canDeployDeploymentRequest(thirdDeploymentRequest)
         } yield rejectionOfSecond.getMessage,
         2.seconds
       ) shouldBe "a newer one has already been applied"
@@ -132,13 +132,13 @@ class EngineSpec extends Test with TestDb {
 
           // Second request can't be rolled back
           secondDeploymentRequest <- engine.dbBinding.findDeepDeploymentRequestById(secondDeploymentRequestId).map(_.get)
-          rejectionOfSecond <- engine.actionChecker(secondDeploymentRequest, isStarted = true)(Operation.revert).failed
+          rejectionOfSecond <- engine.canRevertDeploymentRequest(secondDeploymentRequest, isStarted = true).failed
           // Third one can be rolled back, because it's the last one for its product
           thirdDeploymentRequest <- engine.dbBinding.findDeepDeploymentRequestById(thirdDeploymentRequestId).map(_.get)
-          _ <- engine.actionChecker(thirdDeploymentRequest, isStarted = true)(Operation.revert)
+          _ <- engine.canRevertDeploymentRequest(thirdDeploymentRequest, isStarted = true)
           // Meanwhile the deployment on another product can be rolled back (even when it's the first one for that product: it just requires a default rollback version)
           otherDeploymentRequest <- engine.dbBinding.findDeepDeploymentRequestById(otherDeploymentRequestId).map(_.get)
-          _ <- engine.actionChecker(otherDeploymentRequest, isStarted = true)(Operation.revert)
+          _ <- engine.canRevertDeploymentRequest(otherDeploymentRequest, isStarted = true)
         } yield rejectionOfSecond.getMessage,
         2.seconds
       ) shouldBe "a newer one has already been applied"
