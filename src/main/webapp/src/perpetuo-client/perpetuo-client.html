@@ -87,12 +87,9 @@ this.Perpetuo.Client = this.Perpetuo.Client || (function () {
     }
 
     revertDeploymentRequest(deploymentRequestId, extraInfo) {
-      let body = {type: 'revert'};
-      Object.keys(extraInfo || {}).forEach(function (key) {
-        body[key] = extraInfo[key];
-      });
-      return this.actOnDeploymentRequest(deploymentRequestId, body);
+      return this.actOnDeploymentRequest(deploymentRequestId, Object.assign({type: 'revert'}, extraInfo));
     }
+
     actOnDeploymentRequest(deploymentRequestId, body) {
       return jsonFetch(`/api/deployment-requests/${deploymentRequestId}/actions`, {method: 'POST', body: JSON.stringify(body)});
     }
