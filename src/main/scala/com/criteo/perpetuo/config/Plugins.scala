@@ -54,9 +54,9 @@ class Plugins(appConfig: RootAppConfig = AppConfig) {
 
   val listener: ListenerPluginWrapper = {
     new ListenerPluginWrapper(
-      Try(AppConfig.under("engineListener")).map { desc =>
-        resolve(desc, "engine listener", groovySupported = true)()
-      }.toOption
+      Try(AppConfig.under("engineListener")).toOption.map { desc =>
+        resolve[DefaultListenerPlugin](desc, "engine listener", groovySupported = true)()
+      }
     )
   }
 }
