@@ -5,8 +5,7 @@ import javax.sql.DataSource
 import com.criteo.datasource.DataSourceFactoryBuilder
 import com.criteo.ds.prm.{DataSourceProxymitySpecifier, DatasourceIntent}
 import com.criteo.perpetuo.config.AppConfig
-import com.criteo.perpetuo.dao.drivers.UrlBuilders._
-import com.criteo.perpetuo.dao.drivers.{DriverByName, InMemory}
+import com.criteo.perpetuo.dao.drivers.DriverByName
 import com.criteo.perpetuo.dao.{DbContext, Schema}
 import com.criteo.sdk.discovery.prmdb.Resource
 import com.google.inject.{Provides, Singleton}
@@ -26,7 +25,7 @@ class DbContextModule(val dbConfig: AppConfig) extends TwitterModule {
     } else {
       val username = dbConfig.get[String]("username")
       val password = Try(dbConfig.get[String]("password")).getOrElse("")
-      createInMemoryDataSource(username, password)
+      createDataSource(username, password)
     }
   }
 
@@ -48,10 +47,9 @@ class DbContextModule(val dbConfig: AppConfig) extends TwitterModule {
       .getDataSourceForDatabase(Resource.Deployment_DB, DatasourceIntent.ReadWrite, DataSourceProxymitySpecifier.GlobalAllowed)
   }
 
-  private def createInMemoryDataSource(username: String, password: String): DataSource = {
+  private def createDataSource(username: String, password: String): DataSource = {
     val dbName = dbConfig.get[String]("name")
-    val schemaName = dbConfig.get[String]("schema")
-    val jdbcUrl = driver.buildUrl(InMemory(), dbName, schemaName)
+    val jdbcUrl = dbConfig.get[String]("jdbcUrl")
 
     val maxPoolSize = Try(dbConfig.get[Int]("poolMaxSize")).getOrElse(10)
     val minimumIdle = Try(dbConfig.get[Int]("poolMinSize")).getOrElse(maxPoolSize)
