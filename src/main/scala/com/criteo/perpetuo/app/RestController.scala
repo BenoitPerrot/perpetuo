@@ -279,8 +279,8 @@ class RestController @Inject()(val engine: Engine)
       "state" -> computeState(sortedGroupsOfExecutions)
     )
 
-  private def serialize(executionResultsGroups: Iterable[(Iterable[ExecutionTrace], Iterable[TargetStatus])]): Iterable[Map[String, Any]] =
-    executionResultsGroups.map { case (executionTraces, targetStatus) =>
+  private def serialize(sortedEffects: Iterable[OperationEffect]): Iterable[Map[String, Any]] =
+    sortedEffects.map { case OperationEffect(executionTraces, targetStatus) =>
       val op = executionTraces.head.operationTrace
       Map(
         "id" -> op.id,
@@ -298,8 +298,8 @@ class RestController @Inject()(val engine: Engine)
 
   get("/api/unstable/deployment-requests/:id") { r: RequestWithId =>
     withLongId(id =>
-      engine.findDeepDeploymentRequestAndExecutions(id)
-        .flatMap(_.map { case (deploymentRequest, sortedGroupsOfExecutionsAndResults) =>
+      engine.findDeepDeploymentRequestAndEffects(id)
+        .flatMap(_.map { case (deploymentRequest, sortedEffects) =>
           val targets = deploymentRequest.parsedTarget.select
           val isAdmin = r.request.user.exists(user =>
             permissions.isAuthorized(user.name, GeneralAction.administrate)
@@ -310,21 +310,20 @@ class RestController @Inject()(val engine: Engine)
             permissions.isAuthorized(user.name, DeploymentAction.applyOperation, op, deploymentRequest.product.name, targets)
           )
 
-          val sortedGroupsOfExecutions = sortedGroupsOfExecutionsAndResults.map(_._1)
           Future
             .sequence(
               Operation.values.map(action =>
                 (action match {
                   case Operation.deploy => engine.canDeployDeploymentRequest(deploymentRequest)
-                  case Operation.revert => engine.canRevertDeploymentRequest(deploymentRequest, sortedGroupsOfExecutions.nonEmpty)
+                  case Operation.revert => engine.canRevertDeploymentRequest(deploymentRequest, sortedEffects.nonEmpty)
                 })
                   .map(_ => Some(Map("type" -> action.toString, "authorized" -> authorized(action))))
                   .recover { case _ => None }
               )
             )
             .map(actions =>
-              Some(serialize(deploymentRequest, sortedGroupsOfExecutions) ++
-                Map("operations" -> serialize(sortedGroupsOfExecutionsAndResults)) ++
+              Some(serialize(deploymentRequest, sortedEffects.map(_.executionTraces)) ++
+                Map("operations" -> serialize(sortedEffects)) ++
                 Map("actions" -> actions.flatten) ++
                 Map("showExecutionLogs" -> (isAdmin || authorized(Operation.deploy)))) // fixme: only as long as we can't show the logs to anyone
             )

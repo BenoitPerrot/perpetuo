@@ -211,8 +211,8 @@ class Engine @Inject()(val dbBinding: DbBinding,
     }
   }
 
-  def findDeepDeploymentRequestAndExecutions(deploymentRequestId: Long): Future[Option[(DeepDeploymentRequest, Iterable[(Iterable[ExecutionTrace], Iterable[TargetStatus])])]] =
-    dbBinding.findDeepDeploymentRequestAndExecutions(deploymentRequestId)
+  def findDeepDeploymentRequestAndEffects(deploymentRequestId: Long): Future[Option[(DeepDeploymentRequest, Iterable[OperationEffect])]] =
+    dbBinding.findDeepDeploymentRequestAndEffects(deploymentRequestId)
 
   def queryDeepDeploymentRequests(where: Seq[Map[String, Any]], orderBy: Seq[Map[String, Any]], limit: Int, offset: Int): Future[Iterable[(DeepDeploymentRequest, Iterable[ArrayBuffer[ExecutionTrace]])]] =
     dbBinding.deepQueryDeploymentRequests(where, orderBy, limit, offset)

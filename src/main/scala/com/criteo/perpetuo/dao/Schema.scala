@@ -79,7 +79,7 @@ class DbBinding @Inject()(val dbContext: DbContext)
 
   import dbContext.driver.api._
 
-  def findDeepDeploymentRequestAndExecutions(deploymentRequestId: Long): Future[Option[(DeepDeploymentRequest, Iterable[(Iterable[ExecutionTrace], Iterable[TargetStatus])])]] = {
+  def findDeepDeploymentRequestAndEffects(deploymentRequestId: Long): Future[Option[(DeepDeploymentRequest, Iterable[OperationEffect])]] = {
     dbContext.db.run(
       deploymentRequestQuery
         .filter(_.id === deploymentRequestId)
@@ -95,7 +95,7 @@ class DbBinding @Inject()(val dbContext: DbContext)
         results.headOption.map { case (deploymentRequestRecord, productRecord, _, _, _) =>
           val deploymentRequest = deploymentRequestRecord.toDeepDeploymentRequest(productRecord)
 
-          val sortedGroupsOfExecutionsAndResults = results
+          val sortedEffects = results
             .toStream
             .collect { case (_, _, operationTrace, executionTrace, targetStatus) if operationTrace.isDefined =>
               (operationTrace, executionTrace, targetStatus)
@@ -108,11 +108,11 @@ class DbBinding @Inject()(val dbContext: DbContext)
               val operationTrace = operationTraceRecord.get.toOperationTrace
               val executionTraces = l.map(_._2).filter(_.isDefined).map(_.get).distinct.map(_.toExecutionTrace(operationTrace))
               val targetStatuses = l.map(_._3).filter(_.isDefined).map(_.get).distinct.map(_.toTargetStatus)
-              (executionTraces, targetStatuses)
+              OperationEffect(executionTraces, targetStatuses)
             }
-            .filter { case (et, _) => et.nonEmpty }
+            .filter { case OperationEffect(et, _) => et.nonEmpty }
 
-          (deploymentRequest, sortedGroupsOfExecutionsAndResults)
+          (deploymentRequest, sortedEffects)
         }
       )
   }
