@@ -243,10 +243,16 @@ class RestController @Inject()(val engine: Engine)
   )
   // >>
 
-  private def computeState(sortedGroupsOfExecutions: Iterable[Iterable[ExecutionTrace]]): String =
-    if (sortedGroupsOfExecutions.isEmpty) {
-      "not-started"
-    } else {
+  private object RequestStatus extends Enumeration {
+    val inProgress = Value
+    val failed = Value
+    val succeeded = Value
+  }
+
+  private def computeState(sortedGroupsOfExecutions: Iterable[Iterable[ExecutionTrace]]): Option[(Operation.Kind, RequestStatus.Value)] =
+    if (sortedGroupsOfExecutions.isEmpty)
+      None
+    else {
       val lastExecutionTraces = sortedGroupsOfExecutions.last
       val lastOperationTrace = lastExecutionTraces.head.operationTrace
 
@@ -255,16 +261,14 @@ class RestController @Inject()(val engine: Engine)
         lastExecutionTraces.exists(_.state == ExecutionState.initFailed) || lastOperationTrace.targetStatus.values.exists(_.code != Status.success)
 
       val lastOperationState = if (operationIsFinished) {
-        if (operationHasFailures) {
-          "failed"
-        } else {
-          "succeeded"
-        }
-      } else {
-        "in-progress"
-      }
+        if (operationHasFailures)
+          RequestStatus.failed
+        else
+          RequestStatus.succeeded
+      } else
+        RequestStatus.inProgress
 
-      s"${lastOperationTrace.kind.toString} $lastOperationState"
+      Some((lastOperationTrace.kind, lastOperationState))
     }
 
   private def serialize(depReq: DeepDeploymentRequest, sortedGroupsOfExecutions: Iterable[Iterable[ExecutionTrace]]): Map[String, Any] =
@@ -276,7 +280,7 @@ class RestController @Inject()(val engine: Engine)
       "version" -> depReq.version,
       "target" -> RawJson(depReq.target),
       "productName" -> depReq.product.name,
-      "state" -> computeState(sortedGroupsOfExecutions)
+      "state" -> computeState(sortedGroupsOfExecutions).map { case (op, state) => s"$op $state" }.getOrElse("notStarted")
     )
 
   private def serialize(sortedEffects: Iterable[OperationEffect]): Iterable[Map[String, Any]] =
