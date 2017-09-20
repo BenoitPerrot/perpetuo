@@ -301,9 +301,15 @@ class RestController @Inject()(val engine: Engine)
       engine.findDeepDeploymentRequestAndExecutions(id)
         .flatMap(_.map { case (deploymentRequest, sortedGroupsOfExecutionsAndResults) =>
           val targets = deploymentRequest.parsedTarget.select
+          val isAdmin = r.request.user.exists(user =>
+            permissions.isAuthorized(user.name, GeneralAction.administrate)
+          )
+
+          // todo: a future workflow will differentiate requests and applies
           def authorized(op: Operation.Kind) = r.request.user.exists(user =>
             permissions.isAuthorized(user.name, DeploymentAction.applyOperation, op, deploymentRequest.product.name, targets)
-          ) // todo: a future workflow will differentiate requests and applies
+          )
+
           val sortedGroupsOfExecutions = sortedGroupsOfExecutionsAndResults.map(_._1)
           Future
             .sequence(
@@ -320,7 +326,7 @@ class RestController @Inject()(val engine: Engine)
               Some(serialize(deploymentRequest, sortedGroupsOfExecutions) ++
                 Map("operations" -> serialize(sortedGroupsOfExecutionsAndResults)) ++
                 Map("actions" -> actions.flatten) ++
-                Map("showExecutionLogs" -> authorized(Operation.deploy))) // fixme: only as long as we can't show the logs to anyone
+                Map("showExecutionLogs" -> (isAdmin || authorized(Operation.deploy)))) // fixme: only as long as we can't show the logs to anyone
             )
         }.getOrElse(Future.successful(None))),
       5.seconds

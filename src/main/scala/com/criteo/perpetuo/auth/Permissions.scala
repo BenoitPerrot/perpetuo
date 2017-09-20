@@ -4,6 +4,7 @@ import com.criteo.perpetuo.model.Operation.Kind
 
 
 object GeneralAction extends Enumeration {
+  val administrate = Value
   val addProduct = Value
 }
 
