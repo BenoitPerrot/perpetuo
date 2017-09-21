@@ -243,34 +243,6 @@ class RestController @Inject()(val engine: Engine)
   )
   // >>
 
-  private object RequestStatus extends Enumeration {
-    val inProgress = Value
-    val failed = Value
-    val succeeded = Value
-  }
-
-  private def computeState(sortedGroupsOfExecutions: Iterable[Iterable[ExecutionTrace]]): Option[(Operation.Kind, RequestStatus.Value)] =
-    if (sortedGroupsOfExecutions.isEmpty)
-      None
-    else {
-      val lastExecutionTraces = sortedGroupsOfExecutions.last
-      val lastOperationTrace = lastExecutionTraces.head.operationTrace
-
-      val operationIsFinished = lastOperationTrace.closingDate.nonEmpty
-      val operationHasFailures =
-        lastExecutionTraces.exists(_.state == ExecutionState.initFailed) || lastOperationTrace.targetStatus.values.exists(_.code != Status.success)
-
-      val lastOperationState = if (operationIsFinished) {
-        if (operationHasFailures)
-          RequestStatus.failed
-        else
-          RequestStatus.succeeded
-      } else
-        RequestStatus.inProgress
-
-      Some((lastOperationTrace.kind, lastOperationState))
-    }
-
   private def serialize(depReq: DeepDeploymentRequest, sortedGroupsOfExecutions: Iterable[Iterable[ExecutionTrace]]): Map[String, Any] =
     Map(
       "id" -> depReq.id,
@@ -280,7 +252,7 @@ class RestController @Inject()(val engine: Engine)
       "version" -> depReq.version,
       "target" -> RawJson(depReq.target),
       "productName" -> depReq.product.name,
-      "state" -> computeState(sortedGroupsOfExecutions).map { case (op, state) => s"$op $state" }.getOrElse("notStarted")
+      "state" -> engine.computeState(sortedGroupsOfExecutions).map { case (op, state) => s"$op $state" }.getOrElse("notStarted")
     )
 
   private def serialize(sortedEffects: Iterable[OperationEffect]): Iterable[Map[String, Any]] =
