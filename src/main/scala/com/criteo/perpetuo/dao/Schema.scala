@@ -23,52 +23,12 @@ class Schema(val dbContext: DbContext)
   }
 
   def removeOldFks() = {
-    dbContext.db.run(executionSpecificationQuery.filter(_.operationTraceId.nonEmpty).map(_.operationTraceId).update(None))
-    dbContext.db.run(targetStatusQuery.filter(_.operationTraceId.nonEmpty).map(ts => (ts.operationTraceId, ts.executionSpecificationId)).update((None, None)))
+    dbContext.db.run(executionTraceQuery.filter(_.operationTraceId.nonEmpty).map(_.operationTraceId).update(None))
   }
 
   def countOldFks() = {
-    dbContext.db.run(executionSpecificationQuery.filter(_.operationTraceId.nonEmpty).length.result)
-    dbContext.db.run(targetStatusQuery.filter(_.operationTraceId.nonEmpty).length.result)
+    dbContext.db.run(executionTraceQuery.filter(_.operationTraceId.nonEmpty).length.result)
   }
-
-  def setExecutionTracesMissingDetails() =
-    dbContext.db.run(
-      sqlu"""
-        UPDATE execution_trace
-        SET execution_trace.detail = target_status.detail
-        FROM execution_trace JOIN target_status ON execution_trace.execution_id = target_status.execution_id
-        WHERE execution_trace.state = 3 AND execution_trace.detail = '' AND target_status.detail != ''
-      """)
-
-  def countExecutionTracesMissingDetails() =
-    dbContext.db.run(
-      executionTraceQuery.join(targetStatusQuery)
-        .filter { case (trace, status) =>
-          trace.executionId === status.executionId &&
-            trace.state === ExecutionState.initFailed && trace.detail === "" && status.detail =!= ""
-        }
-        .length
-        .result)
-
-  def removeInitFailureDetails() =
-    dbContext.db.run(
-      sqlu"""
-        DELETE target_status
-        FROM target_status JOIN execution_trace ON execution_trace.execution_id = target_status.execution_id
-        WHERE execution_trace.state = 3
-      """
-    )
-
-  def countInitFailureDetails() =
-    dbContext.db.run(
-      targetStatusQuery.join(executionTraceQuery)
-        .filter { case (status, trace) =>
-          status.executionId === trace.executionId &&
-            trace.state === ExecutionState.initFailed
-        }
-        .length
-        .result)
 }
 
 

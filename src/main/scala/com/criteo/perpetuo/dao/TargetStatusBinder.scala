@@ -10,9 +10,7 @@ private[dao] case class TargetStatusRecord(id: Option[Long],
                                            executionId: Long,
                                            targetAtom: String,
                                            code: Status.Code,
-                                           detail: String,
-                                           operationTraceId: Option[Long] = None,
-                                           executionSpecificationId: Option[Long] = None) {
+                                           detail: String) {
   def toTargetStatus: TargetStatus =
     TargetStatus(id.get, executionId, targetAtom, code, detail)
 }
@@ -40,10 +38,7 @@ trait TargetStatusBinder extends TableBinder {
     def code = column[Status.Code]("code")
     def detail = column[String]("detail", O.SqlType(s"nvarchar(4000)"))
 
-    def operationTraceId = column[Option[Long]]("operation_trace_id") // fixme: migration only
-    def executionSpecificationId = column[Option[Long]]("execution_specification_id") // fixme: migration only
-
-    def * = (id.?, executionId, targetAtom, code, detail, operationTraceId, executionSpecificationId) <> (TargetStatusRecord.tupled, TargetStatusRecord.unapply)
+    def * = (id.?, executionId, targetAtom, code, detail) <> (TargetStatusRecord.tupled, TargetStatusRecord.unapply)
   }
 
   val targetStatusQuery: TableQuery[TargetStatusTable] = TableQuery[TargetStatusTable]

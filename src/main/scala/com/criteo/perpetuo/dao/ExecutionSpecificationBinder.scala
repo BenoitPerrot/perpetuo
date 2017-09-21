@@ -7,8 +7,7 @@ import scala.concurrent.Future
 
 private[dao] case class ExecutionSpecificationRecord(id: Option[Long],
                                                      version: Version,
-                                                     specificParameters: String,
-                                                     operationTraceId: Option[Long] = None) {
+                                                     specificParameters: String) {
   def toExecutionSpecification: ExecutionSpecification = {
     ExecutionSpecification(id.get, version, specificParameters)
   }
@@ -27,9 +26,7 @@ trait ExecutionSpecificationBinder extends TableBinder {
     def version = column[Version]("version", O.SqlType(s"nvarchar(${Version.maxSize})"))
     def specificParameters = column[String]("specific_parameters", O.SqlType("nvarchar(16000)"))
 
-    def operationTraceId = column[Option[Long]]("operation_trace_id") // fixme: migration only
-
-    def * = (id.?, version, specificParameters, operationTraceId) <> (ExecutionSpecificationRecord.tupled, ExecutionSpecificationRecord.unapply)
+    def * = (id.?, version, specificParameters) <> (ExecutionSpecificationRecord.tupled, ExecutionSpecificationRecord.unapply)
   }
 
   val executionSpecificationQuery: TableQuery[ExecutionSpecificationTable] = TableQuery[ExecutionSpecificationTable]
