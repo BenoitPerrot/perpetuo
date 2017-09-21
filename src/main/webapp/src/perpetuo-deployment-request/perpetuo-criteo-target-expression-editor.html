@@ -4,7 +4,7 @@
 <link rel="import" href="../../bower_components/paper-radio-button/paper-radio-button.html">
 <link rel="import" href="../../bower_components/paper-radio-group/paper-radio-group.html">
 
-<dom-module id="perpetuo-criteo-data-center-selector">
+<dom-module id="perpetuo-criteo-target-selector">
   <template>
     <style>
     :host {
@@ -16,7 +16,7 @@
       margin-bottom: 0.5em;
     }
     </style>
-    <template is="dom-repeat" items="[[dataCenters]]">
+    <template is="dom-repeat" items="[[targets]]">
       <paper-checkbox disabled="[[disabled]]" dc="[[item.code]]" checked="{{item.checked}}">[[item.name]]</paper-checkbox>
     </template>
   </template>
@@ -38,19 +38,19 @@
     }
 
     Polymer({
-      is: 'perpetuo-criteo-data-center-selector',
+      is: 'perpetuo-criteo-target-selector',
 
       properties: {
-        dataCenters: { type: Array, value: createDefaultDataCenterModelView },
+        targets: { type: Array, value: createDefaultDataCenterModelView },
         disabled: { type: Boolean, reflectToAttribute: true }
       },
 
       clear() {
-        this.dataCenters = createDefaultDataCenterModelView();
+        this.targets = this.targets.map(_ => ({code: _.code, name: _.name}));
       },
 
       get value() {
-        return this.dataCenters.filter(_ => _.checked).map(_ => _.code);
+        return this.targets.filter(_ => _.checked).map(_ => _.code);
       }
     });
   } ())
@@ -68,7 +68,7 @@
       display: flex;
       flex-direction: column;
     }
-    perpetuo-criteo-data-center-selector {
+    perpetuo-criteo-target-selector {
       margin-left: 3em;
     }
     </style>
@@ -78,9 +78,9 @@
     <template is="dom-if" if="[[productTypeEquals(productType, 'marathon')]]">
       <p style="font-size:16px; margin:0 0 0.5em 0;">Target</p>
       <paper-radio-group class="dc-selector" selected="{{dcSelectionMode}}">
-        <paper-radio-button name="allConfigured">All configured data centers</paper-radio-button>
+        <paper-radio-button name="allConfigured">All configured targets</paper-radio-button>
         <paper-radio-button name="freeSelection">Free selection</paper-radio-button>
-        <perpetuo-criteo-data-center-selector disabled="[[!isFreeSelectionMode]]"></perpetuo-criteo-data-center-selector>
+        <perpetuo-criteo-target-selector disabled="[[!isFreeSelectionMode]]"></perpetuo-criteo-target-selector>
       </paper-radio-group>
     </template>
   </template>
@@ -115,9 +115,9 @@
     },
 
     clear() {
-      const dataCenterSelector = this.$$('perpetuo-criteo-data-center-selector');
-      if (dataCenterSelector)
-        dataCenterSelector.clear();
+      const targetSelector = this.$$('perpetuo-criteo-target-selector');
+      if (targetSelector)
+        targetSelector.clear();
       this.dcSelectionMode = 'allConfigured';
     },
 
@@ -126,7 +126,7 @@
         case 'allConfigured':
           return '*';
         case 'freeSelection':
-          return this.$$('perpetuo-criteo-data-center-selector').value;
+          return this.$$('perpetuo-criteo-target-selector').value;
       }
       throw 'Should not be there';
     }
