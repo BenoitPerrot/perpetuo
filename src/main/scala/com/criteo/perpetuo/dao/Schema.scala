@@ -58,19 +58,19 @@ class DbBinding @Inject()(val dbContext: DbContext)
           val sortedEffects = results
             .toStream
             .collect { case (_, _, operationTrace, executionTrace, targetStatus) if operationTrace.isDefined =>
-              (operationTrace, executionTrace, targetStatus)
+              (operationTrace.get, executionTrace, targetStatus)
             }
-            .groupBy { case (operationTrace, _, _) => operationTrace.get.id.get }
+            .groupBy { case (operationTrace, _, _) => operationTrace.id.get }
             .toStream
             .sortBy(_._1)
             .map { case (_, l) =>
               val (operationTraceRecord, _, _) = l.head
-              val operationTrace = operationTraceRecord.get.toOperationTrace
+              val operationTrace = operationTraceRecord.toOperationTrace
               val executionTraces = l.map(_._2).filter(_.isDefined).map(_.get).distinct.map(_.toExecutionTrace(operationTrace))
               val targetStatuses = l.map(_._3).filter(_.isDefined).map(_.get).distinct.map(_.toTargetStatus)
-              OperationEffect(executionTraces, targetStatuses)
+              OperationEffect(operationTrace, executionTraces, targetStatuses)
             }
-            .filter { case OperationEffect(et, _) => et.nonEmpty }
+            .filter { case OperationEffect(_, et, _) => et.nonEmpty } // todo: remove that
 
           (deploymentRequest, sortedEffects)
         }

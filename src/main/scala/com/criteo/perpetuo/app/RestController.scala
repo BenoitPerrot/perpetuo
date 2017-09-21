@@ -256,8 +256,7 @@ class RestController @Inject()(val engine: Engine)
     )
 
   private def serialize(sortedEffects: Iterable[OperationEffect]): Iterable[Map[String, Any]] =
-    sortedEffects.map { case OperationEffect(executionTraces, targetStatus) =>
-      val op = executionTraces.head.operationTrace
+    sortedEffects.map { case OperationEffect(op, executionTraces, targetStatus) =>
       Map(
         "id" -> op.id,
         "kind" -> op.kind.toString,
