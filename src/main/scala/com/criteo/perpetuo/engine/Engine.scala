@@ -224,27 +224,20 @@ class Engine @Inject()(val dbBinding: DbBinding,
   def queryDeepDeploymentRequests(where: Seq[Map[String, Any]], orderBy: Seq[Map[String, Any]], limit: Int, offset: Int): Future[Iterable[(DeepDeploymentRequest, Iterable[ArrayBuffer[ExecutionTrace]])]] =
     dbBinding.deepQueryDeploymentRequests(where, orderBy, limit, offset)
 
-  def computeState(sortedGroupsOfExecutions: Iterable[Iterable[ExecutionTrace]]): Option[(Operation.Kind, RequestStatus.Value)] =
-    if (sortedGroupsOfExecutions.isEmpty)
-      None
-    else {
-      val lastExecutionTraces = sortedGroupsOfExecutions.last
-      val lastOperationTrace = lastExecutionTraces.head.operationTrace
+  def computeState(operationTrace: ShallowOperationTrace, executionTraces: Iterable[ExecutionTrace]): (Operation.Kind, RequestStatus.Value) = {
+    val operationIsFinished = operationTrace.closingDate.nonEmpty
+    val operationHasFailures =
+      executionTraces.exists(_.state == ExecutionState.initFailed) ||
+        operationTrace.targetStatus.values.exists(_.code != Status.success)
 
-      val operationIsFinished = lastOperationTrace.closingDate.nonEmpty
-      val operationHasFailures =
-        lastExecutionTraces.exists(_.state == ExecutionState.initFailed) ||
-          lastOperationTrace.targetStatus.values.exists(_.code != Status.success)
-
-      val lastOperationState = if (operationIsFinished) {
-        if (operationHasFailures)
-          RequestStatus.failed
-        else
-          RequestStatus.succeeded
-      } else
-        RequestStatus.inProgress
-
-      Some((lastOperationTrace.kind, lastOperationState))
-    }
+    val operationState = if (operationIsFinished) {
+      if (operationHasFailures)
+        RequestStatus.failed
+      else
+        RequestStatus.succeeded
+    } else
+      RequestStatus.inProgress
+    (operationTrace.kind, operationState)
+  }
 
 }
