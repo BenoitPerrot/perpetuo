@@ -59,11 +59,11 @@
       margin-left: 3em;
     }
     </style>
-    <template is="dom-if" if="[[productTypeEquals(productType, 'hadoop')]]">
-      <p style="font-size:16px; margin:0 0 0.5em 0;">Target: All configured gateways</p>
+    <template is="dom-if" if="[[!targets.length]]">
+      <p style="font-size:16px; margin:0 0 0.5em 0;">On all configured targets</p>
     </template>
-    <template is="dom-if" if="[[productTypeEquals(productType, 'marathon')]]">
-      <p style="font-size:16px; margin:0 0 0.5em 0;">Target</p>
+    <template is="dom-if" if="[[targets.length]]">
+      <p style="font-size:16px; margin:0 0 0.5em 0;">On:</p>
       <paper-radio-group class="dc-selector" selected="{{dcSelectionMode}}">
         <paper-radio-button name="allConfigured">All configured targets</paper-radio-button>
         <paper-radio-button name="freeSelection">Free selection</paper-radio-button>
@@ -109,10 +109,6 @@
         ];
       }
       return [];
-    },
-
-    productTypeEquals(productType, t) {
-      return this.productType === t;
     },
 
     computeIsFreeSelectionMode(dcSelectionMode) {
