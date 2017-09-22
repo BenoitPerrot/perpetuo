@@ -57,14 +57,14 @@ class EngineSpec extends Test with TestDb {
         for {
           product <- engine.insertProduct("horse")
 
-          (firstDeploymentRequestId, _) <- mockDeployExecution(product.name, "100", Map("corn-field" -> Status.hostFailure))
-          // Status = corn-field: horse@100?
+          (firstDeploymentRequestId, _) <- mockDeployExecution(product.name, "100", Map("corn-field" -> Status.success))
+          // Status = corn-field: horse@100
 
-          (secondDeploymentRequestId, _) <- mockDeployExecution(product.name, "101", Map("racing" -> Status.success, "pool" -> Status.productFailure))
-          // Status = pool: horse@101?, racing: horse@101, corn-field: horse@100?
+          (secondDeploymentRequestId, _) <- mockDeployExecution(product.name, "101", Map("racing" -> Status.success, "pool" -> Status.success))
+          // Status = corn-field: horse@100, racing: horse@101, pool: horse@101
 
-          (thirdDeploymentRequestId, _) <- mockDeployExecution(product.name, "102", Map("racing" -> Status.success))
-          // Status = pool: horse@101?, racing: horse@102, corn-field: horse@100?
+          (thirdDeploymentRequestId, _) <- mockDeployExecution(product.name, "102", Map("racing" -> Status.productFailure))
+          // Status = corn-field: horse@100, racing: horse@102?, pool: horse@101
 
           // fixme: one day, first deployment will be retryable:
           // But second one can't be, because it impacts `racing`, whose status changed in the meantime
@@ -86,11 +86,11 @@ class EngineSpec extends Test with TestDb {
           (firstDeploymentRequestId, firstExecSpecId) <- mockDeployExecution(product.name, "27", Map("moon" -> Status.success, "mars" -> Status.success))
           // Status = moon: mouse@27, mars: mouse@27
 
-          (secondDeploymentRequestId, secondExecSpecId) <- mockDeployExecution(product.name, "54", Map("moon" -> Status.productFailure, "venus" -> Status.success))
+          (secondDeploymentRequestId, secondExecSpecId) <- mockDeployExecution(product.name, "54", Map("moon" -> Status.success, "venus" -> Status.success))
           // Status = moon: mouse@54, mars: mouse@27
 
           (thirdDeploymentRequestId, thirdExecSpecId) <- mockDeployExecution(product.name, "69", Map("moon" -> Status.success, "mars" -> Status.productFailure))
-          // Status = moon: mouse@69, mars: mouse@27
+          // Status = moon: mouse@69, mars: mouse@27?
 
           // Can't rollback as-is the first deployment request: we need to know the default rollback version
           firstDeploymentRequest <- engine.dbBinding.findDeepDeploymentRequestById(firstDeploymentRequestId).map(_.get)
@@ -121,8 +121,8 @@ class EngineSpec extends Test with TestDb {
           _ <- mockDeployExecution(product.name, "12", Map("orbit" -> Status.success))
           // Status = orbit: monkey@12
 
-          (secondDeploymentRequestId, _) <- mockDeployExecution(product.name, "55", Map("orbit" -> Status.success, "venus" -> Status.hostFailure))
-          // Status = orbit: monkey@55, venus: (none)
+          (secondDeploymentRequestId, _) <- mockDeployExecution(product.name, "55", Map("orbit" -> Status.success, "venus" -> Status.success))
+          // Status = orbit: monkey@55, venus: monkey@55
 
           (thirdDeploymentRequestId, _) <- mockDeployExecution(product.name, "69", Map("orbit" -> Status.success, "venus" -> Status.success))
           // Status = orbit: monkey@69, venus: monkey@69
@@ -150,11 +150,11 @@ class EngineSpec extends Test with TestDb {
         for {
           product <- engine.insertProduct("pony")
 
-          (firstDeploymentRequestId, firstExecSpecId) <- mockDeployExecution(product.name, "11", Map("tic" -> Status.success, "tac" -> Status.productFailure))
+          (firstDeploymentRequestId, firstExecSpecId) <- mockDeployExecution(product.name, "11", Map("tic" -> Status.success, "tac" -> Status.success))
           // Status = tic: pony@11, tac: pony@11
 
           (secondDeploymentRequestId, secondExecSpecId) <- mockDeployExecution(product.name, "22", Map("tic" -> Status.success, "tac" -> Status.success))
-          // Status = tic: pony@22, tac: pony@11
+          // Status = tic: pony@22, tac: pony@22
 
           // Rollback the last deployment request
           rollbackOperationTraceA <- engine.rollbackDeploymentRequest(secondDeploymentRequestId, "r.ollbacker", None).map(_.get)
