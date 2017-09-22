@@ -66,8 +66,8 @@ class DbBinding @Inject()(val dbContext: DbContext)
             .map { case (_, l) =>
               val (operationTraceRecord, _, _) = l.head
               val operationTrace = operationTraceRecord.toOperationTrace
-              val executionTraces = l.map(_._2).filter(_.isDefined).map(_.get).distinct.map(_.toExecutionTrace(operationTrace))
-              val targetStatuses = l.map(_._3).filter(_.isDefined).map(_.get).distinct.map(_.toTargetStatus)
+              val executionTraces = l.flatMap(_._2).distinct.map(_.toExecutionTrace(operationTrace))
+              val targetStatuses = l.flatMap(_._3).distinct.map(_.toTargetStatus)
               OperationEffect(operationTrace, executionTraces, targetStatuses)
             }
             .filter { case OperationEffect(_, et, _) => et.nonEmpty } // todo: remove that
