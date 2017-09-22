@@ -16,7 +16,8 @@ import scala.concurrent.Future
 
 object RequestStatus extends Enumeration {
   val inProgress = Value
-  val failed = Value
+  val initFailed = Value
+  val effectFailed = Value("failed")
   val succeeded = Value
 }
 
@@ -226,19 +227,17 @@ class Engine @Inject()(val dbBinding: DbBinding,
     dbBinding.deepQueryDeploymentRequests(where, orderBy, limit, offset)
 
   def computeState(operationTrace: ShallowOperationTrace, executionTraces: Iterable[ExecutionTrace]): (Operation.Kind, RequestStatus.Value) = {
-    val operationIsFinished = operationTrace.closingDate.nonEmpty
-    val operationHasFailures =
-      executionTraces.exists(_.state == ExecutionState.initFailed) ||
-        operationTrace.targetStatus.values.exists(_.code != Status.success)
-
-    val operationState = if (operationIsFinished) {
-      if (operationHasFailures)
-        RequestStatus.failed
+    val lastOperationState = operationTrace.closingDate.map { _ =>
+      if (executionTraces.forall(_.state == ExecutionState.initFailed))
+        RequestStatus.initFailed
+      else if (operationTrace.targetStatus.values.exists(_.code != Status.success))
+        RequestStatus.effectFailed
       else
         RequestStatus.succeeded
-    } else
+    }.getOrElse(
       RequestStatus.inProgress
-    (operationTrace.kind, operationState)
+    )
+    (operationTrace.kind, lastOperationState)
   }
 
 }
