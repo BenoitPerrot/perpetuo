@@ -159,7 +159,12 @@ class RestControllerSpec extends FeatureTest with TestDb {
   private def startDeploymentRequest(deploymentRequestId: Long): JsObject =
     startDeploymentRequest(deploymentRequestId, Ok).contentString.parseJson.asJsObject
 
-  private def createAndStartDeployment(productName: String, version: String, target: JsValue): (Long, Seq[Long]) = {
+  private var randomProductCounter = 1000
+
+  private def createAndStartDeployment(version: String, target: JsValue) = {
+    randomProductCounter += 1
+    val productName = s"random product $randomProductCounter"
+    createProduct(productName)
     val depReqId = requestDeployment(productName, version, target, None, start = false).idAsLong
     startDeploymentRequest(depReqId)
     (depReqId, getExecutionTracesByDeploymentRequestId(depReqId.toString).elements.map(_.idAsLong))
@@ -288,7 +293,8 @@ class RestControllerSpec extends FeatureTest with TestDb {
 
   "The DeploymentRequest's actions entry-point" should {
     "start a deployment that was not started yet (using deprecated API)" in {
-      val id = requestDeployment("my product", "not ready yet", "par".toJson, None, None, start = false).idAsLong
+      createProduct("my product A")
+      val id = requestDeployment("my product A", "not ready yet", "par".toJson, None, None, start = false).idAsLong
       httpPut(
         s"/api/deployment-requests/$id",
         "".toJson,
@@ -305,7 +311,8 @@ class RestControllerSpec extends FeatureTest with TestDb {
     }
 
     "start a deployment that was not started yet" in {
-      val id = requestDeployment("my product", "456", "ams".toJson, None, None, start = false).idAsLong
+      createProduct("my product B")
+      val id = requestDeployment("my product B", "456", "ams".toJson, None, None, start = false).idAsLong
       startDeploymentRequest(id.longValue()) shouldEqual JsObject("id" -> id.toJson)
     }
 
@@ -451,7 +458,7 @@ class RestControllerSpec extends FeatureTest with TestDb {
     }
 
     "update one record's execution state on a PUT" in {
-      val (depReqId, executionTraces) = createAndStartDeployment("my product", "1112", "paris".toJson)
+      val (depReqId, executionTraces) = createAndStartDeployment("1112", "paris".toJson)
       updateExecTrace(
         depReqId, executionTraces.head, "completed", None, None, Some("execution detail"),
         expectedTargetStatus = Map()
@@ -459,7 +466,7 @@ class RestControllerSpec extends FeatureTest with TestDb {
     }
 
     "update one record's execution state and log href on a PUT" in {
-      val (depReqId, executionTraces) = createAndStartDeployment("my product", "1112", "paris".toJson)
+      val (depReqId, executionTraces) = createAndStartDeployment("1112", "paris".toJson)
       updateExecTrace(
         depReqId, executionTraces.head, "completed", Some("http://somewhe.re"),
         expectedTargetStatus = Map()
@@ -467,7 +474,7 @@ class RestControllerSpec extends FeatureTest with TestDb {
     }
 
     "update one record's execution state and target status on a PUT" in {
-      val (depReqId, executionTraces) = createAndStartDeployment("my product", "653", Seq("paris", "ams").toJson)
+      val (depReqId, executionTraces) = createAndStartDeployment("653", Seq("paris", "ams").toJson)
       updateExecTrace(
         depReqId, executionTraces.head, "initFailed", None,
         targetStatus = Some(Map("paris" -> Map("code" -> "success", "detail" -> "").toJson)),
@@ -522,7 +529,7 @@ class RestControllerSpec extends FeatureTest with TestDb {
     }
 
     "return 400 if the target status is badly formatted and not update the state" in {
-      val (depReqId, executionTraces) = createAndStartDeployment("my product", "2456", Seq("paris", "amsterdam").toJson)
+      val (depReqId, executionTraces) = createAndStartDeployment("2456", Seq("paris", "amsterdam").toJson)
       val execTraceId = executionTraces.head
 
       httpPut(
@@ -546,7 +553,7 @@ class RestControllerSpec extends FeatureTest with TestDb {
     }
 
     "return 400 if the provided state is unknown" in {
-      val (_, executionTraces) = createAndStartDeployment("my product", "2456", Seq("paris", "amsterdam").toJson)
+      val (_, executionTraces) = createAndStartDeployment("2456", Seq("paris", "amsterdam").toJson)
 
       httpPut(
         RestApi.executionCallbackPath(executionTraces.head.toString),
@@ -556,7 +563,7 @@ class RestControllerSpec extends FeatureTest with TestDb {
     }
 
     "return 400 and not update the state if a provided target status is unknown" in {
-      val (depReqId, executionTraces) = createAndStartDeployment("my product", "2456", Seq("paris", "amsterdam").toJson)
+      val (depReqId, executionTraces) = createAndStartDeployment("2456", Seq("paris", "amsterdam").toJson)
       val execTraceId = executionTraces.head
 
       httpPut(
@@ -593,7 +600,8 @@ class RestControllerSpec extends FeatureTest with TestDb {
     }
 
     "return a list of operations when trying to access an existing DeploymentRequest" in {
-      val depReqId = requestDeployment("my product", "486", Seq("paris", "amsterdam").toJson, None, start = false).idAsLong
+      createProduct("my product C")
+      val depReqId = requestDeployment("my product C", "486", Seq("paris", "amsterdam").toJson, None, start = false).idAsLong
       startDeploymentRequest(depReqId)
       val traces = server.httpGet(
         path = s"/api/deployment-requests/$depReqId/operation-traces",
@@ -636,7 +644,7 @@ class RestControllerSpec extends FeatureTest with TestDb {
     }
 
     "return the right executions in a valid JSON" in {
-      val (depReqId, executionTraces) = createAndStartDeployment("my product", "3211", Seq("paris", "amsterdam").toJson)
+      val (depReqId, executionTraces) = createAndStartDeployment("3211", Seq("paris", "amsterdam").toJson)
       val execTraceId = executionTraces.head
       updateExecTrace(
         depReqId, execTraceId, "completed", Some("http://final"),
@@ -673,7 +681,8 @@ class RestControllerSpec extends FeatureTest with TestDb {
         )
       ) shouldEqual depReq.fields("operations")
 
-      val delayedDepReqId = requestDeployment("my product", "5133", "tokyo".toJson, None, start = false).idAsLong
+      createProduct("my product D")
+      val delayedDepReqId = requestDeployment("my product D", "5133", "tokyo".toJson, None, start = false).idAsLong
       startDeploymentRequest(delayedDepReqId)
       val delayedDepReq = deepGetDepReq(delayedDepReqId)
       JsArray(
