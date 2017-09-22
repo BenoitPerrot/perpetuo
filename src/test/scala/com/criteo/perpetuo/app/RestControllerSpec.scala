@@ -365,7 +365,7 @@ class RestControllerSpec extends FeatureTest with TestDb {
 
   private def getExecutionTracesByDeploymentRequestId(deploymentRequestId: String, expectedStatus: Status): Option[JsArray] = {
     val response = server.httpGet(
-      path = s"/api/execution-traces/by-deployment-request/$deploymentRequestId",
+      path = s"/api/deployment-requests/$deploymentRequestId/execution-traces",
       andExpect = expectedStatus
     )
     if (response.status == Ok)
@@ -577,7 +577,7 @@ class RestControllerSpec extends FeatureTest with TestDb {
 
     "return 404 when trying to access a non-existing DeploymentRequest" in {
       server.httpGet(
-        path = "/api/operation-traces/by-deployment-request/4242",
+        path = "/api/deployment-requests/4242/operation-traces",
         andExpect = NotFound
       )
     }
@@ -586,7 +586,7 @@ class RestControllerSpec extends FeatureTest with TestDb {
       val attrs = new DeploymentRequestAttrs("my product", Version("\"51\""), "\"t\"", "c", "c", new Timestamp(System.currentTimeMillis))
       val depReq = Await.result(controller.engine.createDeploymentRequest(attrs, immediateStart = false), 1.second)
       val traces = server.httpGet(
-        path = s"/api/operation-traces/by-deployment-request/${depReq("id")}",
+        path = s"/api/deployment-requests/${depReq("id")}/operation-traces",
         andExpect = Ok
       ).contentString.parseJson.asInstanceOf[JsArray].elements
       traces shouldBe empty
@@ -596,7 +596,7 @@ class RestControllerSpec extends FeatureTest with TestDb {
       val depReqId = requestDeployment("my product", "486", Seq("paris", "amsterdam").toJson, None, start = false).idAsLong
       startDeploymentRequest(depReqId)
       val traces = server.httpGet(
-        path = s"/api/operation-traces/by-deployment-request/$depReqId",
+        path = s"/api/deployment-requests/$depReqId/operation-traces",
         andExpect = Ok
       ).contentString.parseJson.asInstanceOf[JsArray].elements
       traces.length shouldEqual 1

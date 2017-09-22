@@ -195,14 +195,6 @@ class RestController @Inject()(val engine: Engine)
       5.seconds
     )
   )
-  // TODO: migrate clients to "/api/deployment-requests/:id/execution-traces" then remove <<
-  get("/api/execution-traces/by-deployment-request/:id")(
-    withLongId(
-      engine.findExecutionTracesByDeploymentRequest,
-      5.seconds
-    )
-  )
-  // >>
 
   put(RestApi.executionCallbackPath(":id")) {
     // todo: give the permission to Rundeck only
@@ -234,14 +226,6 @@ class RestController @Inject()(val engine: Engine)
       5.seconds
     )
   )
-  // TODO: migrate clients to "/api/deployment-requests/:id/operation-traces" then remove <<
-  get("/api/operation-traces/by-deployment-request/:id")(
-    withLongId(
-      engine.findOperationTracesByDeploymentRequest,
-      5.seconds
-    )
-  )
-  // >>
 
   private def serialize(depReq: DeepDeploymentRequest, sortedGroupsOfExecutions: Iterable[Iterable[ExecutionTrace]]): Map[String, Any] =
     Map(
