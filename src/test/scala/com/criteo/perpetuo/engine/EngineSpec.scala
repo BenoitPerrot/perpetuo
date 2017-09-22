@@ -52,14 +52,14 @@ class EngineSpec extends Test with TestDb {
       } yield (deploymentRequestId, executionSpecIds.head)
     }
 
-    def mockRollbackExecution(deploymentRequestId: Long, targetAtomToStatus: Map[String, Status.Code], defaultVersion: Option[Version] = None): Future[Unit] = {
+    def mockRollbackExecution(deploymentRequestId: Long, targetAtomToStatus: Map[String, Status.Code], defaultVersion: Option[Version] = None): Future[Long] = {
       for {
         operationTraceId <- engine.rollbackDeploymentRequest(deploymentRequestId, "r.everter", defaultVersion).map(_.get.id)
         executionTraceIds <- engine.dbBinding.findExecutionTraceIdsByOperationTrace(operationTraceId)
         _ <- Future.traverse(executionTraceIds)(
           engine.updateExecutionTrace(_, ExecutionState.completed, "", "", targetAtomToStatus.mapValues(c => TargetAtomStatus(c, "")))
         )
-      } yield ()
+      } yield operationTraceId
     }
 
     "check that an operation can be started only if previous transactions on the same product have been completed" in {
@@ -200,33 +200,58 @@ class EngineSpec extends Test with TestDb {
           // Status = tic: pony@11, tac: pony@11
 
           (secondDeploymentRequestId, secondExecSpecId) <- mockDeployExecution(product.name, "22", Map("tic" -> Status.success, "tac" -> Status.success))
+          secondDeploymentRequest <- engine.dbBinding.findDeepDeploymentRequestById(secondDeploymentRequestId).map(_.get)
           // Status = tic: pony@22, tac: pony@22
 
           // Rollback the last deployment request
-          rollbackOperationTraceA <- engine.rollbackDeploymentRequest(secondDeploymentRequestId, "r.ollbacker", None).map(_.get)
-          rollbackExecutionSpecIdsA <- engine.dbBinding.findExecutionSpecIdsByOperationTrace(rollbackOperationTraceA.id)
+          rollbackOperationTraceIdA <- mockRollbackExecution(secondDeploymentRequestId, Map("tic" -> Status.success, "tac" -> Status.hostFailure), None)
+          rollbackExecutionSpecIdsA <- engine.dbBinding.findExecutionSpecIdsByOperationTrace(rollbackOperationTraceIdA)
+          // Status = tic: pony@11, tac: pony@11
+
+          (thirdDeploymentRequestId, thirdExecSpecId) <- mockDeployExecution(product.name, "33", Map("tic" -> Status.success, "tac" -> Status.success))
+          // Status = tic: pony@33, tac: pony@33
+
+          // Second request can't be rolled back anymore
+          rejectionOfSecondA <- engine.canRevertDeploymentRequest(secondDeploymentRequest, isStarted = true).failed
+
+          // Rollback the last deployment request
+          rollbackOperationTraceIdB <- mockRollbackExecution(thirdDeploymentRequestId, Map("tic" -> Status.success, "tac" -> Status.success), None)
+          rollbackExecutionSpecIdsB <- engine.dbBinding.findExecutionSpecIdsByOperationTrace(rollbackOperationTraceIdB)
+          // Status = tic: pony@11, tac: pony@11
+
+          // Second request still can't be rolled back
+          rejectionOfSecondB <- engine.canRevertDeploymentRequest(secondDeploymentRequest, isStarted = true).failed
 
           // Can rollback the first one now that the second one has been rolled back, but it requires to specify to which version to rollback
           required <- engine.rollbackDeploymentRequest(firstDeploymentRequestId, "r.ollbacker", None).recover { case e: UnprocessableAction => e.required }.map(_.get)
 
-          rollbackOperationTraceB <- engine.rollbackDeploymentRequest(firstDeploymentRequestId, "r.ollbacker", Some(defaultRollbackVersion)).map(_.get)
-          rollbackExecutionSpecIdsB <- engine.dbBinding.findExecutionSpecIdsByOperationTrace(rollbackOperationTraceB.id)
-          rollbackExecutionSpecB <- engine.dbBinding.findExecutionSpecificationById(rollbackExecutionSpecIdsB.head).map(_.get)
+          rollbackOperationTraceC <- engine.rollbackDeploymentRequest(firstDeploymentRequestId, "r.ollbacker", Some(defaultRollbackVersion)).map(_.get)
+          rollbackExecutionSpecIdsC <- engine.dbBinding.findExecutionSpecIdsByOperationTrace(rollbackOperationTraceC.id)
+          rollbackExecutionSpecC <- engine.dbBinding.findExecutionSpecificationById(rollbackExecutionSpecIdsC.head).map(_.get)
 
         } yield (
-          rollbackOperationTraceA.deploymentRequestId == secondDeploymentRequestId,
           rollbackExecutionSpecIdsA.length,
           rollbackExecutionSpecIdsA.contains(firstExecSpecId),
 
+          rejectionOfSecondA.getMessage,
+
+          rollbackExecutionSpecIdsB.length,
+          rollbackExecutionSpecIdsB.contains(firstExecSpecId),
+
+          rejectionOfSecondB.getMessage,
+
           required,
 
-          rollbackOperationTraceB.deploymentRequestId == firstDeploymentRequestId,
-          rollbackExecutionSpecIdsB.length,
-          rollbackExecutionSpecB.version == defaultRollbackVersion
+          rollbackOperationTraceC.deploymentRequestId == firstDeploymentRequestId,
+          rollbackExecutionSpecIdsC.length,
+          rollbackExecutionSpecC.version == defaultRollbackVersion
         ),
         2.seconds
       ) shouldBe(
-        true, 1, true,
+        1, true,
+        "a newer one has already been applied",
+        1, true,
+        "a newer one has already been applied",
         "defaultVersion",
         true, 1, true
       )
