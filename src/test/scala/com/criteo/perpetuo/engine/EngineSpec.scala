@@ -45,11 +45,11 @@ class EngineSpec extends Test with TestDb {
     def mockDeployExecution(productName: String, v: String, targetAtomToStatus: Map[String, Status.Code]): Future[(Long, Long)] = {
       for {
         deploymentRequestId <- engine.createDeploymentRequest(new DeploymentRequestAttrs(productName, Version(JsString(v).compactPrint), targetAtomToStatus.keys.toJson.compactPrint, "", "r.equestor", new Timestamp(System.currentTimeMillis)), immediateStart = false).map(_ ("id").toString.toLong)
-        _ <- engine.startDeploymentRequest(deploymentRequestId, "s.tarter")
-        executionTrace <- engine.dbBinding.findExecutionTracesByDeploymentRequest(deploymentRequestId).map(_.head)
-        executionSpecId <- engine.dbBinding.findExecutionSpecificationId(executionTrace.executionId)
-        _ <- engine.updateExecutionTrace(executionTrace.id, ExecutionState.completed, "", "", targetAtomToStatus.mapValues(c => TargetAtomStatus(c, "")))
-      } yield (deploymentRequestId, executionSpecId.get)
+        operationTraceId <- engine.startDeploymentRequest(deploymentRequestId, "s.tarter").map(_.get.id)
+        executionTraceIds <- engine.dbBinding.findExecutionTraceIdsByOperationTrace(operationTraceId)
+        executionSpecIds <- engine.dbBinding.findExecutionSpecIdsByOperationTrace(operationTraceId)
+        _ <- engine.updateExecutionTrace(executionTraceIds.head, ExecutionState.completed, "", "", targetAtomToStatus.mapValues(c => TargetAtomStatus(c, "")))
+      } yield (deploymentRequestId, executionSpecIds.head)
     }
 
     "check if an operation can be retried" in {

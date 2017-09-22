@@ -101,4 +101,15 @@ trait ExecutionTraceBinder extends TableBinder {
       assert(count <= 1)
       count == 1
     })
+
+  // for tests only
+  def findExecutionTraceIdsByOperationTrace(operationTraceId: Long): Future[Seq[Long]] =
+    dbContext.db.run(
+      executionTraceQuery.join(executionQuery)
+        .filter { case (trace, execution) =>
+          trace.executionId === execution.id && execution.operationTraceId === operationTraceId
+        }
+        .map { case (trace, _) => trace.id }
+        .result
+    )
 }
