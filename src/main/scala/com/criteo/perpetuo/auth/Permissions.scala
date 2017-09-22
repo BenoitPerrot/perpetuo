@@ -1,6 +1,6 @@
 package com.criteo.perpetuo.auth
 
-import com.criteo.perpetuo.model.Operation.Kind
+import com.criteo.perpetuo.model.Operation
 
 
 object GeneralAction extends Enumeration {
@@ -18,12 +18,12 @@ object DeploymentAction extends Enumeration {
 trait Permissions {
   def isAuthorized(username: String, action: GeneralAction.Value): Boolean
 
-  def isAuthorized(username: String, action: DeploymentAction.Value, operation: Kind, productName: String, target: Iterable[String]): Boolean
+  def isAuthorized(username: String, action: DeploymentAction.Value, operation: Operation.Kind, productName: String, target: Iterable[String]): Boolean
 }
 
 
 class Unrestricted extends Permissions {
   override def isAuthorized(username: String, action: GeneralAction.Value) = true
 
-  override def isAuthorized(username: String, action: DeploymentAction.Value, operation: Kind, productName: String, target: Iterable[String]) = true
+  override def isAuthorized(username: String, action: DeploymentAction.Value, operation: Operation.Kind, productName: String, target: Iterable[String]) = true
 }
