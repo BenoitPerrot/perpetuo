@@ -1,5 +1,7 @@
 package com.criteo.perpetuo.config
 
+import java.io.File
+import java.net.URL
 import java.util.logging.Logger
 
 import com.criteo.perpetuo.auth.{Permissions, PermissionsByOperationAndUsername, Unrestricted}
@@ -20,12 +22,15 @@ class Plugins(appConfig: RootAppConfig = AppConfig) {
     val t: String = try config.get("type") catch {
       case _: ConfigException.Missing => throw new Exception(s"No $typeName is configured, while one is required")
     }
-    f.applyOrElse(t, (_: String) match {
-      case t@"groovyScript" =>
-        loader.instantiate(config.get(t)).asInstanceOf[T]
+    def instantiate(path: String): T = loader.instantiate(path match {
+      case "groovyScriptResource" =>
+        getClass.getResource(config.get(t))
+      case "groovyScriptFile" =>
+        new File(config.get[String](t)).getAbsoluteFile.toURI.toURL
       case unknownType: String =>
         throw new Exception(s"Unknown $typeName configured: $unknownType")
-    })
+    }).asInstanceOf[T]
+    f.applyOrElse(t, instantiate)
   }
 
   def invoker(invokerConfig: AppConfig): ExecutorInvoker = {

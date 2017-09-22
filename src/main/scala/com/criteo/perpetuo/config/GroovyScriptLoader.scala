@@ -1,6 +1,7 @@
 package com.criteo.perpetuo.config
 
 import java.io.{File, InputStreamReader}
+import java.net.URL
 import javax.script.{ScriptEngine, ScriptEngineManager}
 
 
@@ -8,8 +9,7 @@ class GroovyScriptLoader(appConfig: RootAppConfig = AppConfig) {
   private val engine: ScriptEngine = new ScriptEngineManager().getEngineByName("groovy") // todo? use GroovyScriptEngine
   assert(engine != null)
 
-  def instantiate(scriptPath: String): AnyRef = {
-    val resource = getClass.getResource(scriptPath)
+  def instantiate(resource: URL): AnyRef = {
     try {
       val cls = engine.eval(new InputStreamReader(resource.openStream())).asInstanceOf[Class[AnyRef]]
       Seq(// supported instantiation parameters:
