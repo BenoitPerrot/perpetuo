@@ -5,7 +5,7 @@ import javax.inject.Inject
 import com.criteo.perpetuo.auth.UserFilter._
 import com.criteo.perpetuo.auth.{DeploymentAction, GeneralAction, User}
 import com.criteo.perpetuo.dao.{ProductCreationConflict, Schema, UnknownProduct}
-import com.criteo.perpetuo.engine.{Engine, UnprocessableAction}
+import com.criteo.perpetuo.engine.{Engine, OperationStatus, UnprocessableAction}
 import com.criteo.perpetuo.model._
 import com.twitter.finagle.http.{Request, Response, Status => HttpStatus}
 import com.twitter.finatra.http.exceptions.{BadRequestException, ConflictException, HttpResponseException}
@@ -236,9 +236,12 @@ class RestController @Inject()(val engine: Engine)
       "version" -> depReq.version,
       "target" -> RawJson(depReq.target),
       "productName" -> depReq.product.name,
-      "state" -> lastExecutionTraces
+      "state" -> lastExecutionTraces // for the UI: below is what will be displayed (and it must match css classes)
         .map { case (opTrace, execTraces) => engine.computeState(opTrace, execTraces) }
-        .map { case (op, state) => s"$op $state" }
+        .map {
+          case (op, OperationStatus.succeeded) => s"${op}ed" // => deployed or reverted :p
+          case (op, state) => s"$op $state"
+        }
         .getOrElse("notStarted")
     )
 
