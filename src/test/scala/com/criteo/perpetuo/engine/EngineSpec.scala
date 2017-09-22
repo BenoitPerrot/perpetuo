@@ -87,10 +87,10 @@ class EngineSpec extends Test with TestDb {
           // Status = moon: mouse@27, mars: mouse@27
 
           (secondDeploymentRequestId, secondExecSpecId) <- mockDeployExecution(product.name, "54", Map("moon" -> Status.success, "venus" -> Status.success))
-          // Status = moon: mouse@54, mars: mouse@27
+          // Status = moon: mouse@54, mars: mouse@27, venus: mouse@54
 
           (thirdDeploymentRequestId, thirdExecSpecId) <- mockDeployExecution(product.name, "69", Map("moon" -> Status.success, "mars" -> Status.productFailure))
-          // Status = moon: mouse@69, mars: mouse@27?
+          // Status = moon: mouse@69, mars: mouse@69?, venus: mouse@54
 
           // Can't rollback as-is the first deployment request: we need to know the default rollback version
           firstDeploymentRequest <- engine.dbBinding.findDeepDeploymentRequestById(firstDeploymentRequestId).map(_.get)
@@ -103,13 +103,13 @@ class EngineSpec extends Test with TestDb {
         } yield (
           rollbackSpecsForFirst,
           rollbackSpecsForThird.size,
-          rollbackSpecsForThird("mars").get.id == firstExecSpecId,
           rollbackSpecsForThird("moon").get.id == secondExecSpecId,
-          rollbackSpecsForThird("mars").get.version.toString,
-          rollbackSpecsForThird("moon").get.version.toString
+          rollbackSpecsForThird("mars").get.id == firstExecSpecId,
+          rollbackSpecsForThird("moon").get.version.toString,
+          rollbackSpecsForThird("mars").get.version.toString
         ),
         2.seconds
-      ) shouldBe(Map("mars" -> None, "moon" -> None), 2, true, true, """"27"""", """"54"""")
+      ) shouldBe(Map("moon" -> None, "mars" -> None), 2, true, true, """"54"""", """"27"""")
     }
 
     "check if an operation can be rolled back" in {
