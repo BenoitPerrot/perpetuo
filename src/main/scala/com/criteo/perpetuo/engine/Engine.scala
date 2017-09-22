@@ -130,7 +130,19 @@ class Engine @Inject()(val dbBinding: DbBinding,
   def startDeploymentRequest(deploymentRequestId: Long, initiatorName: String): Future[Option[OperationTrace]] = {
     dbBinding.findDeepDeploymentRequestById(deploymentRequestId).flatMap(
       _.map { req =>
-        startDeploymentRequest(req, initiatorName, atCreation = false).map(Some(_))
+        dbBinding.findLastOperationAndEffect(req.productId).flatMap { lastEffect =>
+          lastEffect.foreach { case OperationEffect(operationTrace, executionTraces, _) =>
+            computeState(operationTrace, executionTraces) match {
+              case (_, OperationStatus.inProgress) => // todo: as long as we don't have locking mechanism only
+                throw UnprocessableAction(s"wait for deployment request #${lastEffect.get.operationTrace.deploymentRequestId} to end")
+              case (Operation.deploy, OperationStatus.effectFailed) =>
+                throw UnprocessableAction(s"deployment request #${lastEffect.get.operationTrace.deploymentRequestId} has been left in an uncertain state, complete it first")
+              case _ =>
+            }
+          }
+
+          startDeploymentRequest(req, initiatorName, atCreation = false).map(Some(_))
+        }
       }.getOrElse(Future.successful(None))
     )
   }

@@ -42,14 +42,60 @@ class EngineSpec extends Test with TestDb {
       ) shouldBe(true, false, false)
     }
 
-    def mockDeployExecution(productName: String, v: String, targetAtomToStatus: Map[String, Status.Code]): Future[(Long, Long)] = {
+    def mockDeployExecution(productName: String, v: String, targetAtomToStatus: Map[String, Status.Code], initFailure: Option[String] = None): Future[(Long, Long)] = {
       for {
         deploymentRequestId <- engine.createDeploymentRequest(new DeploymentRequestAttrs(productName, Version(JsString(v).compactPrint), targetAtomToStatus.keys.toJson.compactPrint, "", "r.equestor", new Timestamp(System.currentTimeMillis)), immediateStart = false).map(_ ("id").toString.toLong)
         operationTraceId <- engine.startDeploymentRequest(deploymentRequestId, "s.tarter").map(_.get.id)
         executionTraceIds <- engine.dbBinding.findExecutionTraceIdsByOperationTrace(operationTraceId)
         executionSpecIds <- engine.dbBinding.findExecutionSpecIdsByOperationTrace(operationTraceId)
-        _ <- engine.updateExecutionTrace(executionTraceIds.head, ExecutionState.completed, "", "", targetAtomToStatus.mapValues(c => TargetAtomStatus(c, "")))
+        _ <- engine.updateExecutionTrace(executionTraceIds.head, initFailure.map(_ => ExecutionState.initFailed).getOrElse(ExecutionState.completed), initFailure.getOrElse(""), "", targetAtomToStatus.mapValues(c => TargetAtomStatus(c, "")))
       } yield (deploymentRequestId, executionSpecIds.head)
+    }
+
+    def mockRollbackExecution(deploymentRequestId: Long, targetAtomToStatus: Map[String, Status.Code], defaultVersion: Option[Version] = None): Future[Unit] = {
+      for {
+        operationTraceId <- engine.rollbackDeploymentRequest(deploymentRequestId, "r.everter", defaultVersion).map(_.get.id)
+        executionTraceIds <- engine.dbBinding.findExecutionTraceIdsByOperationTrace(operationTraceId)
+        _ <- Future.traverse(executionTraceIds)(
+          engine.updateExecutionTrace(_, ExecutionState.completed, "", "", targetAtomToStatus.mapValues(c => TargetAtomStatus(c, "")))
+        )
+      } yield ()
+    }
+
+    "check that an operation can be started only if previous transactions on the same product have been completed" in {
+      Await.result(
+        for {
+          product <- engine.insertProduct("pig")
+
+          // OK if it's the first
+          _ <- mockDeployExecution(product.name, "99", Map("racing" -> Status.success))
+
+          // OK after a success
+          (secondId, _) <- mockDeployExecution(product.name, "100", Map("corn-field" -> Status.hostFailure))
+
+          // not OK if it's after a deployment failure
+          conflictMsg <- mockDeployExecution(product.name, "101", Map("racing" -> Status.success))
+            .map(_ => "unrejected").recover { case UnprocessableAction(msg, _) => msg }
+
+          // the failing one must be reverted first
+          _ <- mockRollbackExecution(secondId, Map("corn-field" -> Status.hostFailure), Some(Version(""""big-bang"""")))
+
+          // OK after the failing has been reverted (even if the revert failed)
+          (thirdId, _) <- mockDeployExecution(product.name, "101", Map("racing" -> Status.success))
+
+          // note that we can revert a successful operation
+          _ <- mockRollbackExecution(thirdId, Map("racing" -> Status.success))
+
+          // OK after a revert of a successful operation
+          _ <- mockDeployExecution(product.name, "102", Map("corn-field" -> Status.notDone), Some("crashed at start"))
+
+          // OK after a init failure
+          _ <- mockDeployExecution(product.name, "103", Map("racing" -> Status.success))
+        } yield {
+          conflictMsg shouldBe s"deployment request #$secondId has been left in an uncertain state, complete it first"
+        },
+        2.seconds
+      )
     }
 
     "check if an operation can be retried" in {

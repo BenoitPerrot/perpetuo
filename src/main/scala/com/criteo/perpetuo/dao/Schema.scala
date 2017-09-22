@@ -311,4 +311,28 @@ class DbBinding @Inject()(val dbContext: DbContext)
     dbContext.db.run(query.result)
       .map(_.collectFirst { case (targetAtom, actionable) if !actionable => targetAtom })
   }
+
+  // fixme: early target resolution should make this function obsolete
+  def findLastOperationAndEffect(productId: Int): Future[Option[OperationEffect]] = {
+    dbContext.db.run(
+      deploymentRequestQuery
+        .filter(_.productId === productId)
+        .join(operationTraceQuery).on { case (deploymentRequest, operationTrace) => deploymentRequest.id === operationTrace.deploymentRequestId }
+        .sortBy { case (_, op) => op.id.desc }
+        .take(1)
+        .joinLeft(executionQuery).on { case ((_, operationTrace), execution) => operationTrace.id === execution.operationTraceId }
+        .joinLeft(executionTraceQuery).on { case ((_, execution), executionTrace) => execution.map(_.id) === executionTrace.executionId }
+        .joinLeft(targetStatusQuery).on { case (((_, execution), _), targetStatus) => execution.map(_.id) === targetStatus.executionId }
+        .map { case ((((_, operationTrace), _), executionTrace), targetStatus) => (operationTrace, executionTrace, targetStatus) }
+        .result)
+
+      .map(results =>
+        results.headOption.map { case (op, _, _) =>
+          val operationTrace = op.toOperationTrace
+          val executionTraces = results.flatMap(_._2).distinct.map(_.toExecutionTrace(operationTrace))
+          val targetStatuses = results.flatMap(_._3).distinct.map(_.toTargetStatus)
+          OperationEffect(operationTrace, executionTraces, targetStatuses)
+        }
+      )
+  }
 }
