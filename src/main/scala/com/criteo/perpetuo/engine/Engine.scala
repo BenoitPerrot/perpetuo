@@ -69,14 +69,14 @@ class Engine @Inject()(val dbBinding: DbBinding,
     }
   }
 
-  private def startDeploymentRequest(req: DeepDeploymentRequest, initiatorName: String, atCreation: Boolean): Future[(OperationTrace, Int, Int)] =
+  private def startDeploymentRequest(req: DeepDeploymentRequest, initiatorName: String, atCreation: Boolean): Future[OperationTrace] =
     operationStarter
       .start(targetDispatcher, req, Operation.deploy, initiatorName)
       .map { case (op, started, failed) =>
         Future(listener.onDeploymentRequestStarted(req, started, failed, atCreation))
         if (started == 0)
           closeOperation(op, req)
-        (op, started, failed)
+        op
       }
 
   private def closeOperation(operationTrace: OperationTrace, deploymentRequest: DeepDeploymentRequest): Future[Boolean] = {
@@ -119,7 +119,7 @@ class Engine @Inject()(val dbBinding: DbBinding,
         )
       )
 
-  def startDeploymentRequest(deploymentRequestId: Long, initiatorName: String): Future[Option[(OperationTrace, Int, Int)]] = {
+  def startDeploymentRequest(deploymentRequestId: Long, initiatorName: String): Future[Option[OperationTrace]] = {
     dbBinding.findDeepDeploymentRequestById(deploymentRequestId).flatMap(
       _.map { req =>
         startDeploymentRequest(req, initiatorName, atCreation = false).map(Some(_))
