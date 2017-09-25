@@ -206,9 +206,9 @@
         this.client.deployDeploymentRequest(this.deploymentRequestId)
             .then(_ => this.refresh())
             .catch(error => {
-              if (error.type === 'conflicting-deployment-requests') {
+              if (error.conflicts) {
                 const panel = this.$$('perpetuo-conflicting-deployment-requests');
-                panel.conflicts = error.detail.conflicts
+                panel.conflicts = error.conflicts;
                 panel.open();
               }
             })
