@@ -100,36 +100,8 @@ this.Perpetuo.Client = this.Perpetuo.Client || (function () {
       }));
     }
 
-    fetchTargetsForProduct(productName) {
-      return fetch(`http://moab.criteois.lan/products/${productName}/manifest.json`)
-        .then(_ => _.json())
-        .then(productManifest => {
-          if (productManifest.type === 'marathon') {
-            return [
-              { code: 'par', name: 'Paris' },
-              { code: 'am5', name: 'Amsterdam' },
-              { code: 'ny8', name: 'New York' },
-              { code: 'sv6', name: 'Sunnyvale' },
-              { code: 'va1', name: 'Ashburn' },
-              { code: 'hk5', name: 'Hong Kong' },
-              { code: 'sh5', name: 'Shanghai' },
-              { code: 'ty5', name: 'Tokyo' }
-            ];
-          }
-          return [];
-        })
-    }
-
     createProduct(productName) {
       return jsonFetch('/api/products', {method: 'POST', body: JSON.stringify({name: productName})});
-    }
-
-    validateProductVersion(productName, version) {
-      return jsonFetch(`/api/products/validate-version`, {method: 'POST', body: JSON.stringify({name: productName, version: version})}).then(_ => _.json());
-    }
-
-    suggestProductVersions(productName) {
-      return jsonFetch(`/api/products/suggest-versions`, {method: 'POST', body: JSON.stringify({name: productName})}).then(_ => _.json());
     }
   };
 }());
