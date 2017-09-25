@@ -21,7 +21,7 @@ class StaticAssetsControllerSpec extends FeatureTest {
         .filter[LoggingMDCFilter[Request, Response]]
         .filter[TraceIdMDCFilter[Request, Response]]
         .filter[CommonFilters]
-        .add[StaticAssetsController]
+        .add(new StaticAssetsController(Seq()))
     }
   })
 
