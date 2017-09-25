@@ -238,7 +238,8 @@ class RestController @Inject()(val engine: Engine)
       "state" -> lastExecutionTraces // for the UI: below is what will be displayed (and it must match css classes)
         .map { case (opTrace, execTraces) => engine.computeState(opTrace, execTraces) }
         .map {
-          case (op, OperationStatus.succeeded) => s"${op}ed" // => deployed or reverted :p
+          case (Operation.deploy, OperationStatus.succeeded) => "deployed"
+          case (Operation.revert, OperationStatus.succeeded) => "reverted"
           case (op, state) => s"$op $state"
         }
         .getOrElse("notStarted")
