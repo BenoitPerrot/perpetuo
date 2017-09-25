@@ -9,7 +9,6 @@
 <link rel="import" href="../../bower_components/paper-item/paper-item.html">
 <link rel="import" href="../../bower_components/paper-listbox/paper-listbox.html">
 
-<link rel="import" href="../perpetuo-deployment-request/perpetuo-criteo-target-expression-editor.html">
 <link rel="import" href="../perpetuo-client/perpetuo-client.html">
 
 <dom-module id="perpetuo-deployment-request-creation-form">
@@ -64,8 +63,7 @@
           </paper-dropdown-menu>
           <paper-input id="versionEditor" label="Version"></paper-input>
         </div>
-        <!-- TODO: Make this a _pluggable_ component -->
-        <perpetuo-criteo-target-expression-editor product-name="[[selectedProductName]]" id="targetSelector"></perpetuo-criteo-target-expression-editor>
+        <paper-input id="targetEditor" label="Target"></paper-input>
         <paper-textarea id="commentEditor" label="Comment"></paper-textarea>
       </paper-dialog-scrollable>
       <div class="buttons">
@@ -107,7 +105,7 @@
                                           // TODO: remove this hack as soon as the UI allows inputing complex version specifications <<
                                           (_ => { try { const x = JSON.parse(_); return Array.isArray(x) ? x : _; } catch (e) { return _; } }) (this.$.versionEditor.value),
                                           // >>
-                                          this.$.targetSelector.value,
+                                          this.$.targetEditor.value,
                                           comment)
           .then(r => {
             if (r.ok) {
@@ -122,7 +120,7 @@
     clear() {
       this.$.productSelector.selected = null;
       this.$.versionEditor.value = '';
-      this.$.targetSelector.clear();
+      this.$.targetEditor.value = '';
       this.$.commentEditor.value = '';
     },
   });
