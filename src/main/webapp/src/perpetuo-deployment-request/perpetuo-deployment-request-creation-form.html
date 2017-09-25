@@ -214,12 +214,7 @@
           .then(r => {
             if (r.ok) {
               r.json().then(o => {
-                // TODO: remove once JIRA stops driving Perpetuo <<
-                if (o.ticketUrl)
-                  window.location.replace(o.ticketUrl);
-                else
-                  // >>
-                  window.location.replace(`/deployment-requests/${o.id}`);
+                window.location.replace(`/deployment-requests/${o.id}`);
               });
             }
             this.close();
