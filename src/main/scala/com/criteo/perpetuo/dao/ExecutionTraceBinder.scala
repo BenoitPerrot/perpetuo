@@ -11,8 +11,7 @@ private[dao] case class ExecutionTraceRecord(id: Option[Long],
                                              executionId: Long,
                                              logHref: Option[String] = None,
                                              state: ExecutionState = ExecutionState.pending,
-                                             detail: String = "",
-                                             operationTraceId: Option[Long] = None) {
+                                             detail: String = "") {
   def toExecutionTrace(operationTrace: ShallowOperationTrace): ExecutionTrace = {
     ExecutionTrace(id.get, executionId, operationTrace, logHref, state, detail)
   }
@@ -40,9 +39,7 @@ trait ExecutionTraceBinder extends TableBinder {
     def state = column[ExecutionState]("state")
     def detail = column[String]("detail", O.SqlType("nvarchar(1024)"))
 
-    def operationTraceId = column[Option[Long]]("operation_trace_id") // fixme: migration only
-
-    def * = (id.?, executionId, logHref, state, detail, operationTraceId) <> (ExecutionTraceRecord.tupled, ExecutionTraceRecord.unapply)
+    def * = (id.?, executionId, logHref, state, detail) <> (ExecutionTraceRecord.tupled, ExecutionTraceRecord.unapply)
   }
 
   val executionTraceQuery = TableQuery[ExecutionTraceTable]

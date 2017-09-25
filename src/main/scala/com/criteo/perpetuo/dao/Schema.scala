@@ -21,14 +21,6 @@ class Schema(val dbContext: DbContext)
   def createTables(): Unit = {
     Await.result(dbContext.db.run(all.create), 2.seconds)
   }
-
-  def removeOldFks() = {
-    dbContext.db.run(executionTraceQuery.filter(_.operationTraceId.nonEmpty).map(_.operationTraceId).update(None))
-  }
-
-  def countOldFks() = {
-    dbContext.db.run(executionTraceQuery.filter(_.operationTraceId.nonEmpty).length.result)
-  }
 }
 
 

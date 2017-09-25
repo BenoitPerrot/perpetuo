@@ -315,16 +315,6 @@ class RestController @Inject()(val engine: Engine)
       5.seconds)
   }
 
-  // todo: remove, it's for migration only
-  post("/api/unstable/db/execution-traces/remove-old-fks") { _: Request =>
-    val schema = new Schema(engine.dbBinding.dbContext)
-    Await.result(schema.removeOldFks().map(x => Map("status" -> x)), 2.hours)
-  }
-  get("/api/unstable/db/execution-traces/count-old-fks") { _: Request =>
-    val schema = new Schema(engine.dbBinding.dbContext)
-    Await.result(schema.countOldFks().map(x => Map("count" -> x)), 2.seconds)
-  }
-
   // Be sure to capture invalid calls to APIs
   get("/api/:*") { _: Request =>
     response.notFound
