@@ -12,69 +12,6 @@
 <link rel="import" href="../perpetuo-deployment-request/perpetuo-criteo-target-expression-editor.html">
 <link rel="import" href="../perpetuo-client/perpetuo-client.html">
 
-<dom-module id="perpetuo-input-suggester">
-  <template>
-    <style>
-    :host {
-      --paper-item-selected-weight: normal;
-    }
-    </style>
-    <paper-input id="selector" label="Version" value="{{selection}}" on-focus="onFocus" on-focusout="onFocusOut"></paper-input>
-
-    <div id="suggester"
-         style="z-index: 103; position: absolute; overflow: auto; background:#fff; box-shadow: 0 2px 2px 0 rgba(0, 0, 0, 0.14), 0 1px 5px 0 rgba(0, 0, 0, 0.12), 0 3px 1px -2px rgba(0, 0, 0, 0.2);"
-         hidden>
-      <paper-listbox on-focusout="onFocusOut">
-        <template is="dom-repeat" items="[[highlight(suggestions, selection)]]">
-          <paper-item style="cursor:pointer" on-tap="selectSuggestion" on-focusout="onFocusOut"><span style="font-weight: bold">[[item.high]]</span><span>[[item.low]]</span></paper-item>
-        </template>
-      </paper-listbox>
-    </div>
-  </template>
-  <script>
-  (function () {
-    function isChildOf(node, possibleParent) {
-      while (node) {
-        if (node === possibleParent)
-          return true;
-        node = node.parentElement;
-      }
-      return false;
-    }
-
-    Polymer({
-      is: 'perpetuo-input-suggester',
-
-      properties: {
-        selection: { type: String, notify: true },
-        suggestions: { type: Array, value: () => [] }
-      },
-
-      onFocus(e) {
-        this.$.suggester.hidden = false;
-      },
-
-      onFocusOut(e) {
-        if (! (e.relatedTarget && isChildOf(e.relatedTarget, this.$.suggester)))
-          this.$.suggester.hidden = true;
-      },
-
-      selectSuggestion(e) {
-        this.selection = e.model.item.full;
-      },
-
-      highlight(suggestions, selection) {
-        const x = suggestions.map(_ =>
-          _.startsWith(selection) ? { high: selection, low: _.substring(selection.length), full: _ } : null
-        ).filter(_ => _ !== null);
-        return x;
-      },
-    })
-
-  } ());
-  </script>
-</dom-module>
-
 <dom-module id="perpetuo-deployment-request-creation-form">
   <template>
     <style>
@@ -125,11 +62,7 @@
               </template>
             </paper-listbox>
           </paper-dropdown-menu>
-          <div>
-            <perpetuo-input-suggester suggestions="[[versionSuggestions]]" selection="{{selectedVersion}}"></perpetuo-input-suggester>
-            <p class="versionMessage">Requested version could not be validated</p>
-            <p class="versionMessage">[[reason]]</p>
-          </div>
+          <paper-input id="versionEditor" label="Version"></paper-input>
         </div>
         <!-- TODO: Make this a _pluggable_ component -->
         <perpetuo-criteo-target-expression-editor product-name="[[selectedProductName]]" id="targetSelector"></perpetuo-criteo-target-expression-editor>
@@ -146,45 +79,13 @@
     is: 'perpetuo-deployment-request-creation-form',
 
     properties: {
-      isVersionValid: { type: Boolean, reflectToAttribute: true, value: true },
-      reason: { type: String },
       selectedProductItem: Object,
-      selectedProductName: { type: String, computed: 'computeSelectedProductName(selectedProductItem)', observer: 'onSelectedProductNameChanged' },
+      selectedProductName: { type: String, computed: 'computeSelectedProductName(selectedProductItem)' },
       products: { type: Array, value: () => [] },
-      versionSuggestions: { type: Array, value: () => [] },
-      selectedVersion: { type: String, notify: true, observer: 'onSelectedVersionChanged' }
-    },
-
-    onSelectedVersionChanged(v) {
-      if (v && this.selectedProductName) {
-        this.client.validateProductVersion(this.selectedProductName, v).then(r => {
-          if (v === this.selectedVersion) { // Support out-of-order execution
-            this.isVersionValid = r.valid;
-            if (!r.valid) {
-              this.reason = r.reason;
-            }
-          }
-        });
-      } else {
-        this.isVersionValid = true;
-      }
     },
 
     computeSelectedProductName(selectedProductItem) {
       return selectedProductItem ? selectedProductItem.name : null;
-    },
-
-    onSelectedProductNameChanged(name) {
-      this.versionSuggestions = [];
-      if (name !== null) {
-        this.client.suggestProductVersions(name).then(_ => {
-          if (!_.errors) { // TODO: decide of error handling in the client
-            if (this.selectedProductName === name) { // Support out-of-order responses
-              this.versionSuggestions = _;
-            }
-          }
-        });
-      }
     },
 
     attached() {
@@ -204,7 +105,7 @@
       const comment = this.$.commentEditor.value || '';
       this.client.createDeploymentRequest(this.selectedProductName,
                                           // TODO: remove this hack as soon as the UI allows inputing complex version specifications <<
-                                          (_ => { try { const x = JSON.parse(_); return Array.isArray(x) ? x : _; } catch (e) { return _; } }) (this.selectedVersion),
+                                          (_ => { try { const x = JSON.parse(_); return Array.isArray(x) ? x : _; } catch (e) { return _; } }) (this.$.versionEditor.value),
                                           // >>
                                           this.$.targetSelector.value,
                                           comment)
@@ -220,7 +121,7 @@
 
     clear() {
       this.$.productSelector.selected = null;
-      this.selectedVersion = '';
+      this.$.versionEditor.value = '';
       this.$.targetSelector.clear();
       this.$.commentEditor.value = '';
     },
