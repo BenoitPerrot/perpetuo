@@ -52,7 +52,7 @@ trait OperationTraceBinder extends TableBinder {
     def creator = column[String]("creator", O.SqlType(s"nvarchar(${User.maxSize})"))
     def creationDate = column[java.sql.Timestamp]("creation_date")
     protected def creationIdx = index(creationDate)
-    def startingDate = column[Option[java.sql.Timestamp]]("starting_date", O.Default(None)) // fixme: default for the migration only
+    def startingDate = column[Option[java.sql.Timestamp]]("starting_date")
     protected def startingIdx = index(startingDate)
     def closingDate = column[Option[java.sql.Timestamp]]("closing_date")
     protected def closingIdx = index(closingDate)

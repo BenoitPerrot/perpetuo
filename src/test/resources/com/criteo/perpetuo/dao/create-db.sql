@@ -30,7 +30,7 @@ CREATE TABLE "operation_trace" (
   "target_status"         NVARCHAR(16000),
   "creator"               NVARCHAR(64)  NOT NULL,
   "creation_date"         DATETIME      NOT NULL,
-  "starting_date"         DATETIME      DEFAULT NULL,
+  "starting_date"         DATETIME,
   "closing_date"          DATETIME
 )
 ALTER TABLE "operation_trace"
