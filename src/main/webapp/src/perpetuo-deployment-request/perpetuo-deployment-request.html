@@ -204,14 +204,18 @@
     onDeployTap(e) {
       this.actionLock(() =>
         this.client.deployDeploymentRequest(this.deploymentRequestId)
-            .then(_ => this.refresh())
-            .catch(error => {
-              if (error.conflicts) {
-                const panel = this.$$('perpetuo-conflicting-deployment-requests');
-                panel.conflicts = error.conflicts;
-                panel.open();
-              }
-            })
+          .then(r => {
+            if (r.status === 422)
+              return r.json()
+                .then(body => {
+                  if (body.conflicts) {
+                    const panel = this.$$('perpetuo-conflicting-deployment-requests');
+                    panel.conflicts = body.conflicts;
+                    panel.open();
+                  }
+                });
+            return this.refresh();
+          })
       );
     },
 

@@ -16,14 +16,11 @@
       <paper-dialog-scrollable>
         <p>This deployment request impacts targets that are being modified by on-going deployments.</p>
         <p>Wait for them to end, or close them:</p>
-        <table>
+        <ul>
           <template is="dom-repeat" items="[[conflicts]]">
-            <tr>
-              <td>[[item.target]]</td>
-              <td><a href="/deployment-requests/[[item.id]]">Deployment Request #[[item.id]]</a></td>
-            </tr>
+            <li><a href="/deployment-requests/[[item]]">Deployment Request #[[item]]</a></li>
           </template>
-        </table>
+        </ul>
       </paper-dialog-scrollable>
       <div class="buttons">
         <paper-button dialog-confirm class="ok" raised>OK</paper-button>
