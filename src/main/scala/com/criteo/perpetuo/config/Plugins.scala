@@ -4,7 +4,7 @@ import java.io.File
 import java.net.URL
 import java.util.logging.Logger
 
-import com.criteo.perpetuo.auth.{Permissions, PermissionsByOperationAndUsername, Unrestricted}
+import com.criteo.perpetuo.auth._
 import com.criteo.perpetuo.engine.dispatchers.{SingleTargetDispatcher, TargetDispatcher}
 import com.criteo.perpetuo.engine.executors.{DummyInvoker, ExecutorInvoker}
 import com.typesafe.config.ConfigException
@@ -49,6 +49,15 @@ class Plugins(appConfig: RootAppConfig = AppConfig) {
         SingleTargetDispatcher(invoker(desc.under(t)))
     }
   }
+
+  val identityProvider: IdentityProvider =
+    Try(AppConfig.under("auth.identityProvider")).map { desc =>
+      resolve(desc, "type of identity provider") {
+        case t@"openAm" =>
+          val openAmConfig = desc.under(t)
+          new OpenAmIdentityProvider(new URL(openAmConfig.get("authorize.url")), new URL(openAmConfig.get("tokeninfo.url")))
+      }
+    }.getOrElse(new AnonymousIdentityProvider)
 
   val permissions: Permissions = {
     // fixme: "Try" only until we get back to a simpler config management system

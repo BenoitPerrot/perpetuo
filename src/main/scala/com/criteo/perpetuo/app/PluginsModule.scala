@@ -1,6 +1,6 @@
 package com.criteo.perpetuo.app
 
-import com.criteo.perpetuo.auth.Permissions
+import com.criteo.perpetuo.auth.{IdentityProvider, Permissions}
 import com.criteo.perpetuo.config._
 import com.criteo.perpetuo.engine.Listener
 import com.criteo.perpetuo.engine.dispatchers.TargetDispatcher
@@ -14,6 +14,10 @@ class PluginsModule extends TwitterModule {
   @Singleton
   @Provides
   def providesTargetDispatcher: TargetDispatcher = plugins.dispatcher
+
+  @Singleton
+  @Provides
+  def providesIdentityProvider: IdentityProvider = plugins.identityProvider
 
   @Singleton
   @Provides

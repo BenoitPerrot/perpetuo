@@ -2,12 +2,14 @@ package com.criteo.perpetuo.auth
 
 import com.criteo.perpetuo.app.AuthModule
 import com.criteo.perpetuo.config.AppConfig
+import com.google.inject.{Provides, Singleton}
 import com.twitter.finagle.http.Status.{Ok, Unauthorized}
 import com.twitter.finagle.http.{Request, Response}
 import com.twitter.finatra.http.HttpServer
 import com.twitter.finatra.http.filters.{CommonFilters, LoggingMDCFilter, TraceIdMDCFilter}
 import com.twitter.finatra.http.routing.HttpRouter
 import com.twitter.finatra.http.test.EmbeddedHttpServer
+import com.twitter.inject.TwitterModule
 import com.twitter.inject.server.FeatureTest
 
 /**
@@ -22,7 +24,14 @@ class ControllerSpec extends FeatureTest {
 
   val server = new EmbeddedHttpServer(new HttpServer {
 
-    override def modules = Seq(authModule)
+    override def modules = Seq(
+      authModule,
+      new TwitterModule {
+        @Singleton
+        @Provides
+        def providesIdentityProvider: IdentityProvider = new AnonymousIdentityProvider
+      }
+    )
 
     override def configureHttp(router: HttpRouter) {
       router
