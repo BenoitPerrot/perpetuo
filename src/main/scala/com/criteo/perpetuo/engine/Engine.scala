@@ -134,16 +134,14 @@ class Engine @Inject()(val dbBinding: DbBinding,
           dbBinding.findLastOperationAndEffect(req.productId).map { lastEffect =>
             lastEffect.foreach { case OperationEffect(operationTrace, executionTraces, _) =>
               val requestId = operationTrace.deploymentRequestId
-              computeState(operationTrace, executionTraces) match {
+              val error = computeState(operationTrace, executionTraces) match {
                 case (_, OperationStatus.inProgress) => // todo: as long as we don't have locking mechanism only
-                  throw UnprocessableAction(s"wait for deployment request #$requestId to end")
+                  Some(s"wait for deployment request #$requestId to end")
                 case (Operation.deploy, OperationStatus.effectFailed) =>
-                  throw UnprocessableAction(
-                    s"deployment request #$requestId has been left in an uncertain state, complete it first",
-                    Map("conflicts" -> Seq(requestId))
-                  )
-                case _ =>
+                  Some(s"deployment request #$requestId has been left in an uncertain state, complete it first")
+                case _ => None
               }
+              error.foreach { message => throw UnprocessableAction(message, Map("conflicts" -> Seq(requestId))) }
             }
           }
         else
