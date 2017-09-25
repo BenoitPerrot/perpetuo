@@ -223,7 +223,7 @@ class EngineSpec extends Test with TestDb {
           rejectionOfSecondB <- engine.canRevertDeploymentRequest(secondDeploymentRequest, isStarted = true).failed
 
           // Can rollback the first one now that the second one has been rolled back, but it requires to specify to which version to rollback
-          required <- engine.rollbackDeploymentRequest(firstDeploymentRequestId, "r.ollbacker", None).recover { case e: UnprocessableAction => e.required }.map(_.get)
+          detail <- engine.rollbackDeploymentRequest(firstDeploymentRequestId, "r.ollbacker", None).recover { case e: UnprocessableAction => e.detail }
 
           rollbackOperationTraceC <- engine.rollbackDeploymentRequest(firstDeploymentRequestId, "r.ollbacker", Some(defaultRollbackVersion)).map(_.get)
           rollbackExecutionSpecIdsC <- engine.dbBinding.findExecutionSpecIdsByOperationTrace(rollbackOperationTraceC.id)
@@ -240,7 +240,7 @@ class EngineSpec extends Test with TestDb {
 
           rejectionOfSecondB.getMessage,
 
-          required,
+          detail,
 
           rollbackOperationTraceC.deploymentRequestId == firstDeploymentRequestId,
           rollbackExecutionSpecIdsC.length,
@@ -252,7 +252,7 @@ class EngineSpec extends Test with TestDb {
         "a newer one has already been applied",
         1, true,
         "a newer one has already been applied",
-        "defaultVersion",
+        Map("required" -> "defaultVersion"),
         true, 1, true
       )
     }

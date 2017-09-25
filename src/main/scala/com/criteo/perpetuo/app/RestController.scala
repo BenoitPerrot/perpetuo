@@ -173,8 +173,7 @@ class RestController @Inject()(val engine: Engine)
                   checking
                     .flatMap(_ => effect(id, user.name))
                     .recover { case e: UnprocessableAction =>
-                      val body = Map("errors" -> Seq(s"Cannot $actionName the deployment request #$id: ${e.msg}")) ++
-                        e.required.map("required" -> _)
+                      val body = Map("errors" -> Seq(s"Cannot $actionName the request #$id: ${e.msg}")) ++ e.detail
                       throw new HttpResponseException(response.EnrichedResponse(HttpStatus.UnprocessableEntity).json(body))
                     }
                     .map(_.map(_ => response.ok.json(Map("id" -> id))))

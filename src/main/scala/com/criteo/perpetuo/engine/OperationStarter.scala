@@ -12,8 +12,8 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
 
-case class UnprocessableAction(msg: String, required: Option[String] = None)
-  extends RuntimeException(msg + required.map(r => s": expecting `$r` to be provided").getOrElse(""))
+case class UnprocessableAction(msg: String, detail: Map[String, _] = Map())
+  extends RuntimeException(msg + detail.map { case (k, v) => s"; $k: $v" }.mkString(""))
 
 
 class OperationStarter(val dbBinding: DbBinding) extends Logging {
@@ -129,8 +129,8 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
           )
         }.getOrElse(throw UnprocessableAction(
           s"a default rollback version is required, as some targets have no known previous state (e.g. `$targetWoStatus`)",
-          required = Some("defaultVersion"))
-        )
+          detail = Map("required" -> "defaultVersion")
+        ))
       }.getOrElse(
         Future.successful(execSpecs.mapValues(_.get))
       )
