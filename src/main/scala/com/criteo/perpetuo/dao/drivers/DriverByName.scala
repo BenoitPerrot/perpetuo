@@ -6,7 +6,7 @@ import slick.driver.JdbcDriver
 
 object DriverByName {
   def get(name: String): JdbcDriver = name match {
-    case "org.h2.Driver" => FixedH2Driver
-    case "net.sourceforge.jtds.jdbc.Driver" => MSSQLServerProfile
+    case "h2" => FixedH2Driver
+    case "mssql" => MSSQLServerProfile
   }
 }
