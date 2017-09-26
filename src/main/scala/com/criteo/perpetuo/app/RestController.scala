@@ -37,6 +37,10 @@ private case class ProductPost(@NotEmpty name: String,
 private case class ProductPostWithVersion(@NotEmpty name: String,
                                           @NotEmpty version: String)
 
+private case class RevertPost(@RouteParam @NotEmpty id: String,
+                              @NotEmpty defaultVersion: Option[String] = None,
+                              @Inject request: Request) extends WithId
+
 private case class ExecutionTracePut(@RouteParam @NotEmpty id: String,
                                      @NotEmpty state: String,
                                      detail: String = "",
@@ -186,6 +190,33 @@ class RestController @Inject()(val engine: Engine)
         5.seconds
       )(r)
     }
+  }
+
+  post("/api/deployment-requests/:id/actions/devise-revert-plan") { r: RevertPost =>
+    withIdAndRequest(
+      (id, _: RevertPost) => {
+        engine.isDeploymentRequestStarted(id).flatMap(
+          _.map { case (deploymentRequest, isStarted) =>
+            engine.canRevertDeploymentRequest(deploymentRequest, isStarted)
+              .recover { case e: UnprocessableAction =>
+                val body = Map("errors" -> Seq(s"Cannot revert the request #${deploymentRequest.id}: ${e.msg}")) ++ e.detail
+                throw new HttpResponseException(response.EnrichedResponse(HttpStatus.UnprocessableEntity).json(body))
+              }
+              .flatMap { _ =>
+                engine.findExecutionSpecificationsForRollback(deploymentRequest).map { case (undetermined, determined) =>
+                  Some(Map(
+                    "undetermined" -> undetermined,
+                    "determined" -> determined.toStream.map { case (execSpec, targets) =>
+                      Map("version" -> execSpec.version, "targetAtoms" -> targets)
+                    }
+                  ))
+                }
+              }
+          }.getOrElse(Future.successful(None))
+        )
+      },
+      5.seconds
+    )(r)
   }
 
   get("/api/deployment-requests/:id/execution-traces")(

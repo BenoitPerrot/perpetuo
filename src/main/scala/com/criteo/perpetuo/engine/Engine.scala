@@ -5,7 +5,7 @@ import javax.inject.{Inject, Singleton}
 import com.criteo.perpetuo.auth.Permissions
 import com.criteo.perpetuo.config.AppConfig
 import com.criteo.perpetuo.dao.{DbBinding, UnknownProduct}
-import com.criteo.perpetuo.engine.dispatchers.TargetDispatcher
+import com.criteo.perpetuo.engine.dispatchers.{Select, TargetDispatcher}
 import com.criteo.perpetuo.model.ExecutionState.ExecutionState
 import com.criteo.perpetuo.model._
 
@@ -165,6 +165,9 @@ class Engine @Inject()(val dbBinding: DbBinding,
       }.getOrElse(Future.successful(None))
     )
   }
+
+  def findExecutionSpecificationsForRollback(deploymentRequest: DeploymentRequest): Future[(Select, Iterable[(ExecutionSpecification, Select)])] =
+    dbBinding.findExecutionSpecificationsForRollback(deploymentRequest)
 
   def rollbackDeploymentRequest(deploymentRequestId: Long, initiatorName: String, defaultVersion: Option[Version]): Future[Option[OperationTrace]] =
     dbBinding.findDeepDeploymentRequestById(deploymentRequestId).flatMap(
