@@ -140,22 +140,24 @@ class EngineSpec extends Test with TestDb {
 
           // Can't rollback as-is the first deployment request: we need to know the default rollback version
           firstDeploymentRequest <- engine.dbBinding.findDeepDeploymentRequestById(firstDeploymentRequestId).map(_.get)
-          rollbackSpecsForFirst <- engine.dbBinding.findExecutionSpecificationsForRollback(firstDeploymentRequest)
+          (undeterminedSpecsFirst, determinedSpecsFirst) <- engine.dbBinding.findExecutionSpecificationsForRollback(firstDeploymentRequest)
 
           // Can rollback
           thirdDeploymentRequest <- engine.dbBinding.findDeepDeploymentRequestById(thirdDeploymentRequestId).map(_.get)
-          rollbackSpecsForThird <- engine.dbBinding.findExecutionSpecificationsForRollback(thirdDeploymentRequest)
+          (undeterminedSpecsThird, determinedSpecsThird) <- engine.dbBinding.findExecutionSpecificationsForRollback(thirdDeploymentRequest)
 
-        } yield (
-          rollbackSpecsForFirst,
-          rollbackSpecsForThird.size,
-          rollbackSpecsForThird("moon").get.id == secondExecSpecId,
-          rollbackSpecsForThird("mars").get.id == firstExecSpecId,
-          rollbackSpecsForThird("moon").get.version.toString,
-          rollbackSpecsForThird("mars").get.version.toString
-        ),
+        } yield {
+          val specsThird = determinedSpecsThird.map { case (spec, targets) => spec.id -> (spec.version.toString, targets) }.toMap
+          (
+            undeterminedSpecsFirst,
+            determinedSpecsFirst.isEmpty,
+            undeterminedSpecsThird.isEmpty,
+            specsThird(firstExecSpecId),
+            specsThird(secondExecSpecId)
+          )
+        },
         2.seconds
-      ) shouldBe(Map("moon" -> None, "mars" -> None), 2, true, true, """"54"""", """"27"""")
+      ) shouldBe(Set("moon", "mars"), true, true, (""""27"""", Set("mars")), (""""54"""", Set("moon")))
     }
 
     "check if an operation can be rolled back" in {

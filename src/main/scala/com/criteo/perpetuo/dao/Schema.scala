@@ -2,6 +2,7 @@ package com.criteo.perpetuo.dao
 
 import javax.inject.{Inject, Singleton}
 
+import com.criteo.perpetuo.engine.dispatchers.Select
 import com.criteo.perpetuo.model._
 
 import scala.collection.mutable.{ArrayBuffer, LinkedHashMap => MutableMap}
@@ -230,7 +231,11 @@ class DbBinding @Inject()(val dbContext: DbContext)
       }
       .map { case (_, targetStatus) => targetStatus.targetAtom }
 
-  def findExecutionSpecificationsForRollback(deploymentRequest: DeploymentRequest): Future[Map[TargetAtom.Type, Option[ExecutionSpecification]]] = {
+  /**
+    * @return the target atoms for which there is no previous execution specification on the same product,
+    *         followed by the groups of target atoms sharing the same last execution specification for the same product.
+    */
+  def findExecutionSpecificationsForRollback(deploymentRequest: DeploymentRequest): Future[(Select, Iterable[(ExecutionSpecification, Select)])] = {
     val previousTargetStatuses = targetStatusQuery
       .join(executionQuery)
       .join(operationTraceQuery)
@@ -256,14 +261,29 @@ class DbBinding @Inject()(val dbContext: DbContext)
           .map { case (execution, execSpec) => (execution.id, execSpec) }
       )
       .on { case ((_, targetExecutionId), (anyExecutionId, _)) => targetExecutionId === anyExecutionId }
-      .map { case ((targetAtom, _), specLink) => (targetAtom, specLink) }
+      .map { case ((targetAtom, _), specLink) => (targetAtom, specLink) } // .map(_._2)?
 
-    dbContext.db.run(execSpecIds.result).map { seq =>
-      val res = seq.toStream.map { case (targetAtom, execSpec) =>
-        (targetAtom, execSpec.map { case (_, spec) => spec.toExecutionSpecification })
-      }.toMap
-      assert(res.size == seq.size)
-      res
+    dbContext.db.run(execSpecIds.result).map { perAtom =>
+      type Targets = ArrayBuffer[TargetAtom.Type]
+      val undetermined = new Targets
+      var determined = Map[Long, (ExecutionSpecification, Targets)]()
+      perAtom.foreach { case (targetAtom, specLink) =>
+        specLink
+          .map { case (id, spec) =>
+            determined
+              .get(id)
+              .map { case (_, targets) => targets }
+              .getOrElse {
+                val targets = new Targets
+                determined += id -> (spec.toExecutionSpecification, targets)
+                targets
+              }
+          }
+          .getOrElse(
+            undetermined
+          ) += targetAtom
+      }
+      (undetermined.toSet, determined.values.map { case (execSpec, targets) => (execSpec, targets.toSet) })
     }
   }
 

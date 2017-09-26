@@ -120,30 +120,33 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
   }
 
   def rollbackOperation(dispatcher: TargetDispatcher, deploymentRequest: DeepDeploymentRequest, userName: String, defaultVersion: Option[Version]): Future[(OperationTrace, Int, Int)] = {
-    dbBinding.findExecutionSpecificationsForRollback(deploymentRequest).flatMap { execSpecs =>
-      execSpecs.collectFirst { case (atom, execSpec) if execSpec.isEmpty => atom }.map { targetWoStatus =>
-        defaultVersion.map { version =>
-          val specificParameters = dispatcher.freezeParameters(Operation.executionKind(Operation.revert), deploymentRequest.product.name, version)
-          dbBinding.insertExecutionSpecification(specificParameters, version).map(executionSpecification =>
-            execSpecs.mapValues(_.getOrElse(executionSpecification))
+    dbBinding
+      .findExecutionSpecificationsForRollback(deploymentRequest)
+      .flatMap { case (undetermined, determined) =>
+        if (undetermined.nonEmpty)
+          defaultVersion.map { version =>
+            val specificParameters = dispatcher.freezeParameters(Operation.executionKind(Operation.revert), deploymentRequest.product.name, version)
+            dbBinding.insertExecutionSpecification(specificParameters, version).map(executionSpecification =>
+              Stream.cons((executionSpecification, undetermined), determined.toStream)
+            )
+          }.getOrElse(throw UnprocessableAction(
+            s"a default rollback version is required, as some targets have no known previous state (e.g. `${undetermined.head}`)",
+            detail = Map("required" -> "defaultVersion")
+          ))
+        else
+          Future.successful(determined)
+      }
+      .flatMap { groups =>
+        val opCreation = dbBinding.insertOperationTrace(deploymentRequest.id, Operation.revert, userName)
+        Future.traverse(groups) { case (execSpec, targets) =>
+          val targetAtoms = Set(TargetTerm(select = targets))
+          opCreation.flatMap(newOp =>
+            startExecution(dispatcher, deploymentRequest, newOp, execSpec, targetAtoms)
           )
-        }.getOrElse(throw UnprocessableAction(
-          s"a default rollback version is required, as some targets have no known previous state (e.g. `$targetWoStatus`)",
-          detail = Map("required" -> "defaultVersion")
-        ))
-      }.getOrElse(
-        Future.successful(execSpecs.mapValues(_.get))
-      )
-    }.flatMap { execSpecs =>
-      val opCreation = dbBinding.insertOperationTrace(deploymentRequest.id, Operation.revert, userName)
-      Future.traverse(execSpecs.toStream.groupBy { case (_, execSpec) => execSpec.id }.values) { specifications =>
-        val (_, execSpec) = specifications.head
-        val targetAtoms = Set(TargetTerm(select = specifications.map(_._1).toSet))
-        opCreation.flatMap(newOp =>
-          startExecution(dispatcher, deploymentRequest, newOp, execSpec, targetAtoms)
-        )
-      }.map(_.fold((0, 0)) { case ((a, b), (c, d)) => (a + c, b + d) }).flatMap { case (successes, failures) => opCreation.map(o => (o, successes, failures)) }
-    }
+        }
+          .map(_.fold((0, 0)) { case ((a, b), (c, d)) => (a + c, b + d) })
+          .flatMap { case (successes, failures) => opCreation.map(o => (o, successes, failures)) }
+      }
   }
 
   private[engine] def dispatch(dispatcher: TargetDispatcher, target: TargetExpr): Iterable[(ExecutorInvoker, TargetExpr)] =
