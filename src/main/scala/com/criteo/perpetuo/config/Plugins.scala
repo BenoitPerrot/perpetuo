@@ -30,7 +30,10 @@ class Plugins(appConfig: RootAppConfig = AppConfig) {
       case unknownType: String =>
         throw new Exception(s"Unknown $typeName configured: $unknownType")
     }).asInstanceOf[T]
-    f.applyOrElse(t, instantiate)
+    if (groovySupported)
+      f.applyOrElse(t, instantiate)
+    else
+      f(t)
   }
 
   def invoker(invokerConfig: AppConfig): ExecutorInvoker = {
