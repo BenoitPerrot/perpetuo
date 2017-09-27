@@ -10,7 +10,6 @@ import com.criteo.perpetuo.dao.{DbContext, Schema}
 import com.criteo.sdk.discovery.prmdb.Resource
 import com.google.inject.{Provides, Singleton}
 import com.twitter.inject.TwitterModule
-import com.zaxxer.hikari.{HikariConfig, HikariDataSource}
 import slick.driver.JdbcDriver
 import slick.jdbc.JdbcBackend.Database
 
@@ -21,15 +20,14 @@ class DbContextModule(val dbConfig: AppConfig) extends TwitterModule {
   val driver: JdbcDriver = DriverByName.get(driverName)
 
   private lazy val database =
-    Database.forDataSource(
-      if (driverName == "net.sourceforge.jtds.jdbc.Driver") {
-        obtainDataSourceFromPrm()
-      } else {
-        val username = dbConfig.get[String]("username")
-        val password = Try(dbConfig.get[String]("password")).getOrElse("")
-        createDataSource(username, password)
-      }
-    )
+    if (driverName == "net.sourceforge.jtds.jdbc.Driver") {
+      Database.forDataSource(obtainDataSourceFromPrm())
+    } else {
+      val jdbcUrl = dbConfig.get[String]("jdbcUrl")
+      val username = Try(dbConfig.get[String]("username")).getOrElse(null)
+      val password = Try(dbConfig.get[String]("password")).getOrElse(null)
+      Database.forURL(jdbcUrl, driver=driverName, user=username, password=password)
+    }
 
   // For being overridden, eg for testing
   def databaseProvider: Database = database
@@ -49,30 +47,4 @@ class DbContextModule(val dbConfig: AppConfig) extends TwitterModule {
       .getDataSourceForDatabase(Resource.Deployment_DB, DatasourceIntent.ReadWrite, DataSourceProxymitySpecifier.GlobalAllowed)
   }
 
-  private def createDataSource(username: String, password: String): DataSource = {
-    val dbName = dbConfig.get[String]("name")
-    val jdbcUrl = dbConfig.get[String]("jdbcUrl")
-
-    val maxPoolSize = Try(dbConfig.get[Int]("poolMaxSize")).getOrElse(10)
-    val minimumIdle = Try(dbConfig.get[Int]("poolMinSize")).getOrElse(maxPoolSize)
-    val idleTimeout = Try(dbConfig.get[Int]("idleTimeout")).getOrElse(600000)
-    val connectionTimeout = Try(dbConfig.get[Int]("connectionTimeout")).getOrElse(30000)
-
-    logger.info(jdbcUrl)
-    new HikariDataSource(new HikariConfig() {
-      {
-        setJdbcUrl(jdbcUrl)
-        setUsername(username)
-        setPassword(password)
-        setDriverClassName(driverName)
-        setInitializationFailFast(false) // Do not fail if the DB does not exist when initializing. The only case is migration tests.
-        setConnectionTestQuery("SELECT 1;") // Do not rely on Jdbc isValid to check the connection. Some drivers do not implement it.
-        setPoolName(s"${dbName}_ConnectionPool")
-        setMinimumIdle(minimumIdle)
-        setMaximumPoolSize(maxPoolSize)
-        setIdleTimeout(idleTimeout)
-        setConnectionTimeout(connectionTimeout)
-      }
-    })
-  }
 }
