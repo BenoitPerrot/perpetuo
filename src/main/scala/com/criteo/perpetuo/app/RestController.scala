@@ -37,7 +37,8 @@ private case class ProductPost(@NotEmpty name: String,
 private case class ProductPostWithVersion(@NotEmpty name: String,
                                           @NotEmpty version: String)
 
-private case class RevertPost(@RouteParam @NotEmpty id: String,
+private case class ActionPost(@RouteParam @NotEmpty id: String,
+                              @RouteParam @NotEmpty actionType: String,
                               @NotEmpty defaultVersion: Option[String] = None,
                               @Inject request: Request) extends WithId
 
@@ -148,36 +149,28 @@ class RestController @Inject()(val engine: Engine)
   }
   // >>
 
-  post("/api/deployment-requests/:id/actions") { r: RequestWithId =>
+  post("/api/deployment-requests/:id/actions/:actionType") { r: ActionPost =>
     authenticate(r.request) { case user =>
       withIdAndRequest(
-        (id, _: RequestWithId) => {
-          val (actionName, defaultVersion) = try {
-            val body = r.request.contentString.parseJson.asJsObject.fields
-            (body("type").asInstanceOf[JsString].value, body.get("defaultVersion").map(Version.apply))
-          } catch {
-            case e@(_: ParsingException | _: DeserializationException | _: NoSuchElementException | _: ClassCastException) =>
-              throw BadRequestException(e.getMessage)
-          }
-          val action = try {
-            Operation.withName(actionName)
-          } catch {
-            case _: NoSuchElementException => throw BadRequestException(s"Action $actionName doesn't exist")
-          }
-
+        (id, _: ActionPost) => {
           engine.isDeploymentRequestStarted(id)
             .flatMap(
               _.map { case (deploymentRequest, isStarted) =>
+                val operation = try {
+                  Operation.withName(r.actionType)
+                } catch {
+                  case _: NoSuchElementException => throw BadRequestException(s"Action ${r.actionType} doesn't exist")
+                }
                 val targets = deploymentRequest.parsedTarget.select
-                if (permissions.isAuthorized(user.name, DeploymentAction.applyOperation, action, deploymentRequest.product.name, targets)) {
-                  val (checking, effect) = action match {
+                if (permissions.isAuthorized(user.name, DeploymentAction.applyOperation, operation, deploymentRequest.product.name, targets)) {
+                  val (checking, effect) = operation match {
                     case Operation.deploy => (engine.canDeployDeploymentRequest(deploymentRequest), if (isStarted) engine.deployAgain _ else engine.startDeploymentRequest _)
-                    case Operation.revert => (engine.canRevertDeploymentRequest(deploymentRequest, isStarted), engine.rollbackDeploymentRequest(_: Long, _: String, defaultVersion))
+                    case Operation.revert => (engine.canRevertDeploymentRequest(deploymentRequest, isStarted), engine.rollbackDeploymentRequest(_: Long, _: String, r.defaultVersion.map(Version.apply)))
                   }
                   checking
                     .flatMap(_ => effect(id, user.name))
                     .recover { case e: UnprocessableAction =>
-                      val body = Map("errors" -> Seq(s"Cannot $actionName the request #$id: ${e.msg}")) ++ e.detail
+                      val body = Map("errors" -> Seq(s"Cannot ${r.actionType} the request #$id: ${e.msg}")) ++ e.detail
                       throw new HttpResponseException(response.EnrichedResponse(HttpStatus.UnprocessableEntity).json(body))
                     }
                     .map(_.map(_ => response.ok.json(Map("id" -> id))))
@@ -192,9 +185,9 @@ class RestController @Inject()(val engine: Engine)
     }
   }
 
-  post("/api/deployment-requests/:id/actions/devise-revert-plan") { r: RevertPost =>
+  post("/api/deployment-requests/:id/actions/devise-revert-plan") { r: ActionPost =>
     withIdAndRequest(
-      (id, _: RevertPost) => {
+      (id, _: ActionPost) => {
         engine.isDeploymentRequestStarted(id).flatMap(
           _.map { case (deploymentRequest, isStarted) =>
             engine.canRevertDeploymentRequest(deploymentRequest, isStarted)

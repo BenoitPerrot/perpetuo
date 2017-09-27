@@ -145,16 +145,16 @@ class RestControllerSpec extends FeatureTest with TestDb {
       andExpect = expect
     )
 
-  private def actOnDeploymentRequest(deploymentRequestId: Long, body: JsValue, expect: Status): Response =
+  private def actOnDeploymentRequest(deploymentRequestId: Long, operationName: String, body: JsValue, expect: Status): Response =
     server.httpPost(
-      path = s"/api/deployment-requests/$deploymentRequestId/actions",
+      path = s"/api/deployment-requests/$deploymentRequestId/actions/$operationName",
       headers = Map("Cookie" -> s"jwt=$deployUserJWT"),
       postBody = body.compactPrint,
       andExpect = expect
     )
 
   private def startDeploymentRequest(deploymentRequestId: Long, expect: Status): Response =
-    actOnDeploymentRequest(deploymentRequestId, Map("type" -> "deploy").toJson, expect)
+    actOnDeploymentRequest(deploymentRequestId, "deploy", JsObject(), expect)
 
   private def startDeploymentRequest(deploymentRequestId: Long): JsObject =
     startDeploymentRequest(deploymentRequestId, Ok).contentString.parseJson.asJsObject
@@ -320,12 +320,8 @@ class RestControllerSpec extends FeatureTest with TestDb {
       startDeploymentRequest(4242, NotFound)
     }
 
-    "return 400 when putting nonsense" in {
-      actOnDeploymentRequest(1, "hello".toJson, BadRequest)
-    }
-
-    "return 400 when putting a non-existing action" in {
-      actOnDeploymentRequest(1, Map("type" -> "ploup").toJson, BadRequest)
+    "return 400 when posting a non-existing action" in {
+      actOnDeploymentRequest(1, "ploup", JsObject(), BadRequest)
     }
 
     "return 422 when trying to rollback new targets" in {
@@ -336,7 +332,7 @@ class RestControllerSpec extends FeatureTest with TestDb {
 
       createProduct("my new product")
       val id = requestDeployment("my new product", "789", "par".toJson, None, None, start = false).idAsLong
-      val respJson1 = getRespJson(actOnDeploymentRequest(id, Map("type" -> "revert").toJson, UnprocessableEntity))
+      val respJson1 = getRespJson(actOnDeploymentRequest(id, "revert", JsObject(), UnprocessableEntity))
       respJson1("error") should include("it has not yet been applied")
       respJson1 shouldNot contain("required")
 
@@ -348,11 +344,11 @@ class RestControllerSpec extends FeatureTest with TestDb {
             "targetB" -> Map("code" -> "productFailure", "detail" -> "").toJson)),
         expectedTargetStatus = Map("targetA" -> ("success", ""), "targetB" -> ("productFailure", ""))
       )
-      val respJson2 = getRespJson(actOnDeploymentRequest(id, Map("type" -> "revert").toJson, UnprocessableEntity))
+      val respJson2 = getRespJson(actOnDeploymentRequest(id, "revert", JsObject(), UnprocessableEntity))
       respJson2("error") should include("a default rollback version is required")
       respJson2("required") shouldEqual "defaultVersion"
 
-      actOnDeploymentRequest(id, Map("type" -> "revert", "defaultVersion" -> "42").toJson, Ok)
+      actOnDeploymentRequest(id, "revert", Map("defaultVersion" -> "42").toJson, Ok)
     }
   }
 
