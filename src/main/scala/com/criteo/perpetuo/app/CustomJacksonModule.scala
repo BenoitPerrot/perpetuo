@@ -2,14 +2,17 @@ package com.criteo.perpetuo.app
 
 import com.criteo.perpetuo.model.Version
 import com.fasterxml.jackson.core.JsonGenerator
-import com.fasterxml.jackson.databind.SerializerProvider
 import com.fasterxml.jackson.databind.module.SimpleModule
 import com.fasterxml.jackson.databind.ser.std.StdSerializer
+import com.fasterxml.jackson.databind.{PropertyNamingStrategy, SerializerProvider}
 import com.twitter.finatra.json.modules.FinatraJacksonModule
 import com.twitter.finatra.json.utils.CamelCasePropertyNamingStrategy
 
 
 object CustomJacksonModule extends FinatraJacksonModule {
+  override protected val propertyNamingStrategy: PropertyNamingStrategy =
+    CamelCasePropertyNamingStrategy
+
   override val additionalJacksonModules = Seq(
     new SimpleModule {
       addSerializer(RawJsonSerializer)
@@ -18,8 +21,6 @@ object CustomJacksonModule extends FinatraJacksonModule {
       addSerializer(EnumSerializer)
     }
   )
-
-  override val propertyNamingStrategy = CamelCasePropertyNamingStrategy
 }
 
 

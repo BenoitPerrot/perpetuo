@@ -4,7 +4,7 @@ import javax.inject.Inject
 
 import com.criteo.perpetuo.auth.UserFilter._
 import com.criteo.perpetuo.auth.{DeploymentAction, GeneralAction, User}
-import com.criteo.perpetuo.dao.{ProductCreationConflict, Schema, UnknownProduct}
+import com.criteo.perpetuo.dao.{ProductCreationConflict, UnknownProduct}
 import com.criteo.perpetuo.engine.{Engine, OperationStatus, UnprocessableAction}
 import com.criteo.perpetuo.model._
 import com.twitter.finagle.http.{Request, Response, Status => HttpStatus}
@@ -19,8 +19,8 @@ import spray.json.JsonParser.ParsingException
 import spray.json._
 
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.Future
 import scala.concurrent.duration._
-import scala.concurrent.{Await, Future}
 import scala.util.Try
 
 trait WithId {
@@ -286,8 +286,9 @@ class RestController @Inject()(val engine: Engine)
     }
 
   get("/api/unstable/deployment-requests/:id") { r: RequestWithId =>
-    withLongId(id =>
-      engine.findDeepDeploymentRequestAndEffects(id)
+    withLongId(
+      engine
+        .findDeepDeploymentRequestAndEffects(_)
         .flatMap(_.map { case (deploymentRequest, sortedEffects) =>
           val targets = deploymentRequest.parsedTarget.select
           val isAdmin = r.request.user.exists(user =>
