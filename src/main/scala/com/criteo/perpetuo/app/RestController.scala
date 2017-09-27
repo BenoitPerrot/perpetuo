@@ -149,6 +149,33 @@ class RestController @Inject()(val engine: Engine)
   }
   // >>
 
+  post("/api/deployment-requests/:id/actions/devise-revert-plan") { r: RequestWithId =>
+    withIdAndRequest(
+      (id, _: RequestWithId) => {
+        engine.isDeploymentRequestStarted(id).flatMap(
+          _.map { case (deploymentRequest, isStarted) =>
+            engine.canRevertDeploymentRequest(deploymentRequest, isStarted)
+              .recover { case e: UnprocessableAction =>
+                val body = Map("errors" -> Seq(s"Cannot revert the request #${deploymentRequest.id}: ${e.msg}")) ++ e.detail
+                throw new HttpResponseException(response.EnrichedResponse(HttpStatus.UnprocessableEntity).json(body))
+              }
+              .flatMap { _ =>
+                engine.findExecutionSpecificationsForRollback(deploymentRequest).map { case (undetermined, determined) =>
+                  Some(Map(
+                    "undetermined" -> undetermined,
+                    "determined" -> determined.toStream.map { case (execSpec, targets) =>
+                      Map("version" -> execSpec.version, "targetAtoms" -> targets)
+                    }
+                  ))
+                }
+              }
+          }.getOrElse(Future.successful(None))
+        )
+      },
+      5.seconds
+    )(r)
+  }
+
   post("/api/deployment-requests/:id/actions/:actionType") { r: ActionPost =>
     authenticate(r.request) { case user =>
       withIdAndRequest(
@@ -183,33 +210,6 @@ class RestController @Inject()(val engine: Engine)
         5.seconds
       )(r)
     }
-  }
-
-  post("/api/deployment-requests/:id/actions/devise-revert-plan") { r: ActionPost =>
-    withIdAndRequest(
-      (id, _: ActionPost) => {
-        engine.isDeploymentRequestStarted(id).flatMap(
-          _.map { case (deploymentRequest, isStarted) =>
-            engine.canRevertDeploymentRequest(deploymentRequest, isStarted)
-              .recover { case e: UnprocessableAction =>
-                val body = Map("errors" -> Seq(s"Cannot revert the request #${deploymentRequest.id}: ${e.msg}")) ++ e.detail
-                throw new HttpResponseException(response.EnrichedResponse(HttpStatus.UnprocessableEntity).json(body))
-              }
-              .flatMap { _ =>
-                engine.findExecutionSpecificationsForRollback(deploymentRequest).map { case (undetermined, determined) =>
-                  Some(Map(
-                    "undetermined" -> undetermined,
-                    "determined" -> determined.toStream.map { case (execSpec, targets) =>
-                      Map("version" -> execSpec.version, "targetAtoms" -> targets)
-                    }
-                  ))
-                }
-              }
-          }.getOrElse(Future.successful(None))
-        )
-      },
-      5.seconds
-    )(r)
   }
 
   get("/api/deployment-requests/:id/execution-traces")(
@@ -328,6 +328,7 @@ class RestController @Inject()(val engine: Engine)
           throw BadRequestException("`limit` shall be lower than 1000")
         }
         try {
+          // todo: uniform with other deep request
           engine.queryDeepDeploymentRequests(r.where, r.orderBy, r.limit, r.offset)
             .map(_.map { case (deploymentRequest, executionTraces) =>
               val lastGroup = executionTraces.toStream.sortBy(_.head.operationTrace.id).lastOption
