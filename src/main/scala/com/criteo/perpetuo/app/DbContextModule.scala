@@ -12,6 +12,7 @@ import com.google.inject.{Provides, Singleton}
 import com.twitter.inject.TwitterModule
 import com.zaxxer.hikari.{HikariConfig, HikariDataSource}
 import slick.driver.JdbcDriver
+import slick.jdbc.JdbcBackend.Database
 
 import scala.util.Try
 
@@ -19,23 +20,24 @@ class DbContextModule(val dbConfig: AppConfig) extends TwitterModule {
   val driverName: String = dbConfig.get("driver")
   val driver: JdbcDriver = DriverByName.get(driverName)
 
-  private lazy val dataSource = {
-    if (driverName == "net.sourceforge.jtds.jdbc.Driver") {
-      obtainDataSourceFromPrm()
-    } else {
-      val username = dbConfig.get[String]("username")
-      val password = Try(dbConfig.get[String]("password")).getOrElse("")
-      createDataSource(username, password)
-    }
-  }
+  private lazy val database =
+    Database.forDataSource(
+      if (driverName == "net.sourceforge.jtds.jdbc.Driver") {
+        obtainDataSourceFromPrm()
+      } else {
+        val username = dbConfig.get[String]("username")
+        val password = Try(dbConfig.get[String]("password")).getOrElse("")
+        createDataSource(username, password)
+      }
+    )
 
   // For being overridden, eg for testing
-  def dataSourceProvider: DataSource = dataSource
+  def databaseProvider: Database = database
 
   @Singleton
   @Provides
   def providesDbContext: DbContext = {
-    val dbContext = new DbContext(driver, dataSourceProvider)
+    val dbContext = new DbContext(driver, databaseProvider)
     if (dbConfig.get("ephemeral"))
       new Schema(dbContext).createTables()
     dbContext

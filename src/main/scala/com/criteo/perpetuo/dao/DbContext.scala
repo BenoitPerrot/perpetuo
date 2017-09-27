@@ -1,12 +1,6 @@
 package com.criteo.perpetuo.dao
 
-import javax.sql.DataSource
-
 import slick.driver.JdbcDriver
+import slick.jdbc.JdbcBackend.Database
 
-class DbContext(val driver: JdbcDriver, dataSource: DataSource) {
-
-  import driver.api._
-
-  lazy val db: driver.backend.DatabaseDef = Database.forDataSource(dataSource)
-}
+class DbContext(val driver: JdbcDriver, val db: Database)
