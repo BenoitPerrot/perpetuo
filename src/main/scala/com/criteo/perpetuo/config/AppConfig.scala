@@ -41,16 +41,10 @@ abstract class RootAppConfig extends BaseAppConfig {
   private val productsExcludedFromNewWorkflow = Seq(
     "directbidder-app", "directbidder-canary-app", "imageproxy-app", "videoproxy-app"
   )
-  private val productsExcludedFromOldWorkflow = Seq(
-    "angryboards-app"
-  )
-
-  lazy val useNewWorkflow: Boolean = config.hasPath("useNewWorkflow") && config.getBoolean("useNewWorkflow")
 
   def isCoveredByOldWorkflow(productName: String): Boolean =
-    env == "prod" && (
-      if (useNewWorkflow) productsExcludedFromNewWorkflow.contains(productName)
-      else !productsExcludedFromOldWorkflow.contains(productName))
+    env == "prod" &&
+      productsExcludedFromNewWorkflow.contains(productName)
   // >>
 
   override lazy val env: String = config.getString("env")
