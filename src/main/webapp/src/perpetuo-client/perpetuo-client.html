@@ -86,8 +86,12 @@ this.Perpetuo.Client = this.Perpetuo.Client || (function () {
       return this.actOnDeploymentRequest(deploymentRequestId, 'deploy', {});
     }
 
-    revertDeploymentRequest(deploymentRequestId, extraInfo) {
-      return this.actOnDeploymentRequest(deploymentRequestId, 'revert', extraInfo);
+    deviseRevertPlan(deploymentRequestId) {
+      return this.actOnDeploymentRequest(deploymentRequestId, 'devise-revert-plan');
+    }
+
+    revertDeploymentRequest(deploymentRequestId, body) {
+      return this.actOnDeploymentRequest(deploymentRequestId, 'revert', body);
     }
 
     actOnDeploymentRequest(deploymentRequestId, actionName, body) {

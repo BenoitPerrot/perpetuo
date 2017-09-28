@@ -82,6 +82,32 @@
       background: #26a69a;
       color: #fff;
     }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    table th {
+      font-weight: 500;
+      color: #757575;
+      text-align: left;
+    }
+    table td {
+      color: hsl(0, 0%, 13%);
+    }
+    table tr {
+      height: 42px;
+      border-bottom: solid 1px #ddd;
+    }
+    table tbody tr:last-of-type {
+      border: 0;
+    }
+    table td:not(:last-child) {
+      padding-right: 56px;
+    }
+    table tbody tr:hover {
+      background-color: #eee;
+    }
     </style>
     <app-header-layout>
       <app-header reveals>
@@ -122,12 +148,41 @@
     </app-header-layout>
     <perpetuo-app-drawer id="drawer"></perpetuo-app-drawer>
 
-    <paper-dialog id="rollbackDefaultVersionSpecifier" with-backdrop>
-      <h2>More information required for rolling back</h2>
-      <paper-dialog-scrollable>
-        <p>Some targets impacted by this deployment request have no previous version.</p>
-        <p>Please specify the version to use for them.<paper-input label="Default rollback version" value="{{rollbackDefaultVersion}}"></paper-input></p>
-      </paper-dialog-scrollable>
+    <paper-dialog id="revertPlan" with-backdrop>
+      <h2>Revert plan</h2>
+      <template is="dom-if" if="[[revertPlan.determined.length]]">
+        <p>The following versions will be applied:</p>
+        <paper-dialog-scrollable>
+          <table>
+            <thead>
+            <tr>
+              <th>Version</th>
+              <th>Targets</th>
+            </tr>
+            </thead>
+            <tbody>
+            <template is="dom-repeat" items="[[revertPlan.determined]]">
+              <tr>
+                <td>
+                  <template is="dom-repeat" items="[[computeVersion(item)]]">
+                    <template is="dom-if" if="[[index]]">+</template>
+                    [[item.value]]
+                    <template is="dom-if" if="[[item.ratio]]">&nbsp;<span class="ratio">[[asPercentage(item.ratio)]]%</span></template>
+                  </template>
+                </td>
+                <td>[[sumUpArray(item.targetAtoms)]]</td>
+              </tr>
+            </template>
+            </tbody>
+          </table>
+        </paper-dialog-scrollable>
+      </template>
+      <template is="dom-if" if="[[revertPlan.undetermined.length]]">
+        <p>Some impacted targets have no previous version ([[sumUpArray(revertPlan.undetermined)]]).</p>
+        <p>Please specify the version to use for them:
+          <paper-input label="Default rollback version" value="{{rollbackDefaultVersion}}"></paper-input>
+        </p>
+      </template>
       <div class="buttons">
         <paper-button dialog-dismiss class="cancel" raised>Cancel</paper-button>
         <paper-button dialog-confirm class="rollback" raised>Rollback</paper-button>
@@ -148,6 +203,7 @@
       version: {type: Array, computed: 'computeVersion(data)'},
       comment: {type: Object, computed: 'computeComment(data)'},
       isInAction: Boolean,
+      revertPlan: Object,
       rollbackDefaultVersion: String,
     },
 
@@ -219,14 +275,14 @@
       );
     },
 
-    requiresExtraInfo() {
+    showRevertPlan() {
       return new Promise((resolve, reject) => {
-        const panel = this.$.rollbackDefaultVersionSpecifier;
+        const panel = this.$.revertPlan;
         const onOpenedChanged = (e) => {
           if (!e.detail.value) {
             panel.removeEventListener('opened-changed', onOpenedChanged);
             if (panel.closingReason.confirmed) {
-              resolve(this.rollbackDefaultVersion);
+              resolve();
             } else {
               reject();
             }
@@ -237,17 +293,21 @@
       });
     },
 
-    revert(extraInfo) {
-      return this.client.revertDeploymentRequest(this.deploymentRequestId, extraInfo)
+    revert() {
+      return this.client.deviseRevertPlan(this.deploymentRequestId)
         .then(r => {
-          if (r.status === 422)
+          if (r.status === 200)
             return r.json()
               .then(body => {
-                if (body.required)
-                  this.requiresExtraInfo().then(extra => this.revert({[body.required]: extra}));
+                this.revertPlan = body;
+                this.rollbackDefaultVersion = undefined;
+                this.showRevertPlan().then(_ => {
+                  const body = this.rollbackDefaultVersion ? {defaultVersion: this.rollbackDefaultVersion} : {};
+                  this.client.revertDeploymentRequest(this.deploymentRequestId, body);
+                });
               });
           return this.refresh();
-        })
+        });
     },
 
     onRevertTap(e) {
@@ -283,6 +343,14 @@
       if (fields[1])
         ret.ticket = {url: fields[1], reference: fields[1].split("/").splice(-1)[0]};
       return ret;
+    },
+
+    sumUpArray(arr) {
+      const sorted = arr.sort();
+      return (sorted.length < 8 ?
+          sorted :
+          sorted.slice(0, 3).concat(["..."], sorted.slice(-3))
+      ).join(", ");
     },
 
     toggleDrawer() {
