@@ -3,7 +3,8 @@ package com.criteo.perpetuo.engine
 import javax.inject.{Inject, Singleton}
 
 import com.criteo.perpetuo.auth.Permissions
-import com.criteo.perpetuo.config.AppConfig
+import com.criteo.perpetuo.config.ConfigSyntacticSugar._
+import com.criteo.perpetuo.config.AppConfigProvider
 import com.criteo.perpetuo.dao.{DbBinding, UnknownProduct}
 import com.criteo.perpetuo.engine.dispatchers.{Select, TargetDispatcher}
 import com.criteo.perpetuo.model.ExecutionState.ExecutionState
@@ -28,10 +29,14 @@ class Engine @Inject()(val dbBinding: DbBinding,
                        val permissions: Permissions,
                        val listener: Listener) {
 
+  val config = AppConfigProvider.config
+
+  private val noTransactions = config.tryGet("noTransactions").getOrElse(false)
+
   private val operationStarter = new OperationStarter(dbBinding)
 
   // todo: remove once new workflow is completely in place <<
-  lazy val productsExcludedFromNewWorkflow: Seq[String] = AppConfig.tryGet("productsExcludedFromNewWorkflow").getOrElse(Seq())
+  lazy val productsExcludedFromNewWorkflow: Seq[String] = config.tryGet("productsExcludedFromNewWorkflow").getOrElse(Seq())
 
   def isCoveredByOldWorkflow(productName: String): Boolean =
     productsExcludedFromNewWorkflow.contains(productName)
@@ -137,7 +142,7 @@ class Engine @Inject()(val dbBinding: DbBinding,
   def startDeploymentRequest(deploymentRequestId: Long, initiatorName: String): Future[Option[OperationTrace]] = {
     dbBinding.findDeepDeploymentRequestById(deploymentRequestId).flatMap(
       _.map { req =>
-        val check = if (!AppConfig.tryGet("noTransactions").getOrElse(false))
+        val check = if (!noTransactions)
           dbBinding.findLastOperationAndEffect(req.productId).map { lastEffect =>
             lastEffect.foreach { case OperationEffect(operationTrace, executionTraces, _) =>
               val requestId = operationTrace.deploymentRequestId

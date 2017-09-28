@@ -4,7 +4,7 @@ import java.sql.Timestamp
 
 import com.criteo.perpetuo.TestDb
 import com.criteo.perpetuo.auth.{User, UserFilter}
-import com.criteo.perpetuo.config.AppConfig
+import com.criteo.perpetuo.config.AppConfigProvider
 import com.criteo.perpetuo.model.{DeploymentRequestAttrs, Version}
 import com.twitter.finagle.http.Status._
 import com.twitter.finagle.http.{Request, Response, Status}
@@ -31,7 +31,8 @@ class RestControllerSpec extends FeatureTest with TestDb {
     def idAsLong: Long = o.asJsObject.fields("id").asInstanceOf[JsNumber].value.longValue
   }
 
-  val authModule = new AuthModule(AppConfig.getConfig("auth"))
+  val config = AppConfigProvider.config
+  val authModule = new AuthModule(config.getConfig("auth"))
   val productUser = User("bob.the.producer")
   val productUserJWT = productUser.toJWT(authModule.jwtEncoder)
   val deployUser = User("r.eleaser")
@@ -49,7 +50,7 @@ class RestControllerSpec extends FeatureTest with TestDb {
 
     override def modules = Seq(
       authModule,
-      new PluginsModule(AppConfig),
+      new PluginsModule(config),
       dbTestModule
     )
 

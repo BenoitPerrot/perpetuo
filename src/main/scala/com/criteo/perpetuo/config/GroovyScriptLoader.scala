@@ -4,8 +4,10 @@ import java.io.{File, InputStreamReader}
 import java.net.URL
 import javax.script.{ScriptEngine, ScriptEngineManager}
 
+import com.typesafe.config.Config
 
-class GroovyScriptLoader(appConfig: RootAppConfig = AppConfig) {
+
+class GroovyScriptLoader(config: Config) {
   private val engine: ScriptEngine = new ScriptEngineManager().getEngineByName("groovy") // todo? use GroovyScriptEngine
   assert(engine != null)
 
@@ -13,14 +15,14 @@ class GroovyScriptLoader(appConfig: RootAppConfig = AppConfig) {
     try {
       val cls = engine.eval(new InputStreamReader(resource.openStream())).asInstanceOf[Class[AnyRef]]
       Seq(// supported instantiation parameters:
-        Seq(appConfig),
+        Seq(config),
         Seq()
       )
         .view // lazily:
         .flatMap(instantiate(cls, _))
         .headOption
         .getOrElse {
-          throw new NoSuchMethodException("Groovy plugins must have at least a constructor taking either a RootAppConfig or nothing")
+          throw new NoSuchMethodException("Groovy plugins must have at least a constructor taking either a Config or nothing")
         }
     }
     catch {

@@ -2,7 +2,7 @@ package com.criteo.perpetuo.auth
 
 import com.criteo.perpetuo.app.AuthModule
 import com.criteo.perpetuo.auth.UserFilter._
-import com.criteo.perpetuo.config.AppConfig
+import com.criteo.perpetuo.config.AppConfigProvider
 import com.twitter.finagle.http.Status.{Ok, Unauthorized}
 import com.twitter.finagle.http.{Request, Response}
 import com.twitter.finatra.http.filters.{CommonFilters, LoggingMDCFilter, TraceIdMDCFilter}
@@ -18,7 +18,8 @@ import com.twitter.inject.server.FeatureTest
   */
 class UserFilterSpec extends FeatureTest {
 
-  val authModule = new AuthModule(AppConfig.getConfig("auth"))
+  val config = AppConfigProvider.config
+  val authModule = new AuthModule(config.getConfig("auth"))
 
   val server = new EmbeddedHttpServer(new HttpServer {
 

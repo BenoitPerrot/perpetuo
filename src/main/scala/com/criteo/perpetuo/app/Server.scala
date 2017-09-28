@@ -1,14 +1,14 @@
 package com.criteo.perpetuo.app
 
 import com.criteo.perpetuo.auth.{UserFilter, Controller => AuthenticationController}
-import com.criteo.perpetuo.config.AppConfig
+import com.criteo.perpetuo.config.AppConfigProvider
+import com.criteo.perpetuo.config.ConfigSyntacticSugar._
 import com.twitter.finagle.http.{Request, Response}
 import com.twitter.finatra.http.filters.{LoggingMDCFilter, TraceIdMDCFilter}
 import com.twitter.finatra.http.routing.HttpRouter
 import com.twitter.finatra.http.{HttpServer, Controller => BaseController}
 import com.twitter.finatra.json.modules.FinatraJacksonModule
 import com.twitter.finatra.logging.modules.Slf4jBridgeModule
-
 
 object CustomServerModules {
   val jackson = CustomJacksonModule
@@ -19,19 +19,21 @@ object CustomServerModules {
   */
 class Server extends HttpServer {
 
+  val config = AppConfigProvider.config
+
   override protected def jacksonModule: FinatraJacksonModule = CustomServerModules.jackson
 
-  override def defaultFinatraHttpPort: String = s":${AppConfig.get[Int]("http.port")}"
+  override def defaultFinatraHttpPort: String = s":${config.getInt("http.port")}"
 
   override def modules = Seq(
     Slf4jBridgeModule,
-    new DbContextModule(AppConfig.db),
-    new PluginsModule(AppConfig),
-    new AuthModule(AppConfig.getConfig("auth"))
+    new DbContextModule(config.getConfig("db")),
+    new PluginsModule(config),
+    new AuthModule(config.getConfig("auth"))
   )
 
   override def configureHttp(router: HttpRouter) {
-    if (AppConfig.get("logging")) {
+    if (config.getBoolean("logging")) {
       // Activate "Mapped Diagnostic Context" and access and stats logging
       router
         .filter[LoggingMDCFilter[Request, Response]]
@@ -40,7 +42,7 @@ class Server extends HttpServer {
     }
     router.filter[UserFilter]
 
-    AppConfig.tryGet[Iterable[String]]("extraControllers")
+    config.tryGet[Iterable[String]]("extraControllers")
       .foreach(_
         .foreach(extraControllerClassName =>
           router.add(injector.instance(Class.forName(extraControllerClassName)).asInstanceOf[BaseController])
@@ -52,7 +54,7 @@ class Server extends HttpServer {
       .add[RestController]
 
       // Add controller for serving static assets as the last one / fallback one
-      .add(new StaticAssetsController(AppConfig.tryGet("staticAssets.roots").getOrElse(Seq())))
+      .add(new StaticAssetsController(config.tryGet("staticAssets.roots").getOrElse(Seq())))
   }
 }
 

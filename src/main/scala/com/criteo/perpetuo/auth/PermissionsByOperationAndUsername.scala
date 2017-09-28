@@ -1,10 +1,11 @@
 package com.criteo.perpetuo.auth
 
-import com.criteo.perpetuo.config.AppConfig
+import com.criteo.perpetuo.config.ConfigSyntacticSugar._
 import com.criteo.perpetuo.model.Operation
+import com.typesafe.config.Config
 
 
-class PermissionsByOperationAndUsername(config: AppConfig) extends Permissions {
+class PermissionsByOperationAndUsername(config: Config) extends Permissions {
   override def isAuthorized(username: String, action: GeneralAction.Value): Boolean = {
     config
       .tryGet(action.toString)

@@ -1,7 +1,7 @@
 package com.criteo.perpetuo.engine.executors
 
 import com.criteo.perpetuo.app.RestApi
-import com.criteo.perpetuo.config.AppConfig
+import com.criteo.perpetuo.config.AppConfigProvider
 import com.criteo.perpetuo.engine.dispatchers.TargetExpr
 import com.criteo.perpetuo.model.Version
 import com.twitter.inject.Logging
@@ -13,7 +13,7 @@ import scala.concurrent.Future
 abstract class ExecutorInvoker {
   ExecutorInvoker.registeredInvokers += this
 
-  protected def callbackUrl(execTraceId: Long): String = AppConfig.get[String]("selfUrl") + RestApi.executionCallbackPath(execTraceId.toString)
+  protected def callbackUrl(execTraceId: Long): String = AppConfigProvider.config.getString("selfUrl") + RestApi.executionCallbackPath(execTraceId.toString)
 
   def trigger(execTraceId: Long, executionKind: String, productName: String, version: Version, target: TargetExpr, frozenParameters: String, initiator: String): Future[Option[String]]
 

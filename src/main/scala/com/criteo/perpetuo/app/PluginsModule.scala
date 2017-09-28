@@ -6,9 +6,10 @@ import com.criteo.perpetuo.engine.Listener
 import com.criteo.perpetuo.engine.dispatchers.TargetDispatcher
 import com.google.inject.{Provides, Singleton}
 import com.twitter.inject.TwitterModule
+import com.typesafe.config.Config
 
 
-class PluginsModule(config: RootAppConfig) extends TwitterModule {
+class PluginsModule(config: Config) extends TwitterModule {
   private val plugins = new Plugins(config)
 
   @Singleton

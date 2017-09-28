@@ -1,6 +1,6 @@
 package com.criteo.perpetuo
 
-import com.criteo.perpetuo.config.AppConfig
+import com.criteo.perpetuo.config.AppConfigProvider
 import com.criteo.perpetuo.dao.{DbContext, DbContextProvider, TestingDbContextModule}
 
 import scala.io.Source
@@ -15,6 +15,6 @@ object TestUtils {
 
 
 trait TestDb extends DbContextProvider {
-  lazy val dbTestModule = new TestingDbContextModule(AppConfig.db)
+  lazy val dbTestModule = new TestingDbContextModule(AppConfigProvider.config.getConfig("db"))
   lazy val dbContext: DbContext = dbTestModule.providesDbContext
 }

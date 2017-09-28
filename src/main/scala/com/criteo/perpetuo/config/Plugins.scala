@@ -7,7 +7,7 @@ import java.util.logging.Logger
 import com.criteo.perpetuo.auth._
 import com.criteo.perpetuo.engine.dispatchers.{SingleTargetDispatcher, TargetDispatcher}
 import com.criteo.perpetuo.engine.executors.{DummyInvoker, ExecutorInvoker}
-import com.typesafe.config.ConfigException
+import com.typesafe.config.{Config, ConfigException}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
@@ -15,10 +15,12 @@ import scala.concurrent.{Await, ExecutionException, Future, blocking}
 import scala.util.Try
 
 
-class Plugins(config: RootAppConfig) {
+class Plugins(config: Config) {
+  import com.criteo.perpetuo.config.ConfigSyntacticSugar._
+
   private val loader = new GroovyScriptLoader(config)
 
-  private def resolve[T](config: AppConfig, typeName: String, groovySupported: Boolean = false)(f: PartialFunction[String, T] = PartialFunction.empty): T = {
+  private def resolve[T](config: Config, typeName: String, groovySupported: Boolean = false)(f: PartialFunction[String, T] = PartialFunction.empty): T = {
     val t: String = try config.get("type") catch {
       case _: ConfigException.Missing => throw new Exception(s"No $typeName is configured, while one is required")
     }
@@ -36,7 +38,7 @@ class Plugins(config: RootAppConfig) {
       f(t)
   }
 
-  def invoker(invokerConfig: AppConfig): ExecutorInvoker = {
+  def invoker(invokerConfig: Config): ExecutorInvoker = {
     resolve(invokerConfig, "invoker") {
       case "dummy" => new DummyInvoker(invokerConfig.get("dummy.name"))
     }
