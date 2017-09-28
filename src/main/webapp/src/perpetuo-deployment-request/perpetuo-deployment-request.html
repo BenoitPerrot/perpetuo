@@ -78,7 +78,7 @@
       background-color: #f44336;
       color: #fff;
     }
-    .rollback {
+    .revert {
       background: #26a69a;
       color: #fff;
     }
@@ -180,12 +180,12 @@
       <template is="dom-if" if="[[revertPlan.undetermined.length]]">
         <p>Some impacted targets have no previous version ([[sumUpArray(revertPlan.undetermined)]]).</p>
         <p>Please specify the version to use for them:
-          <paper-input label="Default rollback version" value="{{rollbackDefaultVersion}}"></paper-input>
+          <paper-input label="Default version" value="{{defaultVersion}}"></paper-input>
         </p>
       </template>
       <div class="buttons">
         <paper-button dialog-dismiss class="cancel" raised>Cancel</paper-button>
-        <paper-button dialog-confirm class="rollback" raised>Rollback</paper-button>
+        <paper-button dialog-confirm class="revert" raised>Revert</paper-button>
       </div>
     </paper-dialog>
 
@@ -204,7 +204,7 @@
       comment: {type: Object, computed: 'computeComment(data)'},
       isInAction: Boolean,
       revertPlan: Object,
-      rollbackDefaultVersion: String,
+      defaultVersion: String,
     },
 
     timestampToDates(t) {
@@ -302,7 +302,7 @@
                 this.revertPlan = body;
                 this.rollbackDefaultVersion = undefined;
                 this.showRevertPlan().then(_ => {
-                  const body = this.rollbackDefaultVersion ? {defaultVersion: this.rollbackDefaultVersion} : {};
+                  const body = this.defaultVersion ? {defaultVersion: this.defaultVersion} : {};
                   this.client.revertDeploymentRequest(this.deploymentRequestId, body);
                 });
               });
