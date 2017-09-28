@@ -300,7 +300,7 @@
             return r.json()
               .then(body => {
                 this.revertPlan = body;
-                this.rollbackDefaultVersion = undefined;
+                this.defaultVersion = undefined;
                 this.showRevertPlan().then(_ => {
                   const body = this.defaultVersion ? {defaultVersion: this.defaultVersion} : {};
                   this.client.revertDeploymentRequest(this.deploymentRequestId, body);
