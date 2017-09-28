@@ -5,13 +5,14 @@ import com.twitter.finagle.http.{Message, Method, Request}
 import spray.json.DefaultJsonProtocol._
 import spray.json._
 
-class RundeckInvoker(name: String, host: String, port: Int, val apiVersion: Int, val authToken: String) extends HttpInvoker(host, port, name) {
+class RundeckInvoker(name: String, host: String, port: Int, authToken: String) extends HttpInvoker(host, port, name) {
+  val API_VERSION = 16
 
   private def authenticated(path: String): String =
     s"$path?authtoken=$authToken"
 
   private def runPath(jobName: String): String =
-    authenticated(s"/api/$apiVersion/job/$jobName/executions")
+    authenticated(s"/api/$API_VERSION/job/$jobName/executions")
 
   def buildRequest(execTraceId: Long, executionKind: String, productName: String, version: Version, target: String, frozenParameters: String, initiator: String): Request = {
     val parameters = frozenParameters.parseJson.asJsObject.fields

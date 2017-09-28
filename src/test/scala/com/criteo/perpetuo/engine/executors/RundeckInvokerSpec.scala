@@ -16,7 +16,7 @@ import scala.concurrent.duration._
 
 class RundeckInvokerSpec extends Test with TestDb {
   private def testWhenResponseIs(statusCode: Int, content: String) = {
-    val rundeckInvoker = new RundeckInvoker("rundeck", "localhost", 4440, 16, AppConfig.under("tokens").get[String]("rundeck")) // plugins.dispatcher.dispatchToExecutors("foo").head.asInstanceOf[HttpInvoker]
+    val rundeckInvoker = new RundeckInvoker("rundeck", "localhost", 4440, AppConfig.under("tokens").get[String]("rundeck")) // plugins.dispatcher.dispatchToExecutors("foo").head.asInstanceOf[HttpInvoker]
     assert(rundeckInvoker.getClass.getSimpleName == "RundeckInvoker")
     rundeckInvoker.client = request => {
       request.uri shouldEqual s"/api/16/job/deploy-to-marathon/executions?authtoken=my-super-secret-token"
