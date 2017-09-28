@@ -77,8 +77,8 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
               // log the execution
               logger.debug(s"Triggering ${operationTrace.kind} job for execution #$execTraceId of $productName v. $version on $executor")
               // trigger the execution
-              executor
-                .trigger(
+              val trigger = try {
+                executor.trigger(
                   execTraceId,
                   Operation.executionKind(operationTrace.kind),
                   productName,
@@ -87,6 +87,10 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
                   executionSpecification.specificParameters,
                   deploymentRequest.creator
                 )
+              } catch {
+                case e: Throwable => Future.failed(e)
+              }
+              trigger
                 .flatMap(
                   // if that answers a log href, update the trace with it, and consider that the job
                   // is running (i.e. already followable and not yet terminated, really)
