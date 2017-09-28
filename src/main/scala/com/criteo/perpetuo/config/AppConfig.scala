@@ -38,13 +38,10 @@ class AppConfig(override protected val config: Config,
 abstract class RootAppConfig extends BaseAppConfig {
 
   // todo: remove once new workflow is completely in place <<
-  private val productsExcludedFromNewWorkflow = Seq(
-    "directbidder-app", "directbidder-canary-app", "imageproxy-app", "videoproxy-app"
-  )
+  lazy val productsExcludedFromNewWorkflow: Seq[String] = tryGet("productsExcludedFromNewWorkflow").getOrElse(Seq())
 
   def isCoveredByOldWorkflow(productName: String): Boolean =
-    env == "prod" &&
-      productsExcludedFromNewWorkflow.contains(productName)
+    productsExcludedFromNewWorkflow.contains(productName)
   // >>
 
   override lazy val env: String = config.getString("env")
