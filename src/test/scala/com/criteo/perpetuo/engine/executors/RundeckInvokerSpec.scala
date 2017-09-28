@@ -1,7 +1,6 @@
 package com.criteo.perpetuo.engine.executors
 
 import com.criteo.perpetuo.TestDb
-import com.criteo.perpetuo.config.AppConfig
 import com.criteo.perpetuo.engine.dispatchers.TargetTerm
 import com.criteo.perpetuo.model.{Operation, Version}
 import com.twitter.finagle.http.{Response, Status}
@@ -16,7 +15,7 @@ import scala.concurrent.duration._
 
 class RundeckInvokerSpec extends Test with TestDb {
   private def testWhenResponseIs(statusCode: Int, content: String) = {
-    val rundeckInvoker = new RundeckInvoker("rundeck", "localhost", 4440, AppConfig.under("tokens").get[String]("rundeck")) // plugins.dispatcher.dispatchToExecutors("foo").head.asInstanceOf[HttpInvoker]
+    val rundeckInvoker = new RundeckInvoker("rundeck", "localhost", 4440, "my-super-secret-token")
     assert(rundeckInvoker.getClass.getSimpleName == "RundeckInvoker")
     rundeckInvoker.client = request => {
       request.uri shouldEqual s"/api/16/job/deploy-to-marathon/executions?authtoken=my-super-secret-token"
