@@ -35,7 +35,7 @@ object TestTargetDispatcher extends TargetDispatcher {
     java.util.Arrays.stream(targetWord.split("-")).iterator.asScala.filter(!_.isEmpty).toSeq.asJava
   }
 
-  def dispatch(targetAtoms: JavaIterable[String]): JavaMap[ExecutorInvoker, JavaIterable[String]] = {
+  def dispatch(targetAtoms: JavaIterable[String], frozenParameters: String): JavaMap[ExecutorInvoker, JavaIterable[String]] = {
     // associate executors to target words wrt the each target word's characters
     targetAtoms.asScala.flatMap { targetAtom =>
       targetAtom.flatMap {
@@ -154,7 +154,7 @@ class OperationStarterSpec extends Test with TestDb {
     }
 
     "raise if a target is not fully covered by executors" in {
-      val thrown = the[IllegalArgumentException] thrownBy TestTargetDispatcher.dispatchToExecutors(Set("def"))
+      val thrown = the[IllegalArgumentException] thrownBy TestTargetDispatcher.dispatchToExecutors(Set("def"), "")
       thrown.getMessage shouldEqual "requirement failed: Some target atoms have no designated executors: def"
     }
 
@@ -240,7 +240,7 @@ class OperationStarterSpec extends Test with TestDb {
           TargetTerm(Set(JsObject("ratio" -> JsNumber(0.05))), Set("appendix")),
           TargetTerm(Set(JsObject("ratio" -> JsNumber(0.05))), Set("alpha")),
           TargetTerm(select = Set("alpha"))
-        )).toMap,
+        ), "").toMap,
         Map(
           aInvoker -> Alternatives(
             Set(
@@ -278,7 +278,7 @@ class OperationStarterSpec extends Test with TestDb {
         TargetTerm(Set(JsObject("foo2" -> JsString("bar"))), Set("ghi"))
       )
       val dispatchedTargets = execution
-        .dispatch(DummyTargetDispatcher, targetWithDuplicates)
+        .dispatch(DummyTargetDispatcher, targetWithDuplicates, "")
         .map(_._2)
       assertEqual(dispatchedTargets, Seq(
         Set(

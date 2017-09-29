@@ -9,6 +9,6 @@ import scala.collection.JavaConverters._
 
 
 case class SingleTargetDispatcher(executorInvoker: ExecutorInvoker) extends TargetDispatcher {
-  override def dispatch(targetAtoms: JavaIterable[String]): JavaMap[ExecutorInvoker, JavaIterable[String]] =
+  override def dispatch(targetAtoms: JavaIterable[String], frozenParameters: String): JavaMap[ExecutorInvoker, JavaIterable[String]] =
     Map(executorInvoker -> targetAtoms).asJava
 }

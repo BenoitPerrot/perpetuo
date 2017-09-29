@@ -20,9 +20,9 @@ abstract class TargetDispatcher {
     target.map(term => TargetTerm(term.tactics, term.select.flatMap(toAtoms)))
   }
 
-  final def dispatchToExecutors(targetAtoms: Select): Iterable[(ExecutorInvoker, Select)] = {
+  final def dispatchToExecutors(targetAtoms: Select, frozenParameters: String): Iterable[(ExecutorInvoker, Select)] = {
     val dispatched = collectionAsScalaIterableConverter(
-      dispatch(asJavaIterableConverter(targetAtoms).asJava).entrySet
+      dispatch(asJavaIterableConverter(targetAtoms).asJava, frozenParameters).entrySet
     ).asScala.map { entry => (entry.getKey, entry.getValue.asScala.toSet) }
 
     // check that we have the same targets before and after the dispatch (but one can be dispatched in several groups)
@@ -48,5 +48,5 @@ abstract class TargetDispatcher {
     */
   def freezeParameters(executionKind: String, productName: String, version: Version): String = ""
 
-  protected def dispatch(targetAtoms: JavaIterable[String]): JavaMap[ExecutorInvoker, JavaIterable[String]]
+  protected def dispatch(targetAtoms: JavaIterable[String], frozenParameters: String): JavaMap[ExecutorInvoker, JavaIterable[String]]
 }

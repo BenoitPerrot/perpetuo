@@ -64,7 +64,7 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
     val version = executionSpecification.version
 
     // execution dispatching
-    val invocations = dispatch(dispatcher, expandedTarget).toSeq
+    val invocations = dispatch(dispatcher, expandedTarget, executionSpecification.specificParameters).toSeq
 
     dbBinding.insertExecution(operationTrace.id, executionSpecification.id).flatMap(executionId =>
       // create as many traces, all at the same time
@@ -153,13 +153,13 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
       }
   }
 
-  private[engine] def dispatch(dispatcher: TargetDispatcher, expandedTarget: TargetExpr): Iterable[(ExecutorInvoker, TargetExpr)] =
-    dispatchAlternatives(dispatcher, expandedTarget).map {
+  private[engine] def dispatch(dispatcher: TargetDispatcher, expandedTarget: TargetExpr, frozenParameters: String): Iterable[(ExecutorInvoker, TargetExpr)] =
+    dispatchAlternatives(dispatcher, expandedTarget, frozenParameters).map {
       // return the shortest target expression for the executor
       case (executor, expressions) => (executor, expressions.minBy(_.toJson.compactPrint.length))
     }
 
-  private[engine] def dispatchAlternatives(dispatcher: TargetDispatcher, expandedTarget: TargetExpr): Iterable[(ExecutorInvoker, Set[TargetExpr])] = {
+  private[engine] def dispatchAlternatives(dispatcher: TargetDispatcher, expandedTarget: TargetExpr, frozenParameters: String): Iterable[(ExecutorInvoker, Set[TargetExpr])] = {
     def groupOn2[A, B](it: Iterable[(A, B)]): Map[B, Set[A]] =
       it.groupBy(_._2).map { case (k, v) => (k, v.map(_._1).toSet) }
 
@@ -171,7 +171,7 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
     )
 
     // infer only once for all unique targets the executors required for each target word
-    dispatcher.dispatchToExecutors(perSelectAtom.keySet).map { case (executor, select) =>
+    dispatcher.dispatchToExecutors(perSelectAtom.keySet, frozenParameters).map { case (executor, select) =>
       val atomsAndTactics = select.toStream.map(selectAtom => (selectAtom, perSelectAtom(selectAtom)))
       val flattened = atomsAndTactics.flatMap { case (selectAtom, tactics) =>
         tactics.toStream.map(tactic => (selectAtom, tactic))
