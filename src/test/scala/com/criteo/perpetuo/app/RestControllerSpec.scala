@@ -49,7 +49,7 @@ class RestControllerSpec extends FeatureTest with TestDb {
 
     override def modules = Seq(
       authModule,
-      new PluginsModule(),
+      new PluginsModule(AppConfig),
       dbTestModule
     )
 

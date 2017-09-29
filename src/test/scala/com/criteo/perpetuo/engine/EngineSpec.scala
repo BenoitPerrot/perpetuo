@@ -3,7 +3,7 @@ package com.criteo.perpetuo.engine
 import java.sql.Timestamp
 
 import com.criteo.perpetuo.TestDb
-import com.criteo.perpetuo.config.Plugins
+import com.criteo.perpetuo.config.{AppConfig, Plugins}
 import com.criteo.perpetuo.dao.DbBinding
 import com.criteo.perpetuo.model._
 import com.twitter.inject.Test
@@ -16,7 +16,7 @@ import scala.concurrent.{Await, Future}
 
 class EngineSpec extends Test with TestDb {
 
-  private val plugins = new Plugins()
+  private val plugins = new Plugins(AppConfig)
   private val engine = new Engine(new DbBinding(dbContext), plugins.dispatcher, plugins.permissions, plugins.listener)
 
   "Engine" should {

@@ -15,8 +15,8 @@ import scala.concurrent.{Await, ExecutionException, Future, blocking}
 import scala.util.Try
 
 
-class Plugins(appConfig: RootAppConfig = AppConfig) {
-  private val loader = new GroovyScriptLoader(appConfig)
+class Plugins(config: RootAppConfig) {
+  private val loader = new GroovyScriptLoader(config)
 
   private def resolve[T](config: AppConfig, typeName: String, groovySupported: Boolean = false)(f: PartialFunction[String, T] = PartialFunction.empty): T = {
     val t: String = try config.get("type") catch {
@@ -43,7 +43,7 @@ class Plugins(appConfig: RootAppConfig = AppConfig) {
   }
 
   val dispatcher: TargetDispatcher = {
-    val desc = AppConfig.under("targetDispatcher")
+    val desc = config.under("targetDispatcher")
     resolve(desc, "target dispatcher", groovySupported = true) {
       case t@"singleInvoker" =>
         SingleTargetDispatcher(invoker(desc.under(t)))
@@ -51,7 +51,7 @@ class Plugins(appConfig: RootAppConfig = AppConfig) {
   }
 
   val identityProvider: IdentityProvider =
-    Try(AppConfig.under("auth.identityProvider")).map { desc =>
+    Try(config.under("auth.identityProvider")).map { desc =>
       resolve(desc, "type of identity provider") {
         case t@"openAm" =>
           val openAmConfig = desc.under(t)
@@ -61,7 +61,7 @@ class Plugins(appConfig: RootAppConfig = AppConfig) {
 
   val permissions: Permissions = {
     // fixme: "Try" only until we get back to a simpler config management system
-    Try(AppConfig.under("permissions")).map { desc =>
+    Try(config.under("permissions")).map { desc =>
       resolve(desc, "type of permissions", groovySupported = true) {
         case t@"filterUsernames" =>
           new PermissionsByOperationAndUsername(desc.under(t))
@@ -71,7 +71,7 @@ class Plugins(appConfig: RootAppConfig = AppConfig) {
 
   val listener: ListenerPluginWrapper = {
     new ListenerPluginWrapper(
-      Try(AppConfig.under("engineListener")).toOption.map { desc =>
+      Try(config.under("engineListener")).toOption.map { desc =>
         resolve[DefaultListenerPlugin](desc, "engine listener", groovySupported = true)()
       }
     )

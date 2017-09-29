@@ -8,8 +8,8 @@ import com.google.inject.{Provides, Singleton}
 import com.twitter.inject.TwitterModule
 
 
-class PluginsModule extends TwitterModule {
-  private val plugins = new Plugins()
+class PluginsModule(config: RootAppConfig) extends TwitterModule {
+  private val plugins = new Plugins(config)
 
   @Singleton
   @Provides
