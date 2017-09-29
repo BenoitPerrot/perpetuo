@@ -30,6 +30,13 @@ class Engine @Inject()(val dbBinding: DbBinding,
 
   private val operationStarter = new OperationStarter(dbBinding)
 
+  // todo: remove once new workflow is completely in place <<
+  lazy val productsExcludedFromNewWorkflow: Seq[String] = AppConfig.tryGet("productsExcludedFromNewWorkflow").getOrElse(Seq())
+
+  def isCoveredByOldWorkflow(productName: String): Boolean =
+    productsExcludedFromNewWorkflow.contains(productName)
+  // >>
+
   def getProductNames: Future[Seq[String]] =
     dbBinding.getProductNames
 
@@ -41,7 +48,7 @@ class Engine @Inject()(val dbBinding: DbBinding,
 
   def createDeploymentRequest(attrs: DeploymentRequestAttrs, immediateStart: Boolean): Future[Map[String, Any]] = {
     // todo: remove once new workflow is completely in place <<
-    if (AppConfig.isCoveredByOldWorkflow(attrs.productName) && !immediateStart) {
+    if (isCoveredByOldWorkflow(attrs.productName) && !immediateStart) {
       dbBinding.findProductByName(attrs.productName)
         .map(_.map(DeepDeploymentRequest(0, _, attrs.version, attrs.target, attrs.comment, attrs.creator, attrs.creationDate))
           .getOrElse {

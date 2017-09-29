@@ -28,13 +28,6 @@ class AppConfig(override protected val config: Config) extends BaseAppConfig
 
 abstract class RootAppConfig extends BaseAppConfig {
 
-  // todo: remove once new workflow is completely in place <<
-  lazy val productsExcludedFromNewWorkflow: Seq[String] = tryGet("productsExcludedFromNewWorkflow").getOrElse(Seq())
-
-  def isCoveredByOldWorkflow(productName: String): Boolean =
-    productsExcludedFromNewWorkflow.contains(productName)
-  // >>
-
   lazy val db: AppConfig = under("db")
 }
 
