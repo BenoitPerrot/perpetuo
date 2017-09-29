@@ -21,26 +21,31 @@ import scala.concurrent.{Await, Future}
 import scala.reflect.{ClassTag, classTag}
 
 
+import java.lang.{Iterable => JavaIterable}
+import java.util.{Map => JavaMap}
+
+
 object TestTargetDispatcher extends TargetDispatcher {
   val aInvoker = new DummyInvoker("A's invoker")
   val bInvoker = new DummyInvoker("B's invoker")
   val cInvoker = new DummyInvoker("C's invoker")
 
-  override protected def fromTargetWordToAtoms(productName: String, productVersion: String, targetWord: String): java.lang.Iterable[String] = {
+  override protected def fromTargetWordToAtoms(productName: String, productVersion: String, targetWord: String): java.util.Collection[String] = {
     // the atomic targets are the input word split on dashes
     java.util.Arrays.stream(targetWord.split("-")).iterator.asScala.filter(!_.isEmpty).toSeq.asJava
   }
 
-  def assign(targetAtom: String): java.lang.Iterable[ExecutorInvoker] = {
-    // associate executors to target words wrt the latter's characters
-    val invokers: Set[ExecutorInvoker] = targetAtom.flatMap {
-      case 'a' => Some(aInvoker)
-      case 'b' => Some(bInvoker)
-      case 'c' => Some(cInvoker)
-      case _ => None
-    }.toSet
-    invokers.asJava
-  }
+  def dispatch(targetAtoms: JavaIterable[String]): JavaMap[ExecutorInvoker, JavaIterable[String]] = {
+    // associate executors to target words wrt the each target word's characters
+    targetAtoms.asScala.flatMap { targetAtom =>
+      targetAtom.flatMap {
+        case 'a' => Some(aInvoker)
+        case 'b' => Some(bInvoker)
+        case 'c' => Some(cInvoker)
+        case _ => None
+      }.map(executor => (executor, targetAtom))
+    }.groupBy(_._1).map { case (executor, it) => executor.asInstanceOf[ExecutorInvoker] -> it.map(_._2).asJava }
+  }.asJava
 }
 
 object DummyTargetDispatcher extends SingleTargetDispatcher(executorInvoker = new DummyInvoker("Default Dummy Invoker"))
@@ -149,8 +154,8 @@ class OperationStarterSpec extends Test with TestDb {
     }
 
     "raise if a target is not fully covered by executors" in {
-      val thrown = the[IllegalArgumentException] thrownBy TestTargetDispatcher.dispatchToExecutors("def")
-      thrown.getMessage should endWith("There is no executor for `def`")
+      val thrown = the[IllegalArgumentException] thrownBy TestTargetDispatcher.dispatchToExecutors(Set("def"))
+      thrown.getMessage shouldEqual "requirement failed: Some target atoms have no designated executors: def"
     }
 
   }

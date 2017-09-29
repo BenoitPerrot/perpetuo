@@ -1,5 +1,8 @@
 package com.criteo.perpetuo.engine.dispatchers
 
+import java.lang.{Iterable => JavaIterable}
+import java.util.{Collection => JavaCollection, Map => JavaMap}
+
 import com.criteo.perpetuo.engine.executors.ExecutorInvoker
 import com.criteo.perpetuo.model.{TargetAtom, Version}
 
@@ -17,13 +20,22 @@ abstract class TargetDispatcher {
     target.map(term => TargetTerm(term.tactics, term.select.flatMap(toAtoms)))
   }
 
-  final def dispatchToExecutors(targetAtom: String): Set[ExecutorInvoker] = {
-    val executors = assign(targetAtom).asScala.toSet
-    require(executors.nonEmpty, s"There is no executor for `$targetAtom`")
-    executors
+  final def dispatchToExecutors(targetAtoms: Select): Iterable[(ExecutorInvoker, Select)] = {
+    val dispatched = collectionAsScalaIterableConverter(
+      dispatch(asJavaIterableConverter(targetAtoms).asJava).entrySet
+    ).asScala.map { entry => (entry.getKey, entry.getValue.asScala.toSet) }
+
+    // check that we have the same targets before and after the dispatch (but one can be dispatched in several groups)
+    val dispatchedTargets = dispatched.toStream.map { case (_, group) => group }.foldLeft(Stream.empty[String])(_ ++ _).toSet
+    assert(dispatchedTargets.subsetOf(targetAtoms),
+      "More targets after dispatching than before: " + (dispatchedTargets -- targetAtoms).map(_.toString).mkString(", "))
+    require(dispatchedTargets.size == targetAtoms.size,
+      "Some target atoms have no designated executors: " + (targetAtoms -- dispatchedTargets).map(_.toString).mkString(", "))
+
+    dispatched
   }
 
-  protected def fromTargetWordToAtoms(productName: String, productVersion: String, targetWord: String): java.lang.Iterable[String] =
+  protected def fromTargetWordToAtoms(productName: String, productVersion: String, targetWord: String): JavaCollection[String] =
     Seq(targetWord).asJava
 
   /**
@@ -36,6 +48,5 @@ abstract class TargetDispatcher {
     */
   def freezeParameters(executionKind: String, productName: String, version: Version): String = ""
 
-  // todo: rename as `dispatch` or `toExecutors`
-  protected def assign(targetAtom: String): java.lang.Iterable[ExecutorInvoker]
+  protected def dispatch(targetAtoms: JavaIterable[String]): JavaMap[ExecutorInvoker, JavaIterable[String]]
 }

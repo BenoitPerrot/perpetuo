@@ -153,39 +153,34 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
       }
   }
 
-  private[engine] def dispatch(dispatcher: TargetDispatcher, target: TargetExpr): Iterable[(ExecutorInvoker, TargetExpr)] =
-    dispatchAlternatives(dispatcher, target).map {
+  private[engine] def dispatch(dispatcher: TargetDispatcher, expandedTarget: TargetExpr): Iterable[(ExecutorInvoker, TargetExpr)] =
+    dispatchAlternatives(dispatcher, expandedTarget).map {
       // return the shortest target expression for the executor
       case (executor, expressions) => (executor, expressions.minBy(_.toJson.compactPrint.length))
     }
 
-  private[engine] def dispatchAlternatives(dispatcher: TargetDispatcher, target: TargetExpr): Iterable[(ExecutorInvoker, Set[TargetExpr])] = {
-    def groupOn1[A, B](it: Iterable[(A, B)]): Iterable[(A, Set[B])] =
-      it.groupBy(_._1).map { case (k, v) => (k, v.map(_._2).toSet) }
-
-    def groupOn2[A, B](it: Iterable[(A, B)]): Iterable[(B, Set[A])] =
+  private[engine] def dispatchAlternatives(dispatcher: TargetDispatcher, expandedTarget: TargetExpr): Iterable[(ExecutorInvoker, Set[TargetExpr])] = {
+    def groupOn2[A, B](it: Iterable[(A, B)]): Map[B, Set[A]] =
       it.groupBy(_._2).map { case (k, v) => (k, v.map(_._1).toSet) }
 
-    val targetExpanded = for {
-      TargetTerm(tactics, select) <- target
-      selectWord <- select
-    } yield (tactics, selectWord)
+    val perSelectAtom = groupOn2(
+      expandedTarget.toStream.flatMap { case TargetTerm(tactics, select) =>
+        select.toStream.flatMap(selectAtom =>
+          tactics.map(tactic => (tactic, selectAtom)))
+      }
+    )
 
-    val allExpanded = groupOn2(targetExpanded).flatMap { case (selectWord, groupedTactics) =>
-      // just to infer only once per unique select word the executors to call
-      for {
-        executor <- dispatcher.dispatchToExecutors(selectWord)
-        tactics <- groupedTactics
-        tactic <- tactics
-      } yield (executor, (selectWord, tactic))
-    }
-
-    // then group by executor
-    groupOn1(allExpanded).map { case (executor, execGroup) =>
-      // and by "the rest":
+    // infer only once for all unique targets the executors required for each target word
+    dispatcher.dispatchToExecutors(perSelectAtom.keySet).map { case (executor, select) =>
+      val atomsAndTactics = select.toStream.map(selectAtom => (selectAtom, perSelectAtom(selectAtom)))
+      val flattened = atomsAndTactics.flatMap { case (selectAtom, tactics) =>
+        tactics.toStream.map(tactic => (selectAtom, tactic))
+      }
       val alternatives = Seq(
-        groupOn2(groupOn1(execGroup)).map(TargetTerm.tupled), // either first by "select word" then grouping these words by common "tactics"
-        groupOn2(groupOn2(execGroup)).map(_.swap).map(TargetTerm.tupled) // or first by tactic then grouping the tactics by common "select"
+        // either group first by "select" atoms then group these atoms by common "tactics"
+        groupOn2(atomsAndTactics).map(TargetTerm.tupled),
+        // or group first by tactic then group the tactics by common "select" atoms
+        groupOn2(groupOn2(flattened)).map(_.swap).map(TargetTerm.tupled)
       )
       (executor, alternatives.map(_.toSet).toSet)
     }
