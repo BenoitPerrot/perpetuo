@@ -18,7 +18,7 @@ import com.twitter.inject.server.FeatureTest
   */
 class UserFilterSpec extends FeatureTest {
 
-  val authModule = new AuthModule(AppConfig.under("auth"))
+  val authModule = new AuthModule(AppConfig.getConfig("auth"))
 
   val server = new EmbeddedHttpServer(new HttpServer {
 

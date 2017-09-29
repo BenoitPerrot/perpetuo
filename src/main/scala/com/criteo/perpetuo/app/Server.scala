@@ -27,7 +27,7 @@ class Server extends HttpServer {
     Slf4jBridgeModule,
     new DbContextModule(AppConfig.db),
     new PluginsModule(AppConfig),
-    new AuthModule(AppConfig.under("auth"))
+    new AuthModule(AppConfig.getConfig("auth"))
   )
 
   override def configureHttp(router: HttpRouter) {

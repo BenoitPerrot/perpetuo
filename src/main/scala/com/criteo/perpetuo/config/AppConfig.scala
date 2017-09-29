@@ -8,7 +8,7 @@ import scala.collection.JavaConverters._
 abstract class BaseAppConfig {
   protected val config: Config
 
-  def under(path: String): AppConfig = {
+  def getConfig(path: String): AppConfig = {
     new AppConfig(config.getConfig(path))
   }
 
@@ -28,7 +28,7 @@ class AppConfig(override protected val config: Config) extends BaseAppConfig
 
 abstract class RootAppConfig extends BaseAppConfig {
 
-  lazy val db: AppConfig = under("db")
+  lazy val db: AppConfig = getConfig("db")
 }
 
 

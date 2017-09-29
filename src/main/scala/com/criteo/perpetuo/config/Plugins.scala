@@ -43,35 +43,35 @@ class Plugins(config: RootAppConfig) {
   }
 
   val dispatcher: TargetDispatcher = {
-    val desc = config.under("targetDispatcher")
+    val desc = config.getConfig("targetDispatcher")
     resolve(desc, "target dispatcher", groovySupported = true) {
       case t@"singleInvoker" =>
-        SingleTargetDispatcher(invoker(desc.under(t)))
+        SingleTargetDispatcher(invoker(desc.getConfig(t)))
     }
   }
 
   val identityProvider: IdentityProvider =
-    Try(config.under("auth.identityProvider")).map { desc =>
+    Try(config.getConfig("auth.identityProvider")).map { desc =>
       resolve(desc, "type of identity provider") {
         case t@"openAm" =>
-          val openAmConfig = desc.under(t)
+          val openAmConfig = desc.getConfig(t)
           new OpenAmIdentityProvider(new URL(openAmConfig.get("authorize.url")), new URL(openAmConfig.get("tokeninfo.url")))
       }
     }.getOrElse(new AnonymousIdentityProvider)
 
   val permissions: Permissions = {
     // fixme: "Try" only until we get back to a simpler config management system
-    Try(config.under("permissions")).map { desc =>
+    Try(config.getConfig("permissions")).map { desc =>
       resolve(desc, "type of permissions", groovySupported = true) {
         case t@"filterUsernames" =>
-          new PermissionsByOperationAndUsername(desc.under(t))
+          new PermissionsByOperationAndUsername(desc.getConfig(t))
       }
     }.getOrElse(new Unrestricted)
   }
 
   val listener: ListenerPluginWrapper = {
     new ListenerPluginWrapper(
-      Try(config.under("engineListener")).toOption.map { desc =>
+      Try(config.getConfig("engineListener")).toOption.map { desc =>
         resolve[DefaultListenerPlugin](desc, "engine listener", groovySupported = true)()
       }
     )

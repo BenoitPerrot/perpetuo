@@ -31,7 +31,7 @@ class RestControllerSpec extends FeatureTest with TestDb {
     def idAsLong: Long = o.asJsObject.fields("id").asInstanceOf[JsNumber].value.longValue
   }
 
-  val authModule = new AuthModule(AppConfig.under("auth"))
+  val authModule = new AuthModule(AppConfig.getConfig("auth"))
   val productUser = User("bob.the.producer")
   val productUserJWT = productUser.toJWT(authModule.jwtEncoder)
   val deployUser = User("r.eleaser")

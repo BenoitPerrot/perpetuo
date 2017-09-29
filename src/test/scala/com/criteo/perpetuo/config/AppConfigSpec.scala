@@ -35,7 +35,7 @@ class AppConfigSpec extends Test {
       a[Missing] shouldBe thrownBy { preprodConfig.get[Int]("int.tutu") }
     }
     "expose a method to get a sub-configuration" in {
-      val subConfig = preprodConfig.under("int")
+      val subConfig = preprodConfig.getConfig("int")
       subConfig.isInstanceOf[AppConfig] should be // YodaSpec syntax ;)
       subConfig.get[Int]("toto") shouldEqual 42
     }
@@ -45,7 +45,7 @@ class AppConfigSpec extends Test {
     "still support direct access to a path disregarding environment-related alternatives" in {
       testConfig.get[Int]("int.toto") shouldEqual 42
       preprodConfig.get[Int]("int.test.other3") shouldEqual 9
-      preprodConfig.under("int.test").get[Int]("toto") shouldEqual 51
+      preprodConfig.getConfig("int.test").get[Int]("toto") shouldEqual 51
       a[Missing] shouldBe thrownBy { preprodConfig.get[String]("int.other3") }
     }
   }
