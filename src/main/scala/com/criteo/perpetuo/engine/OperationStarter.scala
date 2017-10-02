@@ -88,7 +88,7 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
                   deploymentRequest.creator
                 )
               } catch {
-                case e: Throwable => Future.failed(e)
+                case e: Throwable => Future.failed(new Exception("Could not trigger the execution; please contact #sre-perpetual", e))
               }
               trigger
                 .flatMap(
@@ -106,6 +106,7 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
                 .recoverWith {
                   // if triggering the job throws an error, mark the execution as failed at initialization
                   case e: Throwable =>
+                    logger.error(e.getMessage, e)
                     dbBinding.updateExecutionTrace(execTraceId, ExecutionState.initFailed, e.getMessage).map { updated =>
                       assert(updated)
                       (false, s"failed (${e.getMessage})")
