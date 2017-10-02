@@ -6,7 +6,7 @@ import java.util.logging.Logger
 
 import com.criteo.perpetuo.auth._
 import com.criteo.perpetuo.engine.dispatchers.{SingleTargetDispatcher, TargetDispatcher}
-import com.criteo.perpetuo.engine.executors.{DummyInvoker, ExecutorInvoker}
+import com.criteo.perpetuo.engine.executors.{DummyInvoker, ExecutorInvoker, RundeckInvoker}
 import com.typesafe.config.{Config, ConfigException}
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -38,6 +38,13 @@ class Plugins(config: Config) {
   def invoker(invokerConfig: Config): ExecutorInvoker = {
     resolve(invokerConfig, "invoker") {
       case "dummy" => new DummyInvoker(invokerConfig.getString("dummy.name"))
+      case "rundeck" => new RundeckInvoker(
+        invokerConfig.get("rundeck.name"),
+        invokerConfig.get("rundeck.host"),
+        invokerConfig.get("rundeck.port"),
+        invokerConfig.get("rundeck.token"),
+        invokerConfig.get("rundeck.jobName")
+      )
     }
   }
 
