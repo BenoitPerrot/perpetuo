@@ -12,7 +12,6 @@ import com.typesafe.config.{Config, ConfigException}
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionException, Future, blocking}
-import scala.util.Try
 
 
 class Plugins(config: Config) {
@@ -53,7 +52,7 @@ class Plugins(config: Config) {
   }
 
   val identityProvider: IdentityProvider =
-    Try(config.getConfig("auth.identityProvider")).map { desc =>
+    config.tryGetConfig("auth.identityProvider").map { desc =>
       resolve(desc, "type of identity provider") {
         case t@"openAm" =>
           val openAmConfig = desc.getConfig(t)
@@ -62,8 +61,7 @@ class Plugins(config: Config) {
     }.getOrElse(new AnonymousIdentityProvider)
 
   val permissions: Permissions = {
-    // fixme: "Try" only until we get back to a simpler config management system
-    Try(config.getConfig("permissions")).map { desc =>
+    config.tryGetConfig("permissions").map { desc =>
       resolve(desc, "type of permissions", groovySupported = true) {
         case t@"filterUsernames" =>
           new PermissionsByOperationAndUsername(desc.getConfig(t))
@@ -73,7 +71,7 @@ class Plugins(config: Config) {
 
   val listener: ListenerPluginWrapper = {
     new ListenerPluginWrapper(
-      Try(config.getConfig("engineListener")).toOption.map { desc =>
+      config.tryGetConfig("engineListener").map { desc =>
         resolve[DefaultListenerPlugin](desc, "engine listener", groovySupported = true)()
       }
     )

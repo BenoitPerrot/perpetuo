@@ -14,6 +14,8 @@ object ConfigSyntacticSugar {
         case value => value
       }
     }.asInstanceOf[T]
+
+    def tryGetConfig(path: String): Option[Config] = if (config.hasPath(path)) Some(config.getConfig(path)) else None
   }
 
 }
