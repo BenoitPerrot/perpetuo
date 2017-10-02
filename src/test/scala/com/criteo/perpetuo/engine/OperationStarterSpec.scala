@@ -38,6 +38,7 @@ object TestTargetDispatcher extends TargetDispatcher {
   override def freezeParameters(executionKind: String, productName: String, version: Version) = "foobar"
 
   override def dispatch(targetAtoms: JavaIterable[String], frozenParameters: String): JavaMap[ExecutorInvoker, JavaIterable[String]] = {
+    assert(frozenParameters == "foobar")
     // associate executors to target words wrt the each target word's characters
     targetAtoms.asScala.flatMap { targetAtom =>
       targetAtom.flatMap {
@@ -156,7 +157,8 @@ class OperationStarterSpec extends Test with TestDb {
     }
 
     "raise if a target is not fully covered by executors" in {
-      val thrown = the[IllegalArgumentException] thrownBy TestTargetDispatcher.dispatchToExecutors(Set("def"), "")
+      val params = TestTargetDispatcher.freezeParameters("", "", Version(""""42""""))
+      val thrown = the[IllegalArgumentException] thrownBy TestTargetDispatcher.dispatchToExecutors(Set("def"), params)
       thrown.getMessage shouldEqual "requirement failed: Some target atoms have no designated executors: def"
     }
 
@@ -235,6 +237,7 @@ class OperationStarterSpec extends Test with TestDb {
 
     "be dispatched as short target expressions" in {
       val Alternatives = Set
+      val params = TestTargetDispatcher.freezeParameters("", "", Version(""""42""""))
       assertEqual(
         execution.dispatchAlternatives(TestTargetDispatcher, Set(
           TargetTerm(Set(JsObject("ratio" -> JsNumber(0.05), "foo" -> JsString("bar"))), Set("ab")),
@@ -242,7 +245,7 @@ class OperationStarterSpec extends Test with TestDb {
           TargetTerm(Set(JsObject("ratio" -> JsNumber(0.05))), Set("appendix")),
           TargetTerm(Set(JsObject("ratio" -> JsNumber(0.05))), Set("alpha")),
           TargetTerm(select = Set("alpha"))
-        ), "").toMap,
+        ), params).toMap,
         Map(
           aInvoker -> Alternatives(
             Set(
