@@ -143,9 +143,9 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
       .flatMap { groups =>
         val opCreation = dbBinding.insertOperationTrace(deploymentRequest.id, Operation.revert, userName)
         Future.traverse(groups) { case (execSpec, targets) =>
-          val targetAtoms = Set(TargetTerm(select = targets))
+          val expandedTarget = Set(TargetTerm(select = targets))
           opCreation.flatMap(newOp =>
-            startExecution(dispatcher, deploymentRequest, newOp, execSpec, targetAtoms)
+            startExecution(dispatcher, deploymentRequest, newOp, execSpec, expandedTarget)
           )
         }
           .map(_.fold((0, 0)) { case ((a, b), (c, d)) => (a + c, b + d) })

@@ -44,7 +44,7 @@ abstract class TargetDispatcher {
     * except that it must be replayable with a subset of the original target (so the targets
     * should not be included in the frozen parameters).
     * If the input doesn't make sense (the parameters are incompatible with each other),
-    * it must return a `UnprocessableIntent` error, whose message will be displayed to the end user.
+    * it must return an `UnprocessableIntent` error, whose message will be displayed to the end user.
     */
   def freezeParameters(executionKind: String, productName: String, version: Version): String = ""
 

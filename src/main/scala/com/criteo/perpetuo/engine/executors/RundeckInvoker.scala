@@ -23,7 +23,7 @@ class RundeckInvoker(name: String, host: String, port: Int, authToken: String) e
     if (quotedVersion.startsWith("["))
       quotedVersion = squote(quotedVersion)
 
-    // Rundeck before API version 18 do not support invocation with structured arguments
+    // Rundeck before API version 18 does not support invocation with structured arguments
     val args = Map(
       "callback-url" -> squote(callbackUrl(execTraceId)),
       "product-name" -> squote(productName),
@@ -53,7 +53,7 @@ class RundeckInvoker(name: String, host: String, port: Int, authToken: String) e
   def extractLogHref(executorAnswer: String): String =
     executorAnswer.parseJson.asJsObject.fields("permalink").asInstanceOf[JsString].value
 
-  val ERROR_IN_HTML = """.+<p>(.+)</p>.+""".r
+  private val ERROR_IN_HTML = """.+<p>(.+)</p>.+""".r
 
   def extractMessage(status: Int, content: String): String = {
     try {
