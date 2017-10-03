@@ -23,7 +23,9 @@ abstract class TargetDispatcher {
   final def dispatchToExecutors(targetAtoms: Select, frozenParameters: String): Iterable[(ExecutorInvoker, Select)] = {
     val dispatched = collectionAsScalaIterableConverter(
       dispatch(asJavaIterableConverter(targetAtoms).asJava, frozenParameters).entrySet
-    ).asScala.map { entry => (entry.getKey, entry.getValue.asScala.toSet) }
+    ).asScala
+      .map { entry => (entry.getKey, entry.getValue.asScala.toSet) }
+      .filter { case (_, select) => select.nonEmpty }
 
     // check that we have the same targets before and after the dispatch (but one can be dispatched in several groups)
     val dispatchedTargets = dispatched.toStream.map { case (_, group) => group }.foldLeft(Stream.empty[String])(_ ++ _).toSet
