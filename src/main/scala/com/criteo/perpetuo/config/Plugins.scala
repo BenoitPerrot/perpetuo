@@ -36,7 +36,7 @@ class Plugins(config: Config) {
   }
 
   def invoker(invokerConfig: Config): ExecutorInvoker = {
-    resolve(invokerConfig, "invoker") {
+    resolve[ExecutorInvoker](invokerConfig, "invoker") {
       case "dummy" => new DummyInvoker(invokerConfig.getString("dummy.name"))
       case "rundeck" => new RundeckInvoker(
         invokerConfig.get("rundeck.name"),
@@ -50,7 +50,7 @@ class Plugins(config: Config) {
 
   val dispatcher: TargetDispatcher =
     config.tryGetConfig("targetDispatcher").map { desc =>
-      resolve(desc, "target dispatcher", groovySupported = true) {
+      resolve[TargetDispatcher](desc, "target dispatcher", groovySupported = true) {
         case t@"singleInvoker" =>
           SingleTargetDispatcher(invoker(desc.getConfig(t)))
       }
@@ -58,7 +58,7 @@ class Plugins(config: Config) {
 
   val identityProvider: IdentityProvider =
     config.tryGetConfig("auth.identityProvider").map { desc =>
-      resolve(desc, "type of identity provider") {
+      resolve[IdentityProvider](desc, "type of identity provider") {
         case t@"openAm" =>
           val openAmConfig = desc.getConfig(t)
           new OpenAmIdentityProvider(new URL(openAmConfig.getString("authorize.url")), new URL(openAmConfig.getString("tokeninfo.url")))
@@ -67,7 +67,7 @@ class Plugins(config: Config) {
 
   val permissions: Permissions =
     config.tryGetConfig("permissions").map { desc =>
-      resolve(desc, "type of permissions", groovySupported = true) {
+      resolve[Permissions](desc, "type of permissions", groovySupported = true) {
         case t@"filterUsernames" =>
           new PermissionsByOperationAndUsername(desc.getConfig(t))
       }
