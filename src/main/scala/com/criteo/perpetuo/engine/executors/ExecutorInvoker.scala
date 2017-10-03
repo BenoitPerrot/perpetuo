@@ -15,7 +15,7 @@ abstract class ExecutorInvoker {
 
   protected def callbackUrl(execTraceId: Long): String = AppConfigProvider.config.getString("selfUrl") + RestApi.executionCallbackPath(execTraceId.toString)
 
-  def trigger(execTraceId: Long, executionKind: String, productName: String, version: Version, target: TargetExpr, frozenParameters: String, initiator: String): Future[Option[String]]
+  def trigger(execTraceId: Long, executionKind: String, productName: String, version: Version, target: TargetExpr, initiator: String): Future[Option[String]]
 
   def getExecutionDetailsUrlIfApplicable(logHref: String): Option[String] = None
 }
@@ -43,7 +43,7 @@ object ExecutorInvoker {
 class DummyInvoker(name: String) extends ExecutorInvoker with Logging {
   override def toString: String = name
 
-  override def trigger(execTraceId: Long, executionKind: String, productName: String, version: Version, target: TargetExpr, frozenParameters: String, initiator: String): Future[Option[String]] = {
+  override def trigger(execTraceId: Long, executionKind: String, productName: String, version: Version, target: TargetExpr, initiator: String): Future[Option[String]] = {
     logger.info(s"Hi, I'm $name! I will run operation #$execTraceId on behalf of: $initiator")
     Future.successful(None)
   }

@@ -84,7 +84,6 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
                   productName,
                   version,
                   target,
-                  executionSpecification.specificParameters,
                   deploymentRequest.creator
                 )
               } catch {

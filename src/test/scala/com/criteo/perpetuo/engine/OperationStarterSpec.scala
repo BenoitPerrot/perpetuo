@@ -35,7 +35,9 @@ object TestTargetDispatcher extends TargetDispatcher {
     java.util.Arrays.stream(targetWord.split("-")).iterator.asScala.filter(!_.isEmpty).toSeq.asJava
   }
 
-  def dispatch(targetAtoms: JavaIterable[String], frozenParameters: String): JavaMap[ExecutorInvoker, JavaIterable[String]] = {
+  override def freezeParameters(executionKind: String, productName: String, version: Version) = "foobar"
+
+  override def dispatch(targetAtoms: JavaIterable[String], frozenParameters: String): JavaMap[ExecutorInvoker, JavaIterable[String]] = {
     // associate executors to target words wrt the each target word's characters
     targetAtoms.asScala.flatMap { targetAtom =>
       targetAtom.flatMap {
@@ -63,8 +65,8 @@ class OperationStarterSpec extends Test with TestDb {
   }
 
   object DummyInvokerWithLogHref extends DummyInvoker("DummyWithLogHref") {
-    override def trigger(execTraceId: Long, executionKind: String, productName: String, version: Version, target: TargetExpr, frozenParameters: String, initiator: String): Future[Option[String]] = {
-      super.trigger(execTraceId, executionKind, productName, version, target, frozenParameters, initiator).map { logHref =>
+    override def trigger(execTraceId: Long, executionKind: String, productName: String, version: Version, target: TargetExpr, initiator: String): Future[Option[String]] = {
+      super.trigger(execTraceId, executionKind, productName, version, target, initiator).map { logHref =>
         assert(logHref.isEmpty)
         Some(s"#${dummyCounter.next}")
       }

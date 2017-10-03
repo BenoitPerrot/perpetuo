@@ -5,7 +5,9 @@ import com.twitter.finagle.http.{Message, Method, Request}
 import spray.json.DefaultJsonProtocol._
 import spray.json._
 
-class RundeckInvoker(name: String, host: String, port: Int, authToken: String) extends HttpInvoker(host, port, name) {
+import scala.collection.{Map => MapBase}
+
+class RundeckInvoker(name: String, host: String, port: Int, authToken: String, jobName: String, specificParameters: MapBase[String, String] = Map()) extends HttpInvoker(host, port, name) {
   val API_VERSION = 16
 
   private def authenticated(path: String): String =
@@ -14,9 +16,7 @@ class RundeckInvoker(name: String, host: String, port: Int, authToken: String) e
   private def runPath(jobName: String): String =
     authenticated(s"/api/$API_VERSION/job/$jobName/executions")
 
-  def buildRequest(execTraceId: Long, executionKind: String, productName: String, version: Version, target: String, frozenParameters: String, initiator: String): Request = {
-    val parameters = frozenParameters.parseJson.asJsObject.fields
-
+  def buildRequest(execTraceId: Long, executionKind: String, productName: String, version: Version, target: String, initiator: String): Request = {
     def squote(s: String) = s"'$s'"
 
     var quotedVersion = version.toString
@@ -29,8 +29,8 @@ class RundeckInvoker(name: String, host: String, port: Int, authToken: String) e
       "product-name" -> squote(productName),
       "target" -> squote(target),
       "product-version" -> quotedVersion
-    ) ++ parameters.collect { case (parameterName, value) if parameterName != "jobName" =>
-        parameterName.replaceAll("([A-Z])", "-$1").toLowerCase -> value
+    ) ++ specificParameters.map { case (parameterName, value) =>
+      parameterName.replaceAll("([A-Z])", "-$1").toLowerCase -> value
     }
 
     val argString = args.toStream
@@ -41,7 +41,6 @@ class RundeckInvoker(name: String, host: String, port: Int, authToken: String) e
 
     val body = Map("argString" -> argString).toJson
 
-    val jobName = parameters("jobName").asInstanceOf[JsString].value
     val req = Request(Method.Post, runPath(jobName))
     req.host = host
     req.contentType = Message.ContentTypeJson

@@ -6,7 +6,6 @@ import com.criteo.perpetuo.model.{Operation, Version}
 import com.twitter.finagle.http.{Response, Status}
 import com.twitter.inject.Test
 import com.twitter.util.Future
-import spray.json.DefaultJsonProtocol._
 import spray.json._
 
 import scala.concurrent.Await
@@ -15,10 +14,10 @@ import scala.concurrent.duration._
 
 class RundeckInvokerSpec extends Test with TestDb {
   private def testWhenResponseIs(statusCode: Int, content: String) = {
-    val rundeckInvoker = new RundeckInvoker("rundeck", "localhost", 4440, "my-super-secret-token")
+    val rundeckInvoker = new RundeckInvoker("rundeck", "localhost", 4440, "my-super-secret-token", "perpetuo-deployment")
     assert(rundeckInvoker.getClass.getSimpleName == "RundeckInvoker")
     rundeckInvoker.client = request => {
-      request.uri shouldEqual s"/api/16/job/deploy-to-marathon/executions?authtoken=my-super-secret-token"
+      request.uri shouldEqual s"/api/16/job/perpetuo-deployment/executions?authtoken=my-super-secret-token"
       request.contentString shouldEqual """{"argString":"-callback-url 'http://somewhere/api/execution-traces/42' -product-name 'My\"Beautiful\"Project' -target 'a,b' -product-version \"the 042nd version\""}"""
       val resp = Response(Status(statusCode))
       resp.write(content)
@@ -27,9 +26,8 @@ class RundeckInvokerSpec extends Test with TestDb {
     val kind = Operation.executionKind(Operation.deploy)
     val productName = "My\"Beautiful\"Project"
     val version = Version("\"the 042nd version\"")
-    val parameters = Map("jobName" -> "deploy-to-marathon").toJson.compactPrint
     val target = Set(TargetTerm(Set(JsObject("abc" -> JsString("def"), "ghi" -> JsNumber(51.3))), Set("a", "b")))
-    val logHref = Await.result(rundeckInvoker.trigger(42, kind, productName, version, target, parameters, "guy next door"), 1.second)
+    val logHref = Await.result(rundeckInvoker.trigger(42, kind, productName, version, target, "guy next door"), 1.second)
     logHref shouldBe defined
     logHref.get
   }
