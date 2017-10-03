@@ -1,6 +1,7 @@
 package com.criteo.perpetuo.config
 
 import com.typesafe.config.Config
+
 import scala.collection.JavaConverters._
 
 object ConfigSyntacticSugar {

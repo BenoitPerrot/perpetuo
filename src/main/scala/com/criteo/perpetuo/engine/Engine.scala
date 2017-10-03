@@ -3,8 +3,8 @@ package com.criteo.perpetuo.engine
 import javax.inject.{Inject, Singleton}
 
 import com.criteo.perpetuo.auth.Permissions
-import com.criteo.perpetuo.config.ConfigSyntacticSugar._
 import com.criteo.perpetuo.config.AppConfigProvider
+import com.criteo.perpetuo.config.ConfigSyntacticSugar._
 import com.criteo.perpetuo.dao.{DbBinding, UnknownProduct}
 import com.criteo.perpetuo.engine.dispatchers.{Select, TargetDispatcher}
 import com.criteo.perpetuo.model.ExecutionState.ExecutionState

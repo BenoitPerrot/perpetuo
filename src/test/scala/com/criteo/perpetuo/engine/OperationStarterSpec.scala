@@ -1,6 +1,8 @@
 package com.criteo.perpetuo.engine
 
+import java.lang.{Iterable => JavaIterable}
 import java.sql.Timestamp
+import java.util.{Map => JavaMap}
 
 import com.criteo.perpetuo.TestDb
 import com.criteo.perpetuo.dao._
@@ -19,10 +21,6 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}
 import scala.reflect.{ClassTag, classTag}
-
-
-import java.lang.{Iterable => JavaIterable}
-import java.util.{Map => JavaMap}
 
 
 object TestTargetDispatcher extends TargetDispatcher {

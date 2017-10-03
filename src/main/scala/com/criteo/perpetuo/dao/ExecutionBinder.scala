@@ -1,6 +1,5 @@
 package com.criteo.perpetuo.dao
 
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
 

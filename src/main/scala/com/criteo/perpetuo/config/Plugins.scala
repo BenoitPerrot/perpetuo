@@ -7,7 +7,7 @@ import java.util.logging.Logger
 import com.criteo.perpetuo.auth._
 import com.criteo.perpetuo.engine.dispatchers.{SingleTargetDispatcher, TargetDispatcher}
 import com.criteo.perpetuo.engine.executors.{DummyInvoker, ExecutorInvoker, RundeckInvoker}
-import com.typesafe.config.{Config, ConfigException}
+import com.typesafe.config.Config
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
