@@ -20,14 +20,12 @@ class Plugins(config: Config) {
   private val loader = new GroovyScriptLoader(config)
 
   private def resolve[T](config: Config, typeName: String, groovySupported: Boolean = false)(f: PartialFunction[String, T] = PartialFunction.empty): T = {
-    val t: String = try config.get("type") catch {
-      case _: ConfigException.Missing => throw new Exception(s"No $typeName is configured, while one is required")
-    }
+    val t: String = config.tryGet[String]("type").getOrElse(throw new Exception(s"No $typeName is configured, while one is required"))
     def instantiate(path: String): T = loader.instantiate(path match {
       case "groovyScriptResource" =>
-        getClass.getResource(config.get(t))
+        getClass.getResource(config.getString(t))
       case "groovyScriptFile" =>
-        new File(config.get[String](t)).getAbsoluteFile.toURI.toURL
+        new File(config.getString(t)).getAbsoluteFile.toURI.toURL
       case unknownType: String =>
         throw new Exception(s"Unknown $typeName configured: $unknownType")
     }).asInstanceOf[T]
@@ -39,43 +37,41 @@ class Plugins(config: Config) {
 
   def invoker(invokerConfig: Config): ExecutorInvoker = {
     resolve(invokerConfig, "invoker") {
-      case "dummy" => new DummyInvoker(invokerConfig.get("dummy.name"))
+      case "dummy" => new DummyInvoker(invokerConfig.getString("dummy.name"))
     }
   }
 
-  val dispatcher: TargetDispatcher = {
-    val desc = config.getConfig("targetDispatcher")
-    resolve(desc, "target dispatcher", groovySupported = true) {
-      case t@"singleInvoker" =>
-        SingleTargetDispatcher(invoker(desc.getConfig(t)))
-    }
-  }
+  val dispatcher: TargetDispatcher =
+    config.tryGetConfig("targetDispatcher").map { desc =>
+      resolve(desc, "target dispatcher", groovySupported = true) {
+        case t@"singleInvoker" =>
+          SingleTargetDispatcher(invoker(desc.getConfig(t)))
+      }
+    }.getOrElse(throw new Exception(s"No target dispatcher is configured, while one is required"))
 
   val identityProvider: IdentityProvider =
     config.tryGetConfig("auth.identityProvider").map { desc =>
       resolve(desc, "type of identity provider") {
         case t@"openAm" =>
           val openAmConfig = desc.getConfig(t)
-          new OpenAmIdentityProvider(new URL(openAmConfig.get("authorize.url")), new URL(openAmConfig.get("tokeninfo.url")))
+          new OpenAmIdentityProvider(new URL(openAmConfig.getString("authorize.url")), new URL(openAmConfig.getString("tokeninfo.url")))
       }
     }.getOrElse(new AnonymousIdentityProvider)
 
-  val permissions: Permissions = {
+  val permissions: Permissions =
     config.tryGetConfig("permissions").map { desc =>
       resolve(desc, "type of permissions", groovySupported = true) {
         case t@"filterUsernames" =>
           new PermissionsByOperationAndUsername(desc.getConfig(t))
       }
     }.getOrElse(new Unrestricted)
-  }
 
-  val listener: ListenerPluginWrapper = {
+  val listener: ListenerPluginWrapper =
     new ListenerPluginWrapper(
       config.tryGetConfig("engineListener").map { desc =>
         resolve[DefaultListenerPlugin](desc, "engine listener", groovySupported = true)()
       }
     )
-  }
 }
 
 
