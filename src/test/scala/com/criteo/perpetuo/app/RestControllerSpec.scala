@@ -15,7 +15,7 @@ import com.twitter.finatra.http.test.EmbeddedHttpServer
 import com.twitter.finatra.json.modules.FinatraJacksonModule
 import com.twitter.inject.server.FeatureTest
 import spray.json.DefaultJsonProtocol._
-import spray.json.{JsArray, JsObject, JsString, _}
+import spray.json._
 
 import scala.collection.mutable
 import scala.concurrent.Await

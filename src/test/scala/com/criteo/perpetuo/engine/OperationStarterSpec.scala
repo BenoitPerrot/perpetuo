@@ -11,7 +11,7 @@ import com.criteo.perpetuo.engine.resolvers.TargetResolver
 import com.criteo.perpetuo.model.{DeploymentRequestAttrs, Operation, Product, Version}
 import com.twitter.inject.Test
 import spray.json.DefaultJsonProtocol._
-import spray.json.{JsObject, _}
+import spray.json._
 
 import scala.collection.TraversableOnce
 import scala.collection.concurrent.{TrieMap, Map => ConcurrentMap}
