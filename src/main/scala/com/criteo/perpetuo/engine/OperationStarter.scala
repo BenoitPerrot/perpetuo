@@ -15,7 +15,10 @@ import scala.concurrent.Future
 
 
 case class UnprocessableAction(msg: String, detail: Map[String, _] = Map())
-  extends RuntimeException(msg + detail.map { case (k, v) => s"; $k: $v" }.mkString(""))
+  extends RuntimeException(msg + detail.map {
+    case (k, v: Iterable[_]) => s"; $k: ${v.mkString(", ")}"
+    case (k, v) => s"; $k: $v"
+  }.mkString(""))
 
 
 class OperationStarter(val dbBinding: DbBinding) extends Logging {
