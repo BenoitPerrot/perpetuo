@@ -6,7 +6,7 @@ import com.criteo.perpetuo.TestDb
 import com.criteo.perpetuo.dao._
 import com.criteo.perpetuo.engine.dispatchers.{SingleTargetDispatcher, TargetDispatcher}
 import com.criteo.perpetuo.engine.engine._
-import com.criteo.perpetuo.engine.executors.{DummyInvoker, ExecutorInvoker}
+import com.criteo.perpetuo.engine.invokers.{DummyInvoker, ExecutorInvoker}
 import com.criteo.perpetuo.engine.resolvers.TargetResolver
 import com.criteo.perpetuo.model.{DeploymentRequestAttrs, Operation, Product, Version}
 import com.twitter.inject.Test

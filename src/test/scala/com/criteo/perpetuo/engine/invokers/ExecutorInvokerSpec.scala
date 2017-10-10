@@ -1,4 +1,4 @@
-package com.criteo.perpetuo.engine.executors
+package com.criteo.perpetuo.engine.invokers
 
 import com.criteo.perpetuo.engine.engine.TargetExpr
 import com.criteo.perpetuo.model.Version

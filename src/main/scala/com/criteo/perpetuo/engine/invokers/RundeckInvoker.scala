@@ -1,4 +1,4 @@
-package com.criteo.perpetuo.engine.executors
+package com.criteo.perpetuo.engine.invokers
 
 import com.criteo.perpetuo.model.Version
 import com.twitter.finagle.http.{Message, Method, Request}

@@ -3,7 +3,7 @@ package com.criteo.perpetuo.engine
 import com.criteo.perpetuo.dao._
 import com.criteo.perpetuo.engine.dispatchers.TargetDispatcher
 import com.criteo.perpetuo.engine.engine.{Select, TargetExpr, TargetTerm}
-import com.criteo.perpetuo.engine.executors.ExecutorInvoker
+import com.criteo.perpetuo.engine.invokers.ExecutorInvoker
 import com.criteo.perpetuo.engine.resolvers.TargetResolver
 import com.criteo.perpetuo.model._
 import com.twitter.inject.Logging
