@@ -13,11 +13,11 @@ abstract class JavaFriendlyTargetResolver extends Provider[TargetResolver] {
 
     new TargetResolver {
       override def toAtoms(productName: String, productVersion: String, targetWord: String): Iterable[String] =
-        delegate.fromTargetWordToAtoms(productName, productVersion, targetWord).asScala
+        delegate.toAtoms(productName, productVersion, targetWord).asScala
     }
   }
 
-  protected def fromTargetWordToAtoms(productName: String, productVersion: String, targetWord: String): JavaIterable[String]
+  protected def toAtoms(productName: String, productVersion: String, targetWord: String): JavaIterable[String]
 }
 
 
