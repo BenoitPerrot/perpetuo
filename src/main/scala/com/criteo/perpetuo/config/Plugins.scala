@@ -5,7 +5,7 @@ import java.net.URL
 import java.util.logging.Logger
 
 import com.criteo.perpetuo.auth._
-import com.criteo.perpetuo.engine.dispatchers.{SingleTargetDispatcher, TargetDispatcher}
+import com.criteo.perpetuo.engine.dispatchers.{SingleTargetDispatcher, TargetDispatcher, TargetResolver}
 import com.criteo.perpetuo.engine.executors.{DummyInvoker, ExecutorInvoker, RundeckInvoker}
 import com.typesafe.config.Config
 
@@ -48,13 +48,22 @@ class Plugins(config: Config) {
     }
   }
 
-  val dispatcher: TargetDispatcher =
-    config.tryGetConfig("targetDispatcher").map { desc =>
+  val resolver: TargetResolver = config
+    .tryGetConfig("targetResolver")
+    .map { desc =>
+      resolve[TargetResolver](desc, "target resolver", groovySupported = true)()
+    }
+    .getOrElse(new TargetResolver)
+
+  val dispatcher: TargetDispatcher = config
+    .tryGetConfig("targetDispatcher")
+    .map { desc =>
       resolve[TargetDispatcher](desc, "target dispatcher", groovySupported = true) {
         case t@"singleInvoker" =>
           SingleTargetDispatcher(invoker(desc.getConfig(t)))
       }
-    }.getOrElse(throw new Exception(s"No target dispatcher is configured, while one is required"))
+    }
+    .getOrElse(throw new Exception(s"No target dispatcher is configured, while one is required"))
 
   val identityProvider: IdentityProvider =
     config.tryGetConfig("auth.identityProvider").map { desc =>

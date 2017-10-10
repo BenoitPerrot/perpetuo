@@ -18,7 +18,7 @@ class EngineSpec extends Test with TestDb {
 
   val config = AppConfigProvider.config
   private val plugins = new Plugins(config)
-  private val engine = new Engine(new DbBinding(dbContext), plugins.dispatcher, plugins.permissions, plugins.listener)
+  private val engine = new Engine(new DbBinding(dbContext), plugins.resolver, plugins.dispatcher, plugins.permissions, plugins.listener)
 
   "Engine" should {
     "keep track of open executions for an operation" in {

@@ -2,11 +2,11 @@ package com.criteo.perpetuo.engine
 
 import java.lang.{Iterable => JavaIterable}
 import java.sql.Timestamp
-import java.util.{Map => JavaMap}
+import java.util.{Collection => JavaCollection, Map => JavaMap}
 
 import com.criteo.perpetuo.TestDb
 import com.criteo.perpetuo.dao._
-import com.criteo.perpetuo.engine.dispatchers.{Select, SingleTargetDispatcher, TargetDispatcher, TargetExpr, TargetTerm}
+import com.criteo.perpetuo.engine.dispatchers.{Select, SingleTargetDispatcher, TargetDispatcher, TargetExpr, TargetResolver, TargetTerm}
 import com.criteo.perpetuo.engine.executors.{DummyInvoker, ExecutorInvoker}
 import com.criteo.perpetuo.model.{DeploymentRequestAttrs, Operation, Product, Version}
 import com.twitter.inject.Test
@@ -27,11 +27,6 @@ object TestTargetDispatcher extends TargetDispatcher {
   val aInvoker = new DummyInvoker("A's invoker")
   val bInvoker = new DummyInvoker("B's invoker")
   val cInvoker = new DummyInvoker("C's invoker")
-
-  override protected def fromTargetWordToAtoms(productName: String, productVersion: String, targetWord: String): java.util.Collection[String] = {
-    // the atomic targets are the input word split on dashes
-    java.util.Arrays.stream(targetWord.split("-")).iterator.asScala.filter(!_.isEmpty).toSeq.asJava
-  }
 
   override def freezeParameters(executionKind: String, productName: String, version: Version) = "foobar"
 
@@ -62,6 +57,12 @@ class OperationStarterSpec extends Test with TestDb {
       execLogs.put(executor, target).map(prev => fail(s"Logs say the executor has ${target.toJson.compactPrint} to do, but it already has $prev to do!"))
     }
   }
+  private val testResolver = new TargetResolver {
+    override def toAtoms(productName: String, productVersion: String, targetWord: String): JavaCollection[String] = {
+      // the atomic targets are the input word split on dashes
+      java.util.Arrays.stream(targetWord.split("-")).iterator.asScala.filter(!_.isEmpty).toSeq.asJava
+    }
+  }
 
   object DummyInvokerWithLogHref extends DummyInvoker("DummyWithLogHref") {
     override def trigger(execTraceId: Long, executionKind: String, productName: String, version: Version, target: TargetExpr, initiator: String): Future[Option[String]] = {
@@ -78,7 +79,7 @@ class OperationStarterSpec extends Test with TestDb {
     val req = new DeploymentRequestAttrs(product.name, Version("\"v42\""), """"*"""", "No fear", "c.norris", new Timestamp(123456789))
 
     val depReq = execution.dbBinding.insertDeploymentRequest(req)
-    val asyncStart = depReq.flatMap(execution.start(dispatcher, _, Operation.deploy, "c.norris"))
+    val asyncStart = depReq.flatMap(execution.start(testResolver, dispatcher, _, Operation.deploy, "c.norris"))
     asyncStart.flatMap { case (_, successes, failures) =>
       depReq.map(_.id).flatMap(execution.dbBinding.findExecutionTracesByDeploymentRequest).map { traces =>
         val executions = traces.map(trace => {
@@ -105,7 +106,7 @@ class OperationStarterSpec extends Test with TestDb {
     def dispatchedAs(that: Map[ExecutorInvoker, TargetExpr]): Unit = {
       execLogs.clear()
       Await.result(
-        depReq.flatMap(execution.start(TestTargetDispatcher, _, Operation.deploy, "c.norris").map(_ =>
+        depReq.flatMap(execution.start(testResolver, TestTargetDispatcher, _, Operation.deploy, "c.norris").map(_ =>
           assertEqual(execLogs, that)
         )),
         1.second
@@ -150,7 +151,7 @@ class OperationStarterSpec extends Test with TestDb {
     }
 
     "raise if a target cannot be solved to atomic targets" in {
-      val thrown = the[IllegalArgumentException] thrownBy TestTargetDispatcher.expandTarget(null, Version("\"\""), Set(TargetTerm(select = Set("ab", "-"))))
+      val thrown = the[IllegalArgumentException] thrownBy execution.expandTarget(testResolver, null, Version("\"\""), Set(TargetTerm(select = Set("ab", "-"))))
       thrown.getMessage should endWith("Target word `-` doesn't resolve to any atomic target")
     }
 

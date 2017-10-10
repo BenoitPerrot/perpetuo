@@ -1,13 +1,14 @@
 package com.criteo.perpetuo.engine
 
 import com.criteo.perpetuo.dao._
-import com.criteo.perpetuo.engine.dispatchers.{TargetDispatcher, TargetExpr, TargetTerm}
+import com.criteo.perpetuo.engine.dispatchers.{TargetDispatcher, TargetExpr, TargetResolver, TargetTerm}
 import com.criteo.perpetuo.engine.executors.ExecutorInvoker
 import com.criteo.perpetuo.model._
 import com.twitter.inject.Logging
 import spray.json.DefaultJsonProtocol._
 import spray.json._
 
+import scala.collection.JavaConverters._
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
@@ -22,12 +23,12 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
     * Start all relevant executions and return the numbers of successful
     * and failed execution starts.
     */
-  def start(dispatcher: TargetDispatcher, deploymentRequest: DeepDeploymentRequest, operation: Operation.Kind, userName: String): Future[(OperationTrace, Int, Int)] = {
+  def start(resolver: TargetResolver, dispatcher: TargetDispatcher, deploymentRequest: DeepDeploymentRequest, operation: Operation.Kind, userName: String): Future[(OperationTrace, Int, Int)] = {
     // generation of specific parameters
     val executionKind = Operation.executionKind(operation)
     val specificParameters = dispatcher.freezeParameters(executionKind, deploymentRequest.product.name, deploymentRequest.version)
     // target resolution
-    val expandedTarget = dispatcher.expandTarget(deploymentRequest.product.name, deploymentRequest.version, deploymentRequest.parsedTarget)
+    val expandedTarget = expandTarget(resolver, deploymentRequest.product.name, deploymentRequest.version, deploymentRequest.parsedTarget)
 
     dbBinding.insertOperationTrace(deploymentRequest.id, operation, userName).flatMap(operationTrace =>
       dbBinding.insertExecutionSpecification(specificParameters, deploymentRequest.version).flatMap(executionSpecification =>
@@ -38,7 +39,8 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
     )
   }
 
-  def deployAgain(dispatcher: TargetDispatcher,
+  def deployAgain(resolver: TargetResolver,
+                  dispatcher: TargetDispatcher,
                   deploymentRequest: DeepDeploymentRequest,
                   executionSpecs: Seq[ExecutionSpecification],
                   userName: String): Future[(OperationTrace, Int, Int)] = {
@@ -46,7 +48,7 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
     dbBinding.insertOperationTrace(deploymentRequest.id, Operation.deploy, userName).flatMap { newOperationTrace =>
       val allSuccessesAndFailures = executionSpecs.map { executionSpec =>
         // todo: retrieve the real target of the very retried execution
-        val expandedTarget = dispatcher.expandTarget(deploymentRequest.product.name, deploymentRequest.version, deploymentRequest.parsedTarget)
+        val expandedTarget = expandTarget(resolver, deploymentRequest.product.name, deploymentRequest.version, deploymentRequest.parsedTarget)
         startExecution(dispatcher, deploymentRequest, newOperationTrace, executionSpec, expandedTarget)
       }
       Future.sequence(allSuccessesAndFailures).map(_.foldLeft((0, 0)) { case (initialValue, (successes, failures)) =>
@@ -151,6 +153,16 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
           .map(_.fold((0, 0)) { case ((a, b), (c, d)) => (a + c, b + d) })
           .flatMap { case (successes, failures) => opCreation.map(o => (o, successes, failures)) }
       }
+  }
+
+  private[engine] def expandTarget(resolver: TargetResolver, productName: String, productVersion: Version, target: TargetExpr): TargetExpr = {
+    val toAtoms = (word: String) => {
+      val atoms = resolver.toAtoms(productName, productVersion.toString, word).asScala
+      require(atoms.nonEmpty, s"Target word `$word` doesn't resolve to any atomic target")
+      atoms.foreach(atom => require(atom.length <= TargetAtom.maxSize, s"Target `$atom` is too long"))
+      atoms
+    }
+    target.map(term => TargetTerm(term.tactics, term.select.flatMap(toAtoms)))
   }
 
   private[engine] def dispatch(dispatcher: TargetDispatcher, expandedTarget: TargetExpr, frozenParameters: String): Iterable[(ExecutorInvoker, TargetExpr)] =

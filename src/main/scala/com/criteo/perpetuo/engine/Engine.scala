@@ -6,7 +6,7 @@ import com.criteo.perpetuo.auth.Permissions
 import com.criteo.perpetuo.config.AppConfigProvider
 import com.criteo.perpetuo.config.ConfigSyntacticSugar._
 import com.criteo.perpetuo.dao.{DbBinding, UnknownProduct}
-import com.criteo.perpetuo.engine.dispatchers.{Select, TargetDispatcher}
+import com.criteo.perpetuo.engine.dispatchers.{Select, TargetDispatcher, TargetResolver}
 import com.criteo.perpetuo.model.ExecutionState.ExecutionState
 import com.criteo.perpetuo.model._
 
@@ -25,6 +25,7 @@ object OperationStatus extends Enumeration {
 
 @Singleton
 class Engine @Inject()(val dbBinding: DbBinding,
+                       val targetResolver: TargetResolver,
                        val targetDispatcher: TargetDispatcher,
                        val permissions: Permissions,
                        val listener: Listener) {
@@ -95,7 +96,7 @@ class Engine @Inject()(val dbBinding: DbBinding,
   private def startDeploymentRequest(req: DeepDeploymentRequest, initiatorName: String, atCreation: Boolean): Future[OperationTrace] =
     startOperation(
       req,
-      operationStarter.start(targetDispatcher, req, Operation.deploy, initiatorName),
+      operationStarter.start(targetResolver, targetDispatcher, req, Operation.deploy, initiatorName),
       listener.onDeploymentRequestStarted(_, _, _, atCreation)
     )
 
@@ -171,7 +172,7 @@ class Engine @Inject()(val dbBinding: DbBinding,
       _.map { case (deploymentRequest, executionSpecs) =>
         startOperation(
           deploymentRequest,
-          operationStarter.deployAgain(targetDispatcher, deploymentRequest, executionSpecs, initiatorName),
+          operationStarter.deployAgain(targetResolver, targetDispatcher, deploymentRequest, executionSpecs, initiatorName),
           listener.onDeploymentRequestRetried
         ).map(Some(_))
       }.getOrElse(Future.successful(None))
