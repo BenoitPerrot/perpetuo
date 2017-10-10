@@ -1,8 +1,6 @@
 package com.criteo.perpetuo.engine
 
-import java.lang.{Iterable => JavaIterable}
 import java.sql.Timestamp
-import java.util.{Collection => JavaCollection, Map => JavaMap}
 
 import com.criteo.perpetuo.TestDb
 import com.criteo.perpetuo.dao._
@@ -13,7 +11,6 @@ import com.twitter.inject.Test
 import spray.json.DefaultJsonProtocol._
 import spray.json.{JsObject, _}
 
-import scala.collection.JavaConverters._
 import scala.collection.TraversableOnce
 import scala.collection.concurrent.{TrieMap, Map => ConcurrentMap}
 import scala.collection.immutable.Stream
@@ -30,18 +27,18 @@ object TestTargetDispatcher extends TargetDispatcher {
 
   override def freezeParameters(executionKind: String, productName: String, version: Version) = "foobar"
 
-  override def dispatch(targetAtoms: JavaIterable[String], frozenParameters: String): JavaMap[ExecutorInvoker, JavaIterable[String]] = {
+  override def dispatch(targetAtoms: Select, frozenParameters: String): Iterable[(ExecutorInvoker, Select)] = {
     assert(frozenParameters == "foobar")
     // associate executors to target words wrt the each target word's characters
-    targetAtoms.asScala.flatMap { targetAtom =>
+    targetAtoms.flatMap { targetAtom =>
       targetAtom.flatMap {
         case 'a' => Some(aInvoker)
         case 'b' => Some(bInvoker)
         case 'c' => Some(cInvoker)
         case _ => None
       }.map(executor => (executor, targetAtom))
-    }.groupBy(_._1).map { case (executor, it) => executor.asInstanceOf[ExecutorInvoker] -> it.map(_._2).asJava }
-  }.asJava
+    }.groupBy(_._1).map { case (executor, it) => executor.asInstanceOf[ExecutorInvoker] -> it.map(_._2) }
+  }
 }
 
 object DummyTargetDispatcher extends SingleTargetDispatcher(executorInvoker = new DummyInvoker("Default Dummy Invoker"))
@@ -58,9 +55,9 @@ class OperationStarterSpec extends Test with TestDb {
     }
   }
   private val testResolver = new TargetResolver {
-    override def toAtoms(productName: String, productVersion: String, targetWord: String): JavaCollection[String] = {
+    override def toAtoms(productName: String, productVersion: String, targetWord: String): Iterable[String] = {
       // the atomic targets are the input word split on dashes
-      java.util.Arrays.stream(targetWord.split("-")).iterator.asScala.filter(!_.isEmpty).toSeq.asJava
+      targetWord.split("-").filter(_.nonEmpty)
     }
   }
 

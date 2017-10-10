@@ -8,7 +8,6 @@ import com.twitter.inject.Logging
 import spray.json.DefaultJsonProtocol._
 import spray.json._
 
-import scala.collection.JavaConverters._
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
@@ -157,7 +156,7 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
 
   private[engine] def expandTarget(resolver: TargetResolver, productName: String, productVersion: Version, target: TargetExpr): TargetExpr = {
     val toAtoms = (word: String) => {
-      val atoms = resolver.toAtoms(productName, productVersion.toString, word).asScala
+      val atoms = resolver.toAtoms(productName, productVersion.toString, word)
       require(atoms.nonEmpty, s"Target word `$word` doesn't resolve to any atomic target")
       atoms.foreach(atom => require(atom.length <= TargetAtom.maxSize, s"Target `$atom` is too long"))
       atoms
@@ -199,10 +198,8 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
   }
 
   private[engine] def dispatchToExecutors(targetDispatcher: TargetDispatcher, targetAtoms: Select, frozenParameters: String) = {
-    val dispatched = collectionAsScalaIterableConverter(
-      targetDispatcher.dispatch(asJavaIterableConverter(targetAtoms).asJava, frozenParameters).entrySet
-    ).asScala
-      .map { entry => (entry.getKey, entry.getValue.asScala.toSet) }
+    val dispatched = targetDispatcher.dispatch(targetAtoms, frozenParameters)
+      .toStream
       .filter { case (_, select) => select.nonEmpty }
 
     // check that we have the same targets before and after the dispatch (but one can be dispatched in several groups)

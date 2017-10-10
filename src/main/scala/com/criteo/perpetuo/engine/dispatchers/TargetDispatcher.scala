@@ -1,15 +1,17 @@
 package com.criteo.perpetuo.engine.dispatchers
 
-import java.lang.{Iterable => JavaIterable}
-import java.util.{Collection => JavaCollection, Map => JavaMap}
-
 import com.criteo.perpetuo.engine.executors.ExecutorInvoker
 import com.criteo.perpetuo.model.Version
 
-import scala.collection.JavaConverters._
+
+trait Provider[T] {
+  def get: T
+}
 
 
-class TargetResolver {
+trait TargetResolver extends Provider[TargetResolver] {
+  def get: TargetResolver = this
+
   /**
     * A given target word can express the union of multiple targets; resolving a target consists
     * in computing the list of all the underlying targets (e.g. the European Union
@@ -24,12 +26,12 @@ class TargetResolver {
     *
     * @return the atomic target words to which the input target word is resolved wrt the given product and version.
     */
-  def toAtoms(productName: String, productVersion: String, targetWord: String): JavaCollection[String] =
-    Seq(targetWord).asJava
+  def toAtoms(productName: String, productVersion: String, targetWord: String): Iterable[String] =
+    Seq(targetWord)
 }
 
 
-abstract class TargetDispatcher {
+trait ParameterFreezer {
   /**
     * @return the execution parameters serialized as they will be provided
     *         to `dispatch` in order to play or replay an execution in a deterministic way,
@@ -39,9 +41,14 @@ abstract class TargetDispatcher {
     *         it must return an `UnprocessableIntent` error, whose message will be displayed to the end user.
     */
   def freezeParameters(executionKind: String, productName: String, version: Version): String
+}
+
+
+trait TargetDispatcher extends Provider[TargetDispatcher] with ParameterFreezer {
+  def get: TargetDispatcher = this
 
   /**
     * @return all the provided target atoms grouped by their dedicated executors
     */
-  def dispatch(targetAtoms: JavaIterable[String], frozenParameters: String): JavaMap[ExecutorInvoker, JavaIterable[String]]
+  def dispatch(targetAtoms: Select, frozenParameters: String): Iterable[(ExecutorInvoker, Select)]
 }
