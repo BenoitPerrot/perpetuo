@@ -157,7 +157,7 @@ class OperationStarterSpec extends Test with TestDb {
 
     "raise if a target is not fully covered by executors" in {
       val params = TestTargetDispatcher.freezeParameters("", "", Version(""""42""""))
-      val thrown = the[IllegalArgumentException] thrownBy TestTargetDispatcher.dispatchToExecutors(Set("def"), params)
+      val thrown = the[IllegalArgumentException] thrownBy execution.dispatchToExecutors(TestTargetDispatcher, Set("def"), params)
       thrown.getMessage shouldEqual "requirement failed: Some target atoms have no designated executors: def"
     }
 

@@ -1,7 +1,7 @@
 package com.criteo.perpetuo.engine
 
 import com.criteo.perpetuo.dao._
-import com.criteo.perpetuo.engine.dispatchers.{TargetDispatcher, TargetExpr, TargetResolver, TargetTerm}
+import com.criteo.perpetuo.engine.dispatchers.{Select, TargetDispatcher, TargetExpr, TargetResolver, TargetTerm}
 import com.criteo.perpetuo.engine.executors.ExecutorInvoker
 import com.criteo.perpetuo.model._
 import com.twitter.inject.Logging
@@ -183,7 +183,7 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
     )
 
     // infer only once for all unique targets the executors required for each target word
-    dispatcher.dispatchToExecutors(perSelectAtom.keySet, frozenParameters).map { case (executor, select) =>
+    dispatchToExecutors(dispatcher, perSelectAtom.keySet, frozenParameters).map { case (executor, select) =>
       val atomsAndTactics = select.toStream.map(selectAtom => (selectAtom, perSelectAtom(selectAtom)))
       val flattened = atomsAndTactics.flatMap { case (selectAtom, tactics) =>
         tactics.toStream.map(tactic => (selectAtom, tactic))
@@ -196,6 +196,23 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
       )
       (executor, alternatives.map(_.toSet).toSet)
     }
+  }
+
+  private[engine] def dispatchToExecutors(targetDispatcher: TargetDispatcher, targetAtoms: Select, frozenParameters: String) = {
+    val dispatched = collectionAsScalaIterableConverter(
+      targetDispatcher.dispatch(asJavaIterableConverter(targetAtoms).asJava, frozenParameters).entrySet
+    ).asScala
+      .map { entry => (entry.getKey, entry.getValue.asScala.toSet) }
+      .filter { case (_, select) => select.nonEmpty }
+
+    // check that we have the same targets before and after the dispatch (but one can be dispatched in several groups)
+    val dispatchedTargets: Select = dispatched.map { case (_, group) => group }.foldLeft(Stream.empty[String])(_ ++ _).toSet
+    assert(dispatchedTargets.subsetOf(targetAtoms),
+      "More targets after dispatching than before: " + (dispatchedTargets -- targetAtoms).map(_.toString).mkString(", "))
+    require(dispatchedTargets.size == targetAtoms.size,
+      "Some target atoms have no designated executors: " + (targetAtoms -- dispatchedTargets).map(_.toString).mkString(", "))
+
+    dispatched
   }
 
   protected def logExecution(identifier: String, execId: Long, executor: ExecutorInvoker, target: TargetExpr): Unit = {

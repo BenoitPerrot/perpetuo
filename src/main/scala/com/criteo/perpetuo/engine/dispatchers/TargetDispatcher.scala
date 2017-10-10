@@ -30,23 +30,6 @@ class TargetResolver {
 
 
 abstract class TargetDispatcher {
-  final def dispatchToExecutors(targetAtoms: Select, frozenParameters: String): Iterable[(ExecutorInvoker, Select)] = {
-    val dispatched = collectionAsScalaIterableConverter(
-      dispatch(asJavaIterableConverter(targetAtoms).asJava, frozenParameters).entrySet
-    ).asScala
-      .map { entry => (entry.getKey, entry.getValue.asScala.toSet) }
-      .filter { case (_, select) => select.nonEmpty }
-
-    // check that we have the same targets before and after the dispatch (but one can be dispatched in several groups)
-    val dispatchedTargets = dispatched.toStream.map { case (_, group) => group }.foldLeft(Stream.empty[String])(_ ++ _).toSet
-    assert(dispatchedTargets.subsetOf(targetAtoms),
-      "More targets after dispatching than before: " + (dispatchedTargets -- targetAtoms).map(_.toString).mkString(", "))
-    require(dispatchedTargets.size == targetAtoms.size,
-      "Some target atoms have no designated executors: " + (targetAtoms -- dispatchedTargets).map(_.toString).mkString(", "))
-
-    dispatched
-  }
-
   /**
     * @return the execution parameters serialized as they will be provided
     *         to `dispatch` in order to play or replay an execution in a deterministic way,
@@ -60,5 +43,5 @@ abstract class TargetDispatcher {
   /**
     * @return all the provided target atoms grouped by their dedicated executors
     */
-  protected def dispatch(targetAtoms: JavaIterable[String], frozenParameters: String): JavaMap[ExecutorInvoker, JavaIterable[String]]
+  def dispatch(targetAtoms: JavaIterable[String], frozenParameters: String): JavaMap[ExecutorInvoker, JavaIterable[String]]
 }
