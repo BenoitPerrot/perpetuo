@@ -1,6 +1,6 @@
 package com.criteo.perpetuo.engine.executors
 
-import com.criteo.perpetuo.engine.dispatchers.TargetExpr
+import com.criteo.perpetuo.engine.engine.TargetExpr
 import com.criteo.perpetuo.model.Version
 import com.twitter.inject.Test
 

@@ -1,5 +1,6 @@
 package com.criteo.perpetuo.engine.dispatchers
 
+import com.criteo.perpetuo.engine.engine.Select
 import com.criteo.perpetuo.engine.executors.ExecutorInvoker
 import com.criteo.perpetuo.model.Version
 

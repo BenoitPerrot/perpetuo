@@ -3,24 +3,11 @@ package com.criteo.perpetuo.engine.dispatchers
 import java.lang.{Iterable => JavaIterable}
 import java.util.{Map => JavaMap, Set => JavaSet}
 
+import com.criteo.perpetuo.engine.engine.{Provider, Select}
 import com.criteo.perpetuo.engine.executors.ExecutorInvoker
 import com.criteo.perpetuo.model.Version
 
 import scala.collection.JavaConverters._
-
-
-abstract class JavaFriendlyTargetResolver extends Provider[TargetResolver] {
-  def get: TargetResolver = {
-    val delegate = this
-
-    new TargetResolver {
-      override def toAtoms(productName: String, productVersion: String, targetWord: String): Iterable[String] =
-        delegate.fromTargetWordToAtoms(productName, productVersion, targetWord).asScala
-    }
-  }
-
-  protected def fromTargetWordToAtoms(productName: String, productVersion: String, targetWord: String): JavaIterable[String]
-}
 
 
 abstract class JavaFriendlyTargetDispatcher extends Provider[TargetDispatcher] with ParameterFreezer {

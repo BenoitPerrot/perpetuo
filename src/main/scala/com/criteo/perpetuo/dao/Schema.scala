@@ -2,7 +2,7 @@ package com.criteo.perpetuo.dao
 
 import javax.inject.{Inject, Singleton}
 
-import com.criteo.perpetuo.engine.dispatchers.Select
+import com.criteo.perpetuo.engine.engine.Select
 import com.criteo.perpetuo.model._
 
 import scala.collection.mutable.{ArrayBuffer, LinkedHashMap => MutableMap}
