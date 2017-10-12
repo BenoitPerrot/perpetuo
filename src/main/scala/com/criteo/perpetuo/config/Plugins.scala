@@ -17,20 +17,25 @@ import scala.concurrent.{Await, ExecutionException, Future, blocking}
 
 
 class Plugins(config: Config) {
+
   import com.criteo.perpetuo.config.ConfigSyntacticSugar._
 
   private val loader = new GroovyScriptLoader(config)
 
   private def resolve[T](config: Config, typeName: String, groovySupported: Boolean = false)(f: PartialFunction[String, T] = PartialFunction.empty): T = {
     val t: String = config.tryGet[String]("type").getOrElse(throw new Exception(s"No $typeName is configured, while one is required"))
+
     def instantiate(path: String): T = loader.instantiate(path match {
       case "groovyScriptResource" =>
-        getClass.getResource(config.getString(t))
+        val resource = getClass.getResource(config.getString(t))
+        assert(resource != null, s"Could not find configured resource ${config.getString(t)}")
+        resource
       case "groovyScriptFile" =>
         new File(config.getString(t)).getAbsoluteFile.toURI.toURL
       case unknownType: String =>
         throw new Exception(s"Unknown $typeName configured: $unknownType")
     }).asInstanceOf[T]
+
     if (groovySupported)
       f.applyOrElse(t, instantiate)
     else
