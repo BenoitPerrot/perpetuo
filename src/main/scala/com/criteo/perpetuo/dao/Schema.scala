@@ -125,6 +125,7 @@ class DbBinding @Inject()(val dbContext: DbContext)
       }
     }
   }
+
   // >>
 
   // todo: when the target status will be pre-registered, we won't need to get execution traces in this query anymore (and we will only need the last operation)
@@ -185,7 +186,7 @@ class DbBinding @Inject()(val dbContext: DbContext)
   /**
     * @return - None if the operation doesn't exist or is still running,
     *         - Some(True) if it's closed and all targets are marked successful,
-    *         - Some(False) if it's closed and at least one target is not successful
+    *         - Some(False) if it's closed and at least one target or one execution is not successful
     */
   def isOperationSuccessful(id: Long): Future[Option[Boolean]] = {
     dbContext.db.run(
@@ -196,9 +197,15 @@ class DbBinding @Inject()(val dbContext: DbContext)
             .map { case (execution, _) => execution }
         ).on(_.id === _.operationTraceId)
         .take(1)
-        .map { case (_, execution) => execution }
+        .joinLeft(
+          executionQuery.join(executionTraceQuery).on(_.id === _.executionId)
+            .filter(_._2.state =!= ExecutionState.completed)
+            .map { case (execution, _) => execution }
+        ).on(_._1.id === _.operationTraceId)
+        .take(1)
+        .map { case ((_, exec1), exec2) => (exec1, exec2) }
         .result
-    ).map(_.headOption.map(_.isEmpty))
+    ).map(_.headOption.map { case (exec1, exec2) => exec1.isEmpty && exec2.isEmpty })
   }
 
   // todo: should rely on a nullable field `startDate` in OperationTrace
