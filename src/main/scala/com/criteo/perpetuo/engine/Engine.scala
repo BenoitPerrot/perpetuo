@@ -20,7 +20,7 @@ import scala.concurrent.Future
 object OperationStatus extends Enumeration {
   val inProgress = Value
   val initFailed = Value
-  val effectFailed = Value("failed")
+  val failed = Value
   val succeeded = Value
 }
 
@@ -43,6 +43,7 @@ class Engine @Inject()(val dbBinding: DbBinding,
 
   def isCoveredByOldWorkflow(productName: String): Boolean =
     productsExcludedFromNewWorkflow.contains(productName)
+
   // >>
 
   def getProductNames: Future[Seq[String]] =
@@ -152,7 +153,7 @@ class Engine @Inject()(val dbBinding: DbBinding,
               val error = computeState(operationTrace, executionTraces) match {
                 case (_, OperationStatus.inProgress) => // todo: as long as we don't have locking mechanism only
                   Some(s"wait for deployment request #$requestId to end")
-                case (Operation.deploy, OperationStatus.effectFailed) =>
+                case (Operation.deploy, OperationStatus.failed) =>
                   Some(s"deployment request #$requestId has been left in an uncertain state, complete it first")
                 case _ => None
               }
@@ -265,12 +266,13 @@ class Engine @Inject()(val dbBinding: DbBinding,
 
   def computeState(operationTrace: ShallowOperationTrace, executionTraces: Iterable[ExecutionTrace]): (Operation.Kind, OperationStatus.Value) = {
     val lastOperationState = operationTrace.closingDate.map { _ =>
-      if (executionTraces.forall(_.state == ExecutionState.initFailed))
-        OperationStatus.initFailed
-      else if (operationTrace.targetStatus.values.exists(_.code != Status.success))
-        OperationStatus.effectFailed
-      else
+      if (operationTrace.targetStatus.values.forall(_.code == Status.success)
+        && executionTraces.forall(_.state == ExecutionState.completed))
         OperationStatus.succeeded
+      else if (executionTraces.forall(_.state == ExecutionState.initFailed))
+        OperationStatus.initFailed
+      else
+        OperationStatus.failed
     }.getOrElse(
       OperationStatus.inProgress
     )
