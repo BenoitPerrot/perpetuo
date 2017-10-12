@@ -11,19 +11,10 @@ class GroovyScriptLoader(config: Config) {
   private val engine: ScriptEngine = new ScriptEngineManager().getEngineByName("groovy") // todo? use GroovyScriptEngine
   assert(engine != null)
 
-  def instantiate(resource: URL): AnyRef = {
+  def instantiate[T <: AnyRef](resource: URL): T = {
     try {
-      val cls = engine.eval(new InputStreamReader(resource.openStream())).asInstanceOf[Class[AnyRef]]
-      Seq(// supported instantiation parameters:
-        Seq(config),
-        Seq()
-      )
-        .view // lazily:
-        .flatMap(instantiate(cls, _))
-        .headOption
-        .getOrElse {
-          throw new NoSuchMethodException("Groovy plugins must have at least a constructor taking either a Config or nothing")
-        }
+      val cls = engine.eval(new InputStreamReader(resource.openStream())).asInstanceOf[Class[T]]
+      Plugins.instantiate[T](cls)
     }
     catch {
       case exc: Throwable =>
@@ -42,15 +33,4 @@ class GroovyScriptLoader(config: Config) {
         throw newExc
     }
   }
-
-  private def instantiate(cls: Class[AnyRef], args: Seq[AnyRef]): Option[AnyRef] = {
-    cls.getConstructors
-      .find { c =>
-        val types = c.getParameterTypes
-        types.length == args.length &&
-          types.zip(args).forall { case (t, o) => t.isInstance(o) }
-      }
-      .map(_.newInstance(args: _*).asInstanceOf[AnyRef])
-  }
-
 }

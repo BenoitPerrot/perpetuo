@@ -22,7 +22,7 @@ class Plugins(config: Config) {
 
   private val loader = new GroovyScriptLoader(config)
 
-  private def resolve[T](config: Config, typeName: String, groovySupported: Boolean = false)(f: PartialFunction[String, T] = PartialFunction.empty): T = {
+  private def resolve[T <: AnyRef](config: Config, typeName: String, groovySupported: Boolean = false)(f: PartialFunction[String, T] = PartialFunction.empty): T = {
     val t: String = config.tryGet[String]("type").getOrElse(throw new Exception(s"No $typeName is configured, while one is required"))
 
     def instantiate(path: String): T = loader.instantiate(path match {
@@ -34,7 +34,7 @@ class Plugins(config: Config) {
         new File(config.getString(t)).getAbsoluteFile.toURI.toURL
       case unknownType: String =>
         throw new Exception(s"Unknown $typeName configured: $unknownType")
-    }).asInstanceOf[T]
+    })
 
     if (groovySupported)
       f.applyOrElse(t, instantiate)
@@ -97,6 +97,32 @@ class Plugins(config: Config) {
         resolve[DefaultListenerPlugin](desc, "engine listener", groovySupported = true)()
       }
     )
+}
+
+
+object Plugins {
+  def instantiate[T <: AnyRef](cls: Class[T]): T = {
+    Seq( // supported instantiation parameters:
+      Seq(AppConfigProvider.config),
+      Seq()
+    )
+      .view // lazily:
+      .flatMap(instantiate(cls, _))
+      .headOption
+      .getOrElse {
+        throw new NoSuchMethodException("Plugins must have at least a constructor taking either a Config or nothing")
+      }
+  }
+
+  private def instantiate[T <: AnyRef](cls: Class[T], args: Seq[AnyRef]): Option[T] = {
+    cls.getConstructors
+      .find { c =>
+        val types = c.getParameterTypes
+        types.length == args.length &&
+          types.zip(args).forall { case (t, o) => t.isInstance(o) }
+      }
+      .map(_.newInstance(args: _*).asInstanceOf[T])
+  }
 }
 
 
