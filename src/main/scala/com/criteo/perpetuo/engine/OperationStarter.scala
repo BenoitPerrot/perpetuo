@@ -28,8 +28,7 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
     */
   def start(resolver: TargetResolver, dispatcher: TargetDispatcher, deploymentRequest: DeepDeploymentRequest, operation: Operation.Kind, userName: String): Future[(OperationTrace, Int, Int)] = {
     // generation of specific parameters
-    val executionKind = Operation.executionKind(operation)
-    val specificParameters = dispatcher.freezeParameters(executionKind, deploymentRequest.product.name, deploymentRequest.version)
+    val specificParameters = dispatcher.freezeParameters(deploymentRequest.product.name, deploymentRequest.version)
     // target resolution
     val expandedTarget = expandTarget(resolver, deploymentRequest.product.name, deploymentRequest.version, deploymentRequest.parsedTarget)
 
@@ -85,7 +84,6 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
               val trigger = try {
                 executor.trigger(
                   execTraceId,
-                  Operation.executionKind(operationTrace.kind),
                   productName,
                   version,
                   target,
@@ -134,7 +132,7 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
       .flatMap { case (undetermined, determined) =>
         if (undetermined.nonEmpty)
           defaultVersion.map { version =>
-            val specificParameters = dispatcher.freezeParameters(Operation.executionKind(Operation.revert), deploymentRequest.product.name, version)
+            val specificParameters = dispatcher.freezeParameters(deploymentRequest.product.name, version)
             dbBinding.insertExecutionSpecification(specificParameters, version).map(executionSpecification =>
               Stream.cons((executionSpecification, undetermined), determined.toStream)
             )

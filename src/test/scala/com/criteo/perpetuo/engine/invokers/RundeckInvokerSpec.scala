@@ -2,7 +2,7 @@ package com.criteo.perpetuo.engine.invokers
 
 import com.criteo.perpetuo.TestDb
 import com.criteo.perpetuo.engine.TargetTerm
-import com.criteo.perpetuo.model.{Operation, Version}
+import com.criteo.perpetuo.model.Version
 import com.twitter.finagle.http.{Response, Status}
 import com.twitter.inject.Test
 import com.twitter.util.Future
@@ -23,11 +23,10 @@ class RundeckInvokerSpec extends Test with TestDb {
       resp.write(content)
       Future.value(resp)
     }
-    val kind = Operation.executionKind(Operation.deploy)
     val productName = "My\"Beautiful\"Project"
     val version = Version("\"the 042nd version\"")
     val target = Set(TargetTerm(Set(JsObject("abc" -> JsString("def"), "ghi" -> JsNumber(51.3))), Set("a", "b")))
-    val logHref = Await.result(rundeckInvoker.trigger(42, kind, productName, version, target, "guy next door"), 1.second)
+    val logHref = Await.result(rundeckInvoker.trigger(42, productName, version, target, "guy next door"), 1.second)
     logHref shouldBe defined
     logHref.get
   }

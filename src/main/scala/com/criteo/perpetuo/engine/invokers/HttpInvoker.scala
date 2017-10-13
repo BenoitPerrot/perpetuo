@@ -20,7 +20,7 @@ abstract class HttpInvoker(val host: String,
 
   // to implement in concrete classes
   /** `buildRequest` returns the HTTP request object ready to invoke the appropriate executor in charge of running the execution. */
-  protected def buildRequest(execTraceId: Long, executionKind: String, productName: String, version: Version, target: String, initiator: String): Request
+  protected def buildRequest(execTraceId: Long, productName: String, version: Version, target: String, initiator: String): Request
   /** `logHref` gives a unique identifier allowing to find possible external execution logs. */
   protected def extractLogHref(executorAnswer: String): String // answer "" if no log href can be known (e.g. delayed execution)
   /** `extractMessage` extracts an error message from any error output returned by the contacted API. */
@@ -45,9 +45,9 @@ abstract class HttpInvoker(val host: String,
 
   override def toString: String = name
 
-  override def trigger(execTraceId: Long, executionKind: String, productName: String, version: Version, target: TargetExpr, initiator: String): ScalaFuture[Option[String]] = {
+  override def trigger(execTraceId: Long, productName: String, version: Version, target: TargetExpr, initiator: String): ScalaFuture[Option[String]] = {
     // todo: while we only support deployment tactics, we directly give the select dimension, and formatted differently
-    val req = buildRequest(execTraceId, executionKind, productName, version, Target.getSimpleSelect(target).mkString(","), initiator)
+    val req = buildRequest(execTraceId, productName, version, Target.getSimpleSelect(target).mkString(","), initiator)
 
     // trigger the job and return a future to the execution's log href
     ScalaFuture {

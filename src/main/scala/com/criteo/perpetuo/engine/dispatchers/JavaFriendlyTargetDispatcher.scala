@@ -15,8 +15,8 @@ abstract class JavaFriendlyTargetDispatcher extends Provider[TargetDispatcher] w
     val delegate = this
 
     new TargetDispatcher {
-      override def freezeParameters(executionKind: String, productName: String, version: Version): String =
-        delegate.freezeParameters(executionKind, productName, version)
+      override def freezeParameters(productName: String, version: Version): String =
+        delegate.freezeParameters(productName, version)
 
       override def dispatch(targetAtoms: Select, frozenParameters: String): Iterable[(ExecutorInvoker, Select)] =
         delegate.dispatch(targetAtoms.asJava, frozenParameters).iterateAsScala.toIterable

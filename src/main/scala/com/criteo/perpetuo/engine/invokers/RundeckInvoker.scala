@@ -18,7 +18,7 @@ class RundeckInvoker(name: String, host: String, port: Int, authToken: String, j
   private def runPath(jobName: String): String =
     authenticated(s"/api/$API_VERSION/job/$jobName/executions")
 
-  def buildRequest(execTraceId: Long, executionKind: String, productName: String, version: Version, target: String, initiator: String): Request = {
+  protected def buildRequest(execTraceId: Long, productName: String, version: Version, target: String, initiator: String): Request = {
     def squote(s: String) = s"'$s'"
 
     var quotedVersion = version.toString

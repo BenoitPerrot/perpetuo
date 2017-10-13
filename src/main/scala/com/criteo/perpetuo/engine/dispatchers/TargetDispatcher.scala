@@ -14,7 +14,7 @@ trait ParameterFreezer {
     *         If the input doesn't make sense (the parameters are incompatible with each other),
     *         it must return an `UnprocessableIntent` error, whose message will be displayed to the end user.
     */
-  def freezeParameters(executionKind: String, productName: String, version: Version): String
+  def freezeParameters(productName: String, version: Version): String
 }
 
 

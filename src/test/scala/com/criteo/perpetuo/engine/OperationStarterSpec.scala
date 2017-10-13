@@ -26,7 +26,7 @@ object TestTargetDispatcher extends TargetDispatcher {
   val bInvoker = new DummyInvoker("B's invoker")
   val cInvoker = new DummyInvoker("C's invoker")
 
-  override def freezeParameters(executionKind: String, productName: String, version: Version) = "foobar"
+  override def freezeParameters(productName: String, version: Version): String = "foobar"
 
   override def dispatch(targetAtoms: Select, frozenParameters: String): Iterable[(ExecutorInvoker, Select)] = {
     assert(frozenParameters == "foobar")
@@ -63,8 +63,8 @@ class OperationStarterSpec extends Test with TestDb {
   }
 
   object DummyInvokerWithLogHref extends DummyInvoker("DummyWithLogHref") {
-    override def trigger(execTraceId: Long, executionKind: String, productName: String, version: Version, target: TargetExpr, initiator: String): Future[Option[String]] = {
-      super.trigger(execTraceId, executionKind, productName, version, target, initiator).map { logHref =>
+    override def trigger(execTraceId: Long, productName: String, version: Version, target: TargetExpr, initiator: String): Future[Option[String]] = {
+      super.trigger(execTraceId, productName, version, target, initiator).map { logHref =>
         assert(logHref.isEmpty)
         Some(s"#${dummyCounter.next}")
       }
@@ -154,7 +154,7 @@ class OperationStarterSpec extends Test with TestDb {
     }
 
     "raise if a target is not fully covered by executors" in {
-      val params = TestTargetDispatcher.freezeParameters("", "", Version(""""42""""))
+      val params = TestTargetDispatcher.freezeParameters("", Version(""""42""""))
       val thrown = the[IllegalArgumentException] thrownBy execution.dispatchToExecutors(TestTargetDispatcher, Set("def"), params)
       thrown.getMessage shouldEqual "requirement failed: Some target atoms have been lost in dispatching: def"
     }
@@ -234,7 +234,7 @@ class OperationStarterSpec extends Test with TestDb {
 
     "be dispatched as short target expressions" in {
       val Alternatives = Set
-      val params = TestTargetDispatcher.freezeParameters("", "", Version(""""42""""))
+      val params = TestTargetDispatcher.freezeParameters("", Version(""""42""""))
       assertEqual(
         execution.dispatchAlternatives(TestTargetDispatcher, Set(
           TargetTerm(Set(JsObject("ratio" -> JsNumber(0.05), "foo" -> JsString("bar"))), Set("ab")),
