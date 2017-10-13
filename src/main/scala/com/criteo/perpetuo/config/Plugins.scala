@@ -26,16 +26,18 @@ class Plugins(config: Config) {
     val t = config.tryGet[String]("type").getOrElse(throw new Exception(s"No $typeName is configured, while one is required"))
     lazy val stringValue = config.getString(t)
 
-    def instantiate(path: String): T = loader.instantiate(path match {
+    def instantiate(path: String) = path match {
+      case "class" =>
+        Plugins.instantiate(Class.forName(stringValue).asInstanceOf[Class[T]])
       case "groovyScriptResource" =>
         val resource = getClass.getResource(stringValue)
         assert(resource != null, s"Could not find configured resource $stringValue")
-        resource
+        loader.instantiate(resource)
       case "groovyScriptFile" =>
-        new File(stringValue).getAbsoluteFile.toURI.toURL
+        loader.instantiate(new File(stringValue).getAbsoluteFile.toURI.toURL)
       case unknownType: String =>
         throw new Exception(s"Unknown $typeName configured: $unknownType")
-    })
+    }
 
     if (groovySupported)
       f.applyOrElse(t, instantiate)
