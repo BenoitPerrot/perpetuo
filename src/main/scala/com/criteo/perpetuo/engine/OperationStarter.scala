@@ -206,14 +206,18 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
       .toStream
       .filter { case (_, select) => select.nonEmpty }
 
-    // check that we have the same targets before and after the dispatch (but one can be dispatched in several groups)
-    val dispatchedTargets: Select = dispatched.map { case (_, group) => group }.foldLeft(Stream.empty[String])(_ ++ _).toSet
-    assert(dispatchedTargets.subsetOf(targetAtoms),
-      "More targets after dispatching than before: " + (dispatchedTargets -- targetAtoms).map(_.toString).mkString(", "))
-    require(dispatchedTargets.size == targetAtoms.size,
-      "Some target atoms have no designated executors: " + (targetAtoms -- dispatchedTargets).map(_.toString).mkString(", "))
+    val flattened: Select = dispatched.map { case (_, group) => group }.foldLeft(Stream.empty[String])(_ ++ _).toSet
+    checkUnchangedTarget(targetAtoms, flattened, "dispatching")
 
     dispatched
+  }
+
+  private[engine] def checkUnchangedTarget(before: Select, after: Select, reason: String): Unit = {
+    // check that we have the same targets before and after the dispatch (but one can be dispatched in several groups)
+    assert(after.subsetOf(before),
+      s"More targets after $reason than before: " + (after -- before).map(_.toString).mkString(", "))
+    require(after.size == before.size,
+      s"Some target atoms have been lost in $reason: " + (before -- after).map(_.toString).mkString(", "))
   }
 
   protected def logExecution(identifier: String, execId: Long, executor: ExecutorInvoker, target: TargetExpr): Unit = {
