@@ -1,6 +1,6 @@
 package com.criteo.perpetuo.engine.resolvers
 
-import com.criteo.perpetuo.engine.Provider
+import com.criteo.perpetuo.engine.{Provider, Select}
 
 
 trait TargetResolver extends Provider[TargetResolver] {
@@ -18,8 +18,8 @@ trait TargetResolver extends Provider[TargetResolver] {
     * For a given atomic target (let's say "Lyon"), this function must return the input itself as
     * only element in the list (i.e. "Lyon" resolves to Iterable("Lyon")).
     *
-    * @return the atomic target words to which the input target word is resolved wrt the given product and version.
+    * @return the atomic target words to which each input target word is resolved wrt the given product and version.
     */
-  def toAtoms(productName: String, productVersion: String, targetWord: String): Iterable[String] =
-    Seq(targetWord)
+  def toAtoms(productName: String, productVersion: String, targetWords: Select): Map[String, Select] =
+    targetWords.iterator.map(word => word -> Set(word)).toMap
 }
