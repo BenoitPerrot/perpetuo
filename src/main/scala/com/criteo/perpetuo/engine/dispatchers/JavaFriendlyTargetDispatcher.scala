@@ -3,8 +3,8 @@ package com.criteo.perpetuo.engine.dispatchers
 import java.lang.{Iterable => JavaIterable}
 import java.util.{Map => JavaMap, Set => JavaSet}
 
+import com.criteo.perpetuo.engine._
 import com.criteo.perpetuo.engine.invokers.ExecutorInvoker
-import com.criteo.perpetuo.engine.{Provider, Select}
 import com.criteo.perpetuo.model.Version
 
 import scala.collection.JavaConverters._
@@ -19,7 +19,7 @@ abstract class JavaFriendlyTargetDispatcher extends Provider[TargetDispatcher] w
         delegate.freezeParameters(executionKind, productName, version)
 
       override def dispatch(targetAtoms: Select, frozenParameters: String): Iterable[(ExecutorInvoker, Select)] =
-        delegate.dispatch(targetAtoms.asJava, frozenParameters).asScala.mapValues(_.asScala.toSet)
+        delegate.dispatch(targetAtoms.asJava, frozenParameters).iterateAsScala.toIterable
     }
   }
 

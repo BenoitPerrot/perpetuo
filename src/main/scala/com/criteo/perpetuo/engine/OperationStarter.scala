@@ -165,7 +165,7 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
       atoms.foreach(atom => require(atom.length <= TargetAtom.maxSize, s"Target `$atom` is too long"))
       atoms
     }
-    target.map(term => TargetTerm(term.tactics, term.select.flatMap(toAtoms)))
+    target.map(term => TargetTerm(term.tactics, term.select.iterator.flatMap(toAtoms).toSet))
   }
 
   private[engine] def dispatch(dispatcher: TargetDispatcher, expandedTarget: TargetExpr, frozenParameters: String): Iterable[(ExecutorInvoker, TargetExpr)] =

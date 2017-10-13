@@ -1,7 +1,12 @@
 package com.criteo.perpetuo
 
+import java.lang.{Iterable => JavaIterable}
+import java.util.{Map => JavaMap}
+
 import spray.json.DefaultJsonProtocol._
 import spray.json.{JsObject, JsonFormat}
+
+import scala.collection.JavaConverters._
 
 
 package object engine {
@@ -14,6 +19,13 @@ package object engine {
 
   implicit class ExprToSelect(targetExpr: TargetExpr) {
     def select: Set[String] = targetExpr.flatMap(_.select)
+  }
+
+
+  implicit class TargetGroups[T](javaTargetGroups: JavaMap[T, JavaIterable[String]]) {
+    def iterateAsScala: Iterator[(T, Set[String])] =
+      javaTargetGroups.entrySet.iterator.asScala
+        .map(entry => entry.getKey -> entry.getValue.iterator.asScala.toSet)
   }
 
 
