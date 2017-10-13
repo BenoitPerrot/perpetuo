@@ -165,7 +165,7 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
     checkUnchangedTarget(select, toAtoms.keySet, "resolution")
     toAtoms.foreach { case (word, atoms) =>
       require(atoms.nonEmpty, s"Target word `$word` doesn't resolve to any atomic target")
-      atoms.foreach(atom => require(atom.length <= TargetAtom.maxSize, s"Target `$atom` is too long"))
+      atoms.foreach(atom => assert(atom.length <= TargetAtom.maxSize, s"Target `$atom` is too long"))
     }
 
     target.map(term => TargetTerm(term.tactics, term.select.iterator.flatMap(toAtoms).toSet))
