@@ -1,7 +1,7 @@
 package com.criteo.perpetuo.engine.invokers
 
 import com.criteo.perpetuo.TestDb
-import com.criteo.perpetuo.engine.engine.TargetTerm
+import com.criteo.perpetuo.engine.TargetTerm
 import com.criteo.perpetuo.model.{Operation, Version}
 import com.twitter.finagle.http.{Response, Status}
 import com.twitter.inject.Test

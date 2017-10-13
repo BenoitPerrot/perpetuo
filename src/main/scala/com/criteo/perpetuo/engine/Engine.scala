@@ -7,7 +7,6 @@ import com.criteo.perpetuo.config.AppConfigProvider
 import com.criteo.perpetuo.config.ConfigSyntacticSugar._
 import com.criteo.perpetuo.dao.{DbBinding, UnknownProduct}
 import com.criteo.perpetuo.engine.dispatchers.TargetDispatcher
-import com.criteo.perpetuo.engine.engine.Select
 import com.criteo.perpetuo.engine.resolvers.TargetResolver
 import com.criteo.perpetuo.model.ExecutionState.ExecutionState
 import com.criteo.perpetuo.model._

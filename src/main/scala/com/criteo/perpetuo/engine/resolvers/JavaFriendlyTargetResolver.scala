@@ -2,7 +2,7 @@ package com.criteo.perpetuo.engine.resolvers
 
 import java.lang.{Iterable => JavaIterable}
 
-import com.criteo.perpetuo.engine.engine.Provider
+import com.criteo.perpetuo.engine.Provider
 
 import scala.collection.JavaConverters._
 

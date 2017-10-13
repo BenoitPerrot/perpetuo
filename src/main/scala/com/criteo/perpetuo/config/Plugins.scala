@@ -5,8 +5,8 @@ import java.net.URL
 import java.util.logging.Logger
 
 import com.criteo.perpetuo.auth._
+import com.criteo.perpetuo.engine.Provider
 import com.criteo.perpetuo.engine.dispatchers.{SingleTargetDispatcher, TargetDispatcher}
-import com.criteo.perpetuo.engine.engine.Provider
 import com.criteo.perpetuo.engine.invokers.{DummyInvoker, ExecutorInvoker, RundeckInvoker}
 import com.criteo.perpetuo.engine.resolvers.TargetResolver
 import com.typesafe.config.Config

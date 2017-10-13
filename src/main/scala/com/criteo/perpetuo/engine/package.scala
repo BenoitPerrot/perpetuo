@@ -1,4 +1,4 @@
-package com.criteo.perpetuo.engine
+package com.criteo.perpetuo
 
 import spray.json.DefaultJsonProtocol._
 import spray.json.{JsObject, JsonFormat}

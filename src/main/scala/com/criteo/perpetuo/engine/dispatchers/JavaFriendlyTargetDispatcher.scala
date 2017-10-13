@@ -3,8 +3,8 @@ package com.criteo.perpetuo.engine.dispatchers
 import java.lang.{Iterable => JavaIterable}
 import java.util.{Map => JavaMap, Set => JavaSet}
 
-import com.criteo.perpetuo.engine.engine.{Provider, Select}
 import com.criteo.perpetuo.engine.invokers.ExecutorInvoker
+import com.criteo.perpetuo.engine.{Provider, Select}
 import com.criteo.perpetuo.model.Version
 
 import scala.collection.JavaConverters._

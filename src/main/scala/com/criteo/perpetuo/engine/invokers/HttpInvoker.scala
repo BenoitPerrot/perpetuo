@@ -2,7 +2,7 @@ package com.criteo.perpetuo.engine.invokers
 
 import java.net.InetSocketAddress
 
-import com.criteo.perpetuo.engine.engine.TargetExpr
+import com.criteo.perpetuo.engine.TargetExpr
 import com.criteo.perpetuo.model.{Target, Version}
 import com.twitter.conversions.time._
 import com.twitter.finagle.builder.ClientBuilder

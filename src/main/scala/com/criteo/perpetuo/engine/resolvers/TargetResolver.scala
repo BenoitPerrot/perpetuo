@@ -1,6 +1,6 @@
 package com.criteo.perpetuo.engine.resolvers
 
-import com.criteo.perpetuo.engine.engine.Provider
+import com.criteo.perpetuo.engine.Provider
 
 
 trait TargetResolver extends Provider[TargetResolver] {

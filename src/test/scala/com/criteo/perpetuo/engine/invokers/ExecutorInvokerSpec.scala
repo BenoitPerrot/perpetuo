@@ -1,6 +1,6 @@
 package com.criteo.perpetuo.engine.invokers
 
-import com.criteo.perpetuo.engine.engine.TargetExpr
+import com.criteo.perpetuo.engine.TargetExpr
 import com.criteo.perpetuo.model.Version
 import com.twitter.inject.Test
 
