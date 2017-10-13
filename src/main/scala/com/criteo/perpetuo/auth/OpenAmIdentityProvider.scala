@@ -2,16 +2,18 @@ package com.criteo.perpetuo.auth
 
 import java.net.URL
 
+import com.twitter.finagle.Service
 import com.twitter.finagle.builder.ClientBuilder
-import com.twitter.finagle.http.{Http, RequestBuilder, Response, Status}
+import com.twitter.finagle.http._
 import com.twitter.util.Future
 import spray.json._
 
+
 class OpenAmIdentityProvider(authorize: URL, tokeninfo: URL) extends IdentityProvider {
 
-  def authorizeUrl = authorize.toString
+  def authorizeUrl: String = authorize.toString
 
-  lazy val client = ClientBuilder()
+  lazy val client: Service[Request, Response] = ClientBuilder()
     .codec(Http())
     .hosts(s"${tokeninfo.getHost}:${
       tokeninfo.getPort match {

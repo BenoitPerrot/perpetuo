@@ -20,6 +20,3 @@ abstract class JavaFriendlyTargetResolver extends Provider[TargetResolver] {
 
   protected def toAtoms(productName: String, productVersion: String, targetWords: JavaSet[String]): JavaMap[String, JavaIterable[String]]
 }
-
-
-
