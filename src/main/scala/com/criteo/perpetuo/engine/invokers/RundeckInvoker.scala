@@ -10,6 +10,8 @@ import scala.collection.{Map => MapBase}
 class RundeckInvoker(name: String, host: String, port: Int, authToken: String, jobName: String, specificParameters: MapBase[String, String] = Map()) extends HttpInvoker(host, port, name) {
   val API_VERSION = 16
 
+  override def toString: String = s"$name (job $jobName)"
+
   private def authenticated(path: String): String =
     s"$path?authtoken=$authToken"
 
