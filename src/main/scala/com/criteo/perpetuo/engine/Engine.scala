@@ -55,6 +55,9 @@ class Engine @Inject()(val dbBinding: DbBinding,
     dbBinding.findDeepDeploymentRequestById(deploymentRequestId)
 
   def createDeploymentRequest(attrs: DeploymentRequestAttrs, immediateStart: Boolean): Future[Map[String, Any]] = {
+    // todo: replace that by the creation of all the related records when the first deploy operation will be created simultaneously
+    targetDispatcher.freezeParameters(attrs.productName, attrs.version)
+    targetResolver.toAtoms(attrs.productName, attrs.version.toString, attrs.parsedTarget.select)
     // todo: remove once new workflow is completely in place <<
     if (isCoveredByOldWorkflow(attrs.productName) && !immediateStart) {
       dbBinding.findProductByName(attrs.productName)
