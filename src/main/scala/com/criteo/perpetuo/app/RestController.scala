@@ -5,6 +5,7 @@ import javax.inject.Inject
 import com.criteo.perpetuo.auth.UserFilter._
 import com.criteo.perpetuo.auth.{DeploymentAction, GeneralAction, User}
 import com.criteo.perpetuo.dao.{ProductCreationConflict, UnknownProduct}
+import com.criteo.perpetuo.engine.dispatchers.UnprocessableIntent
 import com.criteo.perpetuo.engine.{Engine, OperationStatus, UnprocessableAction}
 import com.criteo.perpetuo.model._
 import com.twitter.finagle.http.{Request, Response, Status => HttpStatus}
@@ -128,11 +129,17 @@ class RestController @Inject()(val engine: Engine)
         throw new HttpResponseException(response.forbidden)
 
       timeBoxed(
-        engine.createDeploymentRequest(allAttrs, autoStart)
-          .map(x => Some(response.created.json(x)))
-          .recover {
-            case e: UnknownProduct => throw BadRequestException(s"Product `${e.productName}` could not be found")
-          },
+        {
+          val resp = try {
+            engine.createDeploymentRequest(allAttrs, autoStart)
+          } catch {
+            case e: UnprocessableIntent => throw BadRequestException(e.getMessage)
+          }
+          resp.map(x => Some(response.created.json(x)))
+            .recover {
+              case e: UnknownProduct => throw BadRequestException(s"Product `${e.productName}` could not be found")
+            }
+        },
         5.seconds // fixme: get back to 2 seconds when the listener will be called asynchronously
       )
     }

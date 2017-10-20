@@ -48,6 +48,3 @@ class DummyInvoker(name: String) extends ExecutorInvoker with Logging {
     Future.successful(None)
   }
 }
-
-
-class UnprocessableIntent extends IllegalArgumentException
