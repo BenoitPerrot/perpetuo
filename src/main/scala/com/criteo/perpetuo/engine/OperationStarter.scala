@@ -1,7 +1,7 @@
 package com.criteo.perpetuo.engine
 
 import com.criteo.perpetuo.dao._
-import com.criteo.perpetuo.engine.dispatchers.TargetDispatcher
+import com.criteo.perpetuo.engine.dispatchers.{TargetDispatcher, UnprocessableIntent}
 import com.criteo.perpetuo.engine.invokers.ExecutorInvoker
 import com.criteo.perpetuo.engine.resolvers.TargetResolver
 import com.criteo.perpetuo.model._
@@ -156,13 +156,14 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
       }
   }
 
-  private[engine] def expandTarget(resolver: TargetResolver, productName: String, productVersion: Version, target: TargetExpr): TargetExpr = {
+  def expandTarget(resolver: TargetResolver, productName: String, productVersion: Version, target: TargetExpr): TargetExpr = {
     val select = target.select
     val toAtoms = resolver.toAtoms(productName, productVersion.toString, select)
 
     checkUnchangedTarget(select, toAtoms.keySet, "resolution")
     toAtoms.foreach { case (word, atoms) =>
-      require(atoms.nonEmpty, s"Target word `$word` doesn't resolve to any atomic target")
+      if (atoms.isEmpty)
+        throw UnprocessableIntent(s"Target word `$word` doesn't resolve to any atomic target")
       atoms.foreach(atom => assert(atom.length <= TargetAtom.maxSize, s"Target `$atom` is too long"))
     }
 

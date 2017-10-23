@@ -17,6 +17,7 @@ trait TargetResolver extends Provider[TargetResolver] {
     * but MUST contain at least "Paris" and "Lyon".
     * For a given atomic target (let's say "Lyon"), this function must return the input itself as
     * only element in the list (i.e. "Lyon" resolves to Iterable("Lyon")).
+    * If a target does not exist or must not host the given product, return the empty list.
     *
     * @return the atomic target words to which each input target word is resolved wrt the given product and version.
     */
