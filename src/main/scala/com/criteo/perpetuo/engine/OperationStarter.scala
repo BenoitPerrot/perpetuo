@@ -158,7 +158,7 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
 
   def expandTarget(resolver: TargetResolver, productName: String, productVersion: Version, target: TargetExpr): TargetExpr = {
     val select = target.select
-    val toAtoms = resolver.toAtoms(productName, productVersion.toString, select)
+    val toAtoms = resolver.toAtoms(productName, productVersion, select)
 
     checkUnchangedTarget(select, toAtoms.keySet, "resolution")
     toAtoms.foreach { case (word, atoms) =>

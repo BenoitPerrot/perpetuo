@@ -56,7 +56,7 @@ class OperationStarterSpec extends Test with TestDb {
     }
   }
   private val testResolver = new TargetResolver {
-    override def toAtoms(productName: String, productVersion: String, targetWords: Select): Map[String, Select] = {
+    override def toAtoms(productName: String, productVersion: Version, targetWords: Select): Map[String, Select] = {
       // the atomic targets are the input word split on dashes
       targetWords.map(word => word -> word.split("-").filter(_.nonEmpty).toSet).toMap
     }

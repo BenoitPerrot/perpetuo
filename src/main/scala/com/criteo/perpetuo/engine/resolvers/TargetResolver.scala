@@ -1,6 +1,7 @@
 package com.criteo.perpetuo.engine.resolvers
 
 import com.criteo.perpetuo.engine.{Provider, Select}
+import com.criteo.perpetuo.model.Version
 
 
 trait TargetResolver extends Provider[TargetResolver] {
@@ -21,6 +22,6 @@ trait TargetResolver extends Provider[TargetResolver] {
     *
     * @return the atomic target words to which each input target word is resolved wrt the given product and version.
     */
-  def toAtoms(productName: String, productVersion: String, targetWords: Select): Map[String, Select] =
+  def toAtoms(productName: String, productVersion: Version, targetWords: Select): Map[String, Select] =
     targetWords.iterator.map(word => word -> Set(word)).toMap
 }
