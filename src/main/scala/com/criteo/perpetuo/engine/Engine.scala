@@ -33,7 +33,7 @@ class Engine @Inject()(val dbBinding: DbBinding,
 
   val config = AppConfigProvider.config
 
-  private val noTransactions = config.tryGet("noTransactions").getOrElse(false)
+  private val withTransactions = !config.tryGet("noTransactions").getOrElse(false)
 
   private val operationStarter = new OperationStarter(dbBinding)
 
@@ -149,7 +149,7 @@ class Engine @Inject()(val dbBinding: DbBinding,
   def startDeploymentRequest(deploymentRequestId: Long, initiatorName: String): Future[Option[OperationTrace]] = {
     dbBinding.findDeepDeploymentRequestById(deploymentRequestId).flatMap(
       _.map { req =>
-        val check = if (!noTransactions)
+        val check = if (withTransactions)
           dbBinding.findLastOperationAndEffect(req.productId).map { lastEffect =>
             lastEffect.foreach { case OperationEffect(operationTrace, executionTraces, _) =>
               val requestId = operationTrace.deploymentRequestId
