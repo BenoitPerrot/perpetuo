@@ -49,11 +49,11 @@ class Plugins(config: Config) {
     resolve[ExecutorInvoker](invokerConfig, "invoker") {
       case "dummy" => new DummyInvoker(invokerConfig.getString("dummy.name"))
       case "rundeck" => new RundeckInvoker(
-        invokerConfig.get("rundeck.name"),
-        invokerConfig.get("rundeck.host"),
-        invokerConfig.get("rundeck.port"),
-        invokerConfig.get("rundeck.token"),
-        invokerConfig.get("rundeck.jobName")
+        invokerConfig.getString("rundeck.name"),
+        invokerConfig.getString("rundeck.host"),
+        invokerConfig.getInt("rundeck.port"),
+        invokerConfig.getString("rundeck.token"),
+        invokerConfig.getString("rundeck.jobName")
       )
     }
   }
