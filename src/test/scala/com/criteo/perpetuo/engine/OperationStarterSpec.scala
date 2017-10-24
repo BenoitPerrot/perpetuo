@@ -150,7 +150,7 @@ class OperationStarterSpec extends Test with TestDb {
 
     "raise if a target cannot be solved to atomic targets" in {
       val thrown = the[IllegalArgumentException] thrownBy execution.expandTarget(testResolver, null, Version("\"\""), Set(TargetTerm(select = Set("ab", "-"))))
-      thrown.getMessage should endWith("Target word `-` doesn't resolve to any atomic target")
+      thrown.getMessage should endWith("`-` is not a valid target in that context")
     }
 
     "raise if a target is not fully covered by executors" in {

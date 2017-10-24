@@ -163,7 +163,7 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
     checkUnchangedTarget(select, toAtoms.keySet, "resolution")
     toAtoms.foreach { case (word, atoms) =>
       if (atoms.isEmpty)
-        throw UnprocessableIntent(s"Target word `$word` doesn't resolve to any atomic target")
+        throw UnprocessableIntent(s"`$word` is not a valid target in that context")
       atoms.foreach(atom => assert(atom.length <= TargetAtom.maxSize, s"Target `$atom` is too long"))
     }
 
