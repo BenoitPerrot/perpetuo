@@ -12,6 +12,7 @@ object ConfigSyntacticSugar {
     def get[T](path: String): T = {
       config.getValue(path).unwrapped() match {
         case arr: java.util.ArrayList[_] => arr.asScala
+        case obj: java.util.Map[_, _] => obj.asScala
         case value => value
       }
     }.asInstanceOf[T]
