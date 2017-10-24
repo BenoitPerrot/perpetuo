@@ -14,6 +14,7 @@ import com.criteo.perpetuo.model._
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
+import scala.util.Try
 
 
 object OperationStatus extends Enumeration {
@@ -33,7 +34,7 @@ class Engine @Inject()(val dbBinding: DbBinding,
 
   val config = AppConfigProvider.config
 
-  private val withTransactions = !config.tryGet("noTransactions").getOrElse(false)
+  private val withTransactions = !Try(config.getBoolean("noTransactions")).getOrElse(false)
 
   private val operationStarter = new OperationStarter(dbBinding)
 
