@@ -5,6 +5,7 @@ import java.sql.Timestamp
 import com.criteo.perpetuo.TestDb
 import com.criteo.perpetuo.config.{AppConfigProvider, Plugins}
 import com.criteo.perpetuo.dao.DbBinding
+import com.criteo.perpetuo.engine.dispatchers.UnprocessableIntent
 import com.criteo.perpetuo.model._
 import com.twitter.inject.Test
 import spray.json.DefaultJsonProtocol._
@@ -18,7 +19,10 @@ class EngineSpec extends Test with TestDb {
 
   val config = AppConfigProvider.config
   private val plugins = new Plugins(config)
+  // TODO: should instantiate TargetDispatcherForTesting explicitly instead of by-conf, for clarity
   private val engine = new Engine(new DbBinding(dbContext), plugins.resolver, plugins.dispatcher, plugins.permissions, plugins.listener)
+
+  private val futureProductWithNoDeployType = engine.insertProduct(TargetDispatcherForTesting.productWithNoDeployTypeName)
 
   "Engine" should {
     "keep track of open executions for an operation" in {
@@ -41,6 +45,21 @@ class EngineSpec extends Test with TestDb {
         ),
         2.seconds
       ) shouldBe(true, false, false)
+    }
+
+    "reject deployment request for products with no deploy type" in {
+      Await.result(
+        futureProductWithNoDeployType
+          .flatMap(product =>
+            try {
+              engine.createDeploymentRequest(new DeploymentRequestAttrs(product.name, Version(JsString("1").compactPrint), """["sink"]""", "", "c.reator", new Timestamp(System.currentTimeMillis)), immediateStart = false)
+                .map(_ => false)
+            } catch {
+              case _: UnprocessableIntent => Future.successful(true)
+            }
+          ),
+        2.seconds
+      ) shouldBe true
     }
 
     def mockDeployExecution(productName: String, v: String, targetAtomToStatus: Map[String, Status.Code], initFailure: Option[String] = None): Future[(Long, Long)] = {
