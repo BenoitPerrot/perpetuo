@@ -10,6 +10,7 @@
 <link rel="import" href="../../bower_components/paper-listbox/paper-listbox.html">
 
 <link rel="import" href="../perpetuo-client/perpetuo-client.html">
+<link rel="import" href="../perpetuo-deployment-request/perpetuo-deployment-request-creation-error.html">
 
 <dom-module id="perpetuo-deployment-request-creation-form">
   <template>
@@ -68,9 +69,11 @@
       </paper-dialog-scrollable>
       <div class="buttons">
         <paper-button dialog-dismiss class="cancel" raised>Cancel</paper-button>
-        <paper-button dialog-confirm class="create" raised on-tap="create">Create</paper-button>
+        <paper-button class="create" raised on-tap="create">Create</paper-button>
       </div>
     </paper-dialog>
+
+    <perpetuo-deployment-request-creation-error id="errorDialog"></perpetuo-deployment-request-creation-error>
   </template>
   <script>
   Polymer({
@@ -112,8 +115,13 @@
               r.json().then(o => {
                 window.location.replace(`/deployment-requests/${o.id}`);
               });
+              this.close();
+            } else {
+              r.json().then(o => {
+                this.$.errorDialog.errors = o.errors;
+                this.$.errorDialog.open();
+              });
             }
-            this.close();
           })
     },
 
