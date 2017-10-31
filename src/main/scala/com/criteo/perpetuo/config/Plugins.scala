@@ -11,6 +11,7 @@ import com.criteo.perpetuo.engine.invokers.{DummyInvoker, ExecutorInvoker, Runde
 import com.criteo.perpetuo.engine.resolvers.TargetResolver
 import com.typesafe.config.Config
 
+import scala.collection.JavaConverters._
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionException, Future, blocking}
@@ -95,11 +96,13 @@ class Plugins(config: Config) {
     }.getOrElse(new Unrestricted)
 
   val listeners: Seq[ListenerPluginWrapper] =
-    Seq(new ListenerPluginWrapper(
-      config.tryGetConfig("engineListener").map { desc =>
-        resolve[DefaultListenerPlugin](desc, "engine listener", groovySupported = true)()
-      }
-    ))
+    if (config.hasPath("engineListeners"))
+      config.getConfigList("engineListeners").asScala.map(desc =>
+        // TODO: stop using Option, as the list can now be empty
+        new ListenerPluginWrapper(Some(resolve[DefaultListenerPlugin](desc, "engine listener", groovySupported = true)()))
+      )
+    else
+      Seq()
 }
 
 
