@@ -94,12 +94,12 @@ class Plugins(config: Config) {
       }
     }.getOrElse(new Unrestricted)
 
-  val listener: ListenerPluginWrapper =
-    new ListenerPluginWrapper(
+  val listeners: Seq[ListenerPluginWrapper] =
+    Seq(new ListenerPluginWrapper(
       config.tryGetConfig("engineListener").map { desc =>
         resolve[DefaultListenerPlugin](desc, "engine listener", groovySupported = true)()
       }
-    )
+    ))
 }
 
 

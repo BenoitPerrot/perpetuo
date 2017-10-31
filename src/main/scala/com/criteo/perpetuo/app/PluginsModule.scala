@@ -31,5 +31,5 @@ class PluginsModule(config: Config) extends TwitterModule {
 
   @Singleton
   @Provides
-  def providesListener: Listener = plugins.listener
+  def providesListeners: Seq[Listener] = plugins.listeners
 }

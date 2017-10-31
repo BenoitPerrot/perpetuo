@@ -30,7 +30,7 @@ class Engine @Inject()(val dbBinding: DbBinding,
                        val targetResolver: TargetResolver,
                        val targetDispatcher: TargetDispatcher,
                        val permissions: Permissions,
-                       val listener: Listener) {
+                       val listeners: Seq[Listener]) {
 
   val config = AppConfigProvider.config
 
@@ -67,20 +67,20 @@ class Engine @Inject()(val dbBinding: DbBinding,
           .getOrElse {
             throw new UnknownProduct(attrs.productName)
           })
-        .map(depReq => Map("ticketUrl" -> listener.onDeploymentRequestCreated(depReq, immediateStart)))
+        .map(depReq => Map("ticketUrl" -> listeners.map(_.onDeploymentRequestCreated(depReq, immediateStart)).mkString("")))
     } // >>
     else {
       val futureDepReq = dbBinding.insertDeploymentRequest(attrs)
 
       futureDepReq.foreach { deploymentRequest =>
         // todo: onDeploymentRequestCreated returning an extra comment feels wrong, probably it should not
-        Option(listener.onDeploymentRequestCreated(deploymentRequest, immediateStart)).map(moreComment => {
-          var comment = deploymentRequest.comment
-          if (comment.nonEmpty)
-            comment += "\n"
-          comment += moreComment
-          dbBinding.updateDeploymentRequestComment(deploymentRequest.id, comment)
-        }).getOrElse(Future.successful(true)).foreach { _ =>
+        val moreComments = listeners.map(_.onDeploymentRequestCreated(deploymentRequest, immediateStart)).filter(_ != null)
+        (if (moreComments.nonEmpty) {
+          val allComments = if (deploymentRequest.comment.nonEmpty) Seq(deploymentRequest.comment) ++ moreComments else moreComments
+          dbBinding.updateDeploymentRequestComment(deploymentRequest.id, allComments.mkString("\n"))
+        } else {
+          Future.successful()
+        }).foreach { _ =>
           if (immediateStart)
             startDeploymentRequest(deploymentRequest, attrs.creator, atCreation = true)
         }
@@ -92,27 +92,28 @@ class Engine @Inject()(val dbBinding: DbBinding,
 
   private def startOperation(deploymentRequest: DeepDeploymentRequest,
                              operationStart: Future[(OperationTrace, Int, Int)],
-                             onOperationStarted: (DeepDeploymentRequest, Int, Int) => Unit): Future[OperationTrace] =
+                             onOperationStartedListeners: Seq[(DeepDeploymentRequest, Int, Int) => Unit]): Future[OperationTrace] =
     operationStart.flatMap { case (operationTrace, started, failed) =>
-      Future(onOperationStarted(deploymentRequest, started, failed))
+      onOperationStartedListeners.foreach(_(deploymentRequest, started, failed))
       (if (started == 0) closeOperation(operationTrace, deploymentRequest) else Future.successful()).map(_ =>
         operationTrace
       )
     }
 
-  private def startDeploymentRequest(req: DeepDeploymentRequest, initiatorName: String, atCreation: Boolean): Future[OperationTrace] =
+  private def startDeploymentRequest(req: DeepDeploymentRequest, initiatorName: String, atCreation: Boolean): Future[OperationTrace] = {
     startOperation(
       req,
       operationStarter.start(targetResolver, targetDispatcher, req, Operation.deploy, initiatorName),
-      listener.onDeploymentRequestStarted(_, _, _, atCreation)
+      listeners.map(listener => listener.onDeploymentRequestStarted(_: DeepDeploymentRequest, _: Int, _: Int, atCreation))
     )
+  }
 
   private def closeOperation(operationTrace: OperationTrace, deploymentRequest: DeepDeploymentRequest): Future[Boolean] = {
     dbBinding.closeOperationTrace(operationTrace.id).map { closingSuccess =>
       if (closingSuccess)
         dbBinding.isOperationSuccessful(operationTrace.id).foreach { succeeded =>
           assert(succeeded.isDefined, s"Operation #${operationTrace.id} doesn't exist or is not closed")
-          listener.onOperationClosed(operationTrace, deploymentRequest, succeeded.get)
+          listeners.foreach(_.onOperationClosed(operationTrace, deploymentRequest, succeeded.get))
         }
       closingSuccess
     }
@@ -180,7 +181,7 @@ class Engine @Inject()(val dbBinding: DbBinding,
         startOperation(
           deploymentRequest,
           operationStarter.deployAgain(targetResolver, targetDispatcher, deploymentRequest, executionSpecs, initiatorName),
-          listener.onDeploymentRequestRetried
+          listeners.map(listener => listener.onDeploymentRequestRetried(_, _, _))
         ).map(Some(_))
       }.getOrElse(Future.successful(None))
     )
@@ -195,7 +196,7 @@ class Engine @Inject()(val dbBinding: DbBinding,
         startOperation(
           depReq,
           operationStarter.rollbackOperation(targetDispatcher, depReq, initiatorName, defaultVersion),
-          listener.onDeploymentRequestRolledBack
+          listeners.map(listener => listener.onDeploymentRequestRolledBack(_, _, _))
         ).map(Some(_))
       }.getOrElse(Future.successful(None))
     )
