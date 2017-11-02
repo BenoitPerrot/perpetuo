@@ -76,7 +76,7 @@
             <perpetuo-up-down-none class="product-name" key="productName" label="Product" on-state-changed="updateOrder"></perpetuo-up-down-none>
             <span class="version">Version</span>
             <span class="target">Target</span>
-            <perpetuo-up-down-none inverted class="creation-date" key="creationDate" label="Creation Date" on-state-changed="updateOrder"></perpetuo-up-down-none>
+            <perpetuo-up-down-none inverted class="creation-date" key="creationDate" label="Creation Date" state="down" on-state-changed="updateOrder"></perpetuo-up-down-none>
             <div class="state">
               <span>State</span>
             </div>
@@ -152,7 +152,6 @@
     },
 
     attached() {
-      this.$$('[key=creationDate]').state = 'down';
       this.client.fetchProducts().then(products => { this.productNames = products.map(_ => _.name); });
     },
 
