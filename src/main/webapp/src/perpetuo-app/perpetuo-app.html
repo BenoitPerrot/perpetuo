@@ -1,12 +1,18 @@
 <link rel="import" href="../../bower_components/polymer/polymer.html">
 
+<link rel="import" href="../../bower_components/app-layout/app-header/app-header.html">
+<link rel="import" href="../../bower_components/app-layout/app-scroll-effects/effects/waterfall.html">
 <link rel="import" href="../../bower_components/app-route/app-location.html">
 <link rel="import" href="../../bower_components/app-route/app-route.html">
 <link rel="import" href="../../bower_components/font-roboto/roboto.html">
+<link rel="import" href="../../bower_components/iron-icons/iron-icons.html">
 <link rel="import" href="../../bower_components/iron-pages/iron-pages.html">
 
-<link rel="import" href="../perpetuo-deployment-request/perpetuo-deployment-requests-page.html">
+<link rel="import" href="../perpetuo-app/perpetuo-app-drawer.html">
+<link rel="import" href="../perpetuo-app/perpetuo-app-toolbar.html">
 <link rel="import" href="../perpetuo-identity/perpetuo-identity.html">
+<link rel="import" href="../perpetuo-deployment-request/perpetuo-deployment-request.html">
+<link rel="import" href="../perpetuo-deployment-request/perpetuo-deployment-request-table.html">
 <link rel="import" href="../perpetuo-product/perpetuo-products-page.html">
 
 <dom-module id="perpetuo-app">
@@ -20,14 +26,19 @@
     <perpetuo-identity id="identity" login="{{login}}"></perpetuo-identity>
 
     <app-location route="{{route}}"></app-location>
-    <app-route route="{{route}}" pattern="/identify" data="{{routeData}}" tail="{{subroute}}" on-active-changed="onIdentifyActiveChanged"></app-route>
-    <app-route route="{{route}}" pattern="/:page" data="{{routeData}}" tail="{{subroute}}"></app-route>
 
-    <iron-pages id="pageSelector" selected="[[routeData.page]]" fallback-selection="*" attr-for-selected="page-route" on-iron-select="onPageSelected">
-      <div page-route="*" title=""></div>
-      <perpetuo-deployment-requests-page page-route="deployment-requests" title="Deployment Requests" route="{{subroute}}"></perpetuo-deployment-requests-page>
-      <perpetuo-products-page page-route="products" title="Products"></perpetuo-products-page>
+    <app-header fixed condenses effects="waterfall">
+      <perpetuo-app-toolbar on-drawer-toggle-tap="toggleDrawer" page-title="[[pageTitle]]"></perpetuo-app-toolbar>
+    </app-header>
+
+    <iron-pages id="pageSelector" selected="[[selectPage(route)]]" attr-for-selected="page-route" fallback-selection="/deployment-requests" selected-attribute="active">
+      <perpetuo-deployment-request-table page-route="/deployment-requests"></perpetuo-deployment-request-table>
+      <perpetuo-deployment-request page-route="/deployment-requests/:id" deployment-request-id="[[routeData.id]]"></perpetuo-deployment-request>
+      <perpetuo-products-page page-route="/products" deployment-request-id="[[routeData.id]]"></perpetuo-deployment-request>
     </iron-pages>
+
+    <perpetuo-app-drawer id="drawer"></perpetuo-app-drawer>
+
   </template>
 
   <script>
@@ -36,25 +47,58 @@
 
       properties: {
         route: Object,
+        routeData: { type: Object, value: () => ({}) },
         subroute: Object,
-        routeData: Object
+        subrouteData: Object
       },
 
-      onIdentifyActiveChanged(e) {
-        if (e.detail.value) {
-          this.$.identity.acknownledge();
-        }
-      },
+      selectPage(route) {
+        const routingTable = [
+          {
+            re: new RegExp('/deployment-requests/(\\d+)'),
+            f: (match) => {
+              const id = match[1];
+              this.routeData = { id: id };
+              this.pageTitle = `Deployment Request #${id}`;
+              return '/deployment-requests/:id';
+            }
+          },
+          {
+            re: new RegExp('/deployment-requests/?'),
+            f: (match) => {
+              this.pageTitle = 'Deployment Requests';
+              return '/deployment-requests';
+            }
+          },
+          {
+            re: new RegExp('/products/?'),
+            f: (match) => {
+              this.pageTitle = 'Products';
+              return '/products';
+            }
+          },
+          {
+            re: new RegExp('/identify'),
+            f: (match) => {
+              this.$.identity.acknownledge();
+              return '';
+            }
+          },
+        ];
 
-      onPageSelected() {
-        const selectedPage = this.$.pageSelector.selectedItem;
-        if (selectedPage) {
-          // TODO: show a Welcome page, and a 404-unknown page, instead of always redirecting to deployment-requests <<
-          if (!selectedPage.getAttribute('title')) {
-            this.route = { prefix: '', path: '/deployment-requests' };
+        return routingTable.reduce((acc, routing) => {
+          if (acc === null) {
+            const m = route.path.match(routing.re);
+            if (m) {
+              return routing.f(m);
+            }
           }
-          // >>
-        }
+          return acc;
+        }, null);
+      },
+
+      toggleDrawer() {
+        this.$.drawer.toggle();
       },
     });
   </script>

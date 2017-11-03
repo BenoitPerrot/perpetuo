@@ -1,11 +1,7 @@
 <link rel="import" href="../../bower_components/polymer/polymer.html">
 
-<link rel="import" href="../../bower_components/app-layout/app-header/app-header.html">
-<link rel="import" href="../../bower_components/app-layout/app-header-layout/app-header-layout.html">
 <link rel="import" href="../../bower_components/paper-card/paper-card.html">
 
-<link rel="import" href="../perpetuo-app/perpetuo-app-drawer.html">
-<link rel="import" href="../perpetuo-app/perpetuo-app-toolbar.html">
 <link rel="import" href="../perpetuo-deployment-request/perpetuo-conflicting-deployment-requests.html">
 <link rel="import" href="../perpetuo-deployment-request/perpetuo-deployment-operation.html">
 
@@ -109,44 +105,38 @@
       background-color: #eee;
     }
     </style>
-    <app-header-layout>
-      <app-header reveals>
-        <perpetuo-app-toolbar on-drawer-toggle-tap="toggleDrawer" page-title="Deployment Requests"></perpetuo-app-toolbar>
-      </app-header>
-      <div class="body">
-        <h1>
-          <span class="product-name">[[data.productName]]</span>
-          <span class="version">
-            <template is="dom-repeat" items="[[version]]">
-              <template is="dom-if" if="[[index]]">+</template>
-              [[item.value]]<template is="dom-if" if="[[item.ratio]]">&nbsp;<span class="ratio">[[asPercentage(item.ratio)]]%</span></template>
-            </template>
-          </span>
-          <span class$="state [[toCssClasses(data.state)]]">[[humanReadable(data.state)]]</span>
-        </h1>
-        <div class="actions">
-          <template is="dom-repeat" items="[[data.actions]]">
-            <paper-button disabled="[[computeDisabled(isInAction, item.authorized)]]" on-tap="onActionTap" raised>[[humanReadable(item.type)]]</paper-button>
+    <div class="body">
+      <h1>
+        <span class="product-name">[[data.productName]]</span>
+        <span class="version">
+          <template is="dom-repeat" items="[[version]]">
+            <template is="dom-if" if="[[index]]">+</template>
+            [[item.value]]<template is="dom-if" if="[[item.ratio]]">&nbsp;<span class="ratio">[[asPercentage(item.ratio)]]%</span></template>
           </template>
-        </div>
-        <paper-card id="general">
-          <h1>General</h1>
-          <p>Requested by [[data.creator]] on [[timestampToDates(data.creationDate)]]</p>
-          <template is="dom-if" if="[[comment.description]]"><p>[[comment.description]]</p></template>
-          <template is="dom-if" if="[[comment.ticket]]"><p>JIRA: <a href="[[comment.ticket.url]]">[[comment.ticket.reference]]</a></p></template>
-        </paper-card>
-        <paper-card id="target">
-          <h1>Deployment Target</h1>
-          <p>[[data.target]]</p>
-        </paper-card>
-        <template is="dom-repeat" items="[[data.operations]]">
-          <paper-card id="operations">
-            <perpetuo-deployment-operation index="[[index]]" data="[[item]]" show-execution-logs="[[data.showExecutionLogs]]"></perpetuo-deployment-operation>
-          </paper-card>
+        </span>
+        <span class$="state [[toCssClasses(data.state)]]">[[humanReadable(data.state)]]</span>
+      </h1>
+      <div class="actions">
+        <template is="dom-repeat" items="[[data.actions]]">
+          <paper-button disabled="[[computeDisabled(isInAction, item.authorized)]]" on-tap="onActionTap" raised>[[humanReadable(item.type)]]</paper-button>
         </template>
       </div>
-    </app-header-layout>
-    <perpetuo-app-drawer id="drawer"></perpetuo-app-drawer>
+      <paper-card id="general">
+        <h1>General</h1>
+        <p>Requested by [[data.creator]] on [[timestampToDates(data.creationDate)]]</p>
+        <template is="dom-if" if="[[comment.description]]"><p>[[comment.description]]</p></template>
+        <template is="dom-if" if="[[comment.ticket]]"><p>JIRA: <a href="[[comment.ticket.url]]">[[comment.ticket.reference]]</a></p></template>
+      </paper-card>
+      <paper-card id="target">
+        <h1>Deployment Target</h1>
+        <p>[[data.target]]</p>
+      </paper-card>
+      <template is="dom-repeat" items="[[data.operations]]">
+        <paper-card id="operations">
+          <perpetuo-deployment-operation index="[[index]]" data="[[item]]" show-execution-logs="[[data.showExecutionLogs]]"></perpetuo-deployment-operation>
+        </paper-card>
+      </template>
+    </div>
 
     <paper-dialog id="revertPlan" with-backdrop>
       <h2>Revert plan</h2>
@@ -155,24 +145,24 @@
         <paper-dialog-scrollable>
           <table>
             <thead>
-            <tr>
-              <th>Version</th>
-              <th>Targets</th>
-            </tr>
+              <tr>
+                <th>Version</th>
+                <th>Targets</th>
+              </tr>
             </thead>
             <tbody>
-            <template is="dom-repeat" items="[[revertPlan.determined]]">
-              <tr>
-                <td>
-                  <template is="dom-repeat" items="[[computeVersion(item)]]">
-                    <template is="dom-if" if="[[index]]">+</template>
-                    [[item.value]]
-                    <template is="dom-if" if="[[item.ratio]]">&nbsp;<span class="ratio">[[asPercentage(item.ratio)]]%</span></template>
-                  </template>
-                </td>
-                <td>[[sumUpArray(item.targetAtoms)]]</td>
-              </tr>
-            </template>
+              <template is="dom-repeat" items="[[revertPlan.determined]]">
+                <tr>
+                  <td>
+                    <template is="dom-repeat" items="[[computeVersion(item)]]">
+                      <template is="dom-if" if="[[index]]">+</template>
+                      [[item.value]]
+                      <template is="dom-if" if="[[item.ratio]]">&nbsp;<span class="ratio">[[asPercentage(item.ratio)]]%</span></template>
+                    </template>
+                  </td>
+                  <td>[[sumUpArray(item.targetAtoms)]]</td>
+                </tr>
+              </template>
             </tbody>
           </table>
         </paper-dialog-scrollable>
@@ -253,25 +243,25 @@
           this.isInAction = false;
         };
         f().then(releaseLock)
-          .catch(releaseLock);
+           .catch(releaseLock);
       }
     },
 
     onDeployTap(e) {
       this.actionLock(() =>
         this.client.deployDeploymentRequest(this.deploymentRequestId)
-          .then(r => {
-            if (r.status === 422)
-              return r.json()
-                .then(body => {
-                  if (body.conflicts) {
-                    const panel = this.$$('perpetuo-conflicting-deployment-requests');
-                    panel.conflicts = body.conflicts;
-                    panel.open();
-                  }
-                });
-            return this.refresh();
-          })
+            .then(r => {
+              if (r.status === 422)
+                return r.json()
+                        .then(body => {
+                          if (body.conflicts) {
+                            const panel = this.$$('perpetuo-conflicting-deployment-requests');
+                            panel.conflicts = body.conflicts;
+                            panel.open();
+                          }
+                        });
+              return this.refresh();
+            })
       );
     },
 
@@ -295,19 +285,19 @@
 
     revert() {
       return this.client.deviseRevertPlan(this.deploymentRequestId)
-        .then(r => {
-          if (r.status === 200)
-            return r.json()
-              .then(body => {
-                this.revertPlan = body;
-                this.defaultVersion = undefined;
-                this.showRevertPlan().then(_ => {
-                  const body = this.defaultVersion ? {defaultVersion: this.defaultVersion} : {};
-                  this.client.revertDeploymentRequest(this.deploymentRequestId, body);
-                });
-              });
-          return this.refresh();
-        });
+                 .then(r => {
+                   if (r.status === 200)
+                     return r.json()
+                             .then(body => {
+                               this.revertPlan = body;
+                               this.defaultVersion = undefined;
+                               this.showRevertPlan().then(_ => {
+                                 const body = this.defaultVersion ? {defaultVersion: this.defaultVersion} : {};
+                                 this.client.revertDeploymentRequest(this.deploymentRequestId, body);
+                               });
+                             });
+                   return this.refresh();
+                 });
     },
 
     onRevertTap(e) {
@@ -348,21 +338,17 @@
     sumUpArray(arr) {
       const sorted = arr.sort();
       return (sorted.length < 8 ?
-          sorted :
-          sorted.slice(0, 3).concat(["..."], sorted.slice(-3))
+              sorted :
+              sorted.slice(0, 3).concat(["..."], sorted.slice(-3))
       ).join(", ");
-    },
-
-    toggleDrawer() {
-      this.$.drawer.toggle();
     },
 
     refresh() {
       return this.deploymentRequestId === undefined ?
-        Promise.resolve(false)
-        : this.client.fetchDeploymentRequest(this.deploymentRequestId).then(_ => {
-          this.data = _;
-        });
+             Promise.resolve(false)
+           : this.client.fetchDeploymentRequest(this.deploymentRequestId).then(_ => {
+             this.data = _;
+           });
     }
 
   })
