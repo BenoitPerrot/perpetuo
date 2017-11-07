@@ -19,7 +19,7 @@ class DefaultListenerPlugin extends Listener with Plugin {
 }
 
 
-private[config] class ListenerPluginWrapper(implementation: Option[DefaultListenerPlugin]) extends PluginRunner(implementation, new DefaultListenerPlugin) with Listener {
+private[config] class ListenerPluginWrapper(implementation: DefaultListenerPlugin) extends PluginRunner(implementation, new DefaultListenerPlugin) with Listener {
   def onDeploymentRequestCreated(deploymentRequest: DeepDeploymentRequest, immediateStart: Boolean): String =
     wrap(_.onDeploymentRequestCreated(deploymentRequest, immediateStart))
 

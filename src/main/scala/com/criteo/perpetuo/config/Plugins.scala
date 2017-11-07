@@ -98,8 +98,7 @@ class Plugins(config: Config) {
   val listeners: Seq[ListenerPluginWrapper] =
     if (config.hasPath("engineListeners"))
       config.getConfigList("engineListeners").asScala.map(desc =>
-        // TODO: stop using Option, as the list can now be empty
-        new ListenerPluginWrapper(Some(resolve[DefaultListenerPlugin](desc, "engine listener", groovySupported = true)()))
+        new ListenerPluginWrapper(resolve[DefaultListenerPlugin](desc, "engine listener", groovySupported = true)())
       )
     else
       Seq()
@@ -145,9 +144,7 @@ trait Plugin {
 }
 
 
-abstract class PluginRunner[P <: Plugin](implementation: Option[P], base: P) {
-  protected val plugin: P = implementation.getOrElse(base)
-
+abstract class PluginRunner[P <: Plugin](plugin: P, base: P) {
   protected def wrap[T](toCallOnPlugin: P => T, name: String = null): T = {
     val methodName = if (name == null) Thread.currentThread.getStackTrace()(2).getMethodName else name
     val method = plugin.getClass.getMethods.filter(_.getName == methodName).head
