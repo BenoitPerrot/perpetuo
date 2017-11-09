@@ -136,17 +136,12 @@ class Engine @Inject()(val dbBinding: DbBinding,
   def canRevertDeploymentRequest(deploymentRequest: DeploymentRequest, isStarted: Boolean): Future[Unit] =
     if (!isStarted)
       Future.failed(UnprocessableAction("it has not yet been applied"))
-    else
-      rejectIfOutdated(deploymentRequest).flatMap(_ =>
-        // todo: once there is no more * in TargetStatus table, we can allow successive rollbacks,
-        // by using dbBinding.findTargetAtomNotActionableBy instead of `outdated` here
-        dbBinding.findExecutionTracesByDeploymentRequest(deploymentRequest.id).flatMap(
-          // fixme: only as long as there can be * in TargetStatus table because of failure (and one executor!)
-          _.collectFirst { case trace if trace.state != ExecutionState.completed =>
-            Future.failed(UnprocessableAction("there is no need to rollback, nothing has been done"))
-          }.getOrElse(Future.successful())
-        )
-      )
+    else {
+      // todo: now we can allow successive rollbacks,
+      // by using dbBinding.findTargetAtomNotActionableBy instead of `outdated` here
+      rejectIfOutdated(deploymentRequest)
+    }
+
 
   def startDeploymentRequest(deploymentRequestId: Long, initiatorName: String): Future[Option[OperationTrace]] = {
     dbBinding.findDeepDeploymentRequestById(deploymentRequestId).flatMap(
