@@ -4,7 +4,7 @@ import javax.inject.Inject
 
 import com.criteo.perpetuo.auth.UserFilter._
 import com.criteo.perpetuo.auth.{DeploymentAction, GeneralAction, User}
-import com.criteo.perpetuo.dao.{ProductCreationConflict, UnknownProduct}
+import com.criteo.perpetuo.dao.{ProductCreationConflict, Schema, UnknownProduct}
 import com.criteo.perpetuo.engine.dispatchers.UnprocessableIntent
 import com.criteo.perpetuo.engine.{Engine, OperationStatus, UnprocessableAction}
 import com.criteo.perpetuo.model._
@@ -20,7 +20,7 @@ import spray.json.JsonParser.ParsingException
 import spray.json._
 
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.Future
+import scala.concurrent.{Await, Future}
 import scala.concurrent.duration._
 import scala.util.Try
 
@@ -346,6 +346,23 @@ class RestController @Inject()(val engine: Engine)
         }
       },
       5.seconds)
+  }
+
+  post("/api/unstable/db/execution-traces/set-detail-from-star-statuses") { _: Request =>
+    val schema = new Schema(engine.dbBinding.dbContext)
+    Await.result(schema.setExecutionTracesDetailFromStarStatus().map(x => Map("updated" -> x)), 2.hours)
+  }
+  get("/api/unstable/db/execution-traces/count-missing-details") { _: Request =>
+    val schema = new Schema(engine.dbBinding.dbContext)
+    Await.result(schema.countMissingExecutionTraceDetails().map(x => Map("count" -> x)), 10.seconds)
+  }
+  post("/api/unstable/db/target-statuses/remove-star-statuses") { _: Request =>
+    val schema = new Schema(engine.dbBinding.dbContext)
+    Await.result(schema.removeRemainingStarStatuses().map(x => Map("removed" -> x)), 2.hours)
+  }
+  get("/api/unstable/db/target-statuses/count-star-statuses") { _: Request =>
+    val schema = new Schema(engine.dbBinding.dbContext)
+    Await.result(schema.countStarStatuses().map(x => Map("count" -> x)), 10.seconds)
   }
 
   // Be sure to capture invalid calls to APIs
