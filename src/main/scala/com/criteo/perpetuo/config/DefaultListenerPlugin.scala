@@ -21,7 +21,7 @@ class DefaultListenerPlugin extends Listener with Plugin {
 
 private[config] class ListenerPluginWrapper(implementation: DefaultListenerPlugin) extends PluginRunner(implementation, new DefaultListenerPlugin) with Listener {
   def onDeploymentRequestCreated(deploymentRequest: DeepDeploymentRequest, immediateStart: Boolean): String =
-    wrap(_.onDeploymentRequestCreated(deploymentRequest, immediateStart))
+    wrapTransition(_.onDeploymentRequestCreated(deploymentRequest, immediateStart))
 
   def onDeploymentRequestStarted(deploymentRequest: DeepDeploymentRequest, startedExecutions: Int, failedToStart: Int, atCreation: Boolean): Unit =
     wrap(_.onDeploymentRequestStarted(deploymentRequest, startedExecutions, failedToStart, atCreation))

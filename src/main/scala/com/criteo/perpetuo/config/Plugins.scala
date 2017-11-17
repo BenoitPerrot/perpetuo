@@ -145,7 +145,8 @@ trait Plugin {
 
 
 abstract class PluginRunner[P <: Plugin](plugin: P, base: P) {
-  protected def wrap[T](toCallOnPlugin: P => T, name: String = null): T = {
+  // fixme: only as long as we need to redirect people who are not in the new workflow to Jira
+  protected def wrapTransition[T](toCallOnPlugin: P => T, name: String = null): T = {
     val methodName = if (name == null) Thread.currentThread.getStackTrace()(2).getMethodName else name
     val method = plugin.getClass.getMethods.filter(_.getName == methodName).head
     try {
@@ -171,6 +172,16 @@ abstract class PluginRunner[P <: Plugin](plugin: P, base: P) {
         // to know which method is failing, prefix the trace
         plugin.logger.severe(s"$methodName - ${e.getMessage}\n${e.getStackTrace.mkString("\n")}")
         throw e
+    }
+  }
+
+  protected def wrap(toCallOnPlugin: P => Unit, name: String = null): Unit = {
+    val methodName = if (name == null) Thread.currentThread.getStackTrace()(2).getMethodName else name
+    try {
+      wrapTransition(toCallOnPlugin, methodName)
+    }
+    catch {
+      case _: Throwable =>
     }
   }
 }
