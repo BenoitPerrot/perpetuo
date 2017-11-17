@@ -219,7 +219,7 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
     assert(after.subsetOf(before),
       s"More targets after $reason than before: " + (after -- before).map(_.toString).mkString(", "))
     require(after.size == before.size,
-      s"Some target atoms have been lost in $reason: " + (before -- after).map(_.toString).mkString(", "))
+      s"Some targets have been lost in $reason: " + (before -- after).map(_.toString).mkString(", "))
   }
 
   protected def logExecution(identifier: String, execId: Long, executor: ExecutorInvoker, target: TargetExpr): Unit = {
