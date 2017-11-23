@@ -68,7 +68,7 @@
     },
 
     humanReadable(actionName) {
-      return actionName.replace(/([A-Z])/g, ' $1').toLowerCase();
+      return actionName.replace('initFailed', 'nothing happened').replace(/([A-Z])/g, ' $1').toLowerCase();
     },
 
     showLog(logHref) {
