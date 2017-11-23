@@ -16,6 +16,17 @@
       flex-direction: row;
       align-items: center;
     }
+
+    .chip {
+      border-radius: 32px;
+      background-color: hsl(0,0%,90%);
+    }
+    .chip span {
+      margin: 8px -4px 8px 12px;
+    }
+    .chip paper-icon-button {
+      color: hsl(0,0%,54%);
+    }
     </style>
     <paper-input id="search" label="[[label]]" on-value-changed="narrowDown" no-animations></paper-input>
     <div>
@@ -29,8 +40,10 @@
     </div>
     <template is="dom-repeat" items="[[chosen]]">
       <div class="removable-item">
-        <paper-icon-button icon="close" title="Remove element" on-tap="removeElement" index="[[index]]"></paper-icon-button>
-        <div>[[item]]</div>
+        <div class="chip">
+          <span>[[item]]</span>
+          <paper-icon-button icon="cancel" on-tap="removeElement" index="[[index]]"></paper-icon-button>
+        </div>
       </div>
     </template>
   </template>
