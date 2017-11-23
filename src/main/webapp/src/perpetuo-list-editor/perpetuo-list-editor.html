@@ -12,7 +12,7 @@
     }
 
     .removable-item {
-      display: flex;
+      display: inline-flex;
       flex-direction: row;
       align-items: center;
     }
@@ -53,6 +53,7 @@
 
     properties: {
       label: String,
+      multi: Boolean,
       choices: {type: Array, observer: 'narrowDown'},
       filteredChoices: {type: Array, notify: true},
       chosen: {type: Array, value: () => [], notify: true},
@@ -84,7 +85,10 @@
     },
 
     addElement(value) {
-      this.chosen = [value];
+      if (this.multi)
+        this.push('chosen', value);
+      else
+        this.chosen = [value];
       this.$.listbox.select(null);
       this.$.dropdown.close();
     },
