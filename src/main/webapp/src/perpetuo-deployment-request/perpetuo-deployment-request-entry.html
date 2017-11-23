@@ -121,11 +121,11 @@
     },
 
     humanReadable(actionName) {
-      return actionName.replace(/([A-Z])/g, ' $1');
+      return actionName.replace('initFailed', 'failed').replace(/([A-Z])/g, ' $1');
     },
 
     toCssClasses(actionName) {
-      return actionName.replace(/([A-Z])/g, '-$1').toLowerCase();
+      return actionName.replace('initFailed', 'failed').replace(/([A-Z])/g, '-$1').toLowerCase();
     }
   });
   </script>
