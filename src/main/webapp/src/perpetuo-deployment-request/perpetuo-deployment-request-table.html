@@ -73,7 +73,7 @@
       </div>
       <div style="display: flex;">
         <div class="product-name">
-          <perpetuo-list-editor key="productName" label="Filter" choices="[[productNames]]" on-chosen-changed="updateFilter"></perpetuo-list-editor>
+          <perpetuo-list-editor key="productName" label="Filter" choices="[[productNames]]" on-selected-items-changed="updateFilter"></perpetuo-list-editor>
         </div>
         <div class="version"></div>
         <span class="target"></span>
@@ -199,7 +199,7 @@
 
     updateFilter(e) {
       const fieldName = e.target.getAttribute('key');
-      this.deploymentRequestFilters = e.target.chosen.map(v => {
+      this.deploymentRequestFilters = e.target.selectedItems.map(v => {
         return {'field': fieldName, 'equals': v};
       });
       this.refresh(true);

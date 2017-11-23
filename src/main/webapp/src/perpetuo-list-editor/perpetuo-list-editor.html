@@ -38,7 +38,7 @@
         </paper-listbox>
       </iron-dropdown>
     </div>
-    <template is="dom-repeat" items="[[chosen]]">
+    <template is="dom-repeat" items="[[selectedItems]]">
       <div class="removable-item">
         <div class="chip">
           <span>[[item]]</span>
@@ -56,7 +56,7 @@
       multi: Boolean,
       choices: {type: Array, observer: 'narrowDown'},
       filteredChoices: {type: Array, notify: true},
-      chosen: {type: Array, value: () => [], notify: true},
+      selectedItems: {type: Array, value: () => [], notify: true},
     },
 
     narrowDown() {
@@ -86,16 +86,16 @@
 
     addElement(value) {
       if (this.multi)
-        this.push('chosen', value);
+        this.push('selectedItems', value);
       else
-        this.chosen = [value];
+        this.selectedItems = [value];
       this.$.listbox.select(null);
       this.$.dropdown.close();
     },
 
     removeElement(e) {
       this.$.search.value = '';
-      this.splice('chosen', e.currentTarget.index, 1);
+      this.splice('selectedItems', e.currentTarget.index, 1);
     }
   });
   </script>
