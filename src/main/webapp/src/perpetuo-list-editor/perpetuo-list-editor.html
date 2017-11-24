@@ -124,6 +124,11 @@
 
     removeElement(e) {
       this.splice('selectedItems', e.currentTarget.index, 1);
+    },
+
+    clear() {
+      this.selectedItems = [];
+      this.filter = '';
     }
   });
   </script>
