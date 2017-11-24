@@ -38,17 +38,17 @@
       all: inherit;
     }
     </style>
-    <paper-input-container always-float-label="[[selectedItems.length]]">
+    <paper-input-container always-float-label="[[selectedItems.length]]" disabled$="[[disabled]]">
       <label slot="label">[[label]]</label>
       <div slot="prefix" class="chip-container">
         <template is="dom-repeat" items="[[selectedItems]]">
           <div class="chip">
             <span>[[item]]</span>
-            <paper-icon-button icon="cancel" on-tap="removeElement" index="[[index]]"></paper-icon-button>
+            <paper-icon-button disabled$="[[disabled]]" icon="cancel" on-tap="removeElement" index="[[index]]"></paper-icon-button>
           </div>
         </template>
       </div>
-      <iron-input slot="input"><input on-keydown="onInputKeyDown" value="{{filter::input}}"></input></iron-input>
+      <iron-input slot="input"><input disabled$="[[disabled]]" on-keydown="onInputKeyDown" value="{{filter::input}}"></input></iron-input>
     </paper-input-container>
     <div>
       <iron-dropdown id="dropdown" no-auto-focus>
@@ -65,6 +65,7 @@
     is: 'perpetuo-list-editor',
 
     properties: {
+      disabled: Boolean,
       initialCount: Number,
       label: String,
       multi: Boolean,
