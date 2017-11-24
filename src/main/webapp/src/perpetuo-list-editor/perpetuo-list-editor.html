@@ -73,6 +73,11 @@
       choices: Array,
       filteredChoices: {type: Array, computed: 'applyFilter(choices, filter)', observer: 'completeOrSuggest'},
       selectedItems: {type: Array, value: () => [], notify: true},
+      selectedItem: {type: Object, notify: true, reflectToAttribute: true, computed: 'lastSelectedItem(selectedItems.*)'}
+    },
+
+    lastSelectedItem() {
+      return this.selectedItems.length === 0 ? undefined : this.selectedItems[this.selectedItems.length - 1];
     },
 
     onInputKeyDown(e) {
