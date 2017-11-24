@@ -37,7 +37,7 @@
       all: inherit;
     }
     </style>
-    <paper-input-container>
+    <paper-input-container always-float-label="[[selectedItems.length]]">
       <label slot="label">[[label]]</label>
       <div slot="prefix">
         <template is="dom-repeat" items="[[selectedItems]]">
