@@ -4,6 +4,6 @@ import com.typesafe.config.{Config, ConfigFactory}
 
 object AppConfigProvider {
 
-  val config: Config = ConfigFactory.load()
+  val config: Config = ConfigFactory.load().resolve()
 
 }
