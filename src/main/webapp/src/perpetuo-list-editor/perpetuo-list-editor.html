@@ -12,13 +12,13 @@
       cursor: pointer;
     }
 
-    .removable-item {
+    .chip-container {
+      display: inline-flex;
+    }
+    .chip {
       display: inline-flex;
       flex-direction: row;
       align-items: center;
-    }
-
-    .chip {
       border-radius: 32px;
       background-color: hsl(0,0%,90%);
       display: flex;
@@ -39,13 +39,11 @@
     </style>
     <paper-input-container always-float-label="[[selectedItems.length]]">
       <label slot="label">[[label]]</label>
-      <div slot="prefix">
+      <div slot="prefix" class="chip-container">
         <template is="dom-repeat" items="[[selectedItems]]">
-          <div class="removable-item">
-            <div class="chip">
-              <span>[[item]]</span>
-              <paper-icon-button icon="cancel" on-tap="removeElement" index="[[index]]"></paper-icon-button>
-            </div>
+          <div class="chip">
+            <span>[[item]]</span>
+            <paper-icon-button icon="cancel" on-tap="removeElement" index="[[index]]"></paper-icon-button>
           </div>
         </template>
       </div>
