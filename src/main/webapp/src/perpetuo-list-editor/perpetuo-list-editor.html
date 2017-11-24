@@ -60,11 +60,11 @@
       multi: Boolean,
       filter: String,
       choices: Array,
-      filteredChoices: {type: Array, computed: 'narrowDown(choices, filter)', observer: 'completeOrSuggest'},
+      filteredChoices: {type: Array, computed: 'applyFilter(choices, filter)', observer: 'completeOrSuggest'},
       selectedItems: {type: Array, value: () => [], notify: true},
     },
 
-    narrowDown(choices, filter) {
+    applyFilter(choices, filter) {
       if (choices && choices.length &&
           filter && filter.length) {
         const words = filter.toLowerCase().split(' ');
