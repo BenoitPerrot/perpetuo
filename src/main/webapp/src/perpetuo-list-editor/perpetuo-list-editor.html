@@ -60,27 +60,26 @@
       multi: Boolean,
       filter: String,
       choices: Array,
-      filteredChoices: {type: Array, computed: 'narrowDown(choices, filter)'},
+      filteredChoices: {type: Array, computed: 'narrowDown(choices, filter)', observer: 'completeOrSuggest'},
       selectedItems: {type: Array, value: () => [], notify: true},
     },
 
     narrowDown(choices, filter) {
-      if (choices && choices.length) {
-        if (!filter || filter.length === 0)
-          this.$.dropdown.close();
-        else {
-          const words = filter.toLowerCase().split(' ');
-          const filteredChoices = this.choices.filter(c => words.every(w => c.toLowerCase().includes(w)));
-          if (0 < filteredChoices.length) {
-            if (1 < filteredChoices.length)
-              this.$.dropdown.open();
-            else
-              this.addElement(filteredChoices[0]);
-          }
-          return filteredChoices;
-        }
+      if (choices && choices.length &&
+          filter && filter.length) {
+        const words = filter.toLowerCase().split(' ');
+        return this.choices.filter(c => words.every(w => c.toLowerCase().includes(w)));
       }
       return [];
+    },
+
+    completeOrSuggest(e) {
+      if (0 < this.filteredChoices.length) {
+        if (1 < this.filteredChoices.length)
+          this.$.dropdown.open();
+        else
+          this.addElement(this.filteredChoices[0]);
+      }
     },
 
     select(e) {
