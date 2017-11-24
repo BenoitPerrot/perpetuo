@@ -36,7 +36,7 @@
     <div>
       <iron-dropdown id="dropdown" no-auto-focus>
         <paper-listbox id="listbox" slot="dropdown-content" on-selected-changed="select">
-          <template is="dom-repeat" items="[[filteredChoices]]">
+          <template is="dom-repeat" items="[[filteredChoices]]" initial-count="[[initialCount]]">
             <paper-item>[[item]]</paper-item>
           </template>
         </paper-listbox>
@@ -56,6 +56,7 @@
     is: 'perpetuo-list-editor',
 
     properties: {
+      initialCount: Number,
       label: String,
       multi: Boolean,
       filter: String,
