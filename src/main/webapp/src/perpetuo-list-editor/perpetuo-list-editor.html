@@ -2,6 +2,7 @@
 <link rel="import" href="../../bower_components/iron-dropdown/iron-dropdown.html">
 <link rel="import" href="../../bower_components/paper-icon-button/paper-icon-button.html">
 <link rel="import" href="../../bower_components/paper-input/paper-input.html">
+<link rel="import" href="../../bower_components/paper-input/paper-input-container.html">
 <link rel="import" href="../../bower_components/paper-listbox/paper-listbox.html">
 
 <dom-module id="perpetuo-list-editor">
@@ -31,8 +32,25 @@
       min-width: 40px;
       min-height: 40px;
     }
+
+    paper-input-container input {
+      all: inherit;
+    }
     </style>
-    <paper-input id="search" label="[[label]]" value="{{filter}}" no-animations></paper-input>
+    <paper-input-container>
+      <label slot="label">[[label]]</label>
+      <div slot="prefix">
+        <template is="dom-repeat" items="[[selectedItems]]">
+          <div class="removable-item">
+            <div class="chip">
+              <span>[[item]]</span>
+              <paper-icon-button icon="cancel" on-tap="removeElement" index="[[index]]"></paper-icon-button>
+            </div>
+          </div>
+        </template>
+      </div>
+      <iron-input slot="input"><input value="{{filter::input}}"></input></iron-input>
+    </paper-input-container>
     <div>
       <iron-dropdown id="dropdown" no-auto-focus>
         <paper-listbox id="listbox" slot="dropdown-content" on-selected-changed="select">
@@ -42,14 +60,6 @@
         </paper-listbox>
       </iron-dropdown>
     </div>
-    <template is="dom-repeat" items="[[selectedItems]]">
-      <div class="removable-item">
-        <div class="chip">
-          <span>[[item]]</span>
-          <paper-icon-button icon="cancel" on-tap="removeElement" index="[[index]]"></paper-icon-button>
-        </div>
-      </div>
-    </template>
   </template>
   <script>
   Polymer({
@@ -86,7 +96,6 @@
     select(e) {
       if (e.detail.value !== null) {
         this.addElement(this.filteredChoices[e.detail.value]);
-        this.$.search.value = '';
       }
     },
 
@@ -100,7 +109,6 @@
     },
 
     removeElement(e) {
-      this.$.search.value = '';
       this.splice('selectedItems', e.currentTarget.index, 1);
     }
   });
