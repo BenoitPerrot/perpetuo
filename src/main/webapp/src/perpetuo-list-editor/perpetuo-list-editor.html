@@ -49,7 +49,7 @@
           </div>
         </template>
       </div>
-      <iron-input slot="input"><input value="{{filter::input}}"></input></iron-input>
+      <iron-input slot="input"><input on-keydown="onInputKeyDown" value="{{filter::input}}"></input></iron-input>
     </paper-input-container>
     <div>
       <iron-dropdown id="dropdown" no-auto-focus>
@@ -73,6 +73,14 @@
       choices: Array,
       filteredChoices: {type: Array, computed: 'applyFilter(choices, filter)', observer: 'completeOrSuggest'},
       selectedItems: {type: Array, value: () => [], notify: true},
+    },
+
+    onInputKeyDown(e) {
+      if (e.key === 'Backspace') {
+        if (this.filter === '') {
+          this.splice('selectedItems', -1, 1);
+        }
+      }
     },
 
     applyFilter(choices, filter) {
