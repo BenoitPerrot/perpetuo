@@ -48,7 +48,7 @@
           </div>
         </template>
       </div>
-      <iron-input slot="input"><input disabled$="[[disabled]]" on-keydown="onInputKeyDown" value="{{filter::input}}"></input></iron-input>
+      <iron-input slot="input"><input disabled$="[[computeInputDisabled(disabled, multi, selectedItems.*)]]" on-keydown="onInputKeyDown" value="{{filter::input}}"></input></iron-input>
     </paper-input-container>
     <div>
       <iron-dropdown id="dropdown" no-auto-focus>
@@ -74,6 +74,10 @@
       filteredChoices: {type: Array, computed: 'applyFilter(choices, filter)', observer: 'completeOrSuggest'},
       selectedItems: {type: Array, value: () => [], notify: true},
       selectedItem: {type: Object, notify: true, reflectToAttribute: true, computed: 'lastSelectedItem(selectedItems.*)'}
+    },
+
+    computeInputDisabled(disabled, multi, _) {
+      return disabled || (!multi && 0 < this.selectedItems.length);
     },
 
     lastSelectedItem() {
