@@ -32,7 +32,7 @@
       min-height: 40px;
     }
     </style>
-    <paper-input id="search" label="[[label]]" on-value-changed="narrowDown" no-animations></paper-input>
+    <paper-input id="search" label="[[label]]" value="{{filter}}" no-animations></paper-input>
     <div>
       <iron-dropdown id="dropdown" no-auto-focus>
         <paper-listbox id="listbox" slot="dropdown-content" on-selected-changed="select">
@@ -58,27 +58,29 @@
     properties: {
       label: String,
       multi: Boolean,
-      choices: {type: Array, observer: 'narrowDown'},
-      filteredChoices: {type: Array, notify: true},
+      filter: String,
+      choices: Array,
+      filteredChoices: {type: Array, computed: 'narrowDown(choices, filter)'},
       selectedItems: {type: Array, value: () => [], notify: true},
     },
 
-    narrowDown() {
-      if (this.choices && this.choices.length) {
-        const text = this.$.search.value;
-        if (!text || text.length === 0)
+    narrowDown(choices, filter) {
+      if (choices && choices.length) {
+        if (!filter || filter.length === 0)
           this.$.dropdown.close();
         else {
-          const words = text.toLowerCase().split(' ');
-          this.filteredChoices = this.choices.filter(c => words.every(w => c.toLowerCase().includes(w)));
-          if (0 < this.filteredChoices.length) {
-            if (1 < this.filteredChoices.length)
+          const words = filter.toLowerCase().split(' ');
+          const filteredChoices = this.choices.filter(c => words.every(w => c.toLowerCase().includes(w)));
+          if (0 < filteredChoices.length) {
+            if (1 < filteredChoices.length)
               this.$.dropdown.open();
             else
-              this.addElement(this.filteredChoices[0]);
+              this.addElement(filteredChoices[0]);
           }
+          return filteredChoices;
         }
       }
+      return [];
     },
 
     select(e) {
