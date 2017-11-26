@@ -31,7 +31,7 @@
       <perpetuo-app-toolbar on-drawer-toggle-tap="toggleDrawer" page-title="[[pageTitle]]"></perpetuo-app-toolbar>
     </app-header>
 
-    <iron-pages id="pageSelector" selected="[[selectPage(route)]]" attr-for-selected="page-route" fallback-selection="/deployment-requests" selected-attribute="active">
+    <iron-pages id="pageSelector" selected="[[selectPage(route)]]" attr-for-selected="page-route" selected-attribute="active">
       <perpetuo-deployment-request-table page-route="/deployment-requests"></perpetuo-deployment-request-table>
       <perpetuo-deployment-request page-route="/deployment-requests/:id" deployment-request-id="[[routeData.id]]"></perpetuo-deployment-request>
       <perpetuo-products-page page-route="/products" deployment-request-id="[[routeData.id]]"></perpetuo-deployment-request>
@@ -55,7 +55,7 @@
       selectPage(route) {
         const routingTable = [
           {
-            re: new RegExp('/deployment-requests/(\\d+)'),
+            re: new RegExp('^/deployment-requests/(\\d+)'),
             f: (match) => {
               const id = match[1];
               this.routeData = { id: id };
@@ -64,21 +64,21 @@
             }
           },
           {
-            re: new RegExp('/deployment-requests/?'),
+            re: new RegExp('^/deployment-requests/?$'),
             f: (match) => {
               this.pageTitle = 'Deployment Requests';
               return '/deployment-requests';
             }
           },
           {
-            re: new RegExp('/products/?'),
+            re: new RegExp('^/products/?$'),
             f: (match) => {
               this.pageTitle = 'Products';
               return '/products';
             }
           },
           {
-            re: new RegExp('/identify'),
+            re: new RegExp('^/identify'),
             f: (match) => {
               this.$.identity.acknownledge();
               return '';
@@ -86,7 +86,7 @@
           },
         ];
 
-        return routingTable.reduce((acc, routing) => {
+        const page = routingTable.reduce((acc, routing) => {
           if (acc === null) {
             const m = route.path.match(routing.re);
             if (m) {
@@ -95,6 +95,13 @@
           }
           return acc;
         }, null);
+        // TODO: Have an error page for invalid routes, have a main page <<
+        if (page === null) {
+          this.pageTitle = 'Deployment Requests';
+          return '/deployment-requests';
+        }
+        // >>
+        return page;
       },
 
       toggleDrawer() {
