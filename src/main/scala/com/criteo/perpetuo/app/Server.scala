@@ -23,8 +23,6 @@ class Server extends HttpServer {
 
   override protected def jacksonModule: FinatraJacksonModule = CustomServerModules.jackson
 
-  override def defaultFinatraHttpPort: String = s":${config.getInt("http.port")}"
-
   override def modules = Seq(
     Slf4jBridgeModule,
     new DbContextModule(config.getConfig("db")),
