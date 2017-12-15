@@ -61,6 +61,32 @@ class DbBinding @Inject()(val dbContext: DbContext)
 
   import dbContext.driver.api._
 
+  type DeepRecords = (DeploymentRequestRecord, ProductRecord, Option[OperationTraceRecord], Option[ExecutionTraceRecord], Option[TargetStatusRecord])
+
+  private def oneRequestRecordsToDeepModel(records: Iterable[DeepRecords]) = {
+    // there must be at least one record, and all the records must relate to the same deployment request
+    val deploymentRequest = records.head._1.toDeepDeploymentRequest(records.head._2)
+
+    val sortedEffects = records
+      .toStream
+      .collect { case (_, _, operationTrace, executionTrace, targetStatus) if operationTrace.isDefined =>
+        (operationTrace.get, executionTrace, targetStatus)
+      }
+      .groupBy { case (operationTrace, _, _) => operationTrace.id.get }
+      .toStream
+      .sortBy(_._1)
+      .map { case (_, l) =>
+        val (operationTraceRecord, _, _) = l.head
+        val operationTrace = operationTraceRecord.toOperationTrace
+        val executionTraces = l.flatMap(_._2).distinct.map(_.toExecutionTrace(operationTrace))
+        val targetStatuses = l.flatMap(_._3).distinct.map(_.toTargetStatus)
+        OperationEffect(operationTrace, executionTraces, targetStatuses)
+      }
+      .filter { case OperationEffect(_, et, _) => et.nonEmpty } // todo: remove that
+
+    (deploymentRequest, sortedEffects)
+  }
+
   def findDeepDeploymentRequestAndEffects(deploymentRequestId: Long): Future[Option[(DeepDeploymentRequest, Iterable[OperationEffect])]] = {
     dbContext.db.run(
       deploymentRequestQuery
@@ -73,29 +99,8 @@ class DbBinding @Inject()(val dbContext: DbContext)
         .map { case (((((deploymentRequest, product), operationTrace), _), executionTrace), targetStatus) => (deploymentRequest, product, operationTrace, executionTrace, targetStatus) }
         .result)
 
-      .map(results =>
-        results.headOption.map { case (deploymentRequestRecord, productRecord, _, _, _) =>
-          val deploymentRequest = deploymentRequestRecord.toDeepDeploymentRequest(productRecord)
-
-          val sortedEffects = results
-            .toStream
-            .collect { case (_, _, operationTrace, executionTrace, targetStatus) if operationTrace.isDefined =>
-              (operationTrace.get, executionTrace, targetStatus)
-            }
-            .groupBy { case (operationTrace, _, _) => operationTrace.id.get }
-            .toStream
-            .sortBy(_._1)
-            .map { case (_, l) =>
-              val (operationTraceRecord, _, _) = l.head
-              val operationTrace = operationTraceRecord.toOperationTrace
-              val executionTraces = l.flatMap(_._2).distinct.map(_.toExecutionTrace(operationTrace))
-              val targetStatuses = l.flatMap(_._3).distinct.map(_.toTargetStatus)
-              OperationEffect(operationTrace, executionTraces, targetStatuses)
-            }
-            .filter { case OperationEffect(_, et, _) => et.nonEmpty } // todo: remove that
-
-          (deploymentRequest, sortedEffects)
-        }
+      .map(records =>
+        records.headOption.map(_ => oneRequestRecordsToDeepModel(records))
       )
   }
 
@@ -139,8 +144,8 @@ class DbBinding @Inject()(val dbContext: DbContext)
     }
   }
 
-  def sortAllBy(q: Query[(DeploymentRequestTable, ProductTable, Rep[Option[OperationTraceTable]], Rep[Option[ExecutionTraceTable]]), (DeploymentRequestRecord, ProductRecord, Option[OperationTraceRecord], Option[ExecutionTraceRecord]), scala.Seq],
-                order: Seq[Map[String, Any]]) = {
+  private def sortAllBy(q: Query[(DeploymentRequestTable, ProductTable, Rep[Option[OperationTraceTable]], Rep[Option[ExecutionTraceTable]], Rep[Option[TargetStatusTable]]), DeepRecords, Seq],
+                        order: Seq[Map[String, Any]]) = {
     order.foldRight(q.sortBy(_._1.id)) { (spec, queries) =>
       val descending = try spec.getOrElse("desc", false).asInstanceOf[Boolean].value catch {
         case _: ClassCastException => throw new IllegalArgumentException("Orders `desc` must be true or false")
@@ -158,7 +163,7 @@ class DbBinding @Inject()(val dbContext: DbContext)
   // >>
 
   // todo: when the target status will be pre-registered, we won't need to get execution traces in this query anymore (and we will only need the last operation)
-  def deepQueryDeploymentRequests(where: Seq[Map[String, Any]], orderBy: Seq[Map[String, Any]], limit: Int, offset: Int): Future[Iterable[(DeepDeploymentRequest, Iterable[ArrayBuffer[ExecutionTrace]])]] = {
+  def deepQueryDeploymentRequests(where: Seq[Map[String, Any]], orderBy: Seq[Map[String, Any]], limit: Int, offset: Int): Future[Iterable[(DeepDeploymentRequest, Option[OperationEffect])]] = {
 
     val filtered = where.foldLeft(this.deploymentRequestQuery join this.productQuery on (_.productId === _.id)) { (queries, spec) =>
       val value = spec.getOrElse("equals", throw new IllegalArgumentException(s"Filters tests must be `equals`"))
@@ -183,15 +188,12 @@ class DbBinding @Inject()(val dbContext: DbContext)
   }
 
   private def deepQueryDeploymentRequests(q: Query[(DeploymentRequestTable, ProductTable), (DeploymentRequestRecord, ProductRecord), scala.Seq],
-                                          order: Seq[Map[String, Any]]): Future[Iterable[(DeepDeploymentRequest, Iterable[ArrayBuffer[ExecutionTrace]])]] = {
-    type StableMap = MutableMap[Long, (DeploymentRequestRecord, ProductRecord, ArrayBuffer[ExecutionTrace])]
+                                          order: Seq[Map[String, Any]]): Future[Iterable[(DeepDeploymentRequest, Option[OperationEffect])]] = {
+    type StableMap = MutableMap[Long, ArrayBuffer[DeepRecords]]
 
-    def groupByDeploymentRequestId(x: Seq[(DeploymentRequestRecord, ProductRecord, Option[OperationTraceRecord], Option[ExecutionTraceRecord])]): StableMap = {
-      x.foldLeft(new StableMap()) { case (result, (deploymentRequest, product, operationTrace, executionTrace)) =>
-        val execs = result.getOrElseUpdate(deploymentRequest.id.get, {
-          (deploymentRequest, product, ArrayBuffer())
-        })._3
-        executionTrace.foreach(e => execs.append(e.toExecutionTrace(operationTrace.get.toOperationTrace)))
+    def groupByDeploymentRequestId(x: Iterable[DeepRecords]): StableMap = {
+      x.foldLeft(new StableMap()) { case (result, records) =>
+        result.getOrElseUpdate(records._1.id.get, new ArrayBuffer[DeepRecords]()).append(records)
         result
       }
     }
@@ -199,16 +201,27 @@ class DbBinding @Inject()(val dbContext: DbContext)
     dbContext.db.run(
       sortAllBy(
         q
+          // get the last operation for each deployment request in the provided query
           .joinLeft(operationTraceQuery).on(_._1.id === _.deploymentRequestId)
-          .joinLeft(executionQuery).on { case ((_, operationTrace), execution) => operationTrace.map(_.id) === execution.operationTraceId }
+          .groupBy { case ((request, _), _) => request.id }
+          .map { case (requestId, operations) => (requestId, operations.map { case (_, operation) => operation.map(_.id) }.max) }
+
+          // since we lost everything but the selected operation trace ID (because of Slick and SQL backend limitations), let's get everything back
+          .join(productQuery)
+          .join(deploymentRequestQuery)
+          .filter { case (((requestId, _), product), request) => requestId === request.id && request.productId === product.id }
+          .joinLeft(operationTraceQuery).on { case ((((_, operationId), _), _), operation) => operationId === operation.id }
+
+          // get the execution traces and target statuses related to each of these operations
+          .joinLeft(executionQuery).on { case ((_, operation), execution) => operation.map(_.id) === execution.operationTraceId }
           .joinLeft(executionTraceQuery).on { case ((_, execution), executionTrace) => execution.map(_.id) === executionTrace.executionId }
-          .map { case ((((deploymentRequest, product), operationTrace), _), executionTrace) => (deploymentRequest, product, operationTrace, executionTrace) }
+          .joinLeft(targetStatusQuery).on { case (((_, execution), _), targetStatus) => execution.map(_.id) === targetStatus.executionId }
+          .map { case ((((((_, product), deploymentRequest), operationTrace), _), executionTrace), targetStatus) => (deploymentRequest, product, operationTrace, executionTrace, targetStatus) }
         , order).result
-    ).map(groupByDeploymentRequestId(_).values.map { case (req, product, execs) =>
-      (
-        req.toDeepDeploymentRequest(product),
-        execs.groupBy(_.operationTrace.id).toStream.sortBy(_._1).map(_._2)
-      )
+    ).map(groupByDeploymentRequestId(_).values.map { records =>
+      val (request, operations) = oneRequestRecordsToDeepModel(records)
+      assert(operations.isEmpty || operations.tail.isEmpty)
+      (request, operations.headOption)
     })
   }
 

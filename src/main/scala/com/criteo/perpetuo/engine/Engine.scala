@@ -11,7 +11,6 @@ import com.criteo.perpetuo.engine.resolvers.TargetResolver
 import com.criteo.perpetuo.model.ExecutionState.ExecutionState
 import com.criteo.perpetuo.model._
 
-import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.util.Try
@@ -148,9 +147,9 @@ class Engine @Inject()(val dbBinding: DbBinding,
       _.map { req =>
         val check = if (withTransactions)
           dbBinding.findLastOperationAndEffect(req.productId).map { lastEffect =>
-            lastEffect.foreach { case OperationEffect(operationTrace, executionTraces, _) =>
-              val requestId = operationTrace.deploymentRequestId
-              val error = computeState(operationTrace, executionTraces) match {
+            lastEffect.foreach { operationEffect =>
+              val requestId = operationEffect.operationTrace.deploymentRequestId
+              val error = computeState(operationEffect) match {
                 case (_, OperationStatus.inProgress) => // todo: as long as we don't have locking mechanism only
                   Some(s"wait for deployment request #$requestId to end")
                 case (Operation.deploy, OperationStatus.failed) =>
@@ -261,10 +260,11 @@ class Engine @Inject()(val dbBinding: DbBinding,
   def findDeepDeploymentRequestAndEffects(deploymentRequestId: Long): Future[Option[(DeepDeploymentRequest, Iterable[OperationEffect])]] =
     dbBinding.findDeepDeploymentRequestAndEffects(deploymentRequestId)
 
-  def queryDeepDeploymentRequests(where: Seq[Map[String, Any]], orderBy: Seq[Map[String, Any]], limit: Int, offset: Int): Future[Iterable[(DeepDeploymentRequest, Iterable[ArrayBuffer[ExecutionTrace]])]] =
+  def queryDeepDeploymentRequests(where: Seq[Map[String, Any]], orderBy: Seq[Map[String, Any]], limit: Int, offset: Int): Future[Iterable[(DeepDeploymentRequest, Option[OperationEffect])]] =
     dbBinding.deepQueryDeploymentRequests(where, orderBy, limit, offset)
 
-  def computeState(operationTrace: ShallowOperationTrace, executionTraces: Iterable[ExecutionTrace]): (Operation.Kind, OperationStatus.Value) = {
+  def computeState(operationEffect: OperationEffect): (Operation.Kind, OperationStatus.Value) = {
+    val OperationEffect(operationTrace, executionTraces, targetStatues) = operationEffect
     val lastOperationState = operationTrace.closingDate.map { _ =>
       if (operationTrace.targetStatus.values.forall(_.code == Status.success)
         && executionTraces.forall(_.state == ExecutionState.completed))

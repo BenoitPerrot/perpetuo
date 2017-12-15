@@ -257,7 +257,7 @@ class RestController @Inject()(val engine: Engine)
     )
   )
 
-  private def serialize(depReq: DeepDeploymentRequest, lastExecutionTraces: Option[(ShallowOperationTrace, Iterable[ExecutionTrace])]): Map[String, Any] =
+  private def serialize(depReq: DeepDeploymentRequest, lastOperationEffect: Option[OperationEffect]): Map[String, Any] =
     Map(
       "id" -> depReq.id,
       "comment" -> depReq.comment,
@@ -266,8 +266,8 @@ class RestController @Inject()(val engine: Engine)
       "version" -> depReq.version,
       "target" -> RawJson(depReq.target),
       "productName" -> depReq.product.name,
-      "state" -> lastExecutionTraces // for the UI: below is what will be displayed (and it must match css classes)
-        .map { case (opTrace, execTraces) => engine.computeState(opTrace, execTraces) }
+      "state" -> lastOperationEffect // for the UI: below is what will be displayed (and it must match css classes)
+        .map(engine.computeState)
         .map {
           case (Operation.deploy, OperationStatus.succeeded) => "deployed"
           case (Operation.revert, OperationStatus.succeeded) => "reverted"
@@ -319,7 +319,7 @@ class RestController @Inject()(val engine: Engine)
               )
             )
             .map(actions =>
-              Some(serialize(deploymentRequest, sortedEffects.lastOption.map(effect => (effect.operationTrace, effect.executionTraces))) ++
+              Some(serialize(deploymentRequest, sortedEffects.lastOption) ++
                 Map("operations" -> serialize(sortedEffects)) ++
                 Map("actions" -> actions.flatten) ++
                 Map("showExecutionLogs" -> (isAdmin || authorized(Operation.deploy)))) // fixme: only as long as we can't show the logs to anyone
@@ -337,9 +337,8 @@ class RestController @Inject()(val engine: Engine)
         try {
           // todo: uniform with other deep request
           engine.queryDeepDeploymentRequests(r.where, r.orderBy, r.limit, r.offset)
-            .map(_.map { case (deploymentRequest, executionTraces) =>
-              val lastGroup = executionTraces.toStream.sortBy(_.head.operationTrace.id).lastOption
-              serialize(deploymentRequest, lastGroup.map(group => (group.head.operationTrace, group)))
+            .map(_.map { case (deploymentRequest, lastOperationEffect) =>
+              serialize(deploymentRequest, lastOperationEffect)
             })
         } catch {
           case e: IllegalArgumentException => throw BadRequestException(e.getMessage)
