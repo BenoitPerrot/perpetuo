@@ -264,9 +264,9 @@ class Engine @Inject()(val dbBinding: DbBinding,
     dbBinding.deepQueryDeploymentRequests(where, orderBy, limit, offset)
 
   def computeState(operationEffect: OperationEffect): (Operation.Kind, OperationStatus.Value) = {
-    val OperationEffect(operationTrace, executionTraces, targetStatues) = operationEffect
+    val OperationEffect(operationTrace, executionTraces, targetStatuses) = operationEffect
     val lastOperationState = operationTrace.closingDate.map { _ =>
-      if (operationTrace.targetStatus.values.forall(_.code == Status.success)
+      if (targetStatuses.forall(_.code == Status.success)
         && executionTraces.forall(_.state == ExecutionState.completed))
         OperationStatus.succeeded
       else if (executionTraces.forall(_.state == ExecutionState.initFailed))
