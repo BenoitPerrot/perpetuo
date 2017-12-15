@@ -129,7 +129,7 @@ class DbBinding @Inject()(val dbContext: DbContext)
 
   // TODO: find a cheap way to factor this - or find a more clever structure for the query
   // (note that as after type erasure the two methods have the same signature, they must have different names) <<
-  def sortBy(q: Query[(DeploymentRequestTable, ProductTable), (DeploymentRequestRecord, ProductRecord), scala.Seq], order: Seq[Map[String, Any]]) = {
+  private def sortBy(q: Query[(DeploymentRequestTable, ProductTable), (DeploymentRequestRecord, ProductRecord), scala.Seq], order: Seq[Map[String, Any]]) = {
     order.foldRight(q.sortBy(_._1.id)) { (spec, queries) =>
       val descending = try spec.getOrElse("desc", false).asInstanceOf[Boolean].value catch {
         case _: ClassCastException => throw new IllegalArgumentException("Orders `desc` must be true or false")
@@ -164,7 +164,6 @@ class DbBinding @Inject()(val dbContext: DbContext)
 
   // todo: when the target status will be pre-registered, we won't need to get execution traces in this query anymore (and we will only need the last operation)
   def deepQueryDeploymentRequests(where: Seq[Map[String, Any]], orderBy: Seq[Map[String, Any]], limit: Int, offset: Int): Future[Iterable[(DeepDeploymentRequest, Option[OperationEffect])]] = {
-
     val filtered = where.foldLeft(this.deploymentRequestQuery join this.productQuery on (_.productId === _.id)) { (queries, spec) =>
       val value = spec.getOrElse("equals", throw new IllegalArgumentException(s"Filters tests must be `equals`"))
       val fieldName = spec.getOrElse("field", throw new IllegalArgumentException(s"Filters must specify ̀`field`"))
