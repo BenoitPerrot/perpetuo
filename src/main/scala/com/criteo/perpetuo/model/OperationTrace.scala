@@ -19,12 +19,7 @@ case class ShallowOperationTrace(id: Long,
                                  creator: String,
                                  creationDate: java.sql.Timestamp,
                                  closingDate: Option[java.sql.Timestamp],
-                                 targetStatus: Status.TargetMap) extends OperationTrace {
-  def partialUpdate(partialTargetStatus: Status.TargetMap): Status.TargetMap = {
-    // todo: take into account the precedence of individual target statuses; in JIRA: DREDD-174
-    targetStatus ++ partialTargetStatus
-  }
-}
+                                 targetStatus: Status.TargetMap) extends OperationTrace
 
 
 case class DeepOperationTrace(id: Long,

@@ -231,16 +231,8 @@ class Engine @Inject()(val dbBinding: DbBinding,
         dbBinding.findExecutionTraceById(id).map(_.get).flatMap { execTrace =>
           val op = execTrace.operationTrace
 
-          val statusMapUpdate =
-            if (statusMap.isEmpty)
-              Future.successful(false)
-            else
-              dbBinding.updateOperationTrace(op.id, op.partialUpdate(statusMap))
-
           // TODO: don't insert, always update a pre-inserted status, wrt the precedence of statuses (DREDD-174)
-          val statusMapToExecution = dbBinding.insertTargetStatuses(execTrace.executionId, statusMap).map(_ => true)
-
-          Future.sequence(Seq(statusMapUpdate, statusMapToExecution))
+          dbBinding.insertTargetStatuses(execTrace.executionId, statusMap)
             .flatMap(_ => dbBinding.hasOpenExecutionTracesForOperation(op.id))
             .flatMap { hasOpenExecutions =>
               if (hasOpenExecutions)

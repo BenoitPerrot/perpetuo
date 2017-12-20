@@ -56,20 +56,4 @@ class OperationTraceSpec extends FunSuite with ScalaFutures
       1.second
     )
   }
-
-  test("Operation traces can serialize and de-serialize a target status") {
-    // using the same records already inserted in the DB during the test above
-
-    Await.result(
-      for {
-        traceId <- dbContext.db.run(operationTraceQuery.result).map(_.head.id.get)
-        updated <- updateOperationTrace(traceId, Map("abc" -> TargetAtomStatus(Status.hostFailure, "details...")))
-        traces <- dbContext.db.run(operationTraceQuery.result)
-      } yield {
-        assert(updated)
-        assert(traces.head.targetStatus.get == Map("abc" -> TargetAtomStatus(Status.hostFailure, "details...")))
-      },
-      1.second
-    )
-  }
 }
