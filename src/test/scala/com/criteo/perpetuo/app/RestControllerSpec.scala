@@ -609,8 +609,7 @@ class RestControllerSpec extends FeatureTest with TestDb {
         "id" -> T,
         "kind" -> "deploy".toJson,
         "creator" -> "r.eleaser".toJson,
-        "creationDate" -> T,
-        "targetStatus" -> JsObject()
+        "creationDate" -> T
       ) shouldEqual traces.head.asJsObject.fields
     }
   }

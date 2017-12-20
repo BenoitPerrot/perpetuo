@@ -18,8 +18,7 @@ case class ShallowOperationTrace(id: Long,
                                  kind: Operation.Kind,
                                  creator: String,
                                  creationDate: java.sql.Timestamp,
-                                 closingDate: Option[java.sql.Timestamp],
-                                 targetStatus: Status.TargetMap) extends OperationTrace
+                                 closingDate: Option[java.sql.Timestamp]) extends OperationTrace
 
 
 case class DeepOperationTrace(id: Long,

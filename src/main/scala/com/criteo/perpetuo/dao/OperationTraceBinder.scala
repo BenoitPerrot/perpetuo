@@ -17,7 +17,7 @@ private[dao] case class OperationTraceRecord(id: Option[Long],
                                              startingDate: Option[java.sql.Timestamp] = None,
                                              closingDate: Option[java.sql.Timestamp] = None) {
   def toOperationTrace: ShallowOperationTrace = {
-    ShallowOperationTrace(id.get, deploymentRequestId, operation, creator, creationDate, closingDate, targetStatus.get)
+    ShallowOperationTrace(id.get, deploymentRequestId, operation, creator, creationDate, closingDate)
   }
 }
 
@@ -64,9 +64,9 @@ trait OperationTraceBinder extends TableBinder {
 
   def insertOperationTrace(requestId: Long, operation: Operation.Kind, creator: String): Future[ShallowOperationTrace] = {
     val date = new java.sql.Timestamp(System.currentTimeMillis)
-    val operationTrace = OperationTraceRecord(None, requestId, operation, Some(Map()), creator, date, Some(date))
+    val operationTrace = OperationTraceRecord(None, requestId, operation, None, creator, date, Some(date))
     dbContext.db.run((operationTraceQuery returning operationTraceQuery.map(_.id)) += operationTrace).map { id =>
-      ShallowOperationTrace(id, operationTrace.deploymentRequestId, operationTrace.operation, operationTrace.creator, operationTrace.creationDate, operationTrace.closingDate, operationTrace.targetStatus.get)
+      ShallowOperationTrace(id, operationTrace.deploymentRequestId, operationTrace.operation, operationTrace.creator, operationTrace.creationDate, operationTrace.closingDate)
     }
   }
 
