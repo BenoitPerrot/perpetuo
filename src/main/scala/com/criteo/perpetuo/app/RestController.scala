@@ -347,6 +347,15 @@ class RestController @Inject()(val engine: Engine)
       5.seconds)
   }
 
+  post("/api/unstable/db/operation-traces/remove-target-statuses") { _: Request =>
+    val schema = new Schema(engine.dbBinding.dbContext)
+    Await.result(schema.removeTargetStatuses().map(x => Map("removed" -> x)), 2.hours)
+  }
+  get("/api/unstable/db/operation-traces/count-target-statuses") { _: Request =>
+    val schema = new Schema(engine.dbBinding.dbContext)
+    Await.result(schema.countTargetStatuses().map(x => Map("count" -> x)), 10.seconds)
+  }
+
   // Be sure to capture invalid calls to APIs
   get("/api/:*") { _: Request =>
     response.notFound

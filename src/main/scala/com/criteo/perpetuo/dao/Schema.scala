@@ -22,6 +22,12 @@ class Schema(val dbContext: DbContext)
   def createTables(): Unit = {
     Await.result(dbContext.db.run(all.create), 2.seconds)
   }
+
+  def removeTargetStatuses() =
+    dbContext.db.run(operationTraceQuery.filter(_.targetStatus.nonEmpty).map(_.targetStatus).update(None))
+
+  def countTargetStatuses() =
+    dbContext.db.run(operationTraceQuery.filter(_.targetStatus.nonEmpty).length.result)
 }
 
 
