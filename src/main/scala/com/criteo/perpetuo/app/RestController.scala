@@ -347,23 +347,6 @@ class RestController @Inject()(val engine: Engine)
       5.seconds)
   }
 
-  post("/api/unstable/db/execution-traces/set-detail-from-star-statuses") { _: Request =>
-    val schema = new Schema(engine.dbBinding.dbContext)
-    Await.result(schema.setExecutionTracesDetailFromStarStatus().map(x => Map("updated" -> x)), 2.hours)
-  }
-  get("/api/unstable/db/execution-traces/count-missing-details") { _: Request =>
-    val schema = new Schema(engine.dbBinding.dbContext)
-    Await.result(schema.countMissingExecutionTraceDetails().map(x => Map("count" -> x)), 10.seconds)
-  }
-  post("/api/unstable/db/target-statuses/remove-star-statuses") { _: Request =>
-    val schema = new Schema(engine.dbBinding.dbContext)
-    Await.result(schema.removeRemainingStarStatuses().map(x => Map("removed" -> x)), 2.hours)
-  }
-  get("/api/unstable/db/target-statuses/count-star-statuses") { _: Request =>
-    val schema = new Schema(engine.dbBinding.dbContext)
-    Await.result(schema.countStarStatuses().map(x => Map("count" -> x)), 10.seconds)
-  }
-
   // Be sure to capture invalid calls to APIs
   get("/api/:*") { _: Request =>
     response.notFound

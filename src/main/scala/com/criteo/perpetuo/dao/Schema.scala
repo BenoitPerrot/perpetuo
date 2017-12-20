@@ -22,35 +22,6 @@ class Schema(val dbContext: DbContext)
   def createTables(): Unit = {
     Await.result(dbContext.db.run(all.create), 2.seconds)
   }
-
-  def setExecutionTracesDetailFromStarStatus() =
-    dbContext.db.run(
-      sqlu"""
-        UPDATE execution_trace
-        SET execution_trace.detail = CASE code
-          WHEN 1 THEN 'success'
-          ELSE (
-            CASE code
-              WHEN 2 THEN 'product failure: '
-              WHEN 3 THEN 'infra failure: '
-              ELSE 'not done: '
-            END
-            ) + target_status.detail
-          END
-        FROM execution_trace JOIN target_status ON execution_trace.execution_id = target_status.execution_id
-        WHERE target_status.target = '*'
-      """)
-
-  def countMissingExecutionTraceDetails() =
-    dbContext.db.run(executionTraceQuery.join(targetStatusQuery).filter { case (et, ts) =>
-      et.executionId === ts.executionId && et.detail === "" && ts.targetAtom === "*"
-    }.length.result)
-
-  def removeRemainingStarStatuses() =
-    dbContext.db.run(targetStatusQuery.filter(_.targetAtom === "*").delete)
-
-  def countStarStatuses() =
-    dbContext.db.run(targetStatusQuery.filter(_.targetAtom === "*").length.result)
 }
 
 
