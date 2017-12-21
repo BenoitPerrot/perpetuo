@@ -76,61 +76,74 @@
     <perpetuo-deployment-request-creation-error id="errorDialog"></perpetuo-deployment-request-creation-error>
   </template>
   <script>
-  Polymer({
-    is: 'perpetuo-deployment-request-creation-form',
+  (function () {
+    class PerpetuoDeploymentRequestCreationForm extends Polymer.Element {
+      static get is() { return 'perpetuo-deployment-request-creation-form'; }
 
-    properties: {
-      selectedProductItem: Object,
-      selectedProductName: { type: String, computed: 'computeSelectedProductName(selectedProductItem)' },
-      products: { type: Array, value: () => [] },
-    },
+      static get properties() {
+        return {
+          selectedProductItem: Object,
+          selectedProductName: { type: String, computed: 'computeSelectedProductName(selectedProductItem)' },
+          products: { type: Array, value: () => [] },
+        };
+      }
 
-    computeSelectedProductName(selectedProductItem) {
-      return selectedProductItem ? selectedProductItem.name : null;
-    },
+      computeSelectedProductName(selectedProductItem) {
+        return selectedProductItem ? selectedProductItem.name : null;
+      }
 
-    attached() {
-      this.client = new Perpetuo.Client();
-      this.$.dialog.addEventListener('opened-changed', () => { this.clear() });
-    },
+      constructor() {
+        super();
 
-    open() {
-      this.$.dialog.open();
-    },
+        this.client = new Perpetuo.Client();
+      }
 
-    close() {
-      this.$.dialog.close();
-    },
+      connectedCallback() {
+        super.connectedCallback();
 
-    create() {
-      const comment = this.$.commentEditor.value || '';
-      this.client.createDeploymentRequest(this.selectedProductName,
-                                          // TODO: remove this hack as soon as the UI allows inputing complex version specifications <<
-                                          (_ => { try { const x = JSON.parse(_); return Array.isArray(x) ? x : _; } catch (e) { return _; } }) (this.$.versionEditor.value),
-                                          // >>
-                                          this.$.targetEditor.value,
-                                          comment)
-          .then(r => {
-            if (r.ok) {
-              r.json().then(o => {
-                window.location.replace(`/deployment-requests/${o.id}`);
-              });
-              this.close();
-            } else {
-              r.json().then(o => {
-                this.$.errorDialog.errors = o.errors;
-                this.$.errorDialog.open();
-              });
-            }
-          })
-    },
+        this.$.dialog.addEventListener('opened-changed', () => { this.clear() });
+      }
 
-    clear() {
-      this.$.productSelector.selected = null;
-      this.$.versionEditor.value = '';
-      this.$.targetEditor.value = '';
-      this.$.commentEditor.value = '';
-    },
-  });
+      open() {
+        this.$.dialog.open();
+      }
+
+      close() {
+        this.$.dialog.close();
+      }
+
+      create() {
+        const comment = this.$.commentEditor.value || '';
+        this.client.createDeploymentRequest(this.selectedProductName,
+                                            // TODO: remove this hack as soon as the UI allows inputing complex version specifications <<
+                                            (_ => { try { const x = JSON.parse(_); return Array.isArray(x) ? x : _; } catch (e) { return _; } }) (this.$.versionEditor.value),
+                                            // >>
+                                            this.$.targetEditor.value,
+                                            comment)
+            .then(r => {
+              if (r.ok) {
+                r.json().then(o => {
+                  window.location.replace(`/deployment-requests/${o.id}`);
+                });
+                this.close();
+              } else {
+                r.json().then(o => {
+                  this.$.errorDialog.errors = o.errors;
+                  this.$.errorDialog.open();
+                });
+              }
+            })
+      }
+
+      clear() {
+        this.$.productSelector.selected = null;
+        this.$.versionEditor.value = '';
+        this.$.targetEditor.value = '';
+        this.$.commentEditor.value = '';
+      }
+    }
+
+    customElements.define(PerpetuoDeploymentRequestCreationForm.is, PerpetuoDeploymentRequestCreationForm);
+  } ());
   </script>
 </dom-module>

@@ -35,20 +35,26 @@
     </paper-dialog>
   </template>
   <script>
-  Polymer({
-    is: 'perpetuo-deployment-request-creation-error',
+  (function () {
+    class PerpetuoDeploymentRequestCreationError extends Polymer.Element {
+      static get is() { return 'perpetuo-deployment-request-creation-error'; }
 
-    properties: {
-      errors: Array
-    },
+      static get properties() {
+        return {
+          errors: Array
+        };
+      }
 
-    open() {
-      this.$.dialog.open();
-    },
+      open() {
+        this.$.dialog.open();
+      }
 
-    close() {
-      this.$.dialog.close();
+      close() {
+        this.$.dialog.close();
+      }
     }
-  });
+
+    customElements.define(PerpetuoDeploymentRequestCreationError.is, PerpetuoDeploymentRequestCreationError);
+  } ());
   </script>
 </dom-module>

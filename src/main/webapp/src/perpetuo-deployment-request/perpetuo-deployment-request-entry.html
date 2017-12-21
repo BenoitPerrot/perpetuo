@@ -100,33 +100,39 @@
     </a>
   </template>
   <script>
-  Polymer({
-    is: 'perpetuo-deployment-request-entry',
+  (function () {
+    class PerpetuoDeploymentRequestEntry extends Polymer.Element {
+      static get is() { return 'perpetuo-deployment-request-entry'; }
 
-    properties: {
-      data: Object,
-      shortVersion: { type: Array, computed: 'computeShortVersion(data)' },
-    },
+      static get properties() {
+        return {
+          data: Object,
+          shortVersion: { type: Array, computed: 'computeShortVersion(data)' },
+        };
+      }
 
-    computeShortVersion(data) {
-      const uniformed = Array.isArray(data.version) ? data.version : [{value: data.version}];
-      return uniformed.map(version => ({
-        value: (expr => expr.length > 10 ? expr.slice(0, 7) + "..." : expr)(version.value.toString()),
-        ratio: version.ratio
-      }));
-    },
+      computeShortVersion(data) {
+        const uniformed = Array.isArray(data.version) ? data.version : [{value: data.version}];
+        return uniformed.map(version => ({
+          value: (expr => expr.length > 10 ? expr.slice(0, 7) + "..." : expr)(version.value.toString()),
+          ratio: version.ratio
+        }));
+      }
 
-    asPercentage(ratio) {
-      return ratio * 100;
-    },
+      asPercentage(ratio) {
+        return ratio * 100;
+      }
 
-    humanReadable(actionName) {
-      return actionName.replace('initFailed', 'failed').replace(/([A-Z])/g, ' $1');
-    },
+      humanReadable(actionName) {
+        return actionName.replace('initFailed', 'failed').replace(/([A-Z])/g, ' $1');
+      }
 
-    toCssClasses(actionName) {
-      return actionName.replace('initFailed', 'failed').replace(/([A-Z])/g, '-$1').toLowerCase();
+      toCssClasses(actionName) {
+        return actionName.replace('initFailed', 'failed').replace(/([A-Z])/g, '-$1').toLowerCase();
+      }
     }
-  });
+
+    customElements.define(PerpetuoDeploymentRequestEntry.is, PerpetuoDeploymentRequestEntry);
+  } ());
   </script>
 </dom-module>

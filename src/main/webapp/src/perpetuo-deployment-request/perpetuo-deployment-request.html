@@ -179,178 +179,185 @@
       </div>
     </paper-dialog>
 
-    <perpetuo-conflicting-deployment-requests></perpetuo-conflicting-deployment-requests>
+    <perpetuo-conflicting-deployment-requests id="conflictPanel"></perpetuo-conflicting-deployment-requests>
 
   </template>
   <script>
-  Polymer({
-    is: 'perpetuo-deployment-request',
+  (function () {
+    class PerpetuoDeploymentRequest extends Polymer.Element {
+      static get is() { return 'perpetuo-deployment-request'; }
 
-    properties: {
-      deploymentRequestId: {type: String, observer: 'refresh'},
-      active: {type: Boolean, observer: 'onActiveChanged'},
-      data: Object,
-      version: {type: Array, computed: 'computeVersion(data)'},
-      comment: {type: Object, computed: 'computeComment(data)'},
-      isInAction: Boolean,
-      revertPlan: Object,
-      defaultVersion: String,
-    },
-
-    timestampToDates(t) {
-      const date = new Date(t * 1000);
-
-      const localYMD = date.getFullYear() + '-' + (date.getMonth() + 1) + '-' + date.getDate();
-      const localTime = date.toTimeString().split(' ')[0];
-
-      const iso = date.toISOString().split('T');
-      const isoYMD = iso[0].replace(/-0/g, '-');
-      const isoTime = iso[1].split('.')[0];
-
-      return `${isoYMD} at ${isoTime} UTC (` + (localYMD !== isoYMD ? localYMD + ' ' : '') + localTime + ' local time)';
-    },
-
-    created() {
-      this.client = new Perpetuo.Client();
-    },
-
-    // TODO: factor with deployment-request-table
-    onActiveChanged(active) {
-      if (active) {
-        const refreshDelay = 1000;
-        (function installRefresh() {
-          const reinstallRefresh = () => installRefresh.apply(this);
-          this.refreshTimeoutId = setTimeout(() => this.refresh().then(reinstallRefresh, reinstallRefresh), refreshDelay);
-        }).apply(this);
-      } else {
-        clearTimeout(this.refreshTimeoutId);
+      static get properties() {
+        return {
+          deploymentRequestId: {type: String, observer: 'refresh'},
+          active: {type: Boolean, observer: 'onActiveChanged'},
+          data: Object,
+          version: {type: Array, computed: 'computeVersion(data)'},
+          comment: {type: Object, computed: 'computeComment(data)'},
+          isInAction: Boolean,
+          revertPlan: Object,
+          defaultVersion: String,
+        }
       }
-    },
 
-    onActionTap(e) {
-      switch (e.model.item.type) {
-        case 'deploy':
-          return this.onDeployTap(e);
-        case 'revert':
-          return this.onRevertTap(e);
+      timestampToDates(t) {
+        const date = new Date(t * 1000);
+
+        const localYMD = date.getFullYear() + '-' + (date.getMonth() + 1) + '-' + date.getDate();
+        const localTime = date.toTimeString().split(' ')[0];
+
+        const iso = date.toISOString().split('T');
+        const isoYMD = iso[0].replace(/-0/g, '-');
+        const isoTime = iso[1].split('.')[0];
+
+        return `${isoYMD} at ${isoTime} UTC (` + (localYMD !== isoYMD ? localYMD + ' ' : '') + localTime + ' local time)';
       }
-    },
 
-    actionLock(f) {
-      if (!this.isInAction) {
-        this.isInAction = true;
-        const releaseLock = () => {
-          this.isInAction = false;
-        };
-        f().then(releaseLock)
-           .catch(releaseLock);
+      constructor() {
+        super();
+
+        this.client = new Perpetuo.Client();
       }
-    },
 
-    onDeployTap(e) {
-      this.actionLock(() =>
-        this.client.deployDeploymentRequest(this.deploymentRequestId)
-            .then(r => {
-              if (r.status === 422)
-                return r.json()
-                        .then(body => {
-                          if (body.conflicts) {
-                            const panel = this.$$('perpetuo-conflicting-deployment-requests');
-                            panel.conflicts = body.conflicts;
-                            panel.open();
-                          }
-                        });
-              return this.refresh();
-            })
-      );
-    },
+      // TODO: factor with deployment-request-table
+      onActiveChanged(active) {
+        if (active) {
+          const refreshDelay = 1000;
+          (function installRefresh() {
+            const reinstallRefresh = () => installRefresh.apply(this);
+            this.refreshTimeoutId = setTimeout(() => this.refresh().then(reinstallRefresh, reinstallRefresh), refreshDelay);
+          }).apply(this);
+        } else {
+          clearTimeout(this.refreshTimeoutId);
+        }
+      }
 
-    showRevertPlan() {
-      return new Promise((resolve, reject) => {
-        const panel = this.$.revertPlan;
-        const onOpenedChanged = (e) => {
-          if (!e.detail.value) {
-            panel.removeEventListener('opened-changed', onOpenedChanged);
-            if (panel.closingReason.confirmed) {
-              resolve();
-            } else {
-              reject();
+      onActionTap(e) {
+        switch (e.model.item.type) {
+          case 'deploy':
+            return this.onDeployTap(e);
+          case 'revert':
+            return this.onRevertTap(e);
+        }
+      }
+
+      actionLock(f) {
+        if (!this.isInAction) {
+          this.isInAction = true;
+          const releaseLock = () => {
+            this.isInAction = false;
+          };
+          f().then(releaseLock)
+             .catch(releaseLock);
+        }
+      }
+
+      onDeployTap(e) {
+        this.actionLock(() =>
+          this.client.deployDeploymentRequest(this.deploymentRequestId)
+              .then(r => {
+                if (r.status === 422)
+                  return r.json()
+                          .then(body => {
+                            if (body.conflicts) {
+                              const panel = this.$.conflictPanel;
+                              panel.conflicts = body.conflicts;
+                              panel.open();
+                            }
+                          });
+                return this.refresh();
+              })
+        );
+      }
+
+      showRevertPlan() {
+        return new Promise((resolve, reject) => {
+          const panel = this.$.revertPlan;
+          const onOpenedChanged = (e) => {
+            if (!e.detail.value) {
+              panel.removeEventListener('opened-changed', onOpenedChanged);
+              if (panel.closingReason.confirmed) {
+                resolve();
+              } else {
+                reject();
+              }
             }
-          }
-        };
-        panel.addEventListener('opened-changed', onOpenedChanged);
-        panel.open();
-      });
-    },
+          };
+          panel.addEventListener('opened-changed', onOpenedChanged);
+          panel.open();
+        });
+      }
 
-    revert() {
-      return this.client.deviseRevertPlan(this.deploymentRequestId)
-                 .then(r => {
-                   if (r.status === 200)
-                     return r.json()
-                             .then(body => {
-                               this.revertPlan = body;
-                               this.defaultVersion = undefined;
-                               this.showRevertPlan().then(_ => {
-                                 const body = this.defaultVersion ? {defaultVersion: this.defaultVersion} : {};
-                                 this.client.revertDeploymentRequest(this.deploymentRequestId, body);
+      revert() {
+        return this.client.deviseRevertPlan(this.deploymentRequestId)
+                   .then(r => {
+                     if (r.status === 200)
+                       return r.json()
+                               .then(body => {
+                                 this.revertPlan = body;
+                                 this.defaultVersion = undefined;
+                                 this.showRevertPlan().then(_ => {
+                                   const body = this.defaultVersion ? {defaultVersion: this.defaultVersion} : {};
+                                   this.client.revertDeploymentRequest(this.deploymentRequestId, body);
+                                 });
                                });
-                             });
-                   return this.refresh();
-                 });
-    },
+                     return this.refresh();
+                   });
+      }
 
-    onRevertTap(e) {
-      this.actionLock(() =>
-        this.revert()
-      );
-    },
+      onRevertTap(e) {
+        this.actionLock(() =>
+          this.revert()
+        );
+      }
 
-    computeDisabled(isInAction, isAuthorized) {
-      return isInAction || !isAuthorized;
-    },
+      computeDisabled(isInAction, isAuthorized) {
+        return isInAction || !isAuthorized;
+      }
 
-    computeVersion(data) {
-      return Array.isArray(data.version) ? data.version : [{value: data.version}];
-    },
+      computeVersion(data) {
+        return Array.isArray(data.version) ? data.version : [{value: data.version}];
+      }
 
-    asPercentage(ratio) {
-      return ratio * 100;
-    },
+      asPercentage(ratio) {
+        return ratio * 100;
+      }
 
-    humanReadable(actionName) {
-      return actionName.replace('initFailed', 'failed').replace(/([A-Z])/g, ' $1');
-    },
+      humanReadable(actionName) {
+        return actionName.replace('initFailed', 'failed').replace(/([A-Z])/g, ' $1');
+      }
 
-    toCssClasses(actionName) {
-      return actionName.replace('initFailed', 'failed').replace(/([A-Z])/g, '-$1').toLowerCase();
-    },
+      toCssClasses(actionName) {
+        return actionName.replace('initFailed', 'failed').replace(/([A-Z])/g, '-$1').toLowerCase();
+      }
 
-    // TODO: factor with perpetuo-deployment-request-entry, or remove it from -entry
-    computeComment(data) {
-      const fields = data.comment.split("ticket: ");
-      let ret = {description: fields[0]};
-      if (fields[1])
-        ret.ticket = {url: fields[1], reference: fields[1].split("/").splice(-1)[0]};
-      return ret;
-    },
+      // TODO: factor with perpetuo-deployment-request-entry, or remove it from -entry
+      computeComment(data) {
+        const fields = data.comment.split("ticket: ");
+        let ret = {description: fields[0]};
+        if (fields[1])
+          ret.ticket = {url: fields[1], reference: fields[1].split("/").splice(-1)[0]};
+        return ret;
+      }
 
-    sumUpArray(arr) {
-      const sorted = arr.sort();
-      return (sorted.length < 8 ?
-              sorted :
-              sorted.slice(0, 3).concat(["..."], sorted.slice(-3))
-      ).join(", ");
-    },
+      sumUpArray(arr) {
+        const sorted = arr.sort();
+        return (sorted.length < 8 ?
+                sorted :
+                sorted.slice(0, 3).concat(["..."], sorted.slice(-3))
+        ).join(", ");
+      }
 
-    refresh() {
-      return this.deploymentRequestId === undefined ?
-             Promise.resolve(false)
-           : this.client.fetchDeploymentRequest(this.deploymentRequestId).then(_ => {
-             this.data = _;
-           });
+      refresh() {
+        return this.deploymentRequestId === undefined ?
+               Promise.resolve(false)
+          : this.client.fetchDeploymentRequest(this.deploymentRequestId).then(_ => {
+            this.data = _;
+          });
+      }
     }
 
-  })
+    customElements.define(PerpetuoDeploymentRequest.is, PerpetuoDeploymentRequest);
+  } ());
   </script>
 </dom-module>

@@ -25,11 +25,16 @@
     </app-drawer>
   </template>
   <script>
-  Polymer({
-    is: 'perpetuo-app-drawer',
-    toggle() {
-      this.$.drawer.toggle();
+  (function () {
+    class PerpetuoAppDrawer extends Polymer.Element {
+      static get is() { return 'perpetuo-app-drawer'; }
+
+      toggle() {
+        this.$.drawer.toggle();
+      }
     }
-  });
+
+    customElements.define(PerpetuoAppDrawer.is, PerpetuoAppDrawer);
+  } ());
   </script>
 </dom-module>

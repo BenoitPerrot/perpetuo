@@ -44,11 +44,18 @@
     </div>
   </template>
   <script>
-  Polymer({
-    is: 'perpetuo-product-table',
-    properties: {
-      data: { type: Array, value: () => [] }
-    },
-  });
+  (function () {
+    class PerpetuoProductTable extends Polymer.Element {
+      static get is() { return 'perpetuo-product-table'; }
+
+      static get properties() {
+        return {
+          data: { type: Array, value: () => [] }
+        };
+      }
+    }
+
+    customElements.define(PerpetuoProductTable.is, PerpetuoProductTable);
+  } ());
   </script>
 </dom-module>

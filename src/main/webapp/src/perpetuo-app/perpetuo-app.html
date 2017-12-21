@@ -42,15 +42,18 @@
   </template>
 
   <script>
-    Polymer({
-      is: 'perpetuo-app',
+  (function () {
+    class PerpetuoApp extends Polymer.Element {
+      static get is() { return 'perpetuo-app'; }
 
-      properties: {
-        route: Object,
-        routeData: { type: Object, value: () => ({}) },
-        subroute: Object,
-        subrouteData: Object
-      },
+      static get properties() {
+        return {
+          route: Object,
+          routeData: { type: Object, value: () => ({}) },
+          subroute: Object,
+          subrouteData: Object
+        };
+      }
 
       selectPage(route) {
         const routingTable = [
@@ -102,11 +105,14 @@
         }
         // >>
         return page;
-      },
+      }
 
       toggleDrawer() {
         this.$.drawer.toggle();
-      },
-    });
+      }
+    }
+
+    customElements.define(PerpetuoApp.is, PerpetuoApp);
+  } ());
   </script>
 </dom-module>

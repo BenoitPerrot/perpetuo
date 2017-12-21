@@ -29,39 +29,44 @@
     <perpetuo-deployment-execution-list data="[[data.executions]]" show-logs="[[showExecutionLogs]]"></perpetuo-deployment-execution-list>
   </template>
   <script>
-  Polymer({
-    is: 'perpetuo-deployment-operation',
+  (function () {
+    class PerpetuoDeploymentOperation extends Polymer.Element {
+      static get is() { return 'perpetuo-deployment-operation'; }
 
-    properties: {
-      index: { type: Number },
-      data: Object,
-      showExecutionLogs: Boolean
-    },
+      static get properties() {
+        return {
+          index: { type: Number },
+          data: Object,
+          showExecutionLogs: Boolean
+        };
+      }
 
-    timestampToDates(t) {
-      const date = new Date(t * 1000);
+      timestampToDates(t) {
+        const date = new Date(t * 1000);
 
-      const localYMD = date.getFullYear() + '-' + (date.getMonth() + 1) + '-' + date.getDate();
-      const localTime = date.toTimeString().split(' ')[0];
+        const localYMD = date.getFullYear() + '-' + (date.getMonth() + 1) + '-' + date.getDate();
+        const localTime = date.toTimeString().split(' ')[0];
 
-      const iso = date.toISOString().split('T');
-      const isoYMD = iso[0].replace(/-0/g, '-');
-      const isoTime = iso[1].split('.')[0];
+        const iso = date.toISOString().split('T');
+        const isoYMD = iso[0].replace(/-0/g, '-');
+        const isoTime = iso[1].split('.')[0];
 
-      return `${isoYMD} at ${isoTime} UTC (` + (localYMD !== isoYMD ? localYMD + ' ' : '') + localTime + ' local time)';
-    },
+        return `${isoYMD} at ${isoTime} UTC (` + (localYMD !== isoYMD ? localYMD + ' ' : '') + localTime + ' local time)';
+      }
 
-    plusOne(i) {
-      return i + 1;
-    },
+      plusOne(i) {
+        return i + 1;
+      }
 
-    arrayifyTargetStatus(targetStatusMap) {
-      return Object.keys(targetStatusMap).map(targetAtom => {
-        const targetAtomStatus = targetStatusMap[targetAtom];
-        return { targetAtom: targetAtom, code: targetAtomStatus.code, detail: targetAtomStatus.detail };
-      });
+      arrayifyTargetStatus(targetStatusMap) {
+        return Object.keys(targetStatusMap).map(targetAtom => {
+          const targetAtomStatus = targetStatusMap[targetAtom];
+          return { targetAtom: targetAtom, code: targetAtomStatus.code, detail: targetAtomStatus.detail };
+        });
+      }
     }
 
-  });
+    customElements.define(PerpetuoDeploymentOperation.is, PerpetuoDeploymentOperation);
+  } ());
   </script>
 </dom-module>

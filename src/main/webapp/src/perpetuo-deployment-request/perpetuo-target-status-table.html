@@ -46,12 +46,18 @@
     </template>
   </template>
   <script>
-  Polymer({
-    is: 'perpetuo-target-status-table',
+  (function () {
+    class PerpetuoTargetStatusTable extends Polymer.Element {
+      static get is() { return 'perpetuo-target-status-table'; }
 
-    properties: {
-      data: { type: Array, value: () => [] }
+      static get properties() {
+        return {
+          data: { type: Array, value: () => [] }
+        }
+      }
     }
-  });
+
+    customElements.define(PerpetuoTargetStatusTable.is, PerpetuoTargetStatusTable);
+  } ());
   </script>
 </dom-module>

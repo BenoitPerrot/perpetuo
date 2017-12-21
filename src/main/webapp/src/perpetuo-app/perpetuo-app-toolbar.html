@@ -33,18 +33,26 @@
     </app-toolbar>
   </template>
   <script>
-  Polymer({
-    is: 'perpetuo-app-toolbar',
-    properties: {
-      pageTitle: String,
-      login: { type: String, notify: true }
-    },
-    fireDrawerToggleTap() {
-      this.fire('drawer-toggle-tap')
-    },
-    onIdentityTap() {
-      this.$.identity.request();
-    },
-  });
+  (function () {
+    class PerpetuoAppToolbar extends Polymer.Element {
+      static get is() { return 'perpetuo-app-toolbar'; }
+
+      static get properties() {
+        return {
+          pageTitle: String,
+          login: { type: String, notify: true }
+        }
+      }
+
+      fireDrawerToggleTap() {
+        this.dispatchEvent(new CustomEvent('drawer-toggle-tap'));
+      }
+      onIdentityTap() {
+        this.$.identity.request();
+      }
+    }
+
+    customElements.define(PerpetuoAppToolbar.is, PerpetuoAppToolbar);
+  } ());
   </script>
 </dom-module>

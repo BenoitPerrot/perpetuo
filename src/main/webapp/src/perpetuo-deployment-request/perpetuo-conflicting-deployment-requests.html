@@ -28,14 +28,22 @@
     </paper-dialog>
   </template>
   <script>
-  Polymer({
-    is: 'perpetuo-conflicting-deployment-requests',
-    properties: {
-      conflicts: Array
-    },
-    open() {
-      this.$.dialog.open();
+  (function () {
+    class PerpetuoConflictingDeploymentRequest extends Polymer.Element {
+      static get is() { return 'perpetuo-conflicting-deployment-requests'; }
+
+      static get properties() {
+        return {
+          conflicts: Array
+        };
+      }
+
+      open() {
+        this.$.dialog.open();
+      }
     }
-  })
+
+    customElements.define(PerpetuoConflictingDeploymentRequest.is, PerpetuoConflictingDeploymentRequest);
+  } ());
   </script>
 </dom-module>

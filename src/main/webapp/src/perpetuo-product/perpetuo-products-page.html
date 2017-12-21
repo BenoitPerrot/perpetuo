@@ -24,13 +24,26 @@
     </div>
   </template>
   <script>
-  Polymer({
-    is: 'perpetuo-products-page',
+  (function () {
+    class PerpetuoProductsPage extends Polymer.Element {
+      static get is() { return 'perpetuo-products-page'; }
 
-    attached() {
-      this.client = new Perpetuo.Client();
-      this.client.fetchProducts().then(products => { this.$.productTable.data = products });
-    },
-  });
+      constructor() {
+        super();
+
+        this.client = new Perpetuo.Client();
+      }
+
+      connectedCallback() {
+        super.connectedCallback();
+
+        this.client.fetchProducts().then(products => {
+          this.$.productTable.data = products;
+        });
+      }
+    }
+
+    customElements.define(PerpetuoProductsPage.is, PerpetuoProductsPage);
+  } ());
   </script>
 </dom-module>

@@ -63,22 +63,27 @@
     </template>
   </template>
   <script>
-  Polymer({
-    is: 'perpetuo-deployment-execution-list',
+  (function () {
+    class PerpetuoDeploymentExecutionList extends Polymer.Element {
+      static get is() { return 'perpetuo-deployment-execution-list'; }
 
-    properties: {
-      data: { type: Array, value: () => [] },
-      showLogs: Boolean
-    },
+      static get properties() {
+        return {
+          data: { type: Array, value: () => [] },
+          showLogs: Boolean
+        }
+      }
 
-    humanReadable(actionName) {
-      return actionName.replace('initFailed', 'nothing happened').replace(/([A-Z])/g, ' $1').toLowerCase();
-    },
+      humanReadable(actionName) {
+        return actionName.replace('initFailed', 'nothing happened').replace(/([A-Z])/g, ' $1').toLowerCase();
+      }
 
-    showLog(logHref) {
-      return this.showLogs && logHref;
+      showLog(logHref) {
+        return this.showLogs && logHref;
+      }
     }
-  });
 
+    customElements.define(PerpetuoDeploymentExecutionList.is, PerpetuoDeploymentExecutionList);
+  } ());
   </script>
 </dom-module>

@@ -11,37 +11,47 @@
     </style>
   </template>
   <script>
-  Polymer({
-    is: 'perpetuo-identity',
+  (function () {
+    class PerpetuoIdentity extends Polymer.Element {
+      static get is() { return 'perpetuo-identity'; }
 
-    properties: {
-      login: { type: String, notify: true, readOnly: true }
-    },
+      static get properties() {
+        return {
+          login: { type: String, notify: true, readOnly: true }
+        };
+      }
 
-    created() {
-      this.client = new Perpetuo.Client();
-    },
+      constructor() {
+        super();
 
-    attached() {
-      this.client.fetchIdentity().then(login => {
-        this._setLogin(login);
-      });
-    },
+        this.client = new Perpetuo.Client();
+      }
 
-    acknownledge() {
-      const query = window.location.hash.slice(1).split('&').reduce((m, p) => {
-        const kv = p.split('=');
-        return m.set(kv[0], kv[1]);
-      }, new Map());
+      connectedCallback() {
+        super.connectedCallback();
 
-      this.client.identify(query.get('access_token')).then(() => {
-        window.location.replace(decodeURIComponent(query.get('state')));
-      });
-    },
+        this.client.fetchIdentity().then(login => {
+          this._setLogin(login);
+        });
+      }
 
-    request() {
-      this.client.redirectToAuthorizeURL(window);
+      acknownledge() {
+        const query = window.location.hash.slice(1).split('&').reduce((m, p) => {
+          const kv = p.split('=');
+          return m.set(kv[0], kv[1]);
+        }, new Map());
+
+        this.client.identify(query.get('access_token')).then(() => {
+          window.location.replace(decodeURIComponent(query.get('state')));
+        });
+      }
+
+      request() {
+        this.client.redirectToAuthorizeURL(window);
+      }
     }
-  })
+
+    customElements.define(PerpetuoIdentity.is, PerpetuoIdentity);
+  } ());
   </script>
 </dom-module>
