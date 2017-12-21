@@ -250,13 +250,6 @@ class RestController @Inject()(val engine: Engine)
     )
   }
 
-  get("/api/deployment-requests/:id/operation-traces")(
-    withLongId(
-      engine.findOperationTracesByDeploymentRequest,
-      5.seconds
-    )
-  )
-
   private def serialize(depReq: DeepDeploymentRequest, lastOperationEffect: Option[OperationEffect]): Map[String, Any] =
     Map(
       "id" -> depReq.id,

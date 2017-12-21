@@ -577,43 +577,6 @@ class RestControllerSpec extends FeatureTest with TestDb {
 
   }
 
-  "The OperationTrace's entry-points" should {
-
-    "return 404 when trying to access a non-existing DeploymentRequest" in {
-      server.httpGet(
-        path = "/api/deployment-requests/4242/operation-traces",
-        andExpect = NotFound
-      )
-    }
-
-    "not fail when the existing DeploymentRequest doesn't have operation traces yet" in {
-      val attrs = new DeploymentRequestAttrs("my product", Version("\"51\""), "\"t\"", "c", "c", new Timestamp(System.currentTimeMillis))
-      val depReq = Await.result(controller.engine.createDeploymentRequest(attrs, immediateStart = false), 1.second)
-      val traces = server.httpGet(
-        path = s"/api/deployment-requests/${depReq("id")}/operation-traces",
-        andExpect = Ok
-      ).contentString.parseJson.asInstanceOf[JsArray].elements
-      traces shouldBe empty
-    }
-
-    "return a list of operations when trying to access an existing DeploymentRequest" in {
-      createProduct("my product C")
-      val depReqId = requestDeployment("my product C", "486", Seq("paris", "amsterdam").toJson, None, start = false).idAsLong
-      startDeploymentRequest(depReqId)
-      val traces = server.httpGet(
-        path = s"/api/deployment-requests/$depReqId/operation-traces",
-        andExpect = Ok
-      ).contentString.parseJson.asInstanceOf[JsArray].elements
-      traces.length shouldEqual 1
-      Map(
-        "id" -> T,
-        "kind" -> "deploy".toJson,
-        "creator" -> "r.eleaser".toJson,
-        "creationDate" -> T
-      ) shouldEqual traces.head.asJsObject.fields
-    }
-  }
-
   "Deep query" should {
 
     "select single one" in {
