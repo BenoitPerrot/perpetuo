@@ -93,7 +93,7 @@ class Engine @Inject()(val dbBinding: DbBinding,
                              operationStart: Future[(OperationTrace, Int, Int)],
                              onOperationStartedListeners: Seq[(DeepDeploymentRequest, Int, Int) => Unit]): Future[OperationTrace] =
     operationStart.flatMap { case (operationTrace, started, failed) =>
-      onOperationStartedListeners.foreach(_(deploymentRequest, started, failed))
+      onOperationStartedListeners.foreach(_ (deploymentRequest, started, failed))
       (if (started == 0) closeOperation(operationTrace, deploymentRequest) else Future.successful()).map(_ =>
         operationTrace
       )
@@ -258,8 +258,7 @@ class Engine @Inject()(val dbBinding: DbBinding,
   def computeState(operationEffect: OperationEffect): (Operation.Kind, OperationStatus.Value) = {
     val OperationEffect(operationTrace, executionTraces, targetStatuses) = operationEffect
     val lastOperationState = operationTrace.closingDate.map { _ =>
-      if (targetStatuses.forall(_.code == Status.success)
-        && executionTraces.forall(_.state == ExecutionState.completed))
+      if (targetStatuses.forall(_.code == Status.success) && executionTraces.forall(_.state == ExecutionState.completed))
         OperationStatus.succeeded
       else if (executionTraces.forall(_.state == ExecutionState.initFailed))
         OperationStatus.initFailed
