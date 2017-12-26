@@ -27,7 +27,6 @@ CREATE TABLE "operation_trace" (
   "id"                    BIGINT        NOT NULL IDENTITY,
   "deployment_request_id" BIGINT        NOT NULL,
   "operation"             SMALLINT      NOT NULL,
-  "target_status"         NVARCHAR(16000),
   "creator"               NVARCHAR(64)  NOT NULL,
   "creation_date"         DATETIME      NOT NULL,
   "starting_date"         DATETIME,

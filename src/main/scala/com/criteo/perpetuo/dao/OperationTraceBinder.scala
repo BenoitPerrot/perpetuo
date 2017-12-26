@@ -11,7 +11,6 @@ import scala.concurrent.Future
 private[dao] case class OperationTraceRecord(id: Option[Long],
                                              deploymentRequestId: Long,
                                              operation: Operation.Kind,
-                                             targetStatus: Option[Status.TargetMap],
                                              creator: String,
                                              creationDate: java.sql.Timestamp,
                                              startingDate: Option[java.sql.Timestamp] = None,
@@ -47,7 +46,6 @@ trait OperationTraceBinder extends TableBinder {
     protected def fk = foreignKey(deploymentRequestId, deploymentRequestQuery)(_.id)
 
     def operation = column[Operation.Kind]("operation")
-    def targetStatus = column[Option[Status.TargetMap]]("target_status", O.SqlType("nvarchar(16000)")) // todo: remove after transition
 
     def creator = column[String]("creator", O.SqlType(s"nvarchar(${User.maxSize})"))
     def creationDate = column[java.sql.Timestamp]("creation_date")
@@ -57,14 +55,14 @@ trait OperationTraceBinder extends TableBinder {
     def closingDate = column[Option[java.sql.Timestamp]]("closing_date")
     protected def closingIdx = index(closingDate)
 
-    def * = (id.?, deploymentRequestId, operation, targetStatus, creator, creationDate, startingDate, closingDate) <> (OperationTraceRecord.tupled, OperationTraceRecord.unapply)
+    def * = (id.?, deploymentRequestId, operation, creator, creationDate, startingDate, closingDate) <> (OperationTraceRecord.tupled, OperationTraceRecord.unapply)
   }
 
   val operationTraceQuery = TableQuery[OperationTraceTable]
 
   def insertOperationTrace(requestId: Long, operation: Operation.Kind, creator: String): Future[ShallowOperationTrace] = {
     val date = new java.sql.Timestamp(System.currentTimeMillis)
-    val operationTrace = OperationTraceRecord(None, requestId, operation, None, creator, date, Some(date))
+    val operationTrace = OperationTraceRecord(None, requestId, operation, creator, date, Some(date))
     dbContext.db.run((operationTraceQuery returning operationTraceQuery.map(_.id)) += operationTrace).map { id =>
       ShallowOperationTrace(id, operationTrace.deploymentRequestId, operationTrace.operation, operationTrace.creator, operationTrace.creationDate, operationTrace.closingDate)
     }
