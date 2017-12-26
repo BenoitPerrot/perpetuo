@@ -254,11 +254,15 @@ class DbBinding @Inject()(val dbContext: DbContext)
   }
 
   private def targetAtomsQuery(deploymentRequest: DeploymentRequest) =
-    operationTraceQuery.filter(_.deploymentRequestId === deploymentRequest.id).take(1)
+    operationTraceQuery
+      .filter(_.deploymentRequestId === deploymentRequest.id)
+      .map(_.id)
+      .sortBy(_.desc)
+      .take(1)
       .join(executionQuery)
       .join(targetStatusQuery)
-      .filter { case ((operationTrace, execution), targetStatus) =>
-        operationTrace.id === execution.operationTraceId && execution.id === targetStatus.executionId
+      .filter { case ((operationTraceId, execution), targetStatus) =>
+        operationTraceId === execution.operationTraceId && execution.id === targetStatus.executionId
       }
       .map { case (_, targetStatus) => targetStatus.targetAtom }
 
@@ -326,6 +330,8 @@ class DbBinding @Inject()(val dbContext: DbContext)
     // Note that if this deployment request has never been applied, it's also actionable.
     val query = operationTraceQuery
       .filter { op => op.deploymentRequestId === deploymentRequest.id && op.operation === Operation.deploy }
+      .map(_.id)
+      .sortBy(_.desc)
       .take(1)
       .join(
         targetStatusQuery
@@ -343,8 +349,8 @@ class DbBinding @Inject()(val dbContext: DbContext)
       .join(executionQuery)
       .join(targetStatusQuery)
       .join(executionQuery)
-      .filter { case ((((operationTrace, (targetAtom, lastExecutionId)), testedExecution), targetStatus), execution) =>
-        operationTrace.id === testedExecution.operationTraceId && testedExecution.id === targetStatus.executionId &&
+      .filter { case ((((operationTraceId, (targetAtom, lastExecutionId)), testedExecution), targetStatus), execution) =>
+        operationTraceId === testedExecution.operationTraceId && testedExecution.id === targetStatus.executionId &&
           targetStatus.targetAtom === targetAtom && lastExecutionId === execution.id
       }
       .map { case ((((_, (targetAtom, _)), testedExecution), _), lastExecution) =>
