@@ -286,7 +286,7 @@ class DbBinding @Inject()(val dbContext: DbContext)
           .map { case (execution, execSpec) => (execution.id, execSpec) }
       )
       .on { case ((_, targetExecutionId), (anyExecutionId, _)) => targetExecutionId === anyExecutionId }
-      .map { case ((targetAtom, _), specLink) => (targetAtom, specLink) } // .map(_._2)?
+      .map { case ((targetAtom, _), specLink) => (targetAtom, specLink.map(_._2)) }
 
     dbContext.db.run(execSpecIds.result).map { perAtom =>
       type Targets = ArrayBuffer[TargetAtom.Type]
@@ -294,13 +294,13 @@ class DbBinding @Inject()(val dbContext: DbContext)
       var determined = Map[Long, (ExecutionSpecification, Targets)]()
       perAtom.foreach { case (targetAtom, specLink) =>
         specLink
-          .map { case (id, spec) =>
+          .map { spec =>
             determined
-              .get(id)
+              .get(spec.id.get)
               .map { case (_, targets) => targets }
               .getOrElse {
                 val targets = new Targets
-                determined += id -> (spec.toExecutionSpecification, targets)
+                determined += spec.id.get -> (spec.toExecutionSpecification, targets)
                 targets
               }
           }
