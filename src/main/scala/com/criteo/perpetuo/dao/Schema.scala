@@ -208,22 +208,28 @@ class DbBinding @Inject()(val dbContext: DbContext)
     */
   def isOperationSuccessful(id: Long): Future[Option[Boolean]] = {
     dbContext.db.run(
-      operationTraceQuery.filter(op => op.id === id && op.closingDate.isDefined)
+      operationTraceQuery
+        .filter(op => op.id === id && op.closingDate.isDefined)
+        .map(_.id)
         .joinLeft(
           executionQuery.join(targetStatusQuery).on(_.id === _.executionId)
             .filter(_._2.code =!= Status.success)
-            .map { case (execution, _) => execution }
-        ).on(_.id === _.operationTraceId)
+            .map { case (execution, _) => execution.operationTraceId }
+        ).on(_ === _)
         .take(1)
         .joinLeft(
           executionQuery.join(executionTraceQuery).on(_.id === _.executionId)
             .filter(_._2.state =!= ExecutionState.completed)
-            .map { case (execution, _) => execution }
-        ).on(_._1.id === _.operationTraceId)
+            .map { case (execution, _) => execution.operationTraceId }
+        ).on(_._1 === _)
         .take(1)
-        .map { case ((_, exec1), exec2) => (exec1, exec2) }
+        .map { case ((_, idIfFailedTargetStatus), idIfFailedExecutionTrace) =>
+          (idIfFailedTargetStatus, idIfFailedExecutionTrace)
+        }
         .result
-    ).map(_.headOption.map { case (exec1, exec2) => exec1.isEmpty && exec2.isEmpty })
+    ).map(_.headOption.map { case (idIfFailedTargetStatus, idIfFailedExecutionTrace) =>
+      idIfFailedTargetStatus.isEmpty && idIfFailedExecutionTrace.isEmpty
+    })
   }
 
   // todo: should rely on a nullable field `startDate` in OperationTrace
