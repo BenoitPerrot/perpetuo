@@ -328,7 +328,6 @@ class RestController @Inject()(val engine: Engine)
           throw BadRequestException("`limit` shall be lower than 1000")
         }
         try {
-          // todo: uniform with other deep request
           engine.queryDeepDeploymentRequests(r.where, r.orderBy, r.limit, r.offset)
             .map(_.map { case (deploymentRequest, lastOperationEffect) =>
               serialize(deploymentRequest, lastOperationEffect)
