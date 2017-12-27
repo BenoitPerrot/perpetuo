@@ -63,16 +63,14 @@ CREATE UNIQUE INDEX "ix_execution_operation_trace_id_execution_specification_id"
 
 
 CREATE TABLE "target_status" (
-  "id"                         BIGINT         NOT NULL IDENTITY,
+  "id"                         BIGINT,
   "execution_id"               BIGINT         NOT NULL,
   "target"                     NVARCHAR(128)  NOT NULL,
   "code"                       SMALLINT       NOT NULL,
   "detail"                     NVARCHAR(4000) NOT NULL
 )
 ALTER TABLE "target_status"
-  ADD CONSTRAINT "pk_target_status" PRIMARY KEY ("id")
-CREATE INDEX "ix_target_status_target"
-  ON "target_status" ("target")
+  ADD CONSTRAINT "pk_target_status" PRIMARY KEY ("target", "execution_id")
 
 
 CREATE TABLE "execution_trace" (

@@ -27,18 +27,18 @@ trait TargetStatusBinder extends TableBinder {
   )
 
   class TargetStatusTable(tag: Tag) extends Table[TargetStatusRecord](tag, "target_status") {
-    def id = column[Long]("id", O.AutoInc)
-    protected def pk = primaryKey(id)
+    def id = column[Option[Long]]("id")
 
     def executionId = column[Long]("execution_id")
     protected def fk = foreignKey(executionId, executionQuery)(_.id)
 
     def targetAtom = column[TargetAtom.Type]("target", O.SqlType(s"nvarchar(${TargetAtom.maxSize})"))
-    protected def targetIdx = index(targetAtom)
     def code = column[Status.Code]("code")
     def detail = column[String]("detail", O.SqlType(s"nvarchar(4000)"))
 
-    def * = (id.?, executionId, targetAtom, code, detail) <> (TargetStatusRecord.tupled, TargetStatusRecord.unapply)
+    protected def pk = primaryKey((targetAtom, executionId))
+
+    def * = (id, executionId, targetAtom, code, detail) <> (TargetStatusRecord.tupled, TargetStatusRecord.unapply)
   }
 
   val targetStatusQuery: TableQuery[TargetStatusTable] = TableQuery[TargetStatusTable]
