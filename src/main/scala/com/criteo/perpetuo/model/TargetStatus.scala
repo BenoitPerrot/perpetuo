@@ -6,8 +6,7 @@ import spray.json.{DeserializationException, JsString, JsValue, JsonFormat}
 
 case class TargetAtomStatus(code: Status.Code, detail: String) // fixme: probably to remove when DB migration is over
 
-case class TargetStatus(id: Long,
-                        executionId: Long,
+case class TargetStatus(executionId: Long,
                         targetAtom: String,
                         code: Status.Code,
                         detail: String)

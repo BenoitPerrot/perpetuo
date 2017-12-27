@@ -12,7 +12,7 @@ private[dao] case class TargetStatusRecord(id: Option[Long],
                                            code: Status.Code,
                                            detail: String) {
   def toTargetStatus: TargetStatus =
-    TargetStatus(id.get, executionId, targetAtom, code, detail)
+    TargetStatus(executionId, targetAtom, code, detail)
 }
 
 
