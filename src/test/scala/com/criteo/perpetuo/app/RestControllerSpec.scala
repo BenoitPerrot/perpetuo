@@ -209,7 +209,6 @@ class RestControllerSpec extends FeatureTest with TestDb {
       "executions" -> JsArray(
         JsObject(
           "id" -> execTraceId.toJson,
-          "executionId" -> T,
           "logHref" -> expectedLogHrefJson,
           "state" -> state.toJson,
           "detail" -> executionDetail.getOrElse("").toJson
@@ -447,7 +446,6 @@ class RestControllerSpec extends FeatureTest with TestDb {
       traces.length shouldEqual 1
       Map(
         "id" -> T,
-        "executionId" -> T,
         "logHref" -> JsNull,
         "state" -> "pending".toJson,
         "detail" -> "".toJson
@@ -631,7 +629,6 @@ class RestControllerSpec extends FeatureTest with TestDb {
           "executions" -> JsArray(
             JsObject(
               "id" -> execTraceId.toJson,
-              "executionId" -> T,
               "logHref" -> "http://final".toJson,
               "state" -> "completed".toJson,
               "detail" -> "".toJson
@@ -654,7 +651,6 @@ class RestControllerSpec extends FeatureTest with TestDb {
           "executions" -> JsArray(
             JsObject(
               "id" -> T,
-              "executionId" -> T,
               "logHref" -> JsNull,
               "state" -> "pending".toJson,
               "detail" -> "".toJson

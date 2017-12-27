@@ -205,7 +205,7 @@ class Engine @Inject()(val dbBinding: DbBinding,
         Future.successful(Some(traces))
     }
 
-  def findExecutionTracesByDeploymentRequest(deploymentRequestId: Long): Future[Option[Seq[ExecutionTrace]]] =
+  def findExecutionTracesByDeploymentRequest(deploymentRequestId: Long): Future[Option[Seq[ShallowExecutionTrace]]] =
     dbBinding.findExecutionTracesByDeploymentRequest(deploymentRequestId).flatMap { traces =>
       if (traces.isEmpty) {
         // if there is a deployment request with that ID, return the empty list, otherwise a 404

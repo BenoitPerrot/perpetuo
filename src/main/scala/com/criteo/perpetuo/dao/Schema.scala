@@ -49,7 +49,7 @@ class DbBinding @Inject()(val dbContext: DbContext)
       .map { case (_, l) =>
         val (operationTraceRecord, _, _) = l.head
         val operationTrace = operationTraceRecord.toOperationTrace
-        val executionTraces = l.flatMap(_._2).distinct.map(_.toExecutionTrace(operationTrace))
+        val executionTraces = l.flatMap(_._2).distinct.map(_.toExecutionTrace)
         val targetStatuses = l.flatMap(_._3).distinct.map(_.toTargetStatus)
         OperationEffect(operationTrace, executionTraces, targetStatuses)
       }
@@ -372,7 +372,7 @@ class DbBinding @Inject()(val dbContext: DbContext)
       .map(results =>
         results.headOption.map { case (op, _, _) =>
           val operationTrace = op.toOperationTrace
-          val executionTraces = results.flatMap(_._2).distinct.map(_.toExecutionTrace(operationTrace))
+          val executionTraces = results.flatMap(_._2).distinct.map(_.toExecutionTrace)
           val targetStatuses = results.flatMap(_._3).distinct.map(_.toTargetStatus)
           OperationEffect(operationTrace, executionTraces, targetStatuses)
         }

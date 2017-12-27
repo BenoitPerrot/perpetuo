@@ -1,7 +1,7 @@
 package com.criteo.perpetuo.dao
 
-import com.criteo.perpetuo.model.ExecutionState._
-import com.criteo.perpetuo.model.{ExecutionState, ExecutionTrace, ShallowOperationTrace}
+import com.criteo.perpetuo.model.ExecutionState.ExecutionState
+import com.criteo.perpetuo.model._
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
@@ -12,9 +12,11 @@ private[dao] case class ExecutionTraceRecord(id: Option[Long],
                                              logHref: Option[String] = None,
                                              state: ExecutionState = ExecutionState.pending,
                                              detail: String = "") {
-  def toExecutionTrace(operationTrace: ShallowOperationTrace): ExecutionTrace = {
-    ExecutionTrace(id.get, executionId, operationTrace, logHref, state, detail)
-  }
+  def toExecutionTrace: ShallowExecutionTrace =
+    ShallowExecutionTrace(id.get, logHref, state, detail)
+
+  def toExecutionTrace(operationTrace: ShallowOperationTrace): DeepExecutionTrace =
+    DeepExecutionTrace(id.get, executionId, operationTrace, logHref, state, detail)
 }
 
 
@@ -52,7 +54,7 @@ trait ExecutionTraceBinder extends TableBinder {
     }
   }
 
-  def findExecutionTracesByDeploymentRequest(deploymentRequestId: Long): Future[Seq[ExecutionTrace]] =
+  def findExecutionTracesByDeploymentRequest(deploymentRequestId: Long): Future[Seq[ShallowExecutionTrace]] =
     dbContext.db.run(
       operationTraceQuery
         .filter(_.deploymentRequestId === deploymentRequestId)
@@ -61,10 +63,10 @@ trait ExecutionTraceBinder extends TableBinder {
         .map { case ((operationTrace, _), executionTrace) => (executionTrace, operationTrace) }
         .result
     ).map(_.map { case (exec, op) =>
-      exec.toExecutionTrace(op.toOperationTrace)
+      exec.toExecutionTrace
     })
 
-  def findExecutionTraceById(executionTraceId: Long): Future[Option[ExecutionTrace]] =
+  def findExecutionTraceById(executionTraceId: Long): Future[Option[DeepExecutionTrace]] =
     dbContext.db.run(
       executionTraceQuery
         .filter(_.id === executionTraceId)
