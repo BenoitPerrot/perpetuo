@@ -30,13 +30,6 @@ trait OperationTraceBinder extends TableBinder {
     op => op.id.toShort,
     short => Operation(short.toInt)
   )
-  protected implicit lazy val targetStatusMapper = MappedColumnType.base[Status.TargetMap, String](
-    obj => JsObject(obj.mapValues { status => JsArray(JsNumber(status.code.id), JsString(status.detail)) }).compactPrint,
-    str => str.parseJson.asJsObject.fields.mapValues { value =>
-      val Vector(JsNumber(statusId), JsString(detail)) = value.asInstanceOf[JsArray].elements
-      TargetAtomStatus(Status(statusId.toInt), detail)
-    }
-  )
 
   class OperationTraceTable(tag: Tag) extends Table[OperationTraceRecord](tag, "operation_trace") {
     def id = column[Long]("id", O.AutoInc)
