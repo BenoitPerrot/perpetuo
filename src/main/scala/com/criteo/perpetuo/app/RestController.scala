@@ -15,13 +15,11 @@ import com.twitter.finatra.request._
 import com.twitter.finatra.utils.FuturePools
 import com.twitter.finatra.validation._
 import com.twitter.util.{Future => TwitterFuture}
-import spray.json.DefaultJsonProtocol._
 import spray.json.JsonParser.ParsingException
-import spray.json._
 
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.{Await, Future}
 import scala.concurrent.duration._
+import scala.concurrent.{Await, Future}
 import scala.util.Try
 
 trait WithId {
@@ -237,12 +235,13 @@ class RestController @Inject()(val engine: Engine)
             case _: NoSuchElementException => throw BadRequestException(s"Unknown state `${r.state}`")
           }
         val statusMap: Map[String, TargetAtomStatus] =
-          try {
-            r.targetStatus.map { // don't use mapValues, as it gives a view (lazy generation, incompatible with error management here)
-              case (k, obj) => (k, Status.targetMapJsonFormat.read(obj.toJson)) // yes it's crazy to use spray's case class deserializer
+          r.targetStatus.map { case (atom, status) => // don't use mapValues, as it gives a view (lazy generation, incompatible with error management here)
+            try {
+              (atom, TargetAtomStatus(Status.withName(status("code")), status("detail")))
+            } catch {
+              case _: NoSuchElementException =>
+                throw BadRequestException(s"Bad target status for `$atom`: ${status.map { case (k, v) => s"$k='$v'" }.mkString(", ")}")
             }
-          } catch {
-            case e: DeserializationException => throw BadRequestException(e.getMessage)
           }
         engine.updateExecutionTrace(id, executionState, r.detail, r.logHref, statusMap).map(_.map(_ => response.noContent))
       },

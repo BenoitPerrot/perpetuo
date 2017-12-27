@@ -1,8 +1,5 @@
 package com.criteo.perpetuo.model
 
-import spray.json.DefaultJsonProtocol._
-import spray.json.{DeserializationException, JsString, JsValue, JsonFormat}
-
 
 case class TargetAtomStatus(code: Status.Code, detail: String)
 
@@ -25,21 +22,4 @@ object Status extends Enumeration {
   val productFailure = Value(2)
   val hostFailure = Value(3)
   val notDone = Value(4)
-
-  implicit val statusJsonFormat = new JsonFormat[Status.Code] {
-    def write(status: Status.Code): JsString = {
-      JsString(status.toString)
-    }
-
-    def read(value: JsValue): Status.Code = value match {
-      case JsString(name) => try {
-        Status.withName(name)
-      } catch {
-        case _: NoSuchElementException => throw new DeserializationException(s"Unknown target status `$name`")
-      }
-      case x => throw new DeserializationException("Expected a word as atomic target status, but got " + x)
-    }
-  }
-
-  val targetMapJsonFormat: JsonFormat[TargetAtomStatus] = jsonFormat2(TargetAtomStatus)
 }

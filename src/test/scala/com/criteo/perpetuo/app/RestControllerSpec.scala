@@ -565,7 +565,7 @@ class RestControllerSpec extends FeatureTest with TestDb {
         RestApi.executionCallbackPath(execTraceId.toString),
         JsObject("state" -> "conflicting".toJson, "targetStatus" -> Map("par" -> Map("code" -> "foobar", "detail" -> "")).toJson),
         BadRequest
-      ).contentString should include("Unknown target status `foobar`")
+      ).contentString should include("Bad target status for `par`: code='foobar', detail=''")
 
       updateExecTrace(
         depReqId, execTraceId, "completed", None,
