@@ -3,8 +3,7 @@ package com.criteo.perpetuo.model
 
 case class TargetAtomStatus(code: Status.Code, detail: String)
 
-case class TargetStatus(executionId: Long,
-                        targetAtom: String,
+case class TargetStatus(targetAtom: String,
                         code: Status.Code,
                         detail: String)
 
