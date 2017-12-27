@@ -343,6 +343,16 @@ class RestController @Inject()(val engine: Engine)
   get("/api/:*") { _: Request =>
     response.notFound
   }
+  post("/api/unstable/db/target-statuses/empty-id") { _: Request =>
+    val schema = new Schema(engine.dbBinding.dbContext)
+    Await.result(schema.removeTargetStatusIds().map(x => Map("removed" -> x)), 1.minute)
+
+  }
+  get("/api/unstable/db/target-statuses/count-ids") { _: Request =>
+    val schema = new Schema(engine.dbBinding.dbContext)
+    Await.result(schema.countTargetStatuses().map(x => Map("count" -> x)), 5.seconds)
+
+  }
 
 }
 
