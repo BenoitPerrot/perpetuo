@@ -231,8 +231,7 @@ class Engine @Inject()(val dbBinding: DbBinding,
         dbBinding.findExecutionTraceById(id).map(_.get).flatMap { execTrace =>
           val op = execTrace.operationTrace
 
-          // TODO: don't insert, always update a pre-inserted status, wrt the precedence of statuses (DREDD-174)
-          dbBinding.insertTargetStatuses(execTrace.executionId, statusMap)
+          dbBinding.updateTargetStatuses(execTrace.executionId, statusMap)
             .flatMap(_ => dbBinding.hasOpenExecutionTracesForOperation(op.id))
             .flatMap { hasOpenExecutions =>
               if (hasOpenExecutions)

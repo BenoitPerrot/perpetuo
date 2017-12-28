@@ -43,10 +43,17 @@ trait TargetStatusBinder extends TableBinder {
 
   val targetStatusQuery: TableQuery[TargetStatusTable] = TableQuery[TargetStatusTable]
 
-  def insertTargetStatuses(executionId: Long, statusMap: Map[String, TargetAtomStatus]): Future[Unit] = {
-    val listOfTargetStatus = statusMap.map { case (targetAtom, targetStatus) =>
-      TargetStatusRecord(None, executionId, targetAtom, targetStatus.code, targetStatus.detail) //TODO: Remove after migration to targetStatus
+  def updateTargetStatuses(executionId: Long, statusMap: Map[String, TargetAtomStatus]): Future[Unit] = {
+    val atoms = statusMap.keySet
+    val oldValues = targetStatusQuery.filter(ts => ts.executionId === executionId && ts.targetAtom.inSet(atoms))
+    val newValues = statusMap.map { case (atom, status) =>
+      TargetStatusRecord(None, executionId, atom, status.code, status.detail)
     }
-    dbContext.db.run((targetStatusQuery ++= listOfTargetStatus).transactionally).map(_ => ())
+
+    // there is no bulk insert-or-update, so to remain efficient in case of many statuses,
+    // we delete them all and re-insert them in the same transaction
+    val query = oldValues.delete.andThen(targetStatusQuery ++= newValues).transactionally
+
+    dbContext.db.run(query).map(_ => ())
   }
 }
