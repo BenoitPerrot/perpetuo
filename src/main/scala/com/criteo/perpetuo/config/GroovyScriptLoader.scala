@@ -11,10 +11,10 @@ class GroovyScriptLoader(config: Config) {
   private val engine: ScriptEngine = new ScriptEngineManager().getEngineByName("groovy") // todo? use GroovyScriptEngine
   assert(engine != null)
 
-  def instantiate[T <: AnyRef](resource: URL): T = {
+  def instantiate[T <: AnyRef](resource: URL, pluginConfig: Option[Config]): T = {
     try {
       val cls = engine.eval(new InputStreamReader(resource.openStream())).asInstanceOf[Class[T]]
-      Plugins.instantiate[T](cls)
+      Plugins.instantiate[T](cls, pluginConfig)
     }
     catch {
       case exc: Throwable =>
