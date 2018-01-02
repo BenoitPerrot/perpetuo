@@ -5,13 +5,13 @@ import com.twitter.finagle.http.{Request, Response}
 import com.twitter.finatra.http.filters.{LoggingMDCFilter, TraceIdMDCFilter}
 import com.twitter.finatra.http.routing.HttpRouter
 import com.twitter.finatra.http.{EmbeddedHttpServer, HttpServer}
-import com.twitter.inject.server.FeatureTest
+import com.twitter.inject.Test
 
 
 /**
   * An integration test for [[StaticAssetsController]].
   */
-class StaticAssetsControllerSpec extends FeatureTest {
+class StaticAssetsControllerSpec extends Test {
 
   val server = new EmbeddedHttpServer(new HttpServer {
 

@@ -5,12 +5,11 @@ import com.criteo.perpetuo.config.AppConfigProvider
 import com.google.inject.{Provides, Singleton}
 import com.twitter.finagle.http.Status.{Ok, Unauthorized}
 import com.twitter.finagle.http.{Request, Response}
-import com.twitter.finatra.http.HttpServer
+import com.twitter.finatra.http.{EmbeddedHttpServer, HttpServer}
 import com.twitter.finatra.http.filters.{CommonFilters, LoggingMDCFilter, TraceIdMDCFilter}
 import com.twitter.finatra.http.routing.HttpRouter
-import com.twitter.finatra.http.EmbeddedHttpServer
-import com.twitter.inject.TwitterModule
-import com.twitter.inject.server.FeatureTest
+import com.twitter.inject.{Test, TwitterModule}
+
 
 /**
   * Test the [[Controller]]
@@ -18,7 +17,7 @@ import com.twitter.inject.server.FeatureTest
   * Ensure the [[Controller]] is able to read the JWT from the dedicated cookie and to decode it on the appropriate
   * routes
   */
-class ControllerSpec extends FeatureTest {
+class ControllerSpec extends Test {
 
   val config = AppConfigProvider.config
   val authModule = new AuthModule(config.getConfig("auth"))

@@ -8,14 +8,15 @@ import com.twitter.finagle.http.{Request, Response}
 import com.twitter.finatra.http.filters.{CommonFilters, LoggingMDCFilter, TraceIdMDCFilter}
 import com.twitter.finatra.http.routing.HttpRouter
 import com.twitter.finatra.http.{EmbeddedHttpServer, HttpServer, Controller => BaseController}
-import com.twitter.inject.server.FeatureTest
+import com.twitter.inject.Test
+
 
 /**
   * Test the [[UserFilter]].
   *
   * Ensure the [[UserFilter]] adds a User instance to requests when the JWT authentication cookie is found
   */
-class UserFilterSpec extends FeatureTest {
+class UserFilterSpec extends Test {
 
   val config = AppConfigProvider.config
   val authModule = new AuthModule(config.getConfig("auth"))

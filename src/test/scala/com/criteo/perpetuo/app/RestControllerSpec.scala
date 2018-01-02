@@ -8,11 +8,11 @@ import com.criteo.perpetuo.config.AppConfigProvider
 import com.criteo.perpetuo.model.{DeploymentRequestAttrs, Version}
 import com.twitter.finagle.http.Status._
 import com.twitter.finagle.http.{Request, Response, Status}
-import com.twitter.finatra.http.{EmbeddedHttpServer, HttpServer}
 import com.twitter.finatra.http.filters.{LoggingMDCFilter, TraceIdMDCFilter}
 import com.twitter.finatra.http.routing.HttpRouter
+import com.twitter.finatra.http.{EmbeddedHttpServer, HttpServer}
 import com.twitter.finatra.json.modules.FinatraJacksonModule
-import com.twitter.inject.server.FeatureTest
+import com.twitter.inject.Test
 import spray.json.DefaultJsonProtocol._
 import spray.json._
 
@@ -24,7 +24,7 @@ import scala.concurrent.duration._
 /**
   * An integration test for [[RestController]].
   */
-class RestControllerSpec extends FeatureTest with TestDb {
+class RestControllerSpec extends Test with TestDb {
 
   implicit class JsObjectIdExtractor(private val o: JsValue) {
     def idAsLong: Long = o.asJsObject.fields("id").asInstanceOf[JsNumber].value.longValue

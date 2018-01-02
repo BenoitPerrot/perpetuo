@@ -243,14 +243,6 @@
       <version>${twitter.server.version}</version>
     </dependency>
 
-    <!-- FeatureTest dependency Fix https://github.com/twitter/finatra/issues/272 -->
-    <dependency>
-      <groupId>com.google.inject.extensions</groupId>
-      <artifactId>guice-testlib</artifactId>
-      <version>4.0</version>
-      <scope>test</scope>
-    </dependency>
-
   </dependencies>
 
   <build>
