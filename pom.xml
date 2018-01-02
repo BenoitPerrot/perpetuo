@@ -31,10 +31,11 @@
     <freeslick.version>3.1.1.1</freeslick.version>
     <h2db.version>1.4.191</h2db.version>
 
-    <twitter.server.version>1.20.0</twitter.server.version>
-    <twitter.util.version>6.34.0</twitter.util.version>
-    <finatra.version>2.1.6</finatra.version>
-    <finagle.version>6.35.0</finagle.version>
+    <twitter.version>17.12.0</twitter.version>
+    <twitter.server.version>${twitter.version}</twitter.server.version>
+    <twitter.util.version>${twitter.version}</twitter.util.version>
+    <finagle.version>${twitter.version}</finagle.version>
+    <finatra.version>${twitter.version}</finatra.version>
   </properties>
 
   <dependencies>
@@ -93,70 +94,62 @@
 
     <dependency>
       <groupId>com.twitter</groupId>
-      <artifactId>util-logging_${scala.version.short}</artifactId>
-      <version>${twitter.util.version}</version>
-    </dependency>
-
-    <dependency>
-      <groupId>com.twitter</groupId>
       <artifactId>finagle-http_${scala.version.short}</artifactId>
+      <version>${finagle.version}</version>
     </dependency>
 
     <dependency>
       <groupId>com.twitter</groupId>
       <artifactId>finagle-core_${scala.version.short}</artifactId>
+      <version>${finagle.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>com.twitter</groupId>
+      <artifactId>finagle-stats_${scala.version.short}</artifactId>
+      <version>${finagle.version}</version>
     </dependency>
 
     <dependency>
       <groupId>com.twitter</groupId>
       <artifactId>twitter-server_${scala.version.short}</artifactId>
-      <version>1.20.0</version>
+      <version>${twitter.server.version}</version>
     </dependency>
 
     <dependency>
-      <groupId>com.twitter.finatra</groupId>
+      <groupId>com.twitter</groupId>
       <artifactId>finatra-http_${scala.version.short}</artifactId>
+      <version>${finatra.version}</version>
     </dependency>
 
     <dependency>
-      <groupId>com.twitter.finatra</groupId>
-      <artifactId>finatra-slf4j_${scala.version.short}</artifactId>
-    </dependency>
-
-    <dependency>
-      <groupId>com.twitter.inject</groupId>
+      <groupId>com.twitter</groupId>
       <artifactId>inject-utils_${scala.version.short}</artifactId>
-      <version>${finatra.version}</version>
+      <version>${twitter.util.version}</version>
     </dependency>
 
     <dependency>
-      <groupId>com.twitter.inject</groupId>
+      <groupId>com.twitter</groupId>
       <artifactId>inject-app_${scala.version.short}</artifactId>
-      <version>${finatra.version}</version>
+      <version>${twitter.version}</version>
     </dependency>
 
     <dependency>
-      <groupId>com.twitter.inject</groupId>
+      <groupId>com.twitter</groupId>
       <artifactId>inject-server_${scala.version.short}</artifactId>
-      <version>${finatra.version}</version>
+      <version>${twitter.server.version}</version>
     </dependency>
 
     <dependency>
-      <groupId>com.twitter.inject</groupId>
+      <groupId>com.twitter</groupId>
       <artifactId>inject-core_${scala.version.short}</artifactId>
-      <version>${finatra.version}</version>
+      <version>${twitter.version}</version>
     </dependency>
 
     <dependency>
       <groupId>ch.qos.logback</groupId>
       <artifactId>logback-classic</artifactId>
       <version>1.1.8</version>
-    </dependency>
-
-    <dependency>
-      <groupId>org.clapper</groupId>
-      <artifactId>grizzled-slf4j_${scala.version.short}</artifactId>
-      <version>1.0.2</version>
     </dependency>
 
     <dependency>
@@ -195,6 +188,7 @@
       <groupId>org.scalatest</groupId>
       <artifactId>scalatest_${scala.version.short}</artifactId>
       <scope>test</scope>
+      <version>3.0.0</version>
     </dependency>
 
     <dependency>
@@ -204,10 +198,11 @@
     </dependency>
 
     <dependency>
-      <groupId>com.twitter.finatra</groupId>
+      <groupId>com.twitter</groupId>
       <artifactId>finatra-http_${scala.version.short}</artifactId>
-      <type>test-jar</type>
       <scope>test</scope>
+      <type>test-jar</type>
+      <version>${finatra.version}</version>
     </dependency>
 
     <dependency>
@@ -217,31 +212,35 @@
     </dependency>
 
     <dependency>
-      <groupId>com.twitter.inject</groupId>
+      <groupId>com.twitter</groupId>
       <artifactId>inject-app_${scala.version.short}</artifactId>
       <type>test-jar</type>
       <scope>test</scope>
+      <version>${twitter.version}</version>
     </dependency>
 
     <dependency>
-      <groupId>com.twitter.inject</groupId>
+      <groupId>com.twitter</groupId>
       <artifactId>inject-core_${scala.version.short}</artifactId>
       <type>test-jar</type>
       <scope>test</scope>
+      <version>${twitter.version}</version>
     </dependency>
 
     <dependency>
-      <groupId>com.twitter.inject</groupId>
+      <groupId>com.twitter</groupId>
       <artifactId>inject-modules_${scala.version.short}</artifactId>
       <type>test-jar</type>
       <scope>test</scope>
+      <version>${twitter.version}</version>
     </dependency>
 
     <dependency>
-      <groupId>com.twitter.inject</groupId>
+      <groupId>com.twitter</groupId>
       <artifactId>inject-server_${scala.version.short}</artifactId>
       <type>test-jar</type>
       <scope>test</scope>
+      <version>${twitter.server.version}</version>
     </dependency>
 
     <!-- FeatureTest dependency Fix https://github.com/twitter/finatra/issues/272 -->

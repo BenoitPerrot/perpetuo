@@ -7,8 +7,7 @@ import com.twitter.finagle.http.Status.{Ok, Unauthorized}
 import com.twitter.finagle.http.{Request, Response}
 import com.twitter.finatra.http.filters.{CommonFilters, LoggingMDCFilter, TraceIdMDCFilter}
 import com.twitter.finatra.http.routing.HttpRouter
-import com.twitter.finatra.http.test.EmbeddedHttpServer
-import com.twitter.finatra.http.{HttpServer, Controller => BaseController}
+import com.twitter.finatra.http.{EmbeddedHttpServer, HttpServer, Controller => BaseController}
 import com.twitter.inject.server.FeatureTest
 
 /**
@@ -45,38 +44,31 @@ class UserFilterSpec extends FeatureTest {
   val knownUserJWT = knownUser.toJWT(authModule.jwtEncoder)
   val longUserJWT = longUser.toJWT(authModule.jwtEncoder)
 
-  "The UserFilter" should {
+  test("The UserFilter decorates requests with a known user when the JWT cookie is valid") {
+    server.httpGet("/username-from-jwt-cookie",
+      headers = Map("Cookie" -> s"jwt=$knownUserJWT"),
+      andExpect = Ok,
+      withBody = knownUser.name
+    )
+  }
 
-    "decorate requests with a known user when the JWT cookie is valid" in {
-      server.httpGet("/username-from-jwt-cookie",
-        headers = Map("Cookie" -> s"jwt=$knownUserJWT"),
-        andExpect = Ok,
-        withBody = knownUser.name
-      )
-    }
+  test("The UserFilter fails when the JWT cookie is not set") {
+    server.httpGet("/username-from-jwt-cookie",
+      andExpect = Unauthorized
+    )
+  }
+  test("The UserFilter fails when the JWT cookie is invalid") {
+    server.httpGet("/username-from-jwt-cookie",
+      headers = Map("Cookie" -> "jwt=DEADBEEF"),
+      andExpect = Unauthorized
+    )
+  }
 
-    "fail" when {
-      "the JWT cookie is not set" in {
-        server.httpGet("/username-from-jwt-cookie",
-          andExpect = Unauthorized
-        )
-      }
-      "the JWT cookie is invalid" in {
-        server.httpGet("/username-from-jwt-cookie",
-          headers = Map("Cookie" -> "jwt=DEADBEEF"),
-          andExpect = Unauthorized
-        )
-      }
-    }
-
-    "not fail" when {
-      "the user name is too long (but it truncates it)" in {
-        server.httpGet("/username-from-jwt-cookie",
-          headers = Map("Cookie" -> s"jwt=$longUserJWT"),
-          andExpect = Ok,
-          withBody = longUser.name.take(User.maxSize)
-        )
-      }
-    }
+  test("The UserFilter doesn't fail when the user name is too long (but it truncates it)") {
+    server.httpGet("/username-from-jwt-cookie",
+      headers = Map("Cookie" -> s"jwt=$longUserJWT"),
+      andExpect = Ok,
+      withBody = longUser.name.take(User.maxSize)
+    )
   }
 }

@@ -8,10 +8,9 @@ import com.criteo.perpetuo.config.AppConfigProvider
 import com.criteo.perpetuo.model.{DeploymentRequestAttrs, Version}
 import com.twitter.finagle.http.Status._
 import com.twitter.finagle.http.{Request, Response, Status}
-import com.twitter.finatra.http.HttpServer
+import com.twitter.finatra.http.{EmbeddedHttpServer, HttpServer}
 import com.twitter.finatra.http.filters.{LoggingMDCFilter, TraceIdMDCFilter}
 import com.twitter.finatra.http.routing.HttpRouter
-import com.twitter.finatra.http.test.EmbeddedHttpServer
 import com.twitter.finatra.json.modules.FinatraJacksonModule
 import com.twitter.inject.server.FeatureTest
 import spray.json.DefaultJsonProtocol._
@@ -218,138 +217,126 @@ class RestControllerSpec extends FeatureTest with TestDb {
   }
 
 
-  "Any protected route" should {
-    "respond 401 if the user is not logged in" in {
-      server.httpPost(
-        path = s"/api/products",
-        andExpect = Unauthorized,
-        postBody = JsObject("name" -> JsString("this project will never be created")).compactPrint
-      )
-    }
-
-    "respond 403 if the user is not allowed to do the operation" in {
-      server.httpPost(
-        path = s"/api/products",
-        headers = Map("Cookie" -> s"jwt=$stdUserJWT"),
-        andExpect = Forbidden,
-        postBody = JsObject("name" -> JsString("this project will never be created")).compactPrint
-      )
-    }
+  test("Any protected route responds 401 if the user is not logged in") {
+    server.httpPost(
+      path = s"/api/products",
+      andExpect = Unauthorized,
+      postBody = JsObject("name" -> JsString("this project will never be created")).compactPrint
+    )
   }
 
-  "The Product's entry-points" should {
-
-    "return 201 when creating a Product" in {
-      createProduct("my product")
-      createProduct("my other product")
-    }
-
-    "properly reject already used names" in {
-      createProduct("my product", Some("Name `my product` is already used", Conflict))
-    }
-
-    "return the list of all known product names" in {
-      val products = server.httpGet(
-        path = "/api/products",
-        andExpect = Ok
-      ).contentString.parseJson.asInstanceOf[JsArray].elements.map(_.asInstanceOf[JsString].value)
-      products should contain theSameElementsAs Seq("my product", "my other product")
-    }
-
+  test("Any protected route responds 403 if the user is not allowed to do the operation") {
+    server.httpPost(
+      path = s"/api/products",
+      headers = Map("Cookie" -> s"jwt=$stdUserJWT"),
+      andExpect = Forbidden,
+      postBody = JsObject("name" -> JsString("this project will never be created")).compactPrint
+    )
   }
 
-  "The DeploymentRequest's POST entry-point" should {
-
-    "return 201 when creating a DeploymentRequest" in {
-      requestDeployment("my product", "v21", "to everywhere".toJson, Some("my comment"))
-      requestDeployment("my other product", "buggy", "nowhere".toJson, None)
-    }
-
-    "properly reject bad input" in {
-      requestDeployment("{", Some("Unexpected end-of-input at input"), start = true)
-      requestDeployment("""{"productName": "abc"}""", Some("Expected to find `version`"), start = true)
-      requestDeployment("""{"productName": "abc", "version": "42"}""", Some("Expected to find `target`"), start = true)
-      requestDeployment("""{"productName": "abc", "target": "*", "version": "2"}""", Some("Product `abc` could not be found"), start = true)
-    }
-
-    "handle a complex target expression" in {
-      requestDeployment("my product", "42", Seq("here", "and", "there").toJson, Some(""))
-      requestDeployment("my product", " 10402", Map("select" -> "here").toJson, Some(""))
-      requestDeployment("my product", "0042", Map("select" -> Seq("here", "and", "there")).toJson, Some(""))
-      requestDeployment("my product", "420", Seq(Map("select" -> Seq("here", "and", "there"))).toJson, Some(""))
-    }
-
-    "properly reject bad targets" in {
-      requestDeployment("my product", "b", JsArray(), None, Some("non-empty JSON array or object"))
-      requestDeployment("my product", "b", JsObject(), None, Some("must contain a field `select`"))
-      requestDeployment("my product", "b", 60.toJson, None, Some("JSON array or object"))
-      requestDeployment("my product", "b", Seq(42).toJson, None, Some("JSON object or string"))
-      requestDeployment("my product", "b", Seq(JsObject()).toJson, None, Some("must contain a field `select`"))
-      requestDeployment("my product", "b", Seq(Map("select" -> 42)).toJson, None, Some("non-empty JSON string or array"))
-      requestDeployment("my product", "b", Seq(Map("select" -> Seq(42))).toJson, None, Some("a JSON string in"))
-    }
-
+  test("The Product's entry-points returns 201 when creating a Product") {
+    createProduct("my product")
+    createProduct("my other product")
   }
 
-  "The DeploymentRequest's actions entry-point" should {
-    "start a deployment that was not started yet (using deprecated API)" in {
-      createProduct("my product A")
-      val id = requestDeployment("my product A", "not ready yet", "par".toJson, None, None, start = false).idAsLong
-      httpPut(
-        s"/api/deployment-requests/$id",
-        "".toJson,
-        Ok
-      ).contentString.parseJson.asJsObject shouldEqual JsObject("id" -> id.toJson)
+  test("The Product's entry-points properly rejects already used names") {
+    createProduct("my product", Some("Name `my product` is already used", Conflict))
+  }
+
+  test("The Product's entry-points returns the list of all known product names") {
+    val products = server.httpGet(
+      path = "/api/products",
+      andExpect = Ok
+    ).contentString.parseJson.asInstanceOf[JsArray].elements.map(_.asInstanceOf[JsString].value)
+    products should contain theSameElementsAs Seq("my product", "my other product")
+  }
+
+  test("The DeploymentRequest's POST entry-point returns 201 when creating a DeploymentRequest") {
+    requestDeployment("my product", "v21", "to everywhere".toJson, Some("my comment"))
+    requestDeployment("my other product", "buggy", "nowhere".toJson, None)
+  }
+
+  test("The DeploymentRequest's POST entry-point properly rejects bad input") {
+    requestDeployment("{", Some("Unexpected end-of-input at input"), start = true)
+    requestDeployment("""{"productName": "abc"}""", Some("Expected to find `version`"), start = true)
+    requestDeployment("""{"productName": "abc", "version": "42"}""", Some("Expected to find `target`"), start = true)
+    requestDeployment("""{"productName": "abc", "target": "*", "version": "2"}""", Some("Product `abc` could not be found"), start = true)
+  }
+
+  test("The DeploymentRequest's POST entry-point handles a complex target expression") {
+    requestDeployment("my product", "42", Seq("here", "and", "there").toJson, Some(""))
+    requestDeployment("my product", " 10402", Map("select" -> "here").toJson, Some(""))
+    requestDeployment("my product", "0042", Map("select" -> Seq("here", "and", "there")).toJson, Some(""))
+    requestDeployment("my product", "420", Seq(Map("select" -> Seq("here", "and", "there"))).toJson, Some(""))
+  }
+
+  test("The DeploymentRequest's POST entry-point properly rejects bad targets") {
+    requestDeployment("my product", "b", JsArray(), None, Some("non-empty JSON array or object"))
+    requestDeployment("my product", "b", JsObject(), None, Some("must contain a field `select`"))
+    requestDeployment("my product", "b", 60.toJson, None, Some("JSON array or object"))
+    requestDeployment("my product", "b", Seq(42).toJson, None, Some("JSON object or string"))
+    requestDeployment("my product", "b", Seq(JsObject()).toJson, None, Some("must contain a field `select`"))
+    requestDeployment("my product", "b", Seq(Map("select" -> 42)).toJson, None, Some("non-empty JSON string or array"))
+    requestDeployment("my product", "b", Seq(Map("select" -> Seq(42))).toJson, None, Some("a JSON string in"))
+  }
+
+  test("The DeploymentRequest's actions entry-point starts a deployment that was not started yet (using deprecated API)") {
+    createProduct("my product A")
+    val id = requestDeployment("my product A", "not ready yet", "par".toJson, None, None, start = false).idAsLong
+    httpPut(
+      s"/api/deployment-requests/$id",
+      "".toJson,
+      Ok
+    ).contentString.parseJson.asJsObject shouldEqual JsObject("id" -> id.toJson)
+  }
+
+  test("The DeploymentRequest's actions entry-point returns 404 when trying to start a non-existing DeploymentRequest (using deprecated API)") {
+    httpPut(
+      "/api/deployment-requests/4242",
+      "".toJson,
+      NotFound
+    )
+  }
+
+  test("The DeploymentRequest's actions entry-point starts a deployment that was not started yet") {
+    createProduct("my product B")
+    val id = requestDeployment("my product B", "456", "ams".toJson, None, None, start = false).idAsLong
+    startDeploymentRequest(id.longValue()) shouldEqual JsObject("id" -> id.toJson)
+  }
+
+  test("The DeploymentRequest's actions entry-point returns 404 when trying to start a non-existing DeploymentRequest") {
+    startDeploymentRequest(4242, NotFound)
+  }
+
+  test("The DeploymentRequest's actions entry-point returns 400 when posting a non-existing action") {
+    actOnDeploymentRequest(1, "ploup", JsObject(), BadRequest)
+  }
+
+  test("The DeploymentRequest's actions entry-point returns 422 when trying to rollback new targets") {
+    val getRespJson = (_: Response).contentString.parseJson.asJsObject.fields.map {
+      case ("errors", v: JsArray) => ("error", v.elements.head.asInstanceOf[JsString].value)
+      case (k, v) => (k, v.asInstanceOf[JsString].value)
     }
 
-    "return 404 when trying to start a non-existing DeploymentRequest (using deprecated API)" in {
-      httpPut(
-        "/api/deployment-requests/4242",
-        "".toJson,
-        NotFound
-      )
-    }
+    createProduct("my new product")
+    val id = requestDeployment("my new product", "789", "par".toJson, None, None, start = false).idAsLong
+    val respJson1 = getRespJson(actOnDeploymentRequest(id, "revert", JsObject(), UnprocessableEntity))
+    respJson1("error") should include("it has not yet been applied")
+    respJson1 shouldNot contain("required")
 
-    "start a deployment that was not started yet" in {
-      createProduct("my product B")
-      val id = requestDeployment("my product B", "456", "ams".toJson, None, None, start = false).idAsLong
-      startDeploymentRequest(id.longValue()) shouldEqual JsObject("id" -> id.toJson)
-    }
+    startDeploymentRequest(id, Ok)
+    val execTraceId = getExecutionTracesByDeploymentRequestId(id.toString, Ok).get.elements.head.idAsLong
+    updateExecTrace(
+      id, execTraceId, "completed", None, Some(
+        Map("targetA" -> Map("code" -> "success", "detail" -> "").toJson,
+          "targetB" -> Map("code" -> "productFailure", "detail" -> "").toJson)),
+      expectedTargetStatus = Map("targetA" -> ("success", ""), "targetB" -> ("productFailure", ""))
+    )
+    val respJson2 = getRespJson(actOnDeploymentRequest(id, "revert", JsObject(), UnprocessableEntity))
+    respJson2("error") should include("a default rollback version is required")
+    respJson2("required") shouldEqual "defaultVersion"
 
-    "return 404 when trying to start a non-existing DeploymentRequest" in {
-      startDeploymentRequest(4242, NotFound)
-    }
-
-    "return 400 when posting a non-existing action" in {
-      actOnDeploymentRequest(1, "ploup", JsObject(), BadRequest)
-    }
-
-    "return 422 when trying to rollback new targets" in {
-      val getRespJson = (_: Response).contentString.parseJson.asJsObject.fields.map {
-        case ("errors", v: JsArray) => ("error", v.elements.head.asInstanceOf[JsString].value)
-        case (k, v) => (k, v.asInstanceOf[JsString].value)
-      }
-
-      createProduct("my new product")
-      val id = requestDeployment("my new product", "789", "par".toJson, None, None, start = false).idAsLong
-      val respJson1 = getRespJson(actOnDeploymentRequest(id, "revert", JsObject(), UnprocessableEntity))
-      respJson1("error") should include("it has not yet been applied")
-      respJson1 shouldNot contain("required")
-
-      startDeploymentRequest(id, Ok)
-      val execTraceId = getExecutionTracesByDeploymentRequestId(id.toString, Ok).get.elements.head.idAsLong
-      updateExecTrace(
-        id, execTraceId, "completed", None, Some(
-          Map("targetA" -> Map("code" -> "success", "detail" -> "").toJson,
-            "targetB" -> Map("code" -> "productFailure", "detail" -> "").toJson)),
-        expectedTargetStatus = Map("targetA" -> ("success", ""), "targetB" -> ("productFailure", ""))
-      )
-      val respJson2 = getRespJson(actOnDeploymentRequest(id, "revert", JsObject(), UnprocessableEntity))
-      respJson2("error") should include("a default rollback version is required")
-      respJson2("required") shouldEqual "defaultVersion"
-
-      actOnDeploymentRequest(id, "revert", Map("defaultVersion" -> "42").toJson, Ok)
-    }
+    actOnDeploymentRequest(id, "revert", Map("defaultVersion" -> "42").toJson, Ok)
   }
 
   private def getDeploymentRequest(id: String, expectedStatus: Status): Option[JsObject] = {
@@ -380,414 +367,399 @@ class RestControllerSpec extends FeatureTest with TestDb {
   private def getExecutionTracesByDeploymentRequestId(deploymentRequestId: String): JsArray =
     getExecutionTracesByDeploymentRequestId(deploymentRequestId, Ok).get
 
-  "The DeploymentRequest's GET entry-point" should {
-
-    "return 404 when trying to access a non-existing DeploymentRequest" in {
-      getDeploymentRequest("4242", NotFound)
-    }
-
-    "return 404 when trying to access a DeploymentRequest with a non-integral ID" in {
-      getDeploymentRequest("..", NotFound)
-    }
-
-    "return 200 and a JSON with all necessary info when accessing an existing DeploymentRequest" in {
-      val o = requestDeployment("my product", "v2097", "to everywhere".toJson, Some("hello world"))
-      val i = o.idAsLong
-
-      val values1 = getDeploymentRequest(i.toString).fields
-
-      checkCreationDate(values1)
-
-      Map(
-        "id" -> JsNumber(i),
-        "productName" -> JsString("my product"),
-        "version" -> JsString("v2097"),
-        "target" -> JsString("to everywhere"),
-        "comment" -> JsString("hello world"),
-        "creator" -> JsString("r.eleaser"),
-        "creationDate" -> T
-      ) shouldEqual values1
-    }
-
-    lazy val values3 = getDeploymentRequest("3").fields
-
-    "return 200 and a JSON without `comment` if none or an empty one was provided" in {
-      values3 should not contain key("comment")
-    }
-
-    "return 200 and a JSON with the same target expression as provided" in {
-      val target = values3("target")
-      target shouldBe a[JsArray]
-      target.asInstanceOf[JsArray].elements.map(
-        el => {
-          el shouldBe a[JsString]
-          el.asInstanceOf[JsString].value
-        }
-      ) shouldEqual Vector("here", "and", "there")
-    }
-
+  test("The DeploymentRequest's GET entry-point returns 404 when trying to access a non-existing DeploymentRequest") {
+    getDeploymentRequest("4242", NotFound)
   }
 
-  "The ExecutionTrace's entry-points" should {
+  test("The DeploymentRequest's GET entry-point returns 404 when trying to access a DeploymentRequest with a non-integral ID") {
+    getDeploymentRequest("..", NotFound)
+  }
 
-    "return 404 when trying to access a non-existing DeploymentRequest" in {
-      getExecutionTracesByDeploymentRequestId("4242", NotFound)
-    }
+  test("The DeploymentRequest's GET entry-point returns 200 and a JSON with all necessary info when accessing an existing DeploymentRequest") {
+    val o = requestDeployment("my product", "v2097", "to everywhere".toJson, Some("hello world"))
+    val i = o.idAsLong
 
-    "not fail when the existing DeploymentRequest doesn't have execution traces yet" in {
-      val attrs = new DeploymentRequestAttrs("my product", Version("\"v\""), "\"t\"", "c", "c", new Timestamp(System.currentTimeMillis))
-      val depReq = Await.result(controller.engine.createDeploymentRequest(attrs, immediateStart = false), 1.second)
-      val traces = getExecutionTracesByDeploymentRequestId(depReq("id").toString).elements
-      traces shouldBe empty
-    }
+    val values1 = getDeploymentRequest(i.toString).fields
 
-    "return a list of executions when trying to access an existing DeploymentRequest" in {
-      val traces = getExecutionTracesByDeploymentRequestId("1").elements
-      traces.length shouldEqual 1
-      Map(
+    checkCreationDate(values1)
+
+    Map(
+      "id" -> JsNumber(i),
+      "productName" -> JsString("my product"),
+      "version" -> JsString("v2097"),
+      "target" -> JsString("to everywhere"),
+      "comment" -> JsString("hello world"),
+      "creator" -> JsString("r.eleaser"),
+      "creationDate" -> T
+    ) shouldEqual values1
+  }
+
+  lazy val values3 = getDeploymentRequest("3").fields
+
+  test("The DeploymentRequest's GET entry-point returns 200 and a JSON without `comment` if none or an empty one was provided") {
+    values3 should not contain key("comment")
+  }
+
+  test("The DeploymentRequest's GET entry-point returns 200 and a JSON with the same target expression as provided") {
+    val target = values3("target")
+    target shouldBe a[JsArray]
+    target.asInstanceOf[JsArray].elements.map(
+      el => {
+        el shouldBe a[JsString]
+        el.asInstanceOf[JsString].value
+      }
+    ) shouldEqual Vector("here", "and", "there")
+  }
+
+  test("The ExecutionTrace's entry-points returns 404 when trying to access a non-existing DeploymentRequest") {
+    getExecutionTracesByDeploymentRequestId("4242", NotFound)
+  }
+
+  test("The ExecutionTrace's entry-points not fails when the existing DeploymentRequest doesn't have execution traces yet") {
+    val attrs = new DeploymentRequestAttrs("my product", Version("\"v\""), "\"t\"", "c", "c", new Timestamp(System.currentTimeMillis))
+    val depReq = Await.result(controller.engine.createDeploymentRequest(attrs, immediateStart = false), 1.second)
+    val traces = getExecutionTracesByDeploymentRequestId(depReq("id").toString).elements
+    traces shouldBe empty
+  }
+
+  test("The ExecutionTrace's entry-points returns a list of executions when trying to access an existing DeploymentRequest") {
+    val traces = getExecutionTracesByDeploymentRequestId("1").elements
+    traces.length shouldEqual 1
+    Map(
+      "id" -> T,
+      "logHref" -> JsNull,
+      "state" -> "pending".toJson,
+      "detail" -> "".toJson
+    ) shouldEqual traces.head.asJsObject.fields
+  }
+
+  test("The ExecutionTrace's entry-points updates one record's execution state on a PUT") {
+    val (depReqId, executionTraces) = createAndStartDeployment("1112", "paris".toJson)
+    updateExecTrace(
+      depReqId, executionTraces.head, "completed", None, None, Some("execution detail"),
+      expectedTargetStatus = Map()
+    )
+  }
+
+  test("The ExecutionTrace's entry-points updates one record's execution state and log href on a PUT") {
+    val (depReqId, executionTraces) = createAndStartDeployment("1112", "paris".toJson)
+    updateExecTrace(
+      depReqId, executionTraces.head, "completed", Some("http://somewhe.re"),
+      expectedTargetStatus = Map()
+    )
+  }
+
+  test("The ExecutionTrace's entry-points updates one record's execution state and target status on a PUT") {
+    val (depReqId, executionTraces) = createAndStartDeployment("653", Seq("paris", "ams").toJson)
+    updateExecTrace(
+      depReqId, executionTraces.head, "initFailed", None,
+      targetStatus = Some(Map("paris" -> Map("code" -> "success", "detail" -> "").toJson)),
+      expectedTargetStatus = Map("paris" -> ("success", ""))
+    )
+  }
+
+  // todo: restore once Engine supports partial update
+  /*
+  test("The ExecutionTrace's entry-points updates one record's execution state, log href and target status (partially) on a PUT") {
+    val depReqId = requestDeployment("my product", "653", Seq("paris", "amsterdam").toJson, None, start = false).idAsLong
+    startDeploymentRequest(depReqId)
+    val execTraceId = getExecutionTracesByDeploymentRequestId(depReqId.toString).elements(0).idAsLong
+    updateExecTrace(
+      depReqId, execTraceId, "conflicting", Some("http://"),
+      targetStatus = Some(Map("amsterdam" -> Map("code" -> "notDone", "detail" -> "").toJson)),
+      expectedTargetStatus = Map("amsterdam" -> ("notDone", ""))
+    )
+  }
+
+  test("The ExecutionTrace's entry-points partially updates one record's target status on a PUT") {
+    val depReqId = requestDeployment("my product", "653", Seq("paris", "amsterdam").toJson, None, start = false).idAsLong
+    startDeploymentRequest(depReqId)
+    val execTraceId = getExecutionTracesByDeploymentRequestId(depReqId.toString).elements(0).idAsLong
+    updateExecTrace(
+      depReqId, execTraceId, "conflicting", None,
+      targetStatus = Some(Map("amsterdam" -> Map("code" -> "notDone", "detail" -> "").toJson)),
+      expectedTargetStatus = Map("amsterdam" -> ("notDone", ""))
+    )
+    updateExecTrace(
+      depReqId, execTraceId, "completed", Some("http://final"),
+      targetStatus = Some(Map("amsterdam" -> Map("code" -> "hostFailure", "detail" -> "some details...").toJson)),
+      expectedTargetStatus = Map("paris" -> ("success", ""), "amsterdam" -> ("hostFailure", "some details..."))
+    )
+  }
+  */
+
+  test("The ExecutionTrace's entry-points returns 404 on non-integral ID") {
+    httpPut(
+      RestApi.executionCallbackPath("abc"),
+      Map("state" -> "conflicting").toJson,
+      NotFound
+    )
+  }
+
+  test("The ExecutionTrace's entry-points returns 404 if trying to update an unknown execution trace") {
+    httpPut(
+      RestApi.executionCallbackPath("12345"),
+      Map("state" -> "conflicting").toJson,
+      NotFound
+    )
+  }
+
+  test("The ExecutionTrace's entry-points returns 400 if the target status is badly formatted and not update the state") {
+    val (depReqId, executionTraces) = createAndStartDeployment("2456", Seq("paris", "amsterdam").toJson)
+    val execTraceId = executionTraces.head
+
+    httpPut(
+      RestApi.executionCallbackPath(execTraceId.toString),
+      JsObject("state" -> "conflicting".toJson, "targetStatus" -> Vector("paris", "amsterdam").toJson),
+      BadRequest
+    ).contentString should include("targetStatus: Can not deserialize")
+
+    updateExecTrace(
+      depReqId, execTraceId, "completed", None,
+      expectedTargetStatus = Map()
+    )
+  }
+
+  test("The ExecutionTrace's entry-points returns 400 if no state is provided") {
+    httpPut(
+      RestApi.executionCallbackPath("1"),
+      JsObject("targetStatus" -> Map("par" -> "success").toJson),
+      BadRequest
+    ).contentString should include("state: field is required")
+  }
+
+  test("The ExecutionTrace's entry-points returns 400 if the provided state is unknown") {
+    val (_, executionTraces) = createAndStartDeployment("2456", Seq("paris", "amsterdam").toJson)
+
+    httpPut(
+      RestApi.executionCallbackPath(executionTraces.head.toString),
+      Map("state" -> "what?").toJson,
+      BadRequest
+    ).contentString should include("Unknown state `what?`")
+  }
+
+  test("The ExecutionTrace's entry-points returns 400 and not update the state if a provided target status is unknown") {
+    val (depReqId, executionTraces) = createAndStartDeployment("2456", Seq("paris", "amsterdam").toJson)
+    val execTraceId = executionTraces.head
+
+    httpPut(
+      RestApi.executionCallbackPath(execTraceId.toString),
+      JsObject("state" -> "conflicting".toJson, "targetStatus" -> Map("par" -> Map("code" -> "foobar", "detail" -> "")).toJson),
+      BadRequest
+    ).contentString should include("Bad target status for `par`: code='foobar', detail=''")
+
+    updateExecTrace(
+      depReqId, execTraceId, "completed", None,
+      expectedTargetStatus = Map()
+    )
+  }
+
+  test("Deep query selects single one") {
+    val allDepReqs = deepGetDepReq()
+    allDepReqs.length should be > 2
+
+    val depReqsForSingle = deepGetDepReq(where = Seq(Map("field" -> JsString("id"), "equals" -> JsNumber(1))))
+    depReqsForSingle.length shouldBe 1
+  }
+
+  test("Deep query gets single one") {
+    val allDepReqs = deepGetDepReq()
+    allDepReqs.length should be > 2
+
+    val depReqsForSingle = deepGetDepReq(1)
+    depReqsForSingle.idAsLong shouldBe 1
+  }
+
+  test("Deep query displays correctly formatted versions") {
+    val depReqId = requestDeployment("my product", "8080", "paris".toJson, None, start = false).idAsLong
+
+    val depReq = deepGetDepReq(depReqId)
+    depReq.fields("version").asInstanceOf[JsString].value shouldEqual "8080"
+  }
+
+  test("Deep query returns the right executions in a valid JSON") {
+    val (depReqId, executionTraces) = createAndStartDeployment("3211", Seq("paris", "amsterdam").toJson)
+    val execTraceId = executionTraces.head
+    updateExecTrace(
+      depReqId, execTraceId, "completed", Some("http://final"),
+      targetStatus = Some(Map(
+        "paris" -> Map("code" -> "success", "detail" -> "").toJson,
+        "amsterdam" -> Map("code" -> "hostFailure", "detail" -> "some interesting details").toJson)),
+      expectedTargetStatus = Map(
+        "paris" -> ("success", ""),
+        "amsterdam" -> ("hostFailure", "some interesting details"))
+    )
+
+    val depReq = deepGetDepReq(depReqId)
+
+    JsArray(
+      JsObject(
         "id" -> T,
-        "logHref" -> JsNull,
-        "state" -> "pending".toJson,
-        "detail" -> "".toJson
-      ) shouldEqual traces.head.asJsObject.fields
-    }
-
-    "update one record's execution state on a PUT" in {
-      val (depReqId, executionTraces) = createAndStartDeployment("1112", "paris".toJson)
-      updateExecTrace(
-        depReqId, executionTraces.head, "completed", None, None, Some("execution detail"),
-        expectedTargetStatus = Map()
-      )
-    }
-
-    "update one record's execution state and log href on a PUT" in {
-      val (depReqId, executionTraces) = createAndStartDeployment("1112", "paris".toJson)
-      updateExecTrace(
-        depReqId, executionTraces.head, "completed", Some("http://somewhe.re"),
-        expectedTargetStatus = Map()
-      )
-    }
-
-    "update one record's execution state and target status on a PUT" in {
-      val (depReqId, executionTraces) = createAndStartDeployment("653", Seq("paris", "ams").toJson)
-      updateExecTrace(
-        depReqId, executionTraces.head, "initFailed", None,
-        targetStatus = Some(Map("paris" -> Map("code" -> "success", "detail" -> "").toJson)),
-        expectedTargetStatus = Map("paris" -> ("success", ""))
-      )
-    }
-
-    // todo: restore once Engine supports partial update
-    /*
-    "update one record's execution state, log href and target status (partially) on a PUT" in {
-      val depReqId = requestDeployment("my product", "653", Seq("paris", "amsterdam").toJson, None, start = false).idAsLong
-      startDeploymentRequest(depReqId)
-      val execTraceId = getExecutionTracesByDeploymentRequestId(depReqId.toString).elements(0).idAsLong
-      updateExecTrace(
-        depReqId, execTraceId, "conflicting", Some("http://"),
-        targetStatus = Some(Map("amsterdam" -> Map("code" -> "notDone", "detail" -> "").toJson)),
-        expectedTargetStatus = Map("amsterdam" -> ("notDone", ""))
-      )
-    }
-
-    "partially update one record's target status on a PUT" in {
-      val depReqId = requestDeployment("my product", "653", Seq("paris", "amsterdam").toJson, None, start = false).idAsLong
-      startDeploymentRequest(depReqId)
-      val execTraceId = getExecutionTracesByDeploymentRequestId(depReqId.toString).elements(0).idAsLong
-      updateExecTrace(
-        depReqId, execTraceId, "conflicting", None,
-        targetStatus = Some(Map("amsterdam" -> Map("code" -> "notDone", "detail" -> "").toJson)),
-        expectedTargetStatus = Map("amsterdam" -> ("notDone", ""))
-      )
-      updateExecTrace(
-        depReqId, execTraceId, "completed", Some("http://final"),
-        targetStatus = Some(Map("amsterdam" -> Map("code" -> "hostFailure", "detail" -> "some details...").toJson)),
-        expectedTargetStatus = Map("paris" -> ("success", ""), "amsterdam" -> ("hostFailure", "some details..."))
-      )
-    }
-    */
-
-    "return 404 on non-integral ID" in {
-      httpPut(
-        RestApi.executionCallbackPath("abc"),
-        Map("state" -> "conflicting").toJson,
-        NotFound
-      )
-    }
-
-    "return 404 if trying to update an unknown execution trace" in {
-      httpPut(
-        RestApi.executionCallbackPath("12345"),
-        Map("state" -> "conflicting").toJson,
-        NotFound
-      )
-    }
-
-    "return 400 if the target status is badly formatted and not update the state" in {
-      val (depReqId, executionTraces) = createAndStartDeployment("2456", Seq("paris", "amsterdam").toJson)
-      val execTraceId = executionTraces.head
-
-      httpPut(
-        RestApi.executionCallbackPath(execTraceId.toString),
-        JsObject("state" -> "conflicting".toJson, "targetStatus" -> Vector("paris", "amsterdam").toJson),
-        BadRequest
-      ).contentString should include("targetStatus: Unable to parse")
-
-      updateExecTrace(
-        depReqId, execTraceId, "completed", None,
-        expectedTargetStatus = Map()
-      )
-    }
-
-    "return 400 if no state is provided" in {
-      httpPut(
-        RestApi.executionCallbackPath("1"),
-        JsObject("targetStatus" -> Map("par" -> "success").toJson),
-        BadRequest
-      ).contentString should include("state: field is required")
-    }
-
-    "return 400 if the provided state is unknown" in {
-      val (_, executionTraces) = createAndStartDeployment("2456", Seq("paris", "amsterdam").toJson)
-
-      httpPut(
-        RestApi.executionCallbackPath(executionTraces.head.toString),
-        Map("state" -> "what?").toJson,
-        BadRequest
-      ).contentString should include("Unknown state `what?`")
-    }
-
-    "return 400 and not update the state if a provided target status is unknown" in {
-      val (depReqId, executionTraces) = createAndStartDeployment("2456", Seq("paris", "amsterdam").toJson)
-      val execTraceId = executionTraces.head
-
-      httpPut(
-        RestApi.executionCallbackPath(execTraceId.toString),
-        JsObject("state" -> "conflicting".toJson, "targetStatus" -> Map("par" -> Map("code" -> "foobar", "detail" -> "")).toJson),
-        BadRequest
-      ).contentString should include("Bad target status for `par`: code='foobar', detail=''")
-
-      updateExecTrace(
-        depReqId, execTraceId, "completed", None,
-        expectedTargetStatus = Map()
-      )
-    }
-
-  }
-
-  "Deep query" should {
-
-    "select single one" in {
-      val allDepReqs = deepGetDepReq()
-      allDepReqs.length should be > 2
-
-      val depReqsForSingle = deepGetDepReq(where = Seq(Map("field" -> JsString("id"), "equals" -> JsNumber(1))))
-      depReqsForSingle.length shouldBe 1
-    }
-
-    "get single one" in {
-      val allDepReqs = deepGetDepReq()
-      allDepReqs.length should be > 2
-
-      val depReqsForSingle = deepGetDepReq(1)
-      depReqsForSingle.idAsLong shouldBe 1
-    }
-
-    "display correctly formatted versions" in {
-      val depReqId = requestDeployment("my product", "8080", "paris".toJson, None, start = false).idAsLong
-
-      val depReq = deepGetDepReq(depReqId)
-      depReq.fields("version").asInstanceOf[JsString].value shouldEqual "8080"
-    }
-
-    "return the right executions in a valid JSON" in {
-      val (depReqId, executionTraces) = createAndStartDeployment("3211", Seq("paris", "amsterdam").toJson)
-      val execTraceId = executionTraces.head
-      updateExecTrace(
-        depReqId, execTraceId, "completed", Some("http://final"),
-        targetStatus = Some(Map(
+        "kind" -> "deploy".toJson,
+        "creator" -> "r.eleaser".toJson,
+        "creationDate" -> T,
+        "closingDate" -> T,
+        "targetStatus" -> Map(
           "paris" -> Map("code" -> "success", "detail" -> "").toJson,
-          "amsterdam" -> Map("code" -> "hostFailure", "detail" -> "some interesting details").toJson)),
-        expectedTargetStatus = Map(
-          "paris" -> ("success", ""),
-          "amsterdam" -> ("hostFailure", "some interesting details"))
+          "amsterdam" -> Map("code" -> "hostFailure", "detail" -> "some interesting details").toJson
+        ).toJson,
+        "executions" -> JsArray(
+          JsObject(
+            "id" -> execTraceId.toJson,
+            "logHref" -> "http://final".toJson,
+            "state" -> "completed".toJson,
+            "detail" -> "".toJson
+          )
+        )
       )
+    ) shouldEqual depReq.fields("operations")
 
-      val depReq = deepGetDepReq(depReqId)
-
-      JsArray(
-        JsObject(
-          "id" -> T,
-          "kind" -> "deploy".toJson,
-          "creator" -> "r.eleaser".toJson,
-          "creationDate" -> T,
-          "closingDate" -> T,
-          "targetStatus" -> Map(
-            "paris" -> Map("code" -> "success", "detail" -> "").toJson,
-            "amsterdam" -> Map("code" -> "hostFailure", "detail" -> "some interesting details").toJson
-          ).toJson,
-          "executions" -> JsArray(
-            JsObject(
-              "id" -> execTraceId.toJson,
-              "logHref" -> "http://final".toJson,
-              "state" -> "completed".toJson,
-              "detail" -> "".toJson
-            )
+    createProduct("my product D")
+    val delayedDepReqId = requestDeployment("my product D", "5133", "tokyo".toJson, None, start = false).idAsLong
+    startDeploymentRequest(delayedDepReqId)
+    val delayedDepReq = deepGetDepReq(delayedDepReqId)
+    JsArray(
+      JsObject(
+        "id" -> T,
+        "kind" -> "deploy".toJson,
+        "creator" -> "r.eleaser".toJson,
+        "creationDate" -> T,
+        "targetStatus" -> JsObject(),
+        "executions" -> JsArray(
+          JsObject(
+            "id" -> T,
+            "logHref" -> JsNull,
+            "state" -> "pending".toJson,
+            "detail" -> "".toJson
           )
         )
-      ) shouldEqual depReq.fields("operations")
+      )
+    ) shouldEqual delayedDepReq.fields("operations")
+  }
 
-      createProduct("my product D")
-      val delayedDepReqId = requestDeployment("my product D", "5133", "tokyo".toJson, None, start = false).idAsLong
-      startDeploymentRequest(delayedDepReqId)
-      val delayedDepReq = deepGetDepReq(delayedDepReqId)
-      JsArray(
-        JsObject(
-          "id" -> T,
-          "kind" -> "deploy".toJson,
-          "creator" -> "r.eleaser".toJson,
-          "creationDate" -> T,
-          "targetStatus" -> JsObject(),
-          "executions" -> JsArray(
-            JsObject(
-              "id" -> T,
-              "logHref" -> JsNull,
-              "state" -> "pending".toJson,
-              "detail" -> "".toJson
-            )
-          )
-        )
-      ) shouldEqual delayedDepReq.fields("operations")
-    }
+  test("Deep query paginates") {
+    val allDepReqs = deepGetDepReq(limit = Some(100))
+    allDepReqs.length should be > 2
 
-    "paginate" in {
-      val allDepReqs = deepGetDepReq(limit = Some(100))
-      allDepReqs.length should be > 2
+    val firstDepReqs = deepGetDepReq(limit = Some(2))
+    firstDepReqs.length shouldEqual 2
 
-      val firstDepReqs = deepGetDepReq(limit = Some(2))
-      firstDepReqs.length shouldEqual 2
+    val lastDepReqs = deepGetDepReq(offset = Some(2), limit = Some(100))
+    lastDepReqs.length shouldEqual (allDepReqs.length - 2)
+  }
 
-      val lastDepReqs = deepGetDepReq(offset = Some(2), limit = Some(100))
-      lastDepReqs.length shouldEqual (allDepReqs.length - 2)
-    }
+  test("Deep query rejects too large limits") {
+    server.httpPost(
+      path = s"/api/unstable/deployment-requests",
+      postBody = JsObject("limit" -> JsNumber(2097)).compactPrint,
+      andExpect = BadRequest
+    ).contentString should include("`limit` shall be lower than")
+  }
 
-    "reject too large limits" in {
-      server.httpPost(
-        path = s"/api/unstable/deployment-requests",
-        postBody = JsObject("limit" -> JsNumber(2097)).compactPrint,
-        andExpect = BadRequest
-      ).contentString should include("`limit` shall be lower than")
-    }
+  test("Deep query filters") {
+    val allDepReqs = deepGetDepReq(limit = Some(100))
+    allDepReqs.length should be > 2
 
-    "filter" in {
-      val allDepReqs = deepGetDepReq(limit = Some(100))
-      allDepReqs.length should be > 2
+    val depReqsForUnkownProduct = deepGetDepReq(where = Seq(Map("field" -> "productName".toJson, "equals" -> "unknown product".toJson)))
+    depReqsForUnkownProduct.isEmpty shouldBe true
 
-      val depReqsForUnkownProduct = deepGetDepReq(where = Seq(Map("field" -> "productName".toJson, "equals" -> "unknown product".toJson)))
-      depReqsForUnkownProduct.isEmpty shouldBe true
+    val depReqsForSingleProduct = deepGetDepReq(where = Seq(Map("field" -> "productName".toJson, "equals" -> "my product".toJson)))
+    depReqsForSingleProduct.length should (be > 0 and be < allDepReqs.length)
+    depReqsForSingleProduct.map(_ ("productName").asInstanceOf[JsString].value == "my product").reduce(_ && _) shouldBe true
+  }
 
-      val depReqsForSingleProduct = deepGetDepReq(where = Seq(Map("field" -> "productName".toJson, "equals" -> "my product".toJson)))
-      depReqsForSingleProduct.length should (be > 0 and be < allDepReqs.length)
-      depReqsForSingleProduct.map(_ ("productName").asInstanceOf[JsString].value == "my product").reduce(_ && _) shouldBe true
-    }
+  test("Deep query rejects unknown field names in filters") {
+    server.httpPost(
+      path = s"/api/unstable/deployment-requests",
+      postBody = JsObject("where" -> JsArray(Vector(JsObject("field" -> JsString("pouet"), "equals" -> JsString("42"))))).compactPrint,
+      andExpect = BadRequest
+    ).contentString should include("Cannot filter on `pouet`")
+  }
 
-    "reject unknown field names in filters" in {
-      server.httpPost(
-        path = s"/api/unstable/deployment-requests",
-        postBody = JsObject("where" -> JsArray(Vector(JsObject("field" -> JsString("pouet"), "equals" -> JsString("42"))))).compactPrint,
-        andExpect = BadRequest
-      ).contentString should include("Cannot filter on `pouet`")
-    }
+  test("Deep query rejects unknown filter tests") {
+    server.httpPost(
+      path = s"/api/unstable/deployment-requests",
+      postBody = JsObject("where" -> JsArray(Vector(JsObject("field" -> JsString("productName"), "like" -> JsString("foo"))))).compactPrint,
+      andExpect = BadRequest
+    ).contentString should include("Filters tests must be `equals`")
+  }
 
-    "reject unknown filter tests" in {
-      server.httpPost(
-        path = s"/api/unstable/deployment-requests",
-        postBody = JsObject("where" -> JsArray(Vector(JsObject("field" -> JsString("productName"), "like" -> JsString("foo"))))).compactPrint,
-        andExpect = BadRequest
-      ).contentString should include("Filters tests must be `equals`")
-    }
+  test("Deep query sorts by individual fields") {
+    deepGetDepReq().length should be > 2
 
-    "sort by individual fields" in {
-      deepGetDepReq().length should be > 2
-
-      def isSorted[ValueType, T <: {val value : ValueType}](deploymentRequests: Seq[Map[String, JsValue]], key: String, absoluteMin: ValueType, isOrdered: (ValueType, ValueType) => Boolean): Boolean = {
-        deploymentRequests
-          .foldLeft((absoluteMin, true)) { (lastResult, deploymentRequest) =>
-            val value = deploymentRequest(key).asInstanceOf[T].value
-            (value, isOrdered(lastResult._1, value))
-          }
-          ._2
-      }
-
-      Seq(false, true).foreach { descending =>
-
-        val sortNumbers = isSorted[BigDecimal, JsNumber](_: Seq[Map[String, JsValue]], _: String, BigDecimal.valueOf(-1), _ <= _)
-        val sortStrings = isSorted[String, JsString](_: Seq[Map[String, JsValue]], _: String, "", _ <= _)
-        Map(
-          "creationDate" -> sortNumbers,
-          "productName" -> sortStrings,
-          "creator" -> sortStrings
-        ).foreach { case (fieldName, isSorted) =>
-          val sortedDepReqs = deepGetDepReq(orderBy = Seq(Map("field" -> fieldName.toJson, "desc" -> descending.toJson)))
-          sortedDepReqs.isEmpty shouldBe false
-          isSorted(if (descending) sortedDepReqs.reverse else sortedDepReqs, fieldName) shouldBe true
+    def isSorted[ValueType, T <: {val value : ValueType}](deploymentRequests: Seq[Map[String, JsValue]], key: String, absoluteMin: ValueType, isOrdered: (ValueType, ValueType) => Boolean): Boolean = {
+      deploymentRequests
+        .foldLeft((absoluteMin, true)) { (lastResult, deploymentRequest) =>
+          val value = deploymentRequest(key).asInstanceOf[T].value
+          (value, isOrdered(lastResult._1, value))
         }
+        ._2
+    }
+
+    Seq(false, true).foreach { descending =>
+
+      val sortNumbers = isSorted[BigDecimal, JsNumber](_: Seq[Map[String, JsValue]], _: String, BigDecimal.valueOf(-1), _ <= _)
+      val sortStrings = isSorted[String, JsString](_: Seq[Map[String, JsValue]], _: String, "", _ <= _)
+      Map(
+        "creationDate" -> sortNumbers,
+        "productName" -> sortStrings,
+        "creator" -> sortStrings
+      ).foreach { case (fieldName, isSorted) =>
+        val sortedDepReqs = deepGetDepReq(orderBy = Seq(Map("field" -> fieldName.toJson, "desc" -> descending.toJson)))
+        sortedDepReqs.isEmpty shouldBe false
+        isSorted(if (descending) sortedDepReqs.reverse else sortedDepReqs, fieldName) shouldBe true
       }
-    }
-
-    "sort by several fields" in {
-      deepGetDepReq().length should be > 2
-
-      val sortedDepReqs = deepGetDepReq(orderBy = Seq(Map("field" -> "productName".toJson), Map("field" -> "creationDate".toJson)))
-      sortedDepReqs.isEmpty shouldBe false
-      sortedDepReqs
-        .foldLeft(("", BigDecimal(-1), true)) { (lastResult, deploymentRequest) =>
-          val (lastProductName, lastCreationDate, lastP) = lastResult
-          val productName = deploymentRequest("productName").asInstanceOf[JsString].value
-          val creationDate = deploymentRequest("creationDate").asInstanceOf[JsNumber].value
-          // For the right branch of the ||: productName == lastProductName is paranoid, as productName < lastProductName should not be true
-          (productName, creationDate, lastP && (lastProductName < productName || (productName == lastProductName && lastCreationDate <= creationDate)))
-        }
-        ._3 shouldBe true
-    }
-
-    "reject unknown field names for sort" in {
-      server.httpPost(
-        path = s"/api/unstable/deployment-requests",
-        postBody = JsObject("orderBy" -> JsArray(JsObject("field" -> "pouet".toJson))).compactPrint,
-        andExpect = BadRequest
-      ).contentString should include("Cannot sort by `pouet`")
     }
   }
 
-  "Any other *API* entry-point" should {
-    "throw a 404" in {
-      server.httpGet(
-        path = "/api/woot/woot",
-        andExpect = NotFound
-      )
-    }
+  test("Deep query sorts by several fields") {
+    deepGetDepReq().length should be > 2
+
+    val sortedDepReqs = deepGetDepReq(orderBy = Seq(Map("field" -> "productName".toJson), Map("field" -> "creationDate".toJson)))
+    sortedDepReqs.isEmpty shouldBe false
+    sortedDepReqs
+      .foldLeft(("", BigDecimal(-1), true)) { (lastResult, deploymentRequest) =>
+        val (lastProductName, lastCreationDate, lastP) = lastResult
+        val productName = deploymentRequest("productName").asInstanceOf[JsString].value
+        val creationDate = deploymentRequest("creationDate").asInstanceOf[JsNumber].value
+        // For the right branch of the ||: productName == lastProductName is paranoid, as productName < lastProductName should not be true
+        (productName, creationDate, lastP && (lastProductName < productName || (productName == lastProductName && lastCreationDate <= creationDate)))
+      }
+      ._3 shouldBe true
   }
 
-  "Creating a deployment request with a too long name" should {
-    "work but store a truncated user name" in {
-      val longUser = User("too-long-user-name/" * 42)
-      val longUserJWT = longUser.toJWT(authModule.jwtEncoder)
+  test("Deep query rejects unknown field names for sort") {
+    server.httpPost(
+      path = s"/api/unstable/deployment-requests",
+      postBody = JsObject("orderBy" -> JsArray(JsObject("field" -> "pouet".toJson))).compactPrint,
+      andExpect = BadRequest
+    ).contentString should include("Cannot sort by `pouet`")
+  }
 
-      val id = server.httpPost(
-        path = s"/api/deployment-requests",
-        headers = Map("Cookie" -> s"jwt=$longUserJWT"),
-        andExpect = Created,
-        postBody = Map(
-          "productName" -> "my product",
-          "version" -> "v2097",
-          "target" -> "to everywhere"
-        ).toJson.compactPrint
-      ).contentString.parseJson.idAsLong
+  test("Any other *API* entry-point throws a 404") {
+    server.httpGet(
+      path = "/api/woot/woot",
+      andExpect = NotFound
+    )
+  }
 
-      getDeploymentRequest(id.toString).fields("creator").asInstanceOf[JsString].value shouldEqual
-        "too-long-user-name/too-long-user-name/too-long-user-name/too-lon"
-    }
+  test("Creating a deployment request with a too long name works but store a truncated user name") {
+    val longUser = User("too-long-user-name/" * 42)
+    val longUserJWT = longUser.toJWT(authModule.jwtEncoder)
+
+    val id = server.httpPost(
+      path = s"/api/deployment-requests",
+      headers = Map("Cookie" -> s"jwt=$longUserJWT"),
+      andExpect = Created,
+      postBody = Map(
+        "productName" -> "my product",
+        "version" -> "v2097",
+        "target" -> "to everywhere"
+      ).toJson.compactPrint
+    ).contentString.parseJson.idAsLong
+
+    getDeploymentRequest(id.toString).fields("creator").asInstanceOf[JsString].value shouldEqual
+      "too-long-user-name/too-long-user-name/too-long-user-name/too-lon"
   }
 
 }

@@ -18,45 +18,42 @@ class SchemaSpec extends Test {
   }
 
   def asSql(text: String): String = toWords(text).mkString
+
   def asSql(statements: Iterator[String]): String = asSql(statements.mkString(" "))
 
 
-  "Self-test" should {
-    "split in upper case words and remove extra white spaces" in {
-      toWords(" Abc de_f   \nghi  \t ") shouldEqual List("ABC", " ", "DE_F", " ", "GHI")
-    }
-    "leave quoted blocks untouched" in {
-      // we don't support quote escaping because we clearly don't need it
-      toWords(""" abc "de_f "  ghi   """) shouldEqual List("ABC", " ", """"de_f """", " ", "GHI")
-      toWords(""""  abc "de_f   ghi   """) shouldEqual List(""""  abc """", "DE_F", " ", "GHI")
-      toWords(""" abc de_f   gh"i"""") shouldEqual List("ABC", " ", "DE_F", " ", "GH", """"i"""")
-    }
-    "keep the punctuation but not extra spaces" in {
-      // we don't support quote escaping because we clearly don't need it
-      toWords(""" abc, "de_f "  ghi   """) shouldEqual List("ABC", ",", """"de_f """", " ", "GHI")
-      toWords(""""abc "de_f ;-)ghi   """) shouldEqual List(""""abc """", "DE_F", ";-)", "GHI")
-      toWords(""" abc de_f("gh", i )""") shouldEqual List("ABC", " ", "DE_F", "(", """"gh"""", ",", "I", ")")
-    }
-    "normalize SQL and drop spaces" in {
-      asSql(
-        Seq(
-          """create table   "Foo_Bar" (""",
-          """  "id"    BIGINT    NOT NULL,""",
-          """  "others" [...]""",
-          """)"""
-        ).iterator
-      ) shouldEqual
-        """CREATE TABLE "Foo_Bar"("id" BIGINT NOT NULL,"others"[...])"""
-    }
+  test("Self-test splits in upper case words and remove extra white spaces") {
+    toWords(" Abc de_f   \nghi  \t ") shouldEqual List("ABC", " ", "DE_F", " ", "GHI")
+  }
+  test("Self-test leaves quoted blocks untouched") {
+    // we don't support quote escaping because we clearly don't need it
+    toWords(""" abc "de_f "  ghi   """) shouldEqual List("ABC", " ", """"de_f """", " ", "GHI")
+    toWords(""""  abc "de_f   ghi   """) shouldEqual List(""""  abc """", "DE_F", " ", "GHI")
+    toWords(""" abc de_f   gh"i"""") shouldEqual List("ABC", " ", "DE_F", " ", "GH", """"i"""")
+  }
+  test("Self-test keeps the punctuation but not extra spaces") {
+    // we don't support quote escaping because we clearly don't need it
+    toWords(""" abc, "de_f "  ghi   """) shouldEqual List("ABC", ",", """"de_f """", " ", "GHI")
+    toWords(""""abc "de_f ;-)ghi   """) shouldEqual List(""""abc """", "DE_F", ";-)", "GHI")
+    toWords(""" abc de_f("gh", i )""") shouldEqual List("ABC", " ", "DE_F", "(", """"gh"""", ",", "I", ")")
+  }
+  test("Self-test normalizes SQL and drop spaces") {
+    asSql(
+      Seq(
+        """create table   "Foo_Bar" (""",
+        """  "id"    BIGINT    NOT NULL,""",
+        """  "others" [...]""",
+        """)"""
+      ).iterator
+    ) shouldEqual
+      """CREATE TABLE "Foo_Bar"("id" BIGINT NOT NULL,"others"[...])"""
   }
 
-  "Schema" should {
-    "have correct create statements" in {
-      asSql(schema.all.createStatements) shouldEqual asSql(getResourceAsString("create-db.sql"))
-    }
+  test("Schema has correct create statements") {
+    asSql(schema.all.createStatements) shouldEqual asSql(getResourceAsString("create-db.sql"))
+  }
 
-    "have correct drop statements" in {
-      asSql(schema.all.dropStatements) shouldEqual asSql(getResourceAsString("drop-db.sql"))
-    }
+  test("Schema has correct drop statements") {
+    asSql(schema.all.dropStatements) shouldEqual asSql(getResourceAsString("drop-db.sql"))
   }
 }

@@ -2,10 +2,9 @@ package com.criteo.perpetuo.app
 
 import com.twitter.finagle.http.Status.Ok
 import com.twitter.finagle.http.{Request, Response}
-import com.twitter.finatra.http.HttpServer
 import com.twitter.finatra.http.filters.{LoggingMDCFilter, TraceIdMDCFilter}
 import com.twitter.finatra.http.routing.HttpRouter
-import com.twitter.finatra.http.test.EmbeddedHttpServer
+import com.twitter.finatra.http.{EmbeddedHttpServer, HttpServer}
 import com.twitter.inject.server.FeatureTest
 
 
@@ -25,15 +24,11 @@ class StaticAssetsControllerSpec extends FeatureTest {
     }
   })
 
-  "The StaticAssetsController" should {
-
-    "answer on /" in {
-      server.httpGet(
-        path = "/",
-        andExpect = Ok
-      )
-    }
-
+  test("The StaticAssetsController answers on /") {
+    server.httpGet(
+      path = "/",
+      andExpect = Ok
+    )
   }
 
 }

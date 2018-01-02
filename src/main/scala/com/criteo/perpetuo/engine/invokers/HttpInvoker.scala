@@ -5,8 +5,9 @@ import java.net.InetSocketAddress
 import com.criteo.perpetuo.engine.TargetExpr
 import com.criteo.perpetuo.model.{Target, Version}
 import com.twitter.conversions.time._
+import com.twitter.finagle.Http.Client
 import com.twitter.finagle.builder.ClientBuilder
-import com.twitter.finagle.http.{Http, Request, Response, Status}
+import com.twitter.finagle.http.{Request, Response, Status}
 import com.twitter.finagle.service.{Backoff, RetryPolicy}
 import com.twitter.util.{Await, Duration, Future => TwitterFuture, TimeoutException => TwitterTimeout, Try => TwitterTry}
 
@@ -35,7 +36,7 @@ abstract class HttpInvoker(val host: String,
 
   // todo: replace this by a protected [lazy] val and mock it in the utests
   var client: (Request) => TwitterFuture[Response] = (if (ssl) ClientBuilder().tlsWithoutValidation else ClientBuilder())
-    .codec(Http())
+    .stack(Client())
     .timeout(requestTimeout)
     .hostConnectionLimit(maxConnectionsPerHost)
     .hosts(new InetSocketAddress(host, port))

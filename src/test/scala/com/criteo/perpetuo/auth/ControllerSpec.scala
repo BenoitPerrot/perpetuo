@@ -8,7 +8,7 @@ import com.twitter.finagle.http.{Request, Response}
 import com.twitter.finatra.http.HttpServer
 import com.twitter.finatra.http.filters.{CommonFilters, LoggingMDCFilter, TraceIdMDCFilter}
 import com.twitter.finatra.http.routing.HttpRouter
-import com.twitter.finatra.http.test.EmbeddedHttpServer
+import com.twitter.finatra.http.EmbeddedHttpServer
 import com.twitter.inject.TwitterModule
 import com.twitter.inject.server.FeatureTest
 
@@ -47,27 +47,24 @@ class ControllerSpec extends FeatureTest {
   val knownUser = User("knownUser")
   val knownUserJWT = knownUser.toJWT(authModule.jwtEncoder)
 
-  "A Server" should {
-
-    "serve the authorizer url" in {
+  test("A Server serves the authorizer url") {
       server.httpGet("/api/auth/authorize-url",
         andExpect = Ok
       )
     }
 
-    "accept valid token" in {
+    test("A Server accepts valid token") {
       server.httpGet("/api/auth/identity",
         headers = Map("Cookie" -> s"jwt=$knownUserJWT"),
         andExpect = Ok
       )
     }
 
-    "reject invalid token" in {
+    test("A Server rejects invalid token") {
       server.httpGet("/api/auth/identity",
         headers = Map("Cookie" -> "jwt=DEADBEEF"),
         andExpect = Unauthorized
       )
     }
-  }
 
 }

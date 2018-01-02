@@ -31,26 +31,22 @@ class RundeckInvokerSpec extends Test with TestDb {
     logHref.get
   }
 
-  "Rundeck's API" should {
-    "be followed" when {
-      "everything goes well" in {
-        testWhenResponseIs(200, """{"id": 123, "permalink": "http://rundeck/job/123/show"}""") shouldEqual "http://rundeck/job/123/show"
-      }
+  test("Rundeck's API is followed when everything goes well") {
+    testWhenResponseIs(200, """{"id": 123, "permalink": "http://rundeck/job/123/show"}""") shouldEqual "http://rundeck/job/123/show"
+  }
 
-      "a connection problem occurs" in {
-        val exc = the[Exception] thrownBy testWhenResponseIs(403, "<html>gibberish</html>")
-        exc.getMessage shouldEqual "Bad response from rundeck: Forbidden"
-      }
+  test("Rundeck's API is followed when a connection problem occurs") {
+    val exc = the[Exception] thrownBy testWhenResponseIs(403, "<html>gibberish</html>")
+    exc.getMessage shouldEqual "Bad response from rundeck: Forbidden"
+  }
 
-      "an internal server error occurs" in {
-        val exc = the[Exception] thrownBy testWhenResponseIs(500, "<html><p>Intelligible error</p></html>")
-        exc.getMessage should endWith("Internal Server Error: Intelligible error")
-      }
+  test("Rundeck's API is followed when an internal server error occurs") {
+    val exc = the[Exception] thrownBy testWhenResponseIs(500, "<html><p>Intelligible error</p></html>")
+    exc.getMessage should endWith("Internal Server Error: Intelligible error")
+  }
 
-      "the request cannot be satisfied" in {
-        val exc = the[Exception] thrownBy testWhenResponseIs(400, """{"error": true, "message": "Intelligible error"}""")
-        exc.getMessage should endWith("""Bad Request: Intelligible error""")
-      }
-    }
+  test("Rundeck's API is followed when the request cannot be satisfied") {
+    val exc = the[Exception] thrownBy testWhenResponseIs(400, """{"error": true, "message": "Intelligible error"}""")
+    exc.getMessage should endWith("""Bad Request: Intelligible error""")
   }
 }

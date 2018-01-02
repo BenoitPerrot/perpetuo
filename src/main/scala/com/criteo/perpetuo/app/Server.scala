@@ -8,7 +8,7 @@ import com.twitter.finatra.http.filters.{LoggingMDCFilter, TraceIdMDCFilter}
 import com.twitter.finatra.http.routing.HttpRouter
 import com.twitter.finatra.http.{HttpServer, Controller => BaseController}
 import com.twitter.finatra.json.modules.FinatraJacksonModule
-import com.twitter.finatra.logging.modules.Slf4jBridgeModule
+
 
 object CustomServerModules {
   val jackson = CustomJacksonModule
@@ -24,7 +24,6 @@ class Server extends HttpServer {
   override protected def jacksonModule: FinatraJacksonModule = CustomServerModules.jackson
 
   override def modules = Seq(
-    Slf4jBridgeModule,
     new DbContextModule(config.getConfig("db")),
     new PluginsModule(config),
     new AuthModule(config.getConfig("auth"))

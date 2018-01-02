@@ -20,34 +20,26 @@ class ExecutorInvokerSpec extends Test {
   new StupidExecutorInvoker("bar")
 
 
-  "Getting execution details" should {
-    "throw an exception" when {
-      "the log href is unintelligible" in {
-        val thrown = the[Exception] thrownBy ExecutorInvoker.getExecutionDetailsUrl("blah")
-        thrown.getMessage shouldEqual "Could not interpret log href `blah`"
-      }
+  test("Getting execution details throws an exception when the log href is unintelligible") {
+    val thrown = the[Exception] thrownBy ExecutorInvoker.getExecutionDetailsUrl("blah")
+    thrown.getMessage shouldEqual "Could not interpret log href `blah`"
+  }
 
-      "the log href is ambiguous" in {
-        val thrown = the[Exception] thrownBy ExecutorInvoker.getExecutionDetailsUrl("foobar")
-        thrown.getMessage should startWith("Multiple interpretations for `foobar`")
-      }
-    }
+  test("Getting execution details throws an exception when the log href is ambiguous") {
+    val thrown = the[Exception] thrownBy ExecutorInvoker.getExecutionDetailsUrl("foobar")
+    thrown.getMessage should startWith("Multiple interpretations for `foobar`")
+  }
 
-    "return the log href immediately" when {
-      "it's already a URL" in {
-        ExecutorInvoker.getExecutionDetailsUrl("http://blah") shouldEqual "http://blah"
-      }
+  test("Getting execution details returns the log href immediately when it's already a URL") {
+    ExecutorInvoker.getExecutionDetailsUrl("http://blah") shouldEqual "http://blah"
+  }
 
-      "it's already a URL (even when it could be understand by invokers)" in {
-        ExecutorInvoker.getExecutionDetailsUrl("https://foo.bar") shouldEqual "https://foo.bar"
-      }
-    }
+  test("Getting execution details returns the log href immediately when it's already a URL (even when it could be understand by invokers)") {
+    ExecutorInvoker.getExecutionDetailsUrl("https://foo.bar") shouldEqual "https://foo.bar"
+  }
 
-    "return the result of the interpretation" when {
-      "exactly one invoker 'recognises' the log href" in {
-        ExecutorInvoker.getExecutionDetailsUrl("τ-foo") shouldEqual "τ-foo, because foo!"
-        ExecutorInvoker.getExecutionDetailsUrl("barracuda") shouldEqual "barracuda, because bar!"
-      }
-    }
+  test("Getting execution details returns the result of the interpretation when exactly one invoker 'recognises' the log href") {
+    ExecutorInvoker.getExecutionDetailsUrl("τ-foo") shouldEqual "τ-foo, because foo!"
+    ExecutorInvoker.getExecutionDetailsUrl("barracuda") shouldEqual "barracuda, because bar!"
   }
 }

@@ -113,60 +113,84 @@ class OperationStarterSpec extends Test with TestDb {
   }
 
 
-  "A trivial execution" should {
-    "trigger a job with no log href when there is no log href provided" in {
-      Await.result(
-        getExecutions(DummyTargetDispatcher).map(_ shouldEqual Seq((1, None))),
-        1.second
-      )
-    }
+  test("A trivial execution triggers a job with no log href when there is no log href provided") {
+    Await.result(
+      getExecutions(DummyTargetDispatcher).map(_ shouldEqual Seq((1, None))),
+      1.second
+    )
+  }
 
-    "trigger a job with a log href when a log href is provided as a Future" in {
-      Await.result(
-        getExecutions(SingleTargetDispatcher(DummyInvokerWithLogHref)).map(_ shouldEqual Seq((2, Some("#1")))),
-        1.second
-      )
-    }
-
+  test("A trivial execution triggers a job with a log href when a log href is provided as a Future") {
+    Await.result(
+      getExecutions(SingleTargetDispatcher(DummyInvokerWithLogHref)).map(_ shouldEqual Seq((2, Some("#1")))),
+      1.second
+    )
   }
 
 
-  "A complex execution" should {
+  test("A complex execution calls the right executor when available for each exact target word") {
+    Set("a", "c") dispatchedAs Map(
+      aInvoker -> Set("a"),
+      cInvoker -> Set("c")
+    )
+  }
 
-    "call the right executor when available for each exact target word" in {
-      Set("a", "c") dispatchedAs Map(
-        aInvoker -> Set("a"),
-        cInvoker -> Set("c")
-      )
-    }
+  test("A complex execution gathers target words on executors") {
+    Set("abc-ab", "cb") dispatchedAs Map(
+      aInvoker -> Set("abc", "ab"),
+      bInvoker -> Set("abc", "ab", "cb"),
+      cInvoker -> Set("abc", "cb")
+    )
+  }
 
-    "gather target words on executors" in {
-      Set("abc-ab", "cb") dispatchedAs Map(
-        aInvoker -> Set("abc", "ab"),
-        bInvoker -> Set("abc", "ab", "cb"),
-        cInvoker -> Set("abc", "cb")
-      )
-    }
+  test("A complex execution raises if a target cannot be solved to atomic targets") {
+    val thrown = the[IllegalArgumentException] thrownBy execution.expandTarget(testResolver, null, Version("\"\""), Set(TargetTerm(select = Set("ab", "-"))))
+    thrown.getMessage should endWith("`-` is not a valid target in that context")
+  }
 
-    "raise if a target cannot be solved to atomic targets" in {
-      val thrown = the[IllegalArgumentException] thrownBy execution.expandTarget(testResolver, null, Version("\"\""), Set(TargetTerm(select = Set("ab", "-"))))
-      thrown.getMessage should endWith("`-` is not a valid target in that context")
-    }
-
-    "raise if a target is not fully covered by executors" in {
-      val params = TestTargetDispatcher.freezeParameters("", Version(""""42""""))
-      val thrown = the[IllegalArgumentException] thrownBy execution.dispatchToExecutors(TestTargetDispatcher, Set("def"), params)
-      thrown.getMessage shouldEqual "requirement failed: Some targets have been lost in dispatching: def"
-    }
-
+  test("A complex execution raises if a target is not fully covered by executors") {
+    val params = TestTargetDispatcher.freezeParameters("", Version(""""42""""))
+    val thrown = the[IllegalArgumentException] thrownBy execution.dispatchToExecutors(TestTargetDispatcher, Set("def"), params)
+    thrown.getMessage shouldEqual "requirement failed: Some targets have been lost in dispatching: def"
   }
 
 
-  "A complex target expression" should {
-
-    "be appropriately dispatched among impacted executors" in {
-      Set(
-        TargetTerm(select = Set("aa", "ab-a")),
+  test("A complex target expression is appropriately dispatched among impacted executors") {
+    Set(
+      TargetTerm(select = Set("aa", "ab-a")),
+      TargetTerm(
+        Set(
+          JsObject(
+            "ratio" -> JsNumber(0.05),
+            "awesome" -> JsTrue
+          ),
+          JsObject(
+            "tag" -> JsString("canary"),
+            "ratio" -> JsNumber(0.05)
+          )
+        ),
+        Set("bb-ab", "cc")
+      )
+    ) dispatchedAs Map(
+      aInvoker -> Set(
+        TargetTerm(select = Set("aa", "a")),
+        TargetTerm(
+          Set(
+            JsObject(),
+            JsObject(
+              "ratio" -> JsNumber(0.05),
+              "awesome" -> JsTrue
+            ),
+            JsObject(
+              "tag" -> JsString("canary"),
+              "ratio" -> JsNumber(0.05)
+            )
+          ),
+          Set("ab")
+        )
+      ),
+      bInvoker -> Set(
+        TargetTerm(select = Set("ab")),
         TargetTerm(
           Set(
             JsObject(
@@ -178,117 +202,80 @@ class OperationStarterSpec extends Test with TestDb {
               "ratio" -> JsNumber(0.05)
             )
           ),
-          Set("bb-ab", "cc")
+          Set("bb", "ab")
         )
-      ) dispatchedAs Map(
-        aInvoker -> Set(
-          TargetTerm(select = Set("aa", "a")),
-          TargetTerm(
-            Set(
-              JsObject(),
-              JsObject(
-                "ratio" -> JsNumber(0.05),
-                "awesome" -> JsTrue
-              ),
-              JsObject(
-                "tag" -> JsString("canary"),
-                "ratio" -> JsNumber(0.05)
-              )
+      ),
+      cInvoker -> Set(
+        TargetTerm(
+          Set(
+            JsObject(
+              "ratio" -> JsNumber(0.05),
+              "awesome" -> JsTrue
             ),
-            Set("ab")
-          )
-        ),
-        bInvoker -> Set(
-          TargetTerm(select = Set("ab")),
-          TargetTerm(
-            Set(
-              JsObject(
-                "ratio" -> JsNumber(0.05),
-                "awesome" -> JsTrue
-              ),
-              JsObject(
-                "tag" -> JsString("canary"),
-                "ratio" -> JsNumber(0.05)
-              )
-            ),
-            Set("bb", "ab")
-          )
-        ),
-        cInvoker -> Set(
-          TargetTerm(
-            Set(
-              JsObject(
-                "ratio" -> JsNumber(0.05),
-                "awesome" -> JsTrue
-              ),
-              JsObject(
-                "tag" -> JsString("canary"),
-                "ratio" -> JsNumber(0.05)
-              )
-            ),
-            Set("cc")
-          )
-        )
-      )
-    }
-
-    "be dispatched as short target expressions" in {
-      val Alternatives = Set
-      val params = TestTargetDispatcher.freezeParameters("", Version(""""42""""))
-      assertEqual(
-        execution.dispatchAlternatives(TestTargetDispatcher, Set(
-          TargetTerm(Set(JsObject("ratio" -> JsNumber(0.05), "foo" -> JsString("bar"))), Set("ab")),
-          TargetTerm(Set(JsObject("ratio" -> JsNumber(0.05))), Set("assault")),
-          TargetTerm(Set(JsObject("ratio" -> JsNumber(0.05))), Set("appendix")),
-          TargetTerm(Set(JsObject("ratio" -> JsNumber(0.05))), Set("alpha")),
-          TargetTerm(select = Set("alpha"))
-        ), params).toMap,
-        Map(
-          aInvoker -> Alternatives(
-            Set(
-              TargetTerm(Set(JsObject("ratio" -> JsNumber(0.05), "foo" -> JsString("bar"))), Set("ab")),
-              TargetTerm(Set(JsObject("ratio" -> JsNumber(0.05))), Set("assault", "appendix", "alpha")),
-              TargetTerm(select = Set("alpha"))
-            ),
-            Set(
-              TargetTerm(Set(JsObject("ratio" -> JsNumber(0.05), "foo" -> JsString("bar"))), Set("ab")),
-              TargetTerm(Set(JsObject("ratio" -> JsNumber(0.05))), Set("assault", "appendix")),
-              TargetTerm(Set(JsObject("ratio" -> JsNumber(0.05)), JsObject()), Set("alpha"))
+            JsObject(
+              "tag" -> JsString("canary"),
+              "ratio" -> JsNumber(0.05)
             )
           ),
-          bInvoker -> Alternatives( // there is only one possible representation for such a simple expression
-            Set(
-              TargetTerm(Set(JsObject("ratio" -> JsNumber(0.05), "foo" -> JsString("bar"))), Set("ab"))
-            )
+          Set("cc")
+        )
+      )
+    )
+  }
+
+  test("A complex target expression is dispatched as short target expressions") {
+    val Alternatives = Set
+    val params = TestTargetDispatcher.freezeParameters("", Version(""""42""""))
+    assertEqual(
+      execution.dispatchAlternatives(TestTargetDispatcher, Set(
+        TargetTerm(Set(JsObject("ratio" -> JsNumber(0.05), "foo" -> JsString("bar"))), Set("ab")),
+        TargetTerm(Set(JsObject("ratio" -> JsNumber(0.05))), Set("assault")),
+        TargetTerm(Set(JsObject("ratio" -> JsNumber(0.05))), Set("appendix")),
+        TargetTerm(Set(JsObject("ratio" -> JsNumber(0.05))), Set("alpha")),
+        TargetTerm(select = Set("alpha"))
+      ), params).toMap,
+      Map(
+        aInvoker -> Alternatives(
+          Set(
+            TargetTerm(Set(JsObject("ratio" -> JsNumber(0.05), "foo" -> JsString("bar"))), Set("ab")),
+            TargetTerm(Set(JsObject("ratio" -> JsNumber(0.05))), Set("assault", "appendix", "alpha")),
+            TargetTerm(select = Set("alpha"))
+          ),
+          Set(
+            TargetTerm(Set(JsObject("ratio" -> JsNumber(0.05), "foo" -> JsString("bar"))), Set("ab")),
+            TargetTerm(Set(JsObject("ratio" -> JsNumber(0.05))), Set("assault", "appendix")),
+            TargetTerm(Set(JsObject("ratio" -> JsNumber(0.05)), JsObject()), Set("alpha"))
+          )
+        ),
+        bInvoker -> Alternatives( // there is only one possible representation for such a simple expression
+          Set(
+            TargetTerm(Set(JsObject("ratio" -> JsNumber(0.05), "foo" -> JsString("bar"))), Set("ab"))
           )
         )
       )
-    }
-
+    )
   }
 
 
-  "Target dispatching" should {
-    "deduplicate targets and regenerate them (per executor) in a concise way" in {
-      val targetWithDuplicates: TargetExpr = Set(
-        TargetTerm(Set(JsObject("foo" -> JsString("bar"), "bar" -> JsString("baz"))), Set("abc", "def")),
-        TargetTerm(Set(JsObject("foo" -> JsString("bar"), "bar" -> JsString("baz"))), Set("abc", "def")),
-        TargetTerm(Set(JsObject("foo" -> JsString("bar"), "bar" -> JsString("baz"))), Set("abc")),
-        TargetTerm(Set(JsObject("foo" -> JsString("bar"), "bar" -> JsString("baz"))), Set("def")),
-        TargetTerm(Set(JsObject("foo" -> JsString("bar"), "bar" -> JsString("baz"))), Set("ghi")),
-        TargetTerm(Set(JsObject("foo" -> JsString("bar2"))), Set("ghi")),
-        TargetTerm(Set(JsObject("foo2" -> JsString("bar"))), Set("ghi"))
+  test("Target dispatching deduplicates targets and regenerate them (per executor) in a concise way") {
+    val targetWithDuplicates: TargetExpr = Set(
+      TargetTerm(Set(JsObject("foo" -> JsString("bar"), "bar" -> JsString("baz"))), Set("abc", "def")),
+      TargetTerm(Set(JsObject("foo" -> JsString("bar"), "bar" -> JsString("baz"))), Set("abc", "def")),
+      TargetTerm(Set(JsObject("foo" -> JsString("bar"), "bar" -> JsString("baz"))), Set("abc")),
+      TargetTerm(Set(JsObject("foo" -> JsString("bar"), "bar" -> JsString("baz"))), Set("def")),
+      TargetTerm(Set(JsObject("foo" -> JsString("bar"), "bar" -> JsString("baz"))), Set("ghi")),
+      TargetTerm(Set(JsObject("foo" -> JsString("bar2"))), Set("ghi")),
+      TargetTerm(Set(JsObject("foo2" -> JsString("bar"))), Set("ghi"))
+    )
+    val dispatchedTargets = execution
+      .dispatch(DummyTargetDispatcher, targetWithDuplicates, "")
+      .map(_._2)
+    assertEqual(dispatchedTargets, Seq(
+      Set(
+        TargetTerm(Set(JsObject("foo" -> JsString("bar"), "bar" -> JsString("baz"))), Set("abc", "def", "ghi")),
+        TargetTerm(Set(JsObject("foo" -> JsString("bar2")), JsObject("foo2" -> JsString("bar"))), Set("ghi"))
       )
-      val dispatchedTargets = execution
-        .dispatch(DummyTargetDispatcher, targetWithDuplicates, "")
-        .map(_._2)
-      assertEqual(dispatchedTargets, Seq(
-        Set(
-          TargetTerm(Set(JsObject("foo" -> JsString("bar"), "bar" -> JsString("baz"))), Set("abc", "def", "ghi")),
-          TargetTerm(Set(JsObject("foo" -> JsString("bar2")), JsObject("foo2" -> JsString("bar"))), Set("ghi"))
-        )
-      ))
-    }
+    ))
   }
 
   private def assertEqual(challenger: Any, expected: Any, path: String = "root"): Unit = {
