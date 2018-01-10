@@ -1,5 +1,5 @@
 ALTER TABLE "lock"
-  DROP CONSTRAINT "fk_lock_operation_trace_id"
+  DROP CONSTRAINT "fk_lock_deployment_request_id"
 ALTER TABLE "execution_trace"
   DROP CONSTRAINT "fk_execution_trace_execution_id"
 ALTER TABLE "target_status"

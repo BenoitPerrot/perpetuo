@@ -85,8 +85,8 @@ ALTER TABLE "execution_trace"
 
 
 CREATE TABLE "lock" (
-  "name"               NVARCHAR(128) NOT NULL,
-  "operation_trace_id" BIGINT        NOT NULL
+  "name"                  NVARCHAR(128) NOT NULL,
+  "deployment_request_id" BIGINT        NOT NULL
 )
 ALTER TABLE "lock"
   ADD CONSTRAINT "pk_lock" PRIMARY KEY ("name")
@@ -117,6 +117,6 @@ ALTER TABLE "execution_trace"
   ON UPDATE NO ACTION
   ON DELETE NO ACTION
 ALTER TABLE "lock"
-  ADD CONSTRAINT "fk_lock_operation_trace_id" FOREIGN KEY ("operation_trace_id") REFERENCES "operation_trace" ("id")
+  ADD CONSTRAINT "fk_lock_deployment_request_id" FOREIGN KEY ("deployment_request_id") REFERENCES "deployment_request" ("id")
   ON UPDATE NO ACTION
   ON DELETE NO ACTION

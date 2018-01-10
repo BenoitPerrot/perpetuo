@@ -2,11 +2,11 @@ package com.criteo.perpetuo.dao
 
 
 private[dao] case class LockRecord(name: String,
-                                   operationTraceId: Long)
+                                   deploymentRequestId: Long)
 
 
 trait LockBinder extends TableBinder {
-  this: OperationTraceBinder with DbContextProvider =>
+  this: DeploymentRequestBinder with DbContextProvider =>
 
   import dbContext.driver.api._
 
@@ -14,10 +14,10 @@ trait LockBinder extends TableBinder {
     def name = column[String]("name", O.SqlType("nvarchar(128)"))
     protected def pk = primaryKey(name)
 
-    def operationTraceId = column[Long]("operation_trace_id")
-    protected def fk = foreignKey(operationTraceId, operationTraceQuery)(_.id)
+    def deploymentRequestId = column[Long]("deployment_request_id")
+    protected def fk = foreignKey(deploymentRequestId, deploymentRequestQuery)(_.id)
 
-    def * = (name, operationTraceId) <> (LockRecord.tupled, LockRecord.unapply)
+    def * = (name, deploymentRequestId) <> (LockRecord.tupled, LockRecord.unapply)
   }
 
   val lockQuery: TableQuery[LockTable] = TableQuery[LockTable]
