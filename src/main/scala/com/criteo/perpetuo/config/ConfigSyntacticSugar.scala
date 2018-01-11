@@ -18,6 +18,8 @@ object ConfigSyntacticSugar {
     }.asInstanceOf[T]
 
     def tryGetConfig(path: String): Option[Config] = if (config.hasPath(path)) Some(config.getConfig(path)) else None
+
+    def tryGetConfigList(path: String): Option[Seq[Config]] = if (config.hasPath(path)) Some(config.getConfigList(path).asScala) else None
   }
 
 }
