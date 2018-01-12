@@ -16,14 +16,14 @@ object DeploymentAction extends Enumeration {
 
 
 trait Permissions {
-  def isAuthorized(username: String, action: GeneralAction.Value): Boolean
+  def isAuthorized(user: User, action: GeneralAction.Value): Boolean
 
-  def isAuthorized(username: String, action: DeploymentAction.Value, operation: Operation.Kind, productName: String, target: Iterable[String]): Boolean
+  def isAuthorized(user: User, action: DeploymentAction.Value, operation: Operation.Kind, productName: String, target: Iterable[String]): Boolean
 }
 
 
 class Unrestricted extends Permissions {
-  override def isAuthorized(username: String, action: GeneralAction.Value) = true
+  override def isAuthorized(user: User, action: GeneralAction.Value) = true
 
-  override def isAuthorized(username: String, action: DeploymentAction.Value, operation: Operation.Kind, productName: String, target: Iterable[String]) = true
+  override def isAuthorized(user: User, action: DeploymentAction.Value, operation: Operation.Kind, productName: String, target: Iterable[String]) = true
 }

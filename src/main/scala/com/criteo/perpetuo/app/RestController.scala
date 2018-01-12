@@ -91,7 +91,7 @@ class RestController @Inject()(val engine: Engine)
   }
 
   post("/api/products") { r: ProductPost =>
-    authenticate(r.request) { case user if permissions.isAuthorized(user.name, GeneralAction.addProduct) =>
+    authenticate(r.request) { case user if permissions.isAuthorized(user, GeneralAction.addProduct) =>
       timeBoxed(
         engine.insertProduct(r.name)
           .map(_ => Some(response.created.nothing))
@@ -121,7 +121,7 @@ class RestController @Inject()(val engine: Engine)
       }
 
       def authorized(actionType: DeploymentAction.Value) =
-        permissions.isAuthorized(user.name, actionType, Operation.deploy, allAttrs.productName, targets)
+        permissions.isAuthorized(user, actionType, Operation.deploy, allAttrs.productName, targets)
 
       if (!authorized(DeploymentAction.requestOperation) || (autoStart && !authorized(DeploymentAction.applyOperation)))
         throw new HttpResponseException(response.forbidden)
@@ -194,7 +194,7 @@ class RestController @Inject()(val engine: Engine)
                   case _: NoSuchElementException => throw BadRequestException(s"Action ${r.actionType} doesn't exist")
                 }
                 val targets = deploymentRequest.parsedTarget.select
-                if (permissions.isAuthorized(user.name, DeploymentAction.applyOperation, operation, deploymentRequest.product.name, targets)) {
+                if (permissions.isAuthorized(user, DeploymentAction.applyOperation, operation, deploymentRequest.product.name, targets)) {
                   val (checking, effect) = operation match {
                     case Operation.deploy => (engine.canDeployDeploymentRequest(deploymentRequest), if (isStarted) engine.deployAgain _ else engine.startDeploymentRequest _)
                     case Operation.revert => (engine.canRevertDeploymentRequest(deploymentRequest, isStarted), engine.rollbackDeploymentRequest(_: Long, _: String, r.defaultVersion.map(Version.apply)))
@@ -291,12 +291,12 @@ class RestController @Inject()(val engine: Engine)
         .flatMap(_.map { case (deploymentRequest, sortedEffects) =>
           val targets = deploymentRequest.parsedTarget.select
           val isAdmin = r.request.user.exists(user =>
-            permissions.isAuthorized(user.name, GeneralAction.administrate)
+            permissions.isAuthorized(user, GeneralAction.administrate)
           )
 
           // todo: a future workflow will differentiate requests and applies
           def authorized(op: Operation.Kind) = r.request.user.exists(user =>
-            permissions.isAuthorized(user.name, DeploymentAction.applyOperation, op, deploymentRequest.product.name, targets)
+            permissions.isAuthorized(user, DeploymentAction.applyOperation, op, deploymentRequest.product.name, targets)
           )
 
           Future
