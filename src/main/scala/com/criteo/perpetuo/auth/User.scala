@@ -2,7 +2,7 @@ package com.criteo.perpetuo.auth
 
 import spray.json._
 
-case class User(name: String) {
+case class User(name: String, groupNames: Set[String] = Set("Users")) { // TODO: actually create this set
   def toJWT(encoder: JWTEncoder): String = encoder.encode(JsObject("name" -> JsString(name)).compactPrint)
 }
 

@@ -91,8 +91,8 @@ class Plugins(config: Config) {
   val permissions: Permissions =
     config.tryGetConfig("permissions").map { desc =>
       resolve[Permissions](desc, "type of permissions", groovySupported = true) {
-        case t@"filterUsernames" =>
-          new PermissionsByOperationAndUsername(desc.getConfig(t))
+        case t@"fineGrained" =>
+          FineGrainedPermissions.fromConfig(desc.getConfig(t))
       }
     }.getOrElse(new Unrestricted)
 
