@@ -271,7 +271,7 @@ class DbBinding @Inject()(val dbContext: DbContext)
     * @return the target atoms for which there is no previous execution specification on the same product,
     *         followed by the groups of target atoms sharing the same last execution specification for the same product.
     */
-  def findExecutionSpecificationsForRollback(deploymentRequest: DeploymentRequest): Future[(Select, Iterable[(ExecutionSpecification, Select)])] = {
+  def findExecutionSpecificationsForRevert(deploymentRequest: DeploymentRequest): Future[(Select, Iterable[(ExecutionSpecification, Select)])] = {
     val previousTargetStatuses = targetStatusQuery
       .join(executionQuery)
       .join(operationTraceQuery)
@@ -327,7 +327,7 @@ class DbBinding @Inject()(val dbContext: DbContext)
     // The given deployment request has a specification for each target atom;
     // once we put aside the possible revert operations on this very deployment request (only),
     // for each target atom, if the last operation has the same specification as this deployment request,
-    // then the deployment request is actionable: it can be retried, it can be rolled back.
+    // then the deployment request is actionable: it can be retried, it can be reverted.
     // Note that if this deployment request has never been applied, it's also actionable.
     val query = operationTraceQuery
       .filter { op => op.deploymentRequestId === deploymentRequest.id && op.operation === Operation.deploy }

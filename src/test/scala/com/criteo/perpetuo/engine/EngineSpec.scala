@@ -71,9 +71,9 @@ class EngineSpec extends Test with TestDb {
     } yield (deploymentRequestId, executionSpecIds.head)
   }
 
-  def mockRollbackExecution(deploymentRequestId: Long, targetAtomToStatus: Map[String, Status.Code], defaultVersion: Option[Version] = None): Future[Long] = {
+  def mockRevertExecution(deploymentRequestId: Long, targetAtomToStatus: Map[String, Status.Code], defaultVersion: Option[Version] = None): Future[Long] = {
     for {
-      operationTraceId <- engine.rollbackDeploymentRequest(deploymentRequestId, "r.everter", defaultVersion).map(_.get.id)
+      operationTraceId <- engine.revert(deploymentRequestId, "r.everter", defaultVersion).map(_.get.id)
       executionTraceIds <- engine.dbBinding.findExecutionTraceIdsByOperationTrace(operationTraceId)
       _ <- Future.traverse(executionTraceIds)(
         engine.updateExecutionTrace(_, ExecutionState.completed, "", "", targetAtomToStatus.mapValues(c => TargetAtomStatus(c, "")))
@@ -97,13 +97,13 @@ class EngineSpec extends Test with TestDb {
           .map(_ => "unrejected").recover { case UnprocessableAction(msg, _) => msg }
 
         // the failing one must be reverted first
-        _ <- mockRollbackExecution(secondId, Map("corn-field" -> Status.hostFailure), Some(Version(""""big-bang"""")))
+        _ <- mockRevertExecution(secondId, Map("corn-field" -> Status.hostFailure), Some(Version(""""big-bang"""")))
 
         // OK after the failing has been reverted (even if the revert failed)
         (thirdId, _) <- mockDeployExecution(product.name, "101", Map("racing" -> Status.success))
 
         // note that we can revert a successful operation
-        _ <- mockRollbackExecution(thirdId, Map("racing" -> Status.success))
+        _ <- mockRevertExecution(thirdId, Map("racing" -> Status.success))
 
         // OK after a revert of a successful operation
         _ <- mockDeployExecution(product.name, "102", Map("corn-field" -> Status.notDone), Some("crashed at start"))
@@ -143,7 +143,7 @@ class EngineSpec extends Test with TestDb {
     ) shouldBe "a newer one has already been applied"
   }
 
-  test("Engine finds executions for rolling back") {
+  test("Engine finds executions for reverting") {
     Await.result(
       for {
         product <- engine.insertProduct("mouse")
@@ -157,13 +157,13 @@ class EngineSpec extends Test with TestDb {
         (thirdDeploymentRequestId, thirdExecSpecId) <- mockDeployExecution(product.name, "69", Map("moon" -> Status.success, "mars" -> Status.productFailure))
         // Status = moon: mouse@69, mars: mouse@69?, venus: mouse@54
 
-        // Can't rollback as-is the first deployment request: we need to know the default rollback version
+        // Can't revert as-is the first deployment request: we need to know the default revert version
         firstDeploymentRequest <- engine.dbBinding.findDeepDeploymentRequestById(firstDeploymentRequestId).map(_.get)
-        (undeterminedSpecsFirst, determinedSpecsFirst) <- engine.dbBinding.findExecutionSpecificationsForRollback(firstDeploymentRequest)
+        (undeterminedSpecsFirst, determinedSpecsFirst) <- engine.dbBinding.findExecutionSpecificationsForRevert(firstDeploymentRequest)
 
-        // Can rollback
+        // Can revert
         thirdDeploymentRequest <- engine.dbBinding.findDeepDeploymentRequestById(thirdDeploymentRequestId).map(_.get)
-        (undeterminedSpecsThird, determinedSpecsThird) <- engine.dbBinding.findExecutionSpecificationsForRollback(thirdDeploymentRequest)
+        (undeterminedSpecsThird, determinedSpecsThird) <- engine.dbBinding.findExecutionSpecificationsForRevert(thirdDeploymentRequest)
 
       } yield {
         val specsThird = determinedSpecsThird.map { case (spec, targets) => spec.id -> (spec.version.toString, targets) }.toMap
@@ -179,7 +179,7 @@ class EngineSpec extends Test with TestDb {
     ) shouldBe(Set("moon", "mars"), true, true, (""""27"""", Set("mars")), (""""54"""", Set("moon")))
   }
 
-  test("Engine checks if an operation can be rolled back") {
+  test("Engine checks if an operation can be reverted") {
     Await.result(
       for {
         product <- engine.insertProduct("monkey")
@@ -197,13 +197,13 @@ class EngineSpec extends Test with TestDb {
         (otherDeploymentRequestId, _) <- mockDeployExecution(otherProduct.name, "215", Map("orbit" -> Status.success, "venus" -> Status.success))
         // Status = orbit: monkey@69 + bonobo@215, venus: monkey@69 + bonobo@215
 
-        // Second request can't be rolled back
+        // Second request can't be reverted
         secondDeploymentRequest <- engine.dbBinding.findDeepDeploymentRequestById(secondDeploymentRequestId).map(_.get)
         rejectionOfSecond <- engine.canRevertDeploymentRequest(secondDeploymentRequest, isStarted = true).failed
-        // Third one can be rolled back, because it's the last one for its product
+        // Third one can be reverted, because it's the last one for its product
         thirdDeploymentRequest <- engine.dbBinding.findDeepDeploymentRequestById(thirdDeploymentRequestId).map(_.get)
         _ <- engine.canRevertDeploymentRequest(thirdDeploymentRequest, isStarted = true)
-        // Meanwhile the deployment on another product can be rolled back (even when it's the first one for that product: it just requires a default rollback version)
+        // Meanwhile the deployment on another product can be reverted (even when it's the first one for that product: it just requires a default revert version)
         otherDeploymentRequest <- engine.dbBinding.findDeepDeploymentRequestById(otherDeploymentRequestId).map(_.get)
         _ <- engine.canRevertDeploymentRequest(otherDeploymentRequest, isStarted = true)
       } yield rejectionOfSecond.getMessage,
@@ -211,8 +211,8 @@ class EngineSpec extends Test with TestDb {
     ) shouldBe "a newer one has already been applied"
   }
 
-  test("Engine performs a roll back") {
-    val defaultRollbackVersion = Version(""""00"""")
+  test("Engine performs a revert") {
+    val defaultRevertVersion = Version(""""00"""")
     Await.result(
       for {
         product <- engine.insertProduct("pony")
@@ -224,48 +224,48 @@ class EngineSpec extends Test with TestDb {
         secondDeploymentRequest <- engine.dbBinding.findDeepDeploymentRequestById(secondDeploymentRequestId).map(_.get)
         // Status = tic: pony@22, tac: pony@22
 
-        // Rollback the last deployment request
-        rollbackOperationTraceIdA <- mockRollbackExecution(secondDeploymentRequestId, Map("tic" -> Status.success, "tac" -> Status.hostFailure), None)
-        rollbackExecutionSpecIdsA <- engine.dbBinding.findExecutionSpecIdsByOperationTrace(rollbackOperationTraceIdA)
+        // Revert the last deployment request
+        revertOperationTraceIdA <- mockRevertExecution(secondDeploymentRequestId, Map("tic" -> Status.success, "tac" -> Status.hostFailure), None)
+        revertExecutionSpecIdsA <- engine.dbBinding.findExecutionSpecIdsByOperationTrace(revertOperationTraceIdA)
         // Status = tic: pony@11, tac: pony@11
 
         (thirdDeploymentRequestId, thirdExecSpecId) <- mockDeployExecution(product.name, "33", Map("tic" -> Status.success, "tac" -> Status.success))
         // Status = tic: pony@33, tac: pony@33
 
-        // Second request can't be rolled back anymore
+        // Second request can't be reverted anymore
         rejectionOfSecondA <- engine.canRevertDeploymentRequest(secondDeploymentRequest, isStarted = true).failed
 
-        // Rollback the last deployment request
-        rollbackOperationTraceIdB <- mockRollbackExecution(thirdDeploymentRequestId, Map("tic" -> Status.success, "tac" -> Status.success), None)
-        rollbackExecutionSpecIdsB <- engine.dbBinding.findExecutionSpecIdsByOperationTrace(rollbackOperationTraceIdB)
+        // Revert the last deployment request
+        revertOperationTraceIdB <- mockRevertExecution(thirdDeploymentRequestId, Map("tic" -> Status.success, "tac" -> Status.success), None)
+        revertExecutionSpecIdsB <- engine.dbBinding.findExecutionSpecIdsByOperationTrace(revertOperationTraceIdB)
         // Status = tic: pony@11, tac: pony@11
 
-        // Second request still can't be rolled back
+        // Second request still can't be reverted
         rejectionOfSecondB <- engine.canRevertDeploymentRequest(secondDeploymentRequest, isStarted = true).failed
 
-        // Can rollback the first one now that the second one has been rolled back, but it requires to specify to which version to rollback
-        detail <- engine.rollbackDeploymentRequest(firstDeploymentRequestId, "r.ollbacker", None).recover { case e: UnprocessableAction => e.detail }
+        // Can revert the first one now that the second one has been reverted, but it requires to specify to which version to revert
+        detail <- engine.revert(firstDeploymentRequestId, "r.ollbacker", None).recover { case e: UnprocessableAction => e.detail }
 
-        rollbackOperationTraceC <- engine.rollbackDeploymentRequest(firstDeploymentRequestId, "r.ollbacker", Some(defaultRollbackVersion)).map(_.get)
-        rollbackExecutionSpecIdsC <- engine.dbBinding.findExecutionSpecIdsByOperationTrace(rollbackOperationTraceC.id)
-        rollbackExecutionSpecC <- engine.dbBinding.findExecutionSpecificationById(rollbackExecutionSpecIdsC.head).map(_.get)
+        revertOperationTraceC <- engine.revert(firstDeploymentRequestId, "r.ollbacker", Some(defaultRevertVersion)).map(_.get)
+        revertExecutionSpecIdsC <- engine.dbBinding.findExecutionSpecIdsByOperationTrace(revertOperationTraceC.id)
+        revertExecutionSpecC <- engine.dbBinding.findExecutionSpecificationById(revertExecutionSpecIdsC.head).map(_.get)
 
       } yield (
-        rollbackExecutionSpecIdsA.length,
-        rollbackExecutionSpecIdsA.contains(firstExecSpecId),
+        revertExecutionSpecIdsA.length,
+        revertExecutionSpecIdsA.contains(firstExecSpecId),
 
         rejectionOfSecondA.getMessage,
 
-        rollbackExecutionSpecIdsB.length,
-        rollbackExecutionSpecIdsB.contains(firstExecSpecId),
+        revertExecutionSpecIdsB.length,
+        revertExecutionSpecIdsB.contains(firstExecSpecId),
 
         rejectionOfSecondB.getMessage,
 
         detail,
 
-        rollbackOperationTraceC.deploymentRequestId == firstDeploymentRequestId,
-        rollbackExecutionSpecIdsC.length,
-        rollbackExecutionSpecC.version == defaultRollbackVersion
+        revertOperationTraceC.deploymentRequestId == firstDeploymentRequestId,
+        revertExecutionSpecIdsC.length,
+        revertExecutionSpecC.version == defaultRevertVersion
       ),
       2.seconds
     ) shouldBe(

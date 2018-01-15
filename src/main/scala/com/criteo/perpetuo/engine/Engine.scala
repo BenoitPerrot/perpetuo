@@ -181,16 +181,16 @@ class Engine @Inject()(val dbBinding: DbBinding,
     )
   }
 
-  def findExecutionSpecificationsForRollback(deploymentRequest: DeploymentRequest): Future[(Select, Iterable[(ExecutionSpecification, Select)])] =
-    dbBinding.findExecutionSpecificationsForRollback(deploymentRequest)
+  def findExecutionSpecificationsForRevert(deploymentRequest: DeploymentRequest): Future[(Select, Iterable[(ExecutionSpecification, Select)])] =
+    dbBinding.findExecutionSpecificationsForRevert(deploymentRequest)
 
-  def rollbackDeploymentRequest(deploymentRequestId: Long, initiatorName: String, defaultVersion: Option[Version]): Future[Option[OperationTrace]] =
+  def revert(deploymentRequestId: Long, initiatorName: String, defaultVersion: Option[Version]): Future[Option[OperationTrace]] =
     dbBinding.findDeepDeploymentRequestById(deploymentRequestId).flatMap(
       _.map { depReq =>
         startOperation(
           depReq,
-          operationStarter.rollbackOperation(targetDispatcher, depReq, initiatorName, defaultVersion),
-          listeners.map(listener => listener.onDeploymentRequestRolledBack(_, _, _))
+          operationStarter.revert(targetDispatcher, depReq, initiatorName, defaultVersion),
+          listeners.map(listener => listener.onDeploymentRequestReverted(_, _, _))
         ).map(Some(_))
       }.getOrElse(Future.successful(None))
     )

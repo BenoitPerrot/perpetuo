@@ -165,7 +165,7 @@ class RestController @Inject()(val engine: Engine)
                 throw new HttpResponseException(response.EnrichedResponse(HttpStatus.UnprocessableEntity).json(body))
               }
               .flatMap { _ =>
-                engine.findExecutionSpecificationsForRollback(deploymentRequest).map { case (undetermined, determined) =>
+                engine.findExecutionSpecificationsForRevert(deploymentRequest).map { case (undetermined, determined) =>
                   Some(Map(
                     "undetermined" -> undetermined,
                     "determined" -> determined.toStream.map { case (execSpec, targets) =>
@@ -197,7 +197,7 @@ class RestController @Inject()(val engine: Engine)
                 if (permissions.isAuthorized(user, DeploymentAction.applyOperation, operation, deploymentRequest.product.name, targets)) {
                   val (checking, effect) = operation match {
                     case Operation.deploy => (engine.canDeployDeploymentRequest(deploymentRequest), if (isStarted) engine.deployAgain _ else engine.startDeploymentRequest _)
-                    case Operation.revert => (engine.canRevertDeploymentRequest(deploymentRequest, isStarted), engine.rollbackDeploymentRequest(_: Long, _: String, r.defaultVersion.map(Version.apply)))
+                    case Operation.revert => (engine.canRevertDeploymentRequest(deploymentRequest, isStarted), engine.revert(_: Long, _: String, r.defaultVersion.map(Version.apply)))
                   }
                   checking
                     .flatMap(_ => effect(id, user.name))

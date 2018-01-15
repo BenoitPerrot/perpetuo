@@ -126,9 +126,9 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
     )
   }
 
-  def rollbackOperation(dispatcher: TargetDispatcher, deploymentRequest: DeepDeploymentRequest, userName: String, defaultVersion: Option[Version]): Future[(OperationTrace, Int, Int)] = {
+  def revert(dispatcher: TargetDispatcher, deploymentRequest: DeepDeploymentRequest, userName: String, defaultVersion: Option[Version]): Future[(OperationTrace, Int, Int)] = {
     dbBinding
-      .findExecutionSpecificationsForRollback(deploymentRequest)
+      .findExecutionSpecificationsForRevert(deploymentRequest)
       .flatMap { case (undetermined, determined) =>
         if (undetermined.nonEmpty)
           defaultVersion.map { version =>

@@ -312,7 +312,7 @@ class RestControllerSpec extends Test with TestDb {
     actOnDeploymentRequest(1, "ploup", JsObject(), BadRequest)
   }
 
-  test("The DeploymentRequest's actions entry-point returns 422 when trying to rollback new targets") {
+  test("The DeploymentRequest's actions entry-point returns 422 when trying to revert new targets") {
     val getRespJson = (_: Response).contentString.parseJson.asJsObject.fields.map {
       case ("errors", v: JsArray) => ("error", v.elements.head.asInstanceOf[JsString].value)
       case (k, v) => (k, v.asInstanceOf[JsString].value)

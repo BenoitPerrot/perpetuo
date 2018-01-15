@@ -11,7 +11,7 @@ class DefaultListenerPlugin extends Listener with Plugin {
 
   def onDeploymentRequestRetried(deploymentRequest: DeepDeploymentRequest, startedExecutions: Int, failedToStart: Int): Unit = {}
 
-  def onDeploymentRequestRolledBack(deploymentRequest: DeepDeploymentRequest, startedExecutions: Int, failedToStart: Int): Unit = {}
+  def onDeploymentRequestReverted(deploymentRequest: DeepDeploymentRequest, startedExecutions: Int, failedToStart: Int): Unit = {}
 
   def onOperationClosed(operationTrace: OperationTrace, deploymentRequest: DeepDeploymentRequest, succeeded: Boolean): Unit = {}
 
@@ -29,8 +29,8 @@ private[config] class ListenerPluginWrapper(implementation: DefaultListenerPlugi
   def onDeploymentRequestRetried(deploymentRequest: DeepDeploymentRequest, startedExecutions: Int, failedToStart: Int): Unit =
     wrap(_.onDeploymentRequestRetried(deploymentRequest, startedExecutions, failedToStart))
 
-  def onDeploymentRequestRolledBack(deploymentRequest: DeepDeploymentRequest, startedExecutions: Int, failedToStart: Int): Unit =
-    wrap(_.onDeploymentRequestRolledBack(deploymentRequest, startedExecutions, failedToStart))
+  def onDeploymentRequestReverted(deploymentRequest: DeepDeploymentRequest, startedExecutions: Int, failedToStart: Int): Unit =
+    wrap(_.onDeploymentRequestReverted(deploymentRequest, startedExecutions, failedToStart))
 
   def onOperationClosed(operationTrace: OperationTrace, deploymentRequest: DeepDeploymentRequest, succeeded: Boolean): Unit =
     wrap(_.onOperationClosed(operationTrace, deploymentRequest, succeeded))
