@@ -1,6 +1,5 @@
 package com.criteo.perpetuo.config
 
-import java.io.File
 import java.net.URL
 import java.util.logging.Logger
 
@@ -16,39 +15,14 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionException, Future, blocking}
 
-
 class Plugins(config: Config) {
 
   import com.criteo.perpetuo.config.ConfigSyntacticSugar._
 
-  private val loader = new GroovyScriptLoader()
-
-  private def resolve[T <: AnyRef](config: Config, typeName: String, groovySupported: Boolean = false)(f: PartialFunction[String, T] = PartialFunction.empty): T = {
-    val t = config.tryGet[String]("type").getOrElse(throw new Exception(s"No $typeName is configured, while one is required"))
-    lazy val pluginConfig = config.tryGetConfig("config")
-    lazy val stringValue = config.getString(t)
-
-    def instantiate(path: String) = path match {
-      case "class" =>
-        Plugins.instantiate(Class.forName(stringValue).asInstanceOf[Class[T]], pluginConfig)
-      case "groovyScriptResource" =>
-        val resource = getClass.getResource(stringValue)
-        assert(resource != null, s"Could not find configured resource $stringValue")
-        Plugins.instantiate(loader.load(resource), pluginConfig)
-      case "groovyScriptFile" =>
-        Plugins.instantiate(loader.load(new File(stringValue).getAbsoluteFile.toURI.toURL), pluginConfig)
-      case unknownType: String =>
-        throw new Exception(s"Unknown $typeName configured: $unknownType")
-    }
-
-    if (groovySupported)
-      f.applyOrElse(t, instantiate)
-    else
-      f(t)
-  }
+  private val loader = new PluginLoader()
 
   def invoker(invokerConfig: Config): ExecutorInvoker = {
-    resolve[ExecutorInvoker](invokerConfig, "invoker") {
+    loader.load[ExecutorInvoker](invokerConfig, "invoker") {
       case "dummy" => new DummyInvoker(invokerConfig.getString("dummy.name"))
       case "rundeck" => new RundeckInvoker(
         invokerConfig.getString("rundeck.name"),
@@ -63,7 +37,7 @@ class Plugins(config: Config) {
   val resolver: TargetResolver = config
     .tryGetConfig("targetResolver")
     .map { desc =>
-      resolve[Provider[TargetResolver]](desc, "target resolver", groovySupported = true)()
+      loader.load[Provider[TargetResolver]](desc, "target resolver", groovySupported = true)()
     }
     .getOrElse(new TargetResolver {})
     .get
@@ -71,7 +45,7 @@ class Plugins(config: Config) {
   val dispatcher: TargetDispatcher = config
     .tryGetConfig("targetDispatcher")
     .map { desc =>
-      resolve[Provider[TargetDispatcher]](desc, "target dispatcher", groovySupported = true) {
+      loader.load[Provider[TargetDispatcher]](desc, "target dispatcher", groovySupported = true) {
         case t@"singleInvoker" =>
           SingleTargetDispatcher(invoker(desc.getConfig(t)))
       }
@@ -81,7 +55,7 @@ class Plugins(config: Config) {
 
   val identityProvider: IdentityProvider =
     config.tryGetConfig("auth.identityProvider").map { desc =>
-      resolve[IdentityProvider](desc, "type of identity provider") {
+      loader.load[IdentityProvider](desc, "type of identity provider") {
         case t@"openAm" =>
           val openAmConfig = desc.getConfig(t)
           new OpenAmIdentityProvider(new URL(openAmConfig.getString("authorize.url")), new URL(openAmConfig.getString("tokeninfo.url")))
@@ -90,7 +64,7 @@ class Plugins(config: Config) {
 
   val permissions: Permissions =
     config.tryGetConfig("permissions").map { desc =>
-      resolve[Permissions](desc, "type of permissions", groovySupported = true) {
+      loader.load[Permissions](desc, "type of permissions", groovySupported = true) {
         case t@"fineGrained" =>
           FineGrainedPermissions.fromConfig(desc.getConfig(t))
       }
@@ -99,39 +73,10 @@ class Plugins(config: Config) {
   val listeners: Seq[ListenerPluginWrapper] =
     if (config.hasPath("engineListeners"))
       config.getConfigList("engineListeners").asScala.map(desc =>
-        new ListenerPluginWrapper(resolve[DefaultListenerPlugin](desc, "engine listener", groovySupported = true)())
+        new ListenerPluginWrapper(loader.load[DefaultListenerPlugin](desc, "engine listener", groovySupported = true)())
       )
     else
       Seq()
-}
-
-
-object Plugins {
-  def instantiate[T <: AnyRef](cls: Class[T], optPluginConfig: Option[Config]): T = {
-    val instantiationParameters =
-      optPluginConfig.map(pluginConfig => Seq(
-        Seq(pluginConfig)
-      )).getOrElse(Seq()) ++ Seq(
-        Seq()
-      )
-    instantiationParameters
-      .view // lazily:
-      .flatMap(instantiate(cls, _))
-      .headOption
-      .getOrElse {
-        throw new NoSuchMethodException("Plugins must have at least a constructor taking either a Config or nothing")
-      }
-  }
-
-  private def instantiate[T <: AnyRef](cls: Class[T], args: Seq[AnyRef]): Option[T] = {
-    cls.getConstructors
-      .find { c =>
-        val types = c.getParameterTypes
-        types.length == args.length &&
-          types.zip(args).forall { case (t, o) => t.isInstance(o) }
-      }
-      .map(_.newInstance(args: _*).asInstanceOf[T])
-  }
 }
 
 
