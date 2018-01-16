@@ -11,5 +11,7 @@ trait Listener {
 
   def onDeploymentRequestReverted(deploymentRequest: DeepDeploymentRequest, startedExecutions: Int, failedToStart: Int): Unit
 
-  def onOperationClosed(operationTrace: OperationTrace, deploymentRequest: DeepDeploymentRequest, succeeded: Boolean): Unit
+  def onOperationFailed(operationTrace: OperationTrace, deploymentRequest: DeepDeploymentRequest): Unit
+
+  def onOperationSucceeded(operationTrace: OperationTrace, deploymentRequest: DeepDeploymentRequest): Unit
 }

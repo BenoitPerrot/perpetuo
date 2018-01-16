@@ -13,7 +13,9 @@ class DefaultListenerPlugin extends Listener with Plugin {
 
   def onDeploymentRequestReverted(deploymentRequest: DeepDeploymentRequest, startedExecutions: Int, failedToStart: Int): Unit = {}
 
-  def onOperationClosed(operationTrace: OperationTrace, deploymentRequest: DeepDeploymentRequest, succeeded: Boolean): Unit = {}
+  def onOperationFailed(operationTrace: OperationTrace, deploymentRequest: DeepDeploymentRequest): Unit = {}
+
+  def onOperationSucceeded(operationTrace: OperationTrace, deploymentRequest: DeepDeploymentRequest): Unit = {}
 
   val timeout_s = 30
 }
@@ -32,6 +34,9 @@ private[config] class ListenerPluginWrapper(implementation: DefaultListenerPlugi
   def onDeploymentRequestReverted(deploymentRequest: DeepDeploymentRequest, startedExecutions: Int, failedToStart: Int): Unit =
     wrap(_.onDeploymentRequestReverted(deploymentRequest, startedExecutions, failedToStart))
 
-  def onOperationClosed(operationTrace: OperationTrace, deploymentRequest: DeepDeploymentRequest, succeeded: Boolean): Unit =
-    wrap(_.onOperationClosed(operationTrace, deploymentRequest, succeeded))
+  def onOperationFailed(operationTrace: OperationTrace, deploymentRequest: DeepDeploymentRequest): Unit =
+    wrap(_.onOperationFailed(operationTrace, deploymentRequest))
+
+  def onOperationSucceeded(operationTrace: OperationTrace, deploymentRequest: DeepDeploymentRequest): Unit =
+    wrap(_.onOperationSucceeded(operationTrace, deploymentRequest))
 }

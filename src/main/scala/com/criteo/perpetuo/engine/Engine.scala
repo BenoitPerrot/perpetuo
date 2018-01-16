@@ -112,7 +112,12 @@ class Engine @Inject()(val dbBinding: DbBinding,
       if (closingSuccess)
         dbBinding.isOperationSuccessful(operationTrace.id).foreach { succeeded =>
           assert(succeeded.isDefined, s"Operation #${operationTrace.id} doesn't exist or is not closed")
-          listeners.foreach(_.onOperationClosed(operationTrace, deploymentRequest, succeeded.get))
+          listeners.foreach(
+            if (succeeded.get)
+              _.onOperationSucceeded(operationTrace, deploymentRequest)
+            else
+              _.onOperationFailed(operationTrace, deploymentRequest)
+          )
         }
       closingSuccess
     }
