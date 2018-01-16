@@ -21,7 +21,7 @@ class Plugins(config: Config) {
 
   import com.criteo.perpetuo.config.ConfigSyntacticSugar._
 
-  private val loader = new GroovyScriptLoader(config)
+  private val loader = new GroovyScriptLoader()
 
   private def resolve[T <: AnyRef](config: Config, typeName: String, groovySupported: Boolean = false)(f: PartialFunction[String, T] = PartialFunction.empty): T = {
     val t = config.tryGet[String]("type").getOrElse(throw new Exception(s"No $typeName is configured, while one is required"))
@@ -34,9 +34,9 @@ class Plugins(config: Config) {
       case "groovyScriptResource" =>
         val resource = getClass.getResource(stringValue)
         assert(resource != null, s"Could not find configured resource $stringValue")
-        loader.instantiate(resource, pluginConfig)
+        Plugins.instantiate(loader.load(resource), pluginConfig)
       case "groovyScriptFile" =>
-        loader.instantiate(new File(stringValue).getAbsoluteFile.toURI.toURL, pluginConfig)
+        Plugins.instantiate(loader.load(new File(stringValue).getAbsoluteFile.toURI.toURL), pluginConfig)
       case unknownType: String =>
         throw new Exception(s"Unknown $typeName configured: $unknownType")
     }

@@ -4,17 +4,14 @@ import java.io.{File, InputStreamReader}
 import java.net.URL
 import javax.script.{ScriptEngine, ScriptEngineManager}
 
-import com.typesafe.config.Config
 
-
-class GroovyScriptLoader(config: Config) {
+class GroovyScriptLoader {
   private val engine: ScriptEngine = new ScriptEngineManager().getEngineByName("groovy") // todo? use GroovyScriptEngine
   assert(engine != null)
 
-  def instantiate[T <: AnyRef](resource: URL, pluginConfig: Option[Config]): T = {
+  def load[T <: AnyRef](resource: URL): Class[T] = {
     try {
-      val cls = engine.eval(new InputStreamReader(resource.openStream())).asInstanceOf[Class[T]]
-      Plugins.instantiate[T](cls, pluginConfig)
+      engine.eval(new InputStreamReader(resource.openStream())).asInstanceOf[Class[T]]
     }
     catch {
       case exc: Throwable =>
