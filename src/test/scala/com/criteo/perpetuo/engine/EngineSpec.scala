@@ -3,7 +3,7 @@ package com.criteo.perpetuo.engine
 import java.sql.Timestamp
 
 import com.criteo.perpetuo.TestDb
-import com.criteo.perpetuo.config.{AppConfigProvider, Plugins}
+import com.criteo.perpetuo.config.{PluginLoader, Plugins}
 import com.criteo.perpetuo.dao.DbBinding
 import com.criteo.perpetuo.engine.dispatchers.UnprocessableIntent
 import com.criteo.perpetuo.model._
@@ -17,8 +17,7 @@ import scala.concurrent.{Await, Future}
 
 class EngineSpec extends Test with TestDb {
 
-  val config = AppConfigProvider.config
-  private val plugins = new Plugins(config)
+  private val plugins = new Plugins(new PluginLoader)
   // TODO: should instantiate TargetDispatcherForTesting explicitly instead of by-conf, for clarity
   private val engine = new Engine(new DbBinding(dbContext), plugins.resolver, plugins.dispatcher, plugins.permissions, plugins.listeners)
 

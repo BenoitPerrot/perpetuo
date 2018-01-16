@@ -8,6 +8,7 @@ import com.criteo.perpetuo.engine.Provider
 import com.criteo.perpetuo.engine.dispatchers.{SingleTargetDispatcher, TargetDispatcher}
 import com.criteo.perpetuo.engine.invokers.{DummyInvoker, ExecutorInvoker, RundeckInvoker}
 import com.criteo.perpetuo.engine.resolvers.TargetResolver
+import com.google.inject.{Inject, Singleton}
 import com.typesafe.config.Config
 
 import scala.collection.JavaConverters._
@@ -15,11 +16,12 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionException, Future, blocking}
 
-class Plugins(config: Config) {
+@Singleton
+class Plugins @Inject()(loader: PluginLoader) {
+
+  private val config = AppConfigProvider.config
 
   import com.criteo.perpetuo.config.ConfigSyntacticSugar._
-
-  private val loader = new PluginLoader()
 
   def invoker(invokerConfig: Config): ExecutorInvoker = {
     loader.load[ExecutorInvoker](invokerConfig, "invoker") {

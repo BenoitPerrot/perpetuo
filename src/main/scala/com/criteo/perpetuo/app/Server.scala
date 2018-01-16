@@ -25,7 +25,7 @@ class Server extends HttpServer {
 
   override def modules = Seq(
     new DbContextModule(config.getConfig("db")),
-    new PluginsModule(config),
+    new PluginsModule,
     new AuthModule(config.getConfig("auth"))
   )
 

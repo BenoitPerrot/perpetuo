@@ -2,8 +2,10 @@ package com.criteo.perpetuo.config
 
 import java.io.File
 
+import com.google.inject.Singleton
 import com.typesafe.config.Config
 
+@Singleton
 class PluginLoader {
   import com.criteo.perpetuo.config.ConfigSyntacticSugar._
 
