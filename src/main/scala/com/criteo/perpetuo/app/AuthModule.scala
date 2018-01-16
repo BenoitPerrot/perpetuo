@@ -11,7 +11,6 @@ class AuthModule(config: Config) extends TwitterModule {
 
   @Singleton
   @Provides
-  def providesJWTEncoder: JWTEncoder = {
-    jwtEncoder
-  }
+  def providesJWTEncoder: JWTEncoder = jwtEncoder
+
 }
