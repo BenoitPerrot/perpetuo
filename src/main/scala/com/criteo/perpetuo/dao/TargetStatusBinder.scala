@@ -6,8 +6,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
 
-private[dao] case class TargetStatusRecord(id: Option[Long],
-                                           executionId: Long,
+private[dao] case class TargetStatusRecord(executionId: Long,
                                            targetAtom: String,
                                            code: Status.Code,
                                            detail: String) {
@@ -27,8 +26,6 @@ trait TargetStatusBinder extends TableBinder {
   )
 
   class TargetStatusTable(tag: Tag) extends Table[TargetStatusRecord](tag, "target_status") {
-    def id = column[Option[Long]]("id")
-
     def executionId = column[Long]("execution_id")
     protected def fk = foreignKey(executionId, executionQuery)(_.id)
 
@@ -38,7 +35,7 @@ trait TargetStatusBinder extends TableBinder {
 
     protected def pk = primaryKey((targetAtom, executionId))
 
-    def * = (id, executionId, targetAtom, code, detail) <> (TargetStatusRecord.tupled, TargetStatusRecord.unapply)
+    def * = (executionId, targetAtom, code, detail) <> (TargetStatusRecord.tupled, TargetStatusRecord.unapply)
   }
 
   val targetStatusQuery: TableQuery[TargetStatusTable] = TableQuery[TargetStatusTable]
@@ -47,7 +44,7 @@ trait TargetStatusBinder extends TableBinder {
     val atoms = statusMap.keySet
     val oldValues = targetStatusQuery.filter(ts => ts.executionId === executionId && ts.targetAtom.inSet(atoms))
     val newValues = statusMap.map { case (atom, status) =>
-      TargetStatusRecord(None, executionId, atom, status.code, status.detail)
+      TargetStatusRecord(executionId, atom, status.code, status.detail)
     }
 
     // there is no bulk insert-or-update, so to remain efficient in case of many statuses,

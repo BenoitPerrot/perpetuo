@@ -63,7 +63,6 @@ CREATE UNIQUE INDEX "ix_execution_operation_trace_id_execution_specification_id"
 
 
 CREATE TABLE "target_status" (
-  "id"                         BIGINT,
   "execution_id"               BIGINT         NOT NULL,
   "target"                     NVARCHAR(128)  NOT NULL,
   "code"                       SMALLINT       NOT NULL,
