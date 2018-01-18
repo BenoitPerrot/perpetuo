@@ -31,10 +31,12 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
     val specificParameters = dispatcher.freezeParameters(deploymentRequest.product.name, deploymentRequest.version)
     // target resolution
     val expandedTarget = expandTarget(resolver, deploymentRequest.product.name, deploymentRequest.version, deploymentRequest.parsedTarget)
+    // execution dispatching
+    val invocations = dispatch(dispatcher, expandedTarget, specificParameters).toSeq
 
     dbBinding.insertOperationTrace(deploymentRequest.id, operation, userName).flatMap(operationTrace =>
       dbBinding.insertExecutionSpecification(specificParameters, deploymentRequest.version).flatMap(executionSpecification =>
-        startExecution(dispatcher, deploymentRequest, operationTrace, executionSpecification, expandedTarget).map {
+        startExecution(invocations, deploymentRequest, operationTrace, executionSpecification).map {
           case (successes, failures) => (operationTrace, successes, failures)
         }
       )
@@ -51,7 +53,8 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
       val allSuccessesAndFailures = executionSpecs.map { executionSpec =>
         // todo: retrieve the real target of the very retried execution
         val expandedTarget = expandTarget(resolver, deploymentRequest.product.name, deploymentRequest.version, deploymentRequest.parsedTarget)
-        startExecution(dispatcher, deploymentRequest, newOperationTrace, executionSpec, expandedTarget)
+        val invocations = dispatch(dispatcher, expandedTarget, executionSpec.specificParameters).toSeq
+        startExecution(invocations, deploymentRequest, newOperationTrace, executionSpec)
       }
       Future.sequence(allSuccessesAndFailures).map(_.foldLeft((0, 0)) { case (initialValue, (successes, failures)) =>
         (initialValue._1 + successes, initialValue._2 + failures)
@@ -59,16 +62,12 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
     }
   }
 
-  def startExecution(dispatcher: TargetDispatcher,
+  def startExecution(invocations: Seq[(ExecutorInvoker, TargetExpr)],
                      deploymentRequest: DeepDeploymentRequest,
                      operationTrace: OperationTrace,
-                     executionSpecification: ExecutionSpecification,
-                     expandedTarget: TargetExpr): Future[(Int, Int)] = {
+                     executionSpecification: ExecutionSpecification): Future[(Int, Int)] = {
     val productName = deploymentRequest.product.name
     val version = executionSpecification.version
-
-    // execution dispatching
-    val invocations = dispatch(dispatcher, expandedTarget, executionSpecification.specificParameters).toSeq
 
     dbBinding.insertExecution(operationTrace.id, executionSpecification.id).flatMap(executionId =>
       // create as many traces, all at the same time
@@ -144,15 +143,20 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
           Future.successful(determined)
       }
       .flatMap { groups =>
-        val opCreation = dbBinding.insertOperationTrace(deploymentRequest.id, Operation.revert, userName)
-        Future.traverse(groups) { case (execSpec, targets) =>
-          val expandedTarget = Set(TargetTerm(select = targets))
-          opCreation.flatMap(newOp =>
-            startExecution(dispatcher, deploymentRequest, newOp, execSpec, expandedTarget)
-          )
+
+        val executionSpecificationsAndInvocations = groups.map { case (execSpec, targets) =>
+          (execSpec, dispatch(dispatcher, Set(TargetTerm(select = targets)), execSpec.specificParameters).toSeq)
         }
-          .map(_.fold((0, 0)) { case ((a, b), (c, d)) => (a + c, b + d) })
-          .flatMap { case (successes, failures) => opCreation.map(o => (o, successes, failures)) }
+
+        dbBinding
+          .insertOperationTrace(deploymentRequest.id, Operation.revert, userName)
+          .flatMap(newOp =>
+            Future.traverse(executionSpecificationsAndInvocations) { case (execSpec, invocations) =>
+              startExecution(invocations, deploymentRequest, newOp, execSpec)
+            }
+              .map(_.fold((0, 0)) { case ((a, b), (c, d)) => (a + c, b + d) })
+              .map { case (successes, failures) => (newOp, successes, failures) }
+          )
       }
   }
 
