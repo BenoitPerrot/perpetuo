@@ -143,17 +143,6 @@ class RestController @Inject()(val engine: Engine)
     }
   }
 
-  // TODO: migrate clients then remove <<
-  put("/api/deployment-requests/:id") { r: RequestWithId =>
-    authenticate(r.request) { case user if user.name == "qabot" =>
-      withIdAndRequest(
-        (id, _: RequestWithId) => engine.startDeploymentRequest(id, user.name).map(_.map { _ => response.ok.json(Map("id" -> id)) }),
-        2.seconds
-      )(r)
-    }
-  }
-  // >>
-
   post("/api/deployment-requests/:id/actions/devise-revert-plan") { r: RequestWithId =>
     withIdAndRequest(
       (id, _: RequestWithId) => {

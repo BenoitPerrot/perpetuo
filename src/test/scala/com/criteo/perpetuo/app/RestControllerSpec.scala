@@ -280,24 +280,6 @@ class RestControllerSpec extends Test with TestDb {
     requestDeployment("my product", "b", Seq(Map("select" -> Seq(42))).toJson, None, Some("a JSON string in"))
   }
 
-  test("The DeploymentRequest's actions entry-point starts a deployment that was not started yet (using deprecated API)") {
-    createProduct("my product A")
-    val id = requestDeployment("my product A", "not ready yet", "par".toJson, None, None, start = false).idAsLong
-    httpPut(
-      s"/api/deployment-requests/$id",
-      "".toJson,
-      Ok
-    ).contentString.parseJson.asJsObject shouldEqual JsObject("id" -> id.toJson)
-  }
-
-  test("The DeploymentRequest's actions entry-point returns 404 when trying to start a non-existing DeploymentRequest (using deprecated API)") {
-    httpPut(
-      "/api/deployment-requests/4242",
-      "".toJson,
-      NotFound
-    )
-  }
-
   test("The DeploymentRequest's actions entry-point starts a deployment that was not started yet") {
     createProduct("my product B")
     val id = requestDeployment("my product B", "456", "ams".toJson, None, None, start = false).idAsLong
