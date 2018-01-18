@@ -23,7 +23,7 @@ class PluginLoader {
       .flatMap(instantiate(cls, _))
       .headOption
       .getOrElse {
-        throw new NoSuchMethodException("Plugins must have at least a constructor taking either a Config or nothing")
+        throw new NoSuchMethodException(s"As a plugin, ${cls.getSimpleName} must have at least a constructor taking either its Config or nothing")
       }
   }
 
