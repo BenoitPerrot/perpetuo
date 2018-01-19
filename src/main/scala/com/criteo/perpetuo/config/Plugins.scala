@@ -70,7 +70,7 @@ class Plugins @Inject()(loader: PluginLoader) {
         case t@"fineGrained" =>
           FineGrainedPermissions.fromConfig(desc.getConfig(t))
       }
-    }.getOrElse(new Unrestricted)
+    }.getOrElse(Unrestricted)
 
   val listeners: Seq[ListenerPluginWrapper] =
     if (config.hasPath("engineListeners"))

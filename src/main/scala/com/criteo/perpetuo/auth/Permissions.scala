@@ -22,7 +22,7 @@ trait Permissions {
 }
 
 
-class Unrestricted extends Permissions {
+object Unrestricted extends Permissions {
   override def isAuthorized(user: User, action: GeneralAction.Value) = true
 
   override def isAuthorized(user: User, action: DeploymentAction.Value, operation: Operation.Kind, productName: String, target: Iterable[String]) = true
