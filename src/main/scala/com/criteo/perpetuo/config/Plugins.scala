@@ -62,7 +62,7 @@ class Plugins @Inject()(loader: PluginLoader) {
           val openAmConfig = desc.getConfig(t)
           new OpenAmIdentityProvider(new URL(openAmConfig.getString("authorize.url")), new URL(openAmConfig.getString("tokeninfo.url")))
       }
-    }.getOrElse(new AnonymousIdentityProvider)
+    }.getOrElse(AnonymousIdentityProvider)
 
   val permissions: Permissions =
     config.tryGetConfig("permissions").map { desc =>

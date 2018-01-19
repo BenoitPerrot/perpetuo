@@ -29,7 +29,7 @@ class ControllerSpec extends Test {
       new TwitterModule {
         @Singleton
         @Provides
-        def providesIdentityProvider: IdentityProvider = new AnonymousIdentityProvider
+        def providesIdentityProvider: IdentityProvider = AnonymousIdentityProvider
       }
     )
 
