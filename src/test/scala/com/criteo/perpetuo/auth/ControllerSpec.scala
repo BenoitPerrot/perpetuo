@@ -5,9 +5,9 @@ import com.criteo.perpetuo.config.AppConfigProvider
 import com.google.inject.{Provides, Singleton}
 import com.twitter.finagle.http.Status.{Ok, Unauthorized}
 import com.twitter.finagle.http.{Request, Response}
-import com.twitter.finatra.http.{EmbeddedHttpServer, HttpServer}
 import com.twitter.finatra.http.filters.{CommonFilters, LoggingMDCFilter, TraceIdMDCFilter}
 import com.twitter.finatra.http.routing.HttpRouter
+import com.twitter.finatra.http.{EmbeddedHttpServer, HttpServer}
 import com.twitter.inject.{Test, TwitterModule}
 
 
@@ -47,23 +47,23 @@ class ControllerSpec extends Test {
   val knownUserJWT = knownUser.toJWT(authModule.jwtEncoder)
 
   test("A Server serves the authorizer url") {
-      server.httpGet("/api/auth/authorize-url",
-        andExpect = Ok
-      )
-    }
+    server.httpGet("/api/auth/authorize-url",
+      andExpect = Ok
+    )
+  }
 
-    test("A Server accepts valid token") {
-      server.httpGet("/api/auth/identity",
-        headers = Map("Cookie" -> s"jwt=$knownUserJWT"),
-        andExpect = Ok
-      )
-    }
+  test("A Server accepts valid token") {
+    server.httpGet("/api/auth/identity",
+      headers = Map("Cookie" -> s"jwt=$knownUserJWT"),
+      andExpect = Ok
+    )
+  }
 
-    test("A Server rejects invalid token") {
-      server.httpGet("/api/auth/identity",
-        headers = Map("Cookie" -> "jwt=DEADBEEF"),
-        andExpect = Unauthorized
-      )
-    }
+  test("A Server rejects invalid token") {
+    server.httpGet("/api/auth/identity",
+      headers = Map("Cookie" -> "jwt=DEADBEEF"),
+      andExpect = Unauthorized
+    )
+  }
 
 }
