@@ -46,20 +46,20 @@ class ControllerSpec extends Test {
   val knownUser = User("knownUser")
   val knownUserJWT = knownUser.toJWT(authModule.jwtEncoder)
 
-  test("A Server serves the authorizer url") {
+  test("The auth controller serves the authorizer url") {
     server.httpGet("/api/auth/authorize-url",
       andExpect = Ok
     )
   }
 
-  test("A Server accepts valid token") {
+  test("The auth controller accepts valid token") {
     server.httpGet("/api/auth/identity",
       headers = Map("Cookie" -> s"jwt=$knownUserJWT"),
       andExpect = Ok
     )
   }
 
-  test("A Server rejects invalid token") {
+  test("The auth controller rejects invalid token") {
     server.httpGet("/api/auth/identity",
       headers = Map("Cookie" -> "jwt=DEADBEEF"),
       andExpect = Unauthorized
