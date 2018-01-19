@@ -4,5 +4,6 @@ import com.twitter.util.Future
 
 trait IdentityProvider {
   def identify(token: String): Future[User]
+  def identifyByName(userName: String): Future[User]
   def authorizeUrl: String
 }

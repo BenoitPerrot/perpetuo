@@ -9,7 +9,7 @@ import com.twitter.util.Future
 import spray.json._
 
 
-class OpenAmIdentityProvider(authorize: URL, tokeninfo: URL) extends IdentityProvider {
+class OpenAmIdentityProvider(authorize: URL, tokeninfo: URL, localUserNames: Set[String]) extends IdentityProvider {
 
   def authorizeUrl: String = authorize.toString
 
@@ -42,5 +42,11 @@ class OpenAmIdentityProvider(authorize: URL, tokeninfo: URL) extends IdentityPro
       }
     })
   }
+
+  override def identifyByName(userName: String): Future[User] =
+    if (localUserNames.contains(userName))
+      Future.value(User(userName))
+    else
+      Future.exception(new Exception(s"$userName is not in the set of users that can be identified by name only"))
 
 }

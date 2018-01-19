@@ -60,7 +60,11 @@ class Plugins @Inject()(loader: PluginLoader) {
       loader.load[IdentityProvider](desc, "type of identity provider") {
         case t@"openAm" =>
           val openAmConfig = desc.getConfig(t)
-          new OpenAmIdentityProvider(new URL(openAmConfig.getString("authorize.url")), new URL(openAmConfig.getString("tokeninfo.url")))
+          val localUserNames = openAmConfig.tryGet[Seq[String]]("localUserNames").getOrElse(Seq()).toSet
+          new OpenAmIdentityProvider(
+            new URL(openAmConfig.getString("authorize.url")),
+            new URL(openAmConfig.getString("tokeninfo.url")),
+            localUserNames)
       }
     }.getOrElse(AnonymousIdentityProvider)
 

@@ -3,7 +3,7 @@ package com.criteo.perpetuo.auth
 import com.criteo.perpetuo.app.AuthModule
 import com.criteo.perpetuo.config.AppConfigProvider
 import com.google.inject.{Provides, Singleton}
-import com.twitter.finagle.http.Status.{Ok, Unauthorized}
+import com.twitter.finagle.http.Status.{Ok, Unauthorized, Forbidden}
 import com.twitter.finagle.http.{Request, Response}
 import com.twitter.finatra.http.filters.{CommonFilters, LoggingMDCFilter, TraceIdMDCFilter}
 import com.twitter.finatra.http.routing.HttpRouter
@@ -30,6 +30,10 @@ class ControllerSpec extends Test {
         @Singleton
         @Provides
         def providesIdentityProvider: IdentityProvider = AnonymousIdentityProvider
+
+        @Singleton
+        @Provides
+        def providesPermissions: Permissions = Unrestricted
       }
     )
 
@@ -63,6 +67,20 @@ class ControllerSpec extends Test {
     server.httpGet("/api/auth/identity",
       headers = Map("Cookie" -> "jwt=DEADBEEF"),
       andExpect = Unauthorized
+    )
+  }
+
+  test("The auth controller serves the JWT of known local-users") {
+    server.httpGet("/api/auth/local-users/anonymous/jwt",
+      headers = Map("Cookie" -> s"jwt=$knownUserJWT"),
+      andExpect = Ok
+    )
+  }
+
+  test("The auth controller doesn't serve the JWT of unknown local-users") {
+    server.httpGet("/api/auth/local-users/unknown/jwt",
+      headers = Map("Cookie" -> s"jwt=$knownUserJWT"),
+      andExpect = Forbidden
     )
   }
 
