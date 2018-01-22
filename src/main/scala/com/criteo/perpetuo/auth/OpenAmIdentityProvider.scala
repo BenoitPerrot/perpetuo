@@ -2,9 +2,9 @@ package com.criteo.perpetuo.auth
 
 import java.net.URL
 
-import com.twitter.finagle.{Http, Service}
 import com.twitter.finagle.builder.ClientBuilder
 import com.twitter.finagle.http._
+import com.twitter.finagle.{Http, Service}
 import com.twitter.util.Future
 import spray.json._
 

@@ -2,7 +2,6 @@ package com.criteo.perpetuo.dao
 
 import com.criteo.perpetuo.auth.User
 import com.criteo.perpetuo.model._
-import spray.json._
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
