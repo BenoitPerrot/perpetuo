@@ -34,6 +34,12 @@ class DbBinding @Inject()(val dbContext: DbContext)
 
   type DeepRecords = (DeploymentRequestRecord, ProductRecord, Option[OperationTraceRecord], Option[ExecutionTraceRecord], Option[TargetStatusRecord])
 
+  private def toOperationEffect(operationTrace: OperationTrace, joinedRecords: Seq[(Option[ExecutionTraceRecord], Option[TargetStatusRecord])]): OperationEffect = {
+    val executionTraces = joinedRecords.flatMap(_._1).distinct.map(_.toExecutionTrace)
+    val targetStatuses = joinedRecords.flatMap(_._2).distinct.map(_.toTargetStatus)
+    OperationEffect(operationTrace, executionTraces, targetStatuses)
+  }
+
   private def oneRequestRecordsToDeepModel(records: Iterable[DeepRecords]) = {
     // there must be at least one record, and all the records must relate to the same deployment request
     val deploymentRequest = records.head._1.toDeepDeploymentRequest(records.head._2)
@@ -49,9 +55,7 @@ class DbBinding @Inject()(val dbContext: DbContext)
       .map { case (_, l) =>
         val (operationTraceRecord, _, _) = l.head
         val operationTrace = operationTraceRecord.toOperationTrace
-        val executionTraces = l.flatMap(_._2).distinct.map(_.toExecutionTrace)
-        val targetStatuses = l.flatMap(_._3).distinct.map(_.toTargetStatus)
-        OperationEffect(operationTrace, executionTraces, targetStatuses)
+        toOperationEffect(operationTrace, l.map { case (_, e, t) => (e, t) })
       }
       .filter { case OperationEffect(_, et, _) => et.nonEmpty } // todo: remove that
 
@@ -372,9 +376,7 @@ class DbBinding @Inject()(val dbContext: DbContext)
       .map(results =>
         results.headOption.map { case (op, _, _) =>
           val operationTrace = op.toOperationTrace
-          val executionTraces = results.flatMap(_._2).distinct.map(_.toExecutionTrace)
-          val targetStatuses = results.flatMap(_._3).distinct.map(_.toTargetStatus)
-          OperationEffect(operationTrace, executionTraces, targetStatuses)
+          toOperationEffect(operationTrace, results.map { case (_, e, t) => (e, t) })
         }
       )
   }
