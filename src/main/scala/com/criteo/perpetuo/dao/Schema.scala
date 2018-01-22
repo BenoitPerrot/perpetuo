@@ -199,37 +199,6 @@ class DbBinding @Inject()(val dbContext: DbContext)
     })
   }
 
-  /**
-    * @return - None if the operation doesn't exist or is still running,
-    *         - Some(True) if it's closed and all targets are marked successful,
-    *         - Some(False) if it's closed and at least one target or one execution is not successful
-    */
-  def isOperationSuccessful(id: Long): Future[Option[Boolean]] = {
-    dbContext.db.run(
-      operationTraceQuery
-        .filter(op => op.id === id && op.closingDate.isDefined)
-        .map(_.id)
-        .joinLeft(
-          executionQuery.join(targetStatusQuery).on(_.id === _.executionId)
-            .filter(_._2.code =!= Status.success)
-            .map { case (execution, _) => execution.operationTraceId }
-        ).on(_ === _)
-        .take(1)
-        .joinLeft(
-          executionQuery.join(executionTraceQuery).on(_.id === _.executionId)
-            .filter(_._2.state =!= ExecutionState.completed)
-            .map { case (execution, _) => execution.operationTraceId }
-        ).on(_._1 === _)
-        .take(1)
-        .map { case ((_, idIfFailedTargetStatus), idIfFailedExecutionTrace) =>
-          (idIfFailedTargetStatus, idIfFailedExecutionTrace)
-        }
-        .result
-    ).map(_.headOption.map { case (idIfFailedTargetStatus, idIfFailedExecutionTrace) =>
-      idIfFailedTargetStatus.isEmpty && idIfFailedExecutionTrace.isEmpty
-    })
-  }
-
   // todo: should rely on a nullable field `startDate` in OperationTrace
   def isDeploymentRequestStarted(deploymentRequestId: Long): Future[Option[(DeepDeploymentRequest, Boolean)]] = {
     dbContext.db.run(
@@ -358,6 +327,19 @@ class DbBinding @Inject()(val dbContext: DbContext)
     dbContext.db.run(query.result)
       .map(_.collectFirst { case (targetAtom, actionable) if !actionable => targetAtom })
   }
+
+  def findOperationEffect(operationTrace: OperationTrace): Future[Option[OperationEffect]] =
+    dbContext.db
+      .run(executionQuery
+        .filter(_.operationTraceId === operationTrace.id)
+        .joinLeft(executionTraceQuery).on { case (execution, executionTrace) => execution.id === executionTrace.executionId }
+        .joinLeft(targetStatusQuery).on { case ((execution, _), targetStatus) => execution.id === targetStatus.executionId }
+        .map { case ((_, executionTrace), targetStatus) => (executionTrace, targetStatus) }
+        .result
+      )
+      .map(results =>
+        results.headOption.map { _ => toOperationEffect(operationTrace, results) }
+      )
 
   // fixme: early target resolution should make this function obsolete
   def findLastOperationAndEffect(productId: Int): Future[Option[OperationEffect]] = {
