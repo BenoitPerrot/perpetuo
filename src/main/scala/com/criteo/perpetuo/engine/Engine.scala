@@ -118,8 +118,8 @@ class Engine @Inject()(val dbBinding: DbBinding,
   }
 
   private def startOperation(deploymentRequest: DeepDeploymentRequest,
-                             operationStart: Future[(OperationTrace, Int, Int)],
-                             onOperationStartedListeners: Seq[(DeepDeploymentRequest, Int, Int) => Unit]): Future[OperationTrace] =
+                             operationStart: Future[(ShallowOperationTrace, Int, Int)],
+                             onOperationStartedListeners: Seq[(DeepDeploymentRequest, Int, Int) => Unit]): Future[ShallowOperationTrace] =
     operationStart.flatMap { case (operationTrace, started, failed) =>
       onOperationStartedListeners.foreach(_ (deploymentRequest, started, failed))
       (if (started == 0) closeOperation(operationTrace, deploymentRequest) else Future.successful()).map(_ =>
@@ -127,7 +127,7 @@ class Engine @Inject()(val dbBinding: DbBinding,
       )
     }
 
-  private def startDeploymentRequest(req: DeepDeploymentRequest, initiatorName: String, atCreation: Boolean): Future[OperationTrace] = {
+  private def startDeploymentRequest(req: DeepDeploymentRequest, initiatorName: String, atCreation: Boolean): Future[ShallowOperationTrace] = {
     startOperation(
       req,
       operationStarter.start(targetResolver, targetDispatcher, req, Operation.deploy, initiatorName),
@@ -135,9 +135,9 @@ class Engine @Inject()(val dbBinding: DbBinding,
     )
   }
 
-  private def closeOperation(operationTrace: OperationTrace, deploymentRequest: DeepDeploymentRequest): Future[Boolean] = {
-    dbBinding.closeOperationTrace(operationTrace.id).map { closingSuccess =>
-      if (closingSuccess)
+  private def closeOperation(operationTrace: ShallowOperationTrace, deploymentRequest: DeepDeploymentRequest): Future[ShallowOperationTrace] = {
+    dbBinding.closeOperationTrace(operationTrace).map { updatedTrace =>
+      if (updatedTrace.isDefined)
         dbBinding.isOperationSuccessful(operationTrace.id).foreach { succeeded =>
           assert(succeeded.isDefined, s"Operation #${operationTrace.id} doesn't exist or is not closed")
           listeners.foreach(
@@ -147,7 +147,7 @@ class Engine @Inject()(val dbBinding: DbBinding,
               _.onOperationFailed(operationTrace, deploymentRequest)
           )
         }
-      closingSuccess
+      updatedTrace.getOrElse(operationTrace)
     }
   }
 
@@ -175,7 +175,7 @@ class Engine @Inject()(val dbBinding: DbBinding,
     }
 
 
-  def startDeploymentRequest(deploymentRequestId: Long, initiatorName: String): Future[Option[OperationTrace]] = {
+  def startDeploymentRequest(deploymentRequestId: Long, initiatorName: String): Future[Option[ShallowOperationTrace]] = {
     dbBinding.findDeepDeploymentRequestById(deploymentRequestId).flatMap(
       _.map { req =>
         val check = if (withTransactions)
@@ -202,7 +202,7 @@ class Engine @Inject()(val dbBinding: DbBinding,
     )
   }
 
-  def deployAgain(deploymentRequestId: Long, initiatorName: String): Future[Option[OperationTrace]] = {
+  def deployAgain(deploymentRequestId: Long, initiatorName: String): Future[Option[ShallowOperationTrace]] = {
     dbBinding.findDeepDeploymentRequestAndSpecs(deploymentRequestId).flatMap(
       _.map { case (deploymentRequest, executionSpecs) =>
         startOperation(
@@ -217,7 +217,7 @@ class Engine @Inject()(val dbBinding: DbBinding,
   def findExecutionSpecificationsForRevert(deploymentRequest: DeploymentRequest): Future[(Select, Iterable[(ExecutionSpecification, Select)])] =
     dbBinding.findExecutionSpecificationsForRevert(deploymentRequest)
 
-  def revert(deploymentRequestId: Long, initiatorName: String, defaultVersion: Option[Version]): Future[Option[OperationTrace]] =
+  def revert(deploymentRequestId: Long, initiatorName: String, defaultVersion: Option[Version]): Future[Option[ShallowOperationTrace]] =
     dbBinding.findDeepDeploymentRequestById(deploymentRequestId).flatMap(
       _.map { depReq =>
         startOperation(
@@ -228,7 +228,7 @@ class Engine @Inject()(val dbBinding: DbBinding,
       }.getOrElse(Future.successful(None))
     )
 
-  def findOperationTracesByDeploymentRequest(deploymentRequestId: Long): Future[Option[Seq[OperationTrace]]] =
+  def findOperationTracesByDeploymentRequest(deploymentRequestId: Long): Future[Option[Seq[ShallowOperationTrace]]] =
     dbBinding.findOperationTracesByDeploymentRequest(deploymentRequestId).flatMap { traces =>
       if (traces.isEmpty) {
         // if there is a deployment request with that ID, return the empty list, otherwise a 404
@@ -248,10 +248,7 @@ class Engine @Inject()(val dbBinding: DbBinding,
         Future.successful(Some(traces))
     }
 
-  /**
-    * @return ultimately true when the linked OperationTrace has been closed by the update, false otherwise
-    */
-  def updateExecutionTrace(id: Long, executionState: ExecutionState, detail: String, logHref: String, statusMap: Map[String, TargetAtomStatus]): Future[Option[Boolean]] = {
+  def updateExecutionTrace(id: Long, executionState: ExecutionState, detail: String, logHref: String, statusMap: Map[String, TargetAtomStatus]): Future[Option[Unit]] = {
     val executionUpdate =
       if (logHref.nonEmpty)
         dbBinding.updateExecutionTrace(id, executionState, detail, logHref)
@@ -268,10 +265,10 @@ class Engine @Inject()(val dbBinding: DbBinding,
             .flatMap(_ => dbBinding.hasOpenExecutionTracesForOperation(op.id))
             .flatMap { hasOpenExecutions =>
               if (hasOpenExecutions)
-                Future.successful(Some(false))
+                Future.successful(Some())
               else
                 dbBinding.findDeepDeploymentRequestById(op.deploymentRequestId).flatMap { depReq =>
-                  closeOperation(op, depReq.get).map(Some(_))
+                  closeOperation(op, depReq.get).map(_ => Some())
                 }
             }
         }

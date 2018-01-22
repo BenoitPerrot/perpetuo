@@ -66,16 +66,20 @@ trait OperationTraceBinder extends TableBinder {
     )
   }
 
-  def closeOperationTrace(id: Long): Future[Boolean] = {
+  def closeOperationTrace(operationTrace: ShallowOperationTrace): Future[Option[ShallowOperationTrace]] = {
+    val now = Some(new java.sql.Timestamp(System.currentTimeMillis))
     dbContext.db.run(
       operationTraceQuery
-        .filter(operationTrace => operationTrace.id === id && operationTrace.closingDate.isEmpty)
+        .filter(op => op.id === operationTrace.id && op.closingDate.isEmpty)
         .map(_.closingDate)
-        .update(Some(new java.sql.Timestamp(System.currentTimeMillis)))
+        .update(now)
         .transactionally
     ).map(count => {
       assert(count <= 1)
-      count == 1
+      if (count == 1)
+        Some(operationTrace.copy(closingDate = now))
+      else
+        None
     })
   }
 }

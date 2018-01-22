@@ -30,16 +30,16 @@ class EngineSpec extends Test with TestDb {
         deploymentRequestId <- engine.createDeploymentRequest(new DeploymentRequestAttrs(product.name, Version(JsString("42").compactPrint), """["moon","mars"]}""", "", "robert", new Timestamp(System.currentTimeMillis)), immediateStart = false).map(_ ("id").toString.toLong)
         _ <- engine.startDeploymentRequest(deploymentRequestId, "ignace")
         operationTraces <- engine.findOperationTracesByDeploymentRequest(deploymentRequestId).map(_.get)
-        operationTraceId = operationTraces.head.id
-        hasOpenExecutionBefore <- engine.dbBinding.hasOpenExecutionTracesForOperation(operationTraceId)
+        operationTrace = operationTraces.head
+        hasOpenExecutionBefore <- engine.dbBinding.hasOpenExecutionTracesForOperation(operationTrace.id)
         executionTrace <- engine.dbBinding.findExecutionTracesByDeploymentRequest(deploymentRequestId).map(_.head)
         _ <- engine.updateExecutionTrace(executionTrace.id, ExecutionState.completed, "", "", Map(
           "moon" -> TargetAtomStatus(Status.success, "no surprise"),
           "mars" -> TargetAtomStatus(Status.hostFailure, "no surprise")))
-        hasOpenExecutionAfter <- engine.dbBinding.hasOpenExecutionTracesForOperation(operationTraceId)
-        operationReClosingSucceeded <- engine.dbBinding.closeOperationTrace(operationTraceId)
+        hasOpenExecutionAfter <- engine.dbBinding.hasOpenExecutionTracesForOperation(operationTrace.id)
+        operationReClosingSucceeded <- engine.dbBinding.closeOperationTrace(operationTrace)
       } yield (
-        hasOpenExecutionBefore, hasOpenExecutionAfter, operationReClosingSucceeded
+        hasOpenExecutionBefore, hasOpenExecutionAfter, operationReClosingSucceeded.isDefined
       ),
       2.seconds
     ) shouldBe(true, false, false)
@@ -295,14 +295,14 @@ class EngineSpec extends Test with TestDb {
           "moon" -> TargetAtomStatus(Status.success, "no surprise"),
           "mars" -> TargetAtomStatus(Status.success, "no surprise")))
         hasOpenExecutionAfter <- engine.dbBinding.hasOpenExecutionTracesForOperation(retriedOperation.id)
-        operationReClosingSucceeded <- engine.dbBinding.closeOperationTrace(retriedOperation.id)
+        operationReClosingSucceeded <- engine.dbBinding.closeOperationTrace(retriedOperation)
         initialExecutionSpecIds <- engine.dbBinding.findExecutionSpecIdsByOperationTrace(operationTraceId)
         retriedExecutionSpecIds <- engine.dbBinding.findExecutionSpecIdsByOperationTrace(retriedOperation.id)
       } yield (
         executionTrace.length,
         executionTracesAfterRetry.length,
         retriedOperation.id == operationTraceId,
-        hasOpenExecutionAfter, operationReClosingSucceeded,
+        hasOpenExecutionAfter, operationReClosingSucceeded.isDefined,
         initialExecutionSpecIds.length == retriedExecutionSpecIds.length,
         initialExecutionSpecIds == retriedExecutionSpecIds
       ),
