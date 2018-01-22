@@ -79,6 +79,9 @@ class Engine @Inject()(val dbBinding: DbBinding,
   def insertProduct(productName: String): Future[Product] =
     dbBinding.insertProduct(productName)
 
+  def insertProductIfNotExists(productName: String): Future[Product] =
+    dbBinding.insertProductIfNotExists(productName)
+
   def findDeepDeploymentRequestById(deploymentRequestId: Long): Future[Option[DeepDeploymentRequest]] =
     dbBinding.findDeepDeploymentRequestById(deploymentRequestId)
 

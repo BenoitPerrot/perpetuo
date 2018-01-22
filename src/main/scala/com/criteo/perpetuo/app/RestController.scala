@@ -30,8 +30,8 @@ trait WithId {
 private case class RequestWithId(@RouteParam @NotEmpty id: String,
                                  @Inject request: Request) extends WithId
 
-private case class ProductPost(@NotEmpty name: String,
-                               @Inject request: Request)
+private case class RequestWithName(@NotEmpty name: String,
+                                   @Inject request: Request)
 
 private case class ProductPostWithVersion(@NotEmpty name: String,
                                           @NotEmpty version: String)
@@ -90,11 +90,22 @@ class RestController @Inject()(val engine: Engine)
     )
   }
 
-  post("/api/products") { r: ProductPost =>
+  post("/api/products") { r: RequestWithName =>
     authenticate(r.request) { case user if permissions.isAuthorized(user, GeneralAction.addProduct) =>
       timeBoxed(
         engine
           .insertProduct(r.name)
+          .map(_ => Some(response.created.nothing)),
+        5.seconds
+      )
+    }
+  }
+
+  put("/api/products") { r: RequestWithName =>
+    authenticate(r.request) { case user if permissions.isAuthorized(user, GeneralAction.addProduct) =>
+      timeBoxed(
+        engine
+          .insertProductIfNotExists(r.name)
           .map(_ => Some(response.created.nothing)),
         5.seconds
       )
