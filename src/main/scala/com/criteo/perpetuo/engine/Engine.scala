@@ -139,18 +139,20 @@ class Engine @Inject()(val dbBinding: DbBinding,
     dbBinding.closeOperationTrace(operationTrace)
       .map(_.map((_, true)).getOrElse((operationTrace, false)))
       .flatMap { case (trace, updated) =>
-        dbBinding.findOperationEffect(trace).map { effect =>
-          assert(effect.isDefined, s"Operation #${operationTrace.id} doesn't exist or is not closed")
-          val (_, status) = computeState(effect.get)
-          if (updated)
-            listeners.foreach(
-              if (status == OperationStatus.succeeded)
-                _.onOperationSucceeded(trace, deploymentRequest)
-              else
-                _.onOperationFailed(trace, deploymentRequest)
-            )
-          trace
-        }
+        dbBinding.findOperationEffect(trace).map(_
+          .map { effect =>
+            val (_, status) = computeState(effect)
+            if (updated)
+              listeners.foreach(
+                if (status == OperationStatus.succeeded)
+                  _.onOperationSucceeded(trace, deploymentRequest)
+                else
+                  _.onOperationFailed(trace, deploymentRequest)
+              )
+              trace
+          }
+          .getOrElse(trace)
+        )
       }
 
   def isDeploymentRequestStarted(deploymentRequestId: Long): Future[Option[(DeepDeploymentRequest, Boolean)]] =

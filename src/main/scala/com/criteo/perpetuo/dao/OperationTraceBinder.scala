@@ -70,7 +70,7 @@ trait OperationTraceBinder extends TableBinder {
     val now = Some(new java.sql.Timestamp(System.currentTimeMillis))
     dbContext.db.run(
       operationTraceQuery
-        .filter(op => op.id === operationTrace.id && op.closingDate.isEmpty)
+        .filter(op => op.id === operationTrace.id && op.startingDate.nonEmpty && op.closingDate.isEmpty)
         .map(_.closingDate)
         .update(now)
         .transactionally
