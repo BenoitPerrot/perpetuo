@@ -23,6 +23,34 @@ object OperationStatus extends Enumeration {
   val succeeded = Value
 }
 
+abstract class RejectingError extends RuntimeException {
+  val msg: String
+  val detail: Map[String, _]
+
+  def copy(newMessage: String): RejectingError
+
+  override def getMessage: String = msg + detail.map {
+    case (k, v: Iterable[_]) => s"; $k: ${v.mkString(", ")}"
+    case (k, v) => s"; $k: $v"
+  }.mkString("")
+}
+
+case class UnavailableAction(msg: String, detail: Map[String, _] = Map()) extends RejectingError {
+  def copy(newMessage: String) = UnavailableAction(newMessage, detail)
+}
+
+case class MissingInfo(msg: String, required: String) extends RejectingError {
+  val detail: Map[String, String] = Map("required" -> required)
+
+  def copy(newMessage: String) = MissingInfo(newMessage, required)
+}
+
+case class Conflict(msg: String, conflicts: Iterable[_] = Seq()) extends RejectingError {
+  val detail: Map[String, Iterable[_]] = if (conflicts.nonEmpty) Map("conflicts" -> conflicts) else Map()
+
+  def copy(newMessage: String) = Conflict(newMessage, conflicts)
+}
+
 
 @Singleton
 class Engine @Inject()(val dbBinding: DbBinding,
@@ -129,7 +157,7 @@ class Engine @Inject()(val dbBinding: DbBinding,
   private def rejectIfOutdated(deploymentRequest: DeploymentRequest): Future[Unit] =
     dbBinding.isOutdated(deploymentRequest).flatMap(
       if (_)
-        Future.failed(UnprocessableAction("a newer one has already been applied"))
+        Future.failed(Conflict("a newer one has already been applied"))
       else
         Future.successful()
     )
@@ -139,7 +167,7 @@ class Engine @Inject()(val dbBinding: DbBinding,
 
   def canRevertDeploymentRequest(deploymentRequest: DeploymentRequest, isStarted: Boolean): Future[Unit] =
     if (!isStarted)
-      Future.failed(UnprocessableAction("it has not yet been applied"))
+      Future.failed(UnavailableAction("it has not yet been applied"))
     else {
       // todo: now we can allow successive rollbacks,
       // by using dbBinding.findTargetAtomNotActionableBy instead of `outdated` here
@@ -161,7 +189,7 @@ class Engine @Inject()(val dbBinding: DbBinding,
                   Some(s"deployment request #$requestId has been left in an uncertain state, complete it first")
                 case _ => None
               }
-              error.foreach { message => throw UnprocessableAction(message, Map("conflicts" -> Seq(requestId))) }
+              error.foreach { message => throw Conflict(message, Seq(requestId)) }
             }
           }
         else

@@ -2,13 +2,11 @@ package com.criteo.perpetuo.dao
 
 import java.sql.SQLException
 
+import com.criteo.perpetuo.engine.Conflict
 import com.criteo.perpetuo.model.Product
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
-
-case class ProductCreationConflict(productName: String, private val cause: Throwable = null)
-  extends Exception(s"Name `$productName` is already used", cause)
 
 
 private[dao] case class ProductRecord(id: Option[Int], name: String) {
@@ -44,7 +42,7 @@ trait ProductBinder extends TableBinder {
         // there is no specific exception type if the name is already used but the error message starts with
         // - if H2: Unique index or primary key violation: "ix_product_name ON PUBLIC.""product""(""name"") VALUES ('my product', 1)"
         // - if SQLServer: Cannot insert duplicate key row in object 'dbo.product' with unique index 'ix_product_name'
-        throw ProductCreationConflict(productName, e)
+        throw Conflict(s"Name `$productName` is already used")
     }
   }
 

@@ -13,13 +13,6 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
 
-case class UnprocessableAction(msg: String, detail: Map[String, _] = Map())
-  extends RuntimeException(msg + detail.map {
-    case (k, v: Iterable[_]) => s"; $k: ${v.mkString(", ")}"
-    case (k, v) => s"; $k: $v"
-  }.mkString(""))
-
-
 class OperationStarter(val dbBinding: DbBinding) extends Logging {
 
   /**
@@ -135,9 +128,9 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
             dbBinding.insertExecutionSpecification(specificParameters, version).map(executionSpecification =>
               Stream.cons((executionSpecification, undetermined), determined.toStream)
             )
-          }.getOrElse(throw UnprocessableAction(
+          }.getOrElse(throw MissingInfo(
             s"a default rollback version is required, as some targets have no known previous state (e.g. `${undetermined.head}`)",
-            detail = Map("required" -> "defaultVersion")
+            "defaultVersion"
           ))
         else
           Future.successful(determined)

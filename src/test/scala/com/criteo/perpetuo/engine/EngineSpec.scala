@@ -93,7 +93,7 @@ class EngineSpec extends Test with TestDb {
 
         // not OK if it's after a deployment failure
         conflictMsg <- mockDeployExecution(product.name, "101", Map("racing" -> Status.success))
-          .map(_ => "unrejected").recover { case UnprocessableAction(msg, _) => msg }
+          .map(_ => "unrejected").recover { case Conflict(msg, _) => msg }
 
         // the failing one must be reverted first
         _ <- mockRevertExecution(secondId, Map("corn-field" -> Status.hostFailure), Some(Version(""""big-bang"""")))
@@ -243,7 +243,7 @@ class EngineSpec extends Test with TestDb {
         rejectionOfSecondB <- engine.canRevertDeploymentRequest(secondDeploymentRequest, isStarted = true).failed
 
         // Can revert the first one now that the second one has been reverted, but it requires to specify to which version to revert
-        detail <- engine.revert(firstDeploymentRequestId, "r.ollbacker", None).recover { case e: UnprocessableAction => e.detail }
+        required <- engine.revert(firstDeploymentRequestId, "r.ollbacker", None).recover { case MissingInfo(_, required) => required }
 
         revertOperationTraceC <- engine.revert(firstDeploymentRequestId, "r.ollbacker", Some(defaultRevertVersion)).map(_.get)
         revertExecutionSpecIdsC <- engine.dbBinding.findExecutionSpecIdsByOperationTrace(revertOperationTraceC.id)
@@ -260,7 +260,7 @@ class EngineSpec extends Test with TestDb {
 
         rejectionOfSecondB.getMessage,
 
-        detail,
+        required,
 
         revertOperationTraceC.deploymentRequestId == firstDeploymentRequestId,
         revertExecutionSpecIdsC.length,
@@ -272,7 +272,7 @@ class EngineSpec extends Test with TestDb {
       "a newer one has already been applied",
       1, true,
       "a newer one has already been applied",
-      Map("required" -> "defaultVersion"),
+      "defaultVersion",
       true, 1, true
     )
   }

@@ -4,12 +4,12 @@ import javax.inject.Inject
 
 import com.criteo.perpetuo.auth.UserFilter._
 import com.criteo.perpetuo.auth.{DeploymentAction, GeneralAction, User}
-import com.criteo.perpetuo.dao.{ProductCreationConflict, Schema, UnknownProduct}
+import com.criteo.perpetuo.dao.UnknownProduct
 import com.criteo.perpetuo.engine.dispatchers.UnprocessableIntent
-import com.criteo.perpetuo.engine.{Engine, OperationStatus, UnprocessableAction}
+import com.criteo.perpetuo.engine.{Engine, OperationStatus, RejectingError}
 import com.criteo.perpetuo.model._
-import com.twitter.finagle.http.{Request, Response, Status => HttpStatus}
-import com.twitter.finatra.http.exceptions.{BadRequestException, ConflictException, HttpResponseException}
+import com.twitter.finagle.http.{Request, Response}
+import com.twitter.finatra.http.exceptions.{BadRequestException, HttpResponseException}
 import com.twitter.finatra.http.{Controller => BaseController}
 import com.twitter.finatra.request._
 import com.twitter.finatra.utils.FuturePools
@@ -18,8 +18,8 @@ import com.twitter.util.{Future => TwitterFuture}
 import spray.json.JsonParser.ParsingException
 
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.Future
 import scala.concurrent.duration._
-import scala.concurrent.{Await, Future}
 import scala.util.Try
 
 trait WithId {
@@ -58,7 +58,7 @@ private case class SortingFilteringPost(orderBy: Seq[Map[String, Any]] = Seq(),
   * Controller that handles deployment requests as a REST API.
   */
 class RestController @Inject()(val engine: Engine)
-  extends BaseController with TimeoutToHttpStatusTranslation {
+  extends BaseController with ExceptionsToHttpStatusTranslation {
 
   private val futurePool = FuturePools.unboundedPool("RequestFuturePool")
 
@@ -93,11 +93,9 @@ class RestController @Inject()(val engine: Engine)
   post("/api/products") { r: ProductPost =>
     authenticate(r.request) { case user if permissions.isAuthorized(user, GeneralAction.addProduct) =>
       timeBoxed(
-        engine.insertProduct(r.name)
-          .map(_ => Some(response.created.nothing))
-          .recover { case e: ProductCreationConflict =>
-            throw ConflictException(e.getMessage)
-          },
+        engine
+          .insertProduct(r.name)
+          .map(_ => Some(response.created.nothing)),
         5.seconds
       )
     }
@@ -149,10 +147,7 @@ class RestController @Inject()(val engine: Engine)
         engine.isDeploymentRequestStarted(id).flatMap(
           _.map { case (deploymentRequest, isStarted) =>
             engine.canRevertDeploymentRequest(deploymentRequest, isStarted)
-              .recover { case e: UnprocessableAction =>
-                val body = Map("errors" -> Seq(s"Cannot revert the request #${deploymentRequest.id}: ${e.msg}")) ++ e.detail
-                throw new HttpResponseException(response.EnrichedResponse(HttpStatus.UnprocessableEntity).json(body))
-              }
+              .recover { case e: RejectingError => throw e.copy(s"Cannot revert the request #${deploymentRequest.id}: ${e.msg}") }
               .flatMap { _ =>
                 engine.findExecutionSpecificationsForRevert(deploymentRequest).map { case (undetermined, determined) =>
                   Some(Map(
@@ -190,10 +185,7 @@ class RestController @Inject()(val engine: Engine)
                   }
                   checking
                     .flatMap(_ => effect(id, user.name))
-                    .recover { case e: UnprocessableAction =>
-                      val body = Map("errors" -> Seq(s"Cannot ${r.actionType} the request #$id: ${e.msg}")) ++ e.detail
-                      throw new HttpResponseException(response.EnrichedResponse(HttpStatus.UnprocessableEntity).json(body))
-                    }
+                    .recover { case e: RejectingError => throw e.copy(s"Cannot ${r.actionType} the request #$id: ${e.msg}") }
                     .map(_.map(_ => response.ok.json(Map("id" -> id))))
                 }
                 else
