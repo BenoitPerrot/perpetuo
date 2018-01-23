@@ -27,8 +27,15 @@ class Schema(val dbContext: DbContext)
 
 @Singleton
 class DbBinding @Inject()(val dbContext: DbContext)
-  extends ExecutionTraceBinder with ExecutionBinder with ExecutionSpecificationBinder with OperationTraceBinder with DeploymentRequestBinder with TargetStatusBinder with ProductBinder
-    with DbContextProvider {
+  extends DbContextProvider
+    with DeploymentRequestBinder
+    with ExecutionBinder
+    with ExecutionSpecificationBinder
+    with ExecutionTraceBinder
+    with LockBinder
+    with OperationTraceBinder
+    with ProductBinder
+    with TargetStatusBinder {
 
   import dbContext.driver.api._
 

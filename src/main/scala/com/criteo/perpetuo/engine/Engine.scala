@@ -117,14 +117,33 @@ class Engine @Inject()(val dbBinding: DbBinding,
     }
   }
 
+  private def getOperationLockName(deploymentRequest: DeploymentRequest) =
+    s"Operating on ${deploymentRequest.id}"
+
   private def startOperation(deploymentRequest: DeepDeploymentRequest,
-                             operationStart: Future[(ShallowOperationTrace, Int, Int)],
+                             operationStart: => Future[(ShallowOperationTrace, Int, Int)],
                              onOperationStartedListeners: Seq[(DeepDeploymentRequest, Int, Int) => Unit]): Future[ShallowOperationTrace] =
-    operationStart.flatMap { case (operationTrace, started, failed) =>
-      onOperationStartedListeners.foreach(_ (deploymentRequest, started, failed))
-      (if (started == 0) closeOperation(operationTrace, deploymentRequest) else Future.successful()).map(_ =>
-        operationTrace
-      )
+    dbBinding.tryAcquireLocks(Seq(getOperationLockName(deploymentRequest)), deploymentRequest.id).flatMap { alreadyRunning =>
+      if (alreadyRunning.nonEmpty)
+        throw Conflict("Cannot be processed for the moment because another operation is running for the same deployment request")
+
+        val opStart = try {
+          operationStart
+        } catch {
+          case _: Throwable => Future.failed(new Exception)
+        }
+        opStart
+          .flatMap { case (operationTrace, started, failed) =>
+            onOperationStartedListeners.foreach(_ (deploymentRequest, started, failed))
+            (if (started == 0) closeOperation(operationTrace, deploymentRequest) else Future.successful()).map(_ =>
+              operationTrace
+            )
+          }
+          .recover {
+            case e: Throwable =>
+              dbBinding.releaseLocks(deploymentRequest.id)
+              throw e
+          }
     }
 
   private def startDeploymentRequest(req: DeepDeploymentRequest, initiatorName: String, atCreation: Boolean): Future[ShallowOperationTrace] = {
@@ -139,19 +158,23 @@ class Engine @Inject()(val dbBinding: DbBinding,
     dbBinding.closeOperationTrace(operationTrace)
       .map(_.map((_, true)).getOrElse((operationTrace, false)))
       .flatMap { case (trace, updated) =>
-        dbBinding.findOperationEffect(trace).map(_
+        dbBinding.findOperationEffect(trace).flatMap(_
           .map { effect =>
             val (_, status) = computeState(effect)
-            if (updated)
-              listeners.foreach(
-                if (status == OperationStatus.succeeded)
-                  _.onOperationSucceeded(trace, deploymentRequest)
-                else
-                  _.onOperationFailed(trace, deploymentRequest)
-              )
+            dbBinding.releaseLocks(deploymentRequest.id).map { _ =>
+              if (updated)
+                listeners.foreach(
+                  if (status == OperationStatus.succeeded)
+                    _.onOperationSucceeded(trace, deploymentRequest)
+                  else
+                    _.onOperationFailed(trace, deploymentRequest)
+                )
               trace
+            }
           }
-          .getOrElse(trace)
+          .getOrElse(
+            Future.successful(trace)
+          )
         )
       }
 
