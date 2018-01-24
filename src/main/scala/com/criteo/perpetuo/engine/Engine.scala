@@ -57,7 +57,7 @@ class Engine @Inject()(val dbBinding: DbBinding,
                        val targetResolver: TargetResolver,
                        val targetDispatcher: TargetDispatcher,
                        val permissions: Permissions,
-                       val listeners: Seq[Listener]) {
+                       val listeners: Seq[AsyncListener]) {
 
   val config = AppConfigProvider.config
 
@@ -102,21 +102,26 @@ class Engine @Inject()(val dbBinding: DbBinding,
     else {
       val futureDepReq = dbBinding.insertDeploymentRequest(attrs)
 
-      futureDepReq.foreach { deploymentRequest =>
+      futureDepReq.map { deploymentRequest =>
         // todo: onDeploymentRequestCreated returning an extra comment feels wrong, probably it should not
-        val moreComments = listeners.map(_.onDeploymentRequestCreated(deploymentRequest, immediateStart)).filter(_ != null)
-        (if (moreComments.nonEmpty) {
-          val allComments = if (deploymentRequest.comment.nonEmpty) Seq(deploymentRequest.comment) ++ moreComments else moreComments
-          dbBinding.updateDeploymentRequestComment(deploymentRequest.id, allComments.mkString("\n"))
-        } else {
-          Future.successful()
-        }).foreach { _ =>
-          if (immediateStart)
-            startDeploymentRequest(deploymentRequest, attrs.creator, atCreation = true)
-        }
-      }
+        val listenersCalls = listeners.map(_.onDeploymentRequestCreated(deploymentRequest, immediateStart).map(Option.apply))
+        val asyncCalls = if (immediateStart)
+          startDeploymentRequest(deploymentRequest, attrs.creator, atCreation = true).map(_ => None) :: listenersCalls.toList
+        else
+          listenersCalls
 
-      futureDepReq.map(depReq => Map("id" -> depReq.id))
+        Future
+          .sequence(asyncCalls)
+          .map(_.flatten)
+          .foreach { moreComments =>
+            if (moreComments.nonEmpty) {
+              val allComments = if (deploymentRequest.comment.nonEmpty) Seq(deploymentRequest.comment) ++ moreComments else moreComments
+              dbBinding.updateDeploymentRequestComment(deploymentRequest.id, allComments.mkString("\n"))
+            }
+          }
+
+        Map("id" -> deploymentRequest.id)
+      }
     }
   }
 
@@ -134,7 +139,7 @@ class Engine @Inject()(val dbBinding: DbBinding,
 
   private def startOperation(deploymentRequest: DeepDeploymentRequest,
                              operationStart: => Future[(ShallowOperationTrace, Int, Int)],
-                             onOperationStartedListeners: Seq[(DeepDeploymentRequest, Int, Int) => Unit]): Future[ShallowOperationTrace] =
+                             onOperationStartedListeners: Seq[(DeepDeploymentRequest, Int, Int) => Future[Unit]]): Future[ShallowOperationTrace] =
     dbBinding.tryAcquireLocks(Seq(getOperationLockName(deploymentRequest)), deploymentRequest.id, reentrant = false).flatMap { alreadyRunning =>
       if (alreadyRunning.nonEmpty)
         throw Conflict("Cannot be processed for the moment because another operation is running for the same deployment request")
@@ -184,21 +189,19 @@ class Engine @Inject()(val dbBinding: DbBinding,
           .map { effect =>
             val (kind, status) = computeState(effect)
             val transactionOngoing = kind == Operation.deploy && status == OperationStatus.failed
-            releaseLocks(deploymentRequest, transactionOngoing).map { _ =>
-              if (updated)
-                listeners.foreach(
-                  if (status == OperationStatus.succeeded)
-                    _.onOperationSucceeded(trace, deploymentRequest)
-                  else
-                    _.onOperationFailed(trace, deploymentRequest)
-                )
-              trace
+            if (updated) {
+              val handler = if (status == OperationStatus.succeeded)
+                (_: AsyncListener).onOperationSucceeded _
+              else
+                (_: AsyncListener).onOperationFailed _
+              listeners.foreach(listener => handler(listener)(trace, deploymentRequest))
             }
+            releaseLocks(deploymentRequest, transactionOngoing)
           }
           .getOrElse(
-            Future.successful(trace)
+            Future.successful(0)
           )
-        )
+        ).map(_ => trace)
       }
 
   def isDeploymentRequestStarted(deploymentRequestId: Long): Future[Option[(DeepDeploymentRequest, Boolean)]] =

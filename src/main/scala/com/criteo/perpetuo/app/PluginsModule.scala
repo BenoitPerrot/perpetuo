@@ -2,7 +2,7 @@ package com.criteo.perpetuo.app
 
 import com.criteo.perpetuo.auth.{IdentityProvider, Permissions}
 import com.criteo.perpetuo.config.Plugins
-import com.criteo.perpetuo.engine.Listener
+import com.criteo.perpetuo.engine.AsyncListener
 import com.criteo.perpetuo.engine.dispatchers.TargetDispatcher
 import com.criteo.perpetuo.engine.resolvers.TargetResolver
 import com.google.inject.{Provides, Singleton}
@@ -29,5 +29,5 @@ class PluginsModule extends TwitterModule {
 
   @Singleton
   @Provides
-  def providesListeners(plugins: Plugins): Seq[Listener] = plugins.listeners
+  def providesListeners(plugins: Plugins): Seq[AsyncListener] = plugins.listeners
 }
