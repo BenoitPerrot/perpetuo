@@ -69,7 +69,7 @@
       color: #fff;
       background-color: #0f9d58;
     }
-    div.state > span.failed, div.state > span.init-failed, div.state > span.reverted {
+    div.state > span.failed, div.state > span.flopped, div.state > span.reverted {
       color: #fff;
       background-color: #f44336;
     }
@@ -124,11 +124,11 @@
       }
 
       humanReadable(actionName) {
-        return actionName.replace('initFailed', 'failed').replace(/([A-Z])/g, ' $1');
+        return actionName.replace(/([A-Z])/g, ' $1');
       }
 
       toCssClasses(actionName) {
-        return actionName.replace('initFailed', 'failed').replace(/([A-Z])/g, '-$1').toLowerCase();
+        return actionName.replace(/([A-Z])/g, '-$1').toLowerCase();
       }
     }
 

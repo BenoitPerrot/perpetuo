@@ -18,7 +18,7 @@ import scala.util.Try
 
 object OperationStatus extends Enumeration {
   val inProgress = Value
-  val initFailed = Value
+  val flopped = Value
   val failed = Value
   val succeeded = Value
 }
@@ -314,10 +314,10 @@ class Engine @Inject()(val dbBinding: DbBinding,
   def computeState(operationEffect: OperationEffect): (Operation.Kind, OperationStatus.Value) = {
     val OperationEffect(operationTrace, executionTraces, targetStatuses) = operationEffect
     val lastOperationState = operationTrace.closingDate.map { _ =>
-      if (targetStatuses.forall(_.code == Status.success) && executionTraces.forall(_.state == ExecutionState.completed))
+      if (targetStatuses.forall(_.code == Status.notDone))
+        OperationStatus.flopped
+      else if (targetStatuses.forall(_.code == Status.success) && executionTraces.forall(_.state == ExecutionState.completed))
         OperationStatus.succeeded
-      else if (executionTraces.forall(_.state == ExecutionState.initFailed))
-        OperationStatus.initFailed
       else
         OperationStatus.failed
     }.getOrElse(
