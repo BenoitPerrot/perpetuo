@@ -10,7 +10,7 @@ import com.twitter.util.Future
 import spray.json.{JsObject, JsString}
 
 case class TokenRequest(token: String)
-case class LocalUserIdentificationRequest(@RouteParam userName: String, request: Request)
+case class LocalUserIdentificationRequest(@RouteParam name: String, request: Request)
 
 class Controller @Inject()(identityProvider: IdentityProvider, permissions: Permissions, jwtEncoder: JWTEncoder) extends BaseController {
 
@@ -26,11 +26,11 @@ class Controller @Inject()(identityProvider: IdentityProvider, permissions: Perm
     }
   }
 
-  get("/api/auth/local-users/:user_name/jwt") { r: LocalUserIdentificationRequest =>
+  get("/api/auth/local-users/:name/jwt") { r: LocalUserIdentificationRequest =>
     r.request.user
       .map(requestingUser =>
         if (permissions.isAuthorized(requestingUser, GeneralAction.administrate)) {
-          identityProvider.identifyByName(r.userName)
+          identityProvider.identifyByName(r.name)
             .map(user =>
               response.ok.plain(user.toJWT(jwtEncoder))
             )
