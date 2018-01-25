@@ -120,12 +120,30 @@ class Engine @Inject()(val dbBinding: DbBinding,
   private def getOperationLockName(deploymentRequest: DeploymentRequest) =
     s"Operating on ${deploymentRequest.id}"
 
+  private def getTransactionLockNames(deploymentRequest: DeepDeploymentRequest) =
+    Seq("P_" + deploymentRequest.product.name)
+
+  private def releaseLocks(deploymentRequest: DeploymentRequest, transactionOngoing: Boolean) =
+    if (transactionOngoing && withTransactions)
+      dbBinding.releaseLock(getOperationLockName(deploymentRequest), deploymentRequest.id) // keep the locks per product/target
+    else
+      dbBinding.releaseLocks(deploymentRequest.id)
+
   private def startOperation(deploymentRequest: DeepDeploymentRequest,
                              operationStart: => Future[(ShallowOperationTrace, Int, Int)],
                              onOperationStartedListeners: Seq[(DeepDeploymentRequest, Int, Int) => Unit]): Future[ShallowOperationTrace] =
-    dbBinding.tryAcquireLocks(Seq(getOperationLockName(deploymentRequest)), deploymentRequest.id).flatMap { alreadyRunning =>
+    dbBinding.tryAcquireLocks(Seq(getOperationLockName(deploymentRequest)), deploymentRequest.id, reentrant = false).flatMap { alreadyRunning =>
       if (alreadyRunning.nonEmpty)
         throw Conflict("Cannot be processed for the moment because another operation is running for the same deployment request")
+
+      dbBinding.tryAcquireLocks(getTransactionLockNames(deploymentRequest), deploymentRequest.id, reentrant = true).flatMap { conflictingRequestIds =>
+        if (conflictingRequestIds.nonEmpty) {
+          dbBinding.releaseLock(getOperationLockName(deploymentRequest), deploymentRequest.id)
+          throw Conflict(
+            "Cannot be processed for the moment because a conflicting transaction is ongoing, which must first succeed or be reverted",
+            conflictingRequestIds
+          )
+        }
 
         val opStart = try {
           operationStart
@@ -141,9 +159,10 @@ class Engine @Inject()(val dbBinding: DbBinding,
           }
           .recover {
             case e: Throwable =>
-              dbBinding.releaseLocks(deploymentRequest.id)
+              releaseLocks(deploymentRequest, transactionOngoing = false)
               throw e
           }
+      }
     }
 
   private def startDeploymentRequest(req: DeepDeploymentRequest, initiatorName: String, atCreation: Boolean): Future[ShallowOperationTrace] = {
@@ -160,8 +179,9 @@ class Engine @Inject()(val dbBinding: DbBinding,
       .flatMap { case (trace, updated) =>
         dbBinding.findOperationEffect(trace).flatMap(_
           .map { effect =>
-            val (_, status) = computeState(effect)
-            dbBinding.releaseLocks(deploymentRequest.id).map { _ =>
+            val (kind, status) = computeState(effect)
+            val transactionOngoing = kind == Operation.deploy && status == OperationStatus.failed
+            releaseLocks(deploymentRequest, transactionOngoing).map { _ =>
               if (updated)
                 listeners.foreach(
                   if (status == OperationStatus.succeeded)
@@ -201,31 +221,10 @@ class Engine @Inject()(val dbBinding: DbBinding,
       rejectIfOutdated(deploymentRequest)
     }
 
-
   def startDeploymentRequest(deploymentRequestId: Long, initiatorName: String): Future[Option[ShallowOperationTrace]] = {
-    dbBinding.findDeepDeploymentRequestById(deploymentRequestId).flatMap(
-      _.map { req =>
-        val check = if (withTransactions)
-          dbBinding.findLastOperationAndEffect(req.productId).map { lastEffect =>
-            lastEffect.foreach { operationEffect =>
-              val requestId = operationEffect.operationTrace.deploymentRequestId
-              val error = computeState(operationEffect) match {
-                case (_, OperationStatus.inProgress) => // todo: as long as we don't have locking mechanism only
-                  Some(s"wait for deployment request #$requestId to end")
-                case (Operation.deploy, OperationStatus.failed) =>
-                  Some(s"deployment request #$requestId has been left in an uncertain state, complete it first")
-                case _ => None
-              }
-              error.foreach { message => throw Conflict(message, Seq(requestId)) }
-            }
-          }
-        else
-          Future.successful()
-
-        check.flatMap(_ =>
-          startDeploymentRequest(req, initiatorName, atCreation = false).map(Some(_))
-        )
-      }.getOrElse(Future.successful(None))
+    dbBinding.findDeepDeploymentRequestById(deploymentRequestId).flatMap(_
+      .map(req => startDeploymentRequest(req, initiatorName, atCreation = false).map(Some(_)))
+      .getOrElse(Future.successful(None))
     )
   }
 

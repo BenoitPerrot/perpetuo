@@ -110,7 +110,7 @@ class EngineSpec extends Test with TestDb {
         // OK after a init failure
         _ <- mockDeployExecution(product.name, "103", Map("racing" -> Status.success))
       } yield {
-        conflictMsg shouldBe s"deployment request #$secondId has been left in an uncertain state, complete it first"
+        conflictMsg shouldBe "Cannot be processed for the moment because a conflicting transaction is ongoing, which must first succeed or be reverted"
       },
       2.seconds
     )

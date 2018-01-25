@@ -33,23 +33,30 @@ trait LockBinder extends TableBinder with Logging {
   /**
     * Acquire all the locks on behalf of the given deployment request ID if possible,
     * otherwise don't change anything but return the IDs of the deployment requests owning the conflicting locks.
+    *
+    * @param reentrant either locks are considered acquired (if true) or conflicting (if false) when they are
+    *                  already owned by the requester
     */
-  def tryAcquireLocks(names: Iterable[String], acquiringDeploymentRequestId: DeploymentRequestId): Future[Seq[DeploymentRequestId]] = {
-    val q = lockQuery
-      .filter(_.name.inSet(names))
-      .groupBy(_.deploymentRequestId)
-      .map { case (ownerId, group) => (ownerId, group.map(_.name).min) }
-      .result
-      .flatMap(previouslyAcquired =>
-        if (previouslyAcquired.isEmpty)
-          (lockQuery ++= names.map(LockRecord(_, acquiringDeploymentRequestId))).map(_ => previouslyAcquired)
-        else
-          DBIO.successful(previouslyAcquired)
-      )
+  def tryAcquireLocks(names: Iterable[String], acquiringDeploymentRequestId: DeploymentRequestId, reentrant: Boolean): Future[Iterable[DeploymentRequestId]] = {
+    val q = lockQuery.filter(_.name.inSet(names)).result.flatMap { previouslyAcquired =>
+      val (namesToAcquire, conflicting) = if (reentrant) {
+        val (toIgnore, conflicting) = previouslyAcquired.toStream.partition(_.deploymentRequestId == acquiringDeploymentRequestId)
+        val ignoredNames = toIgnore.map(_.name).toSet
+        (names.toStream.filter(!ignoredNames.contains(_)), conflicting)
+      }
+      else
+        (names, previouslyAcquired)
+
+      val conflictingIds = conflicting.map(lock => lock.deploymentRequestId -> lock.name).toMap
+      if (conflictingIds.isEmpty)
+        (lockQuery ++= namesToAcquire.map(LockRecord(_, acquiringDeploymentRequestId))).map(_ => conflictingIds /* empty */)
+      else
+        DBIO.successful(conflictingIds)
+    }
 
     dbContext.db.run(q.transactionally.withTransactionIsolation(TransactionIsolation.Serializable)).map { conflictSamples =>
       conflictSamples.map { case (ownerId, name) =>
-        logger.debug(s"Couldn't acquire lock `${name.get}` for request #$acquiringDeploymentRequestId because request #$ownerId owns it")
+        logger.debug(s"Couldn't acquire lock `$name` for request #$acquiringDeploymentRequestId because request #$ownerId owns it")
         ownerId
       }
     }
@@ -62,4 +69,12 @@ trait LockBinder extends TableBinder with Logging {
     */
   def releaseLocks(owningDeploymentRequestId: DeploymentRequestId): Future[Int] =
     dbContext.db.run(lockQuery.filter(_.deploymentRequestId === owningDeploymentRequestId).delete.transactionally)
+
+  /**
+    * Release the given lock if acquired by the given deployment request, otherwise do nothing.
+    *
+    * @return the number of locks that have actually been released (so 1 or 0).
+    */
+  def releaseLock(name: String, owningDeploymentRequestId: DeploymentRequestId): Future[Int] =
+    dbContext.db.run(lockQuery.filter(lock => lock.name === name && lock.deploymentRequestId === owningDeploymentRequestId).delete)
 }
