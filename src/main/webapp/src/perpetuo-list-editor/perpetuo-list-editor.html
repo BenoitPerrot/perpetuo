@@ -76,7 +76,7 @@
           initialCount: Number,
           label: String,
           multi: Boolean,
-          filter: String,
+          filter: {type: String, notify: true},
           choices: Array,
           filteredChoices: {type: Array, computed: 'applyFilter(choices, filter)', observer: 'completeOrSuggest'},
           selectedItems: {type: Array, value: () => [], notify: true},
