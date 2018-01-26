@@ -6,9 +6,9 @@ import scala.concurrent.Future
 
 
 trait SyncListener {
-  def onDeploymentRequestCreated(deploymentRequest: DeepDeploymentRequest, immediateStart: Boolean): String
+  def onDeploymentRequestCreated(deploymentRequest: DeepDeploymentRequest): String
 
-  def onDeploymentRequestStarted(deploymentRequest: DeepDeploymentRequest, startedExecutions: Int, failedToStart: Int, atCreation: Boolean): Unit
+  def onDeploymentRequestStarted(deploymentRequest: DeepDeploymentRequest, startedExecutions: Int, failedToStart: Int): Unit
 
   def onDeploymentRequestRetried(deploymentRequest: DeepDeploymentRequest, startedExecutions: Int, failedToStart: Int): Unit
 
@@ -20,9 +20,9 @@ trait SyncListener {
 }
 
 trait AsyncListener {
-  def onDeploymentRequestCreated(deploymentRequest: DeepDeploymentRequest, immediateStart: Boolean): Future[String]
+  def onDeploymentRequestCreated(deploymentRequest: DeepDeploymentRequest): Future[String]
 
-  def onDeploymentRequestStarted(deploymentRequest: DeepDeploymentRequest, startedExecutions: Int, failedToStart: Int, atCreation: Boolean): Future[Unit]
+  def onDeploymentRequestStarted(deploymentRequest: DeepDeploymentRequest, startedExecutions: Int, failedToStart: Int): Future[Unit]
 
   def onDeploymentRequestRetried(deploymentRequest: DeepDeploymentRequest, startedExecutions: Int, failedToStart: Int): Future[Unit]
 

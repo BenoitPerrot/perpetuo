@@ -73,7 +73,7 @@ class RestControllerSpec extends Test with TestDb {
 
   private val logHrefHistory: mutable.Map[Long, JsValue] = mutable.Map()
 
-  private def createProduct(name: String, expectedError: Option[(String, Status)] = None) = {
+  private def createProduct(name: String, expectedError: Option[(String, Status)] = None): Unit = {
     val ans = server.httpPost(
       path = s"/api/products",
       headers = Map("Cookie" -> s"jwt=$productUserJWT"),
@@ -83,7 +83,18 @@ class RestControllerSpec extends Test with TestDb {
     expectedError.foreach(err => ans shouldEqual JsObject("errors" -> JsArray(JsString(err._1))).compactPrint)
   }
 
-  private def requestDeployment(productName: String, version: String, target: JsValue, comment: Option[String], expectsMessage: Option[String] = None, start: Boolean = true): JsObject =
+  private def requestAndWaitDeployment(productName: String, version: String, target: JsValue, comment: Option[String] = None, expectsMessage: Option[String] = None): Long = {
+    val depReqId = requestDeployment(productName, version, target, comment, expectsMessage)
+    expectsMessage.getOrElse {
+      startDeploymentRequest(depReqId)
+      getExecutionTracesByDeploymentRequestId(depReqId.toString).elements.map(_.idAsLong).foreach(execTraceId =>
+        updateExecTrace(depReqId, execTraceId, "completed")
+      )
+    }
+    depReqId
+  }
+
+  private def requestDeployment(productName: String, version: String, target: JsValue, comment: Option[String] = None, expectsMessage: Option[String] = None): Long = {
     requestDeployment(
       JsObject(
         Map(
@@ -92,19 +103,19 @@ class RestControllerSpec extends Test with TestDb {
           "target" -> target
         ) ++ (if (comment.isDefined) Map("comment" -> JsString(comment.get)) else Map())
       ).compactPrint,
-      expectsMessage,
-      start
+      expectsMessage
     )
+  }
 
-  private def requestDeployment(body: String, expectsMessage: Option[String], start: Boolean): JsObject = {
+  private def requestDeployment(body: String, expectsMessage: Option[String]): Long = {
     val ans = server.httpPost(
-      path = s"/api/deployment-requests?start=$start",
+      path = s"/api/deployment-requests",
       headers = Map("Cookie" -> s"jwt=$deployUserJWT"),
       andExpect = if (expectsMessage.isDefined) BadRequest else Created,
       postBody = body
     ).contentString
     ans should include regex expectsMessage.getOrElse(""""id":\d+""")
-    ans.parseJson.asJsObject
+    expectsMessage.map(_ => -1L).getOrElse(ans.parseJson.asJsObject.fields("id").asInstanceOf[JsNumber].value.toLongExact)
   }
 
   private def checkCreationDate(depReqMap: Map[String, JsValue]): Long = {
@@ -161,37 +172,42 @@ class RestControllerSpec extends Test with TestDb {
 
   private var randomProductCounter = 1000
 
-  private def createAndStartDeployment(version: String, target: JsValue) = {
+  private def createProductAndStartDeployment(version: String, target: JsValue) = {
     randomProductCounter += 1
     val productName = s"random product $randomProductCounter"
     createProduct(productName)
-    val depReqId = requestDeployment(productName, version, target, None, start = false).idAsLong
-    startDeploymentRequest(depReqId)
+    val depReqId = requestAndWaitDeployment(productName, version, target)
     (depReqId, getExecutionTracesByDeploymentRequestId(depReqId.toString).elements.map(_.idAsLong))
   }
 
-  private def updateExecTrace(deploymentRequestId: Long, execTraceId: Long, state: String, logHref: Option[String],
+  private def updateExecTrace(deploymentRequestId: Long, execTraceId: Long, state: String,
+                              logHref: Option[String] = None,
                               targetStatus: Option[Map[String, JsValue]] = None,
-                              executionDetail: Option[String] = None,
-                              expectedTargetStatus: Map[String, (String, String)]): Unit = {
-    val logHrefJson = logHref.map(_.toJson)
-    val previousLogHrefJson = logHrefHistory.getOrElse(execTraceId, JsNull)
-    val expectedLogHrefJson = logHrefJson.getOrElse(previousLogHrefJson)
-    logHrefHistory(execTraceId) = expectedLogHrefJson
-
+                              executionDetail: Option[String] = None): Response = {
     val params = Map(
       "state" -> Some(state.toJson),
-      "logHref" -> logHrefJson,
+      "logHref" -> logHref.map(_.toJson),
       "detail" -> executionDetail.map(_.toJson),
       "targetStatus" -> targetStatus.map(_.toJson)
     ).collect {
       case (k, v) if v.isDefined => k -> v.get
     }
-    val ret = httpPut(
+    httpPut(
       RestApi.executionCallbackPath(execTraceId.toString),
       params.toJson,
       NoContent
     )
+  }
+
+  private def updateExecTrace(deploymentRequestId: Long, execTraceId: Long, state: String, logHref: Option[String],
+                              targetStatus: Option[Map[String, JsValue]],
+                              executionDetail: Option[String],
+                              expectedTargetStatus: Map[String, (String, String)]): Unit = {
+    val previousLogHrefJson = logHrefHistory.getOrElse(execTraceId, JsNull)
+    val expectedLogHrefJson = logHref.map(_.toJson).getOrElse(previousLogHrefJson)
+    logHrefHistory(execTraceId) = expectedLogHrefJson
+
+    val ret = updateExecTrace(deploymentRequestId, execTraceId, state, logHref, targetStatus, executionDetail)
     ret.contentLength shouldEqual Some(0)
 
     val depReq = deepGetDepReq(deploymentRequestId)
@@ -234,16 +250,16 @@ class RestControllerSpec extends Test with TestDb {
     )
   }
 
-  test("The Product's entry-points returns 201 when creating a Product") {
+  test("The Product's entry-point returns 201 when creating a Product") {
     createProduct("my product")
     createProduct("my other product")
   }
 
-  test("The Product's entry-points properly rejects already used names") {
+  test("The Product's entry-point properly rejects already used names") {
     createProduct("my product", Some("Name `my product` is already used", Conflict))
   }
 
-  test("The Product's entry-points returns the list of all known product names") {
+  test("The Product's entry-point returns the list of all known product names") {
     val products = server.httpGet(
       path = "/api/products",
       andExpect = Ok
@@ -252,38 +268,38 @@ class RestControllerSpec extends Test with TestDb {
   }
 
   test("The DeploymentRequest's POST entry-point returns 201 when creating a DeploymentRequest") {
-    requestDeployment("my product", "v21", "to everywhere".toJson, Some("my comment"))
-    requestDeployment("my other product", "buggy", "nowhere".toJson, None)
+    requestAndWaitDeployment("my product", "v21", "to everywhere".toJson, Some("my comment"))
+    requestAndWaitDeployment("my other product", "buggy", "nowhere".toJson, None)
   }
 
   test("The DeploymentRequest's POST entry-point properly rejects bad input") {
-    requestDeployment("{", Some("Unexpected end-of-input at input"), start = true)
-    requestDeployment("""{"productName": "abc"}""", Some("Expected to find `version`"), start = true)
-    requestDeployment("""{"productName": "abc", "version": "42"}""", Some("Expected to find `target`"), start = true)
-    requestDeployment("""{"productName": "abc", "target": "*", "version": "2"}""", Some("Product `abc` could not be found"), start = true)
+    requestDeployment("{", Some("Unexpected end-of-input at input"))
+    requestDeployment("""{"productName": "abc"}""", Some("Expected to find `version`"))
+    requestDeployment("""{"productName": "abc", "version": "42"}""", Some("Expected to find `target`"))
+    requestDeployment("""{"productName": "abc", "target": "*", "version": "2"}""", Some("Product `abc` could not be found"))
   }
 
   test("The DeploymentRequest's POST entry-point handles a complex target expression") {
-    requestDeployment("my product", "42", Seq("here", "and", "there").toJson, Some(""))
-    requestDeployment("my product", " 10402", Map("select" -> "here").toJson, Some(""))
-    requestDeployment("my product", "0042", Map("select" -> Seq("here", "and", "there")).toJson, Some(""))
-    requestDeployment("my product", "420", Seq(Map("select" -> Seq("here", "and", "there"))).toJson, Some(""))
+    requestAndWaitDeployment("my product", "42", Seq("here", "and", "there").toJson, Some(""))
+    requestAndWaitDeployment("my product", " 10402", Map("select" -> "here").toJson, Some(""))
+    requestAndWaitDeployment("my product", "0042", Map("select" -> Seq("here", "and", "there")).toJson, Some(""))
+    requestAndWaitDeployment("my product", "420", Seq(Map("select" -> Seq("here", "and", "there"))).toJson, Some(""))
   }
 
   test("The DeploymentRequest's POST entry-point properly rejects bad targets") {
-    requestDeployment("my product", "b", JsArray(), None, Some("non-empty JSON array or object"))
-    requestDeployment("my product", "b", JsObject(), None, Some("must contain a field `select`"))
-    requestDeployment("my product", "b", 60.toJson, None, Some("JSON array or object"))
-    requestDeployment("my product", "b", Seq(42).toJson, None, Some("JSON object or string"))
-    requestDeployment("my product", "b", Seq(JsObject()).toJson, None, Some("must contain a field `select`"))
-    requestDeployment("my product", "b", Seq(Map("select" -> 42)).toJson, None, Some("non-empty JSON string or array"))
-    requestDeployment("my product", "b", Seq(Map("select" -> Seq(42))).toJson, None, Some("a JSON string in"))
+    requestAndWaitDeployment("my product", "b", JsArray(), None, Some("non-empty JSON array or object"))
+    requestAndWaitDeployment("my product", "b", JsObject(), None, Some("must contain a field `select`"))
+    requestAndWaitDeployment("my product", "b", 60.toJson, None, Some("JSON array or object"))
+    requestAndWaitDeployment("my product", "b", Seq(42).toJson, None, Some("JSON object or string"))
+    requestAndWaitDeployment("my product", "b", Seq(JsObject()).toJson, None, Some("must contain a field `select`"))
+    requestAndWaitDeployment("my product", "b", Seq(Map("select" -> 42)).toJson, None, Some("non-empty JSON string or array"))
+    requestAndWaitDeployment("my product", "b", Seq(Map("select" -> Seq(42))).toJson, None, Some("a JSON string in"))
   }
 
   test("The DeploymentRequest's actions entry-point starts a deployment that was not started yet") {
     createProduct("my product B")
-    val id = requestDeployment("my product B", "456", "ams".toJson, None, None, start = false).idAsLong
-    startDeploymentRequest(id.longValue()) shouldEqual JsObject("id" -> id.toJson)
+    val id = requestDeployment("my product B", "456", "ams".toJson)
+    startDeploymentRequest(id) shouldEqual JsObject("id" -> id.toJson)
   }
 
   test("The DeploymentRequest's actions entry-point returns 404 when trying to start a non-existing DeploymentRequest") {
@@ -301,7 +317,7 @@ class RestControllerSpec extends Test with TestDb {
     }
 
     createProduct("my new product")
-    val id = requestDeployment("my new product", "789", "par".toJson, None, None, start = false).idAsLong
+    val id = requestDeployment("my new product", "789", "par".toJson)
     val respJson1 = getRespJson(actOnDeploymentRequest(id, "revert", JsObject(), UnprocessableEntity))
     respJson1("error") should include("it has not yet been applied")
     respJson1 shouldNot contain("required")
@@ -312,7 +328,7 @@ class RestControllerSpec extends Test with TestDb {
       id, execTraceId, "completed", None, Some(
         Map("targetA" -> Map("code" -> "success", "detail" -> "").toJson,
           "targetB" -> Map("code" -> "productFailure", "detail" -> "").toJson)),
-      expectedTargetStatus = Map("targetA" -> ("success", ""), "targetB" -> ("productFailure", ""))
+      None, Map("targetA" -> ("success", ""), "targetB" -> ("productFailure", ""))
     )
     val respJson2 = getRespJson(actOnDeploymentRequest(id, "revert", JsObject(), UnprocessableEntity))
     respJson2("error") should include("a default rollback version is required")
@@ -358,15 +374,14 @@ class RestControllerSpec extends Test with TestDb {
   }
 
   test("The DeploymentRequest's GET entry-point returns 200 and a JSON with all necessary info when accessing an existing DeploymentRequest") {
-    val o = requestDeployment("my product", "v2097", "to everywhere".toJson, Some("hello world"))
-    val i = o.idAsLong
+    val depReqId = requestAndWaitDeployment("my product", "v2097", "to everywhere".toJson, Some("hello world"))
 
-    val values1 = getDeploymentRequest(i.toString).fields
+    val values1 = getDeploymentRequest(depReqId.toString).fields
 
     checkCreationDate(values1)
 
     Map(
-      "id" -> JsNumber(i),
+      "id" -> JsNumber(depReqId),
       "productName" -> JsString("my product"),
       "version" -> JsString("v2097"),
       "target" -> JsString("to everywhere"),
@@ -393,84 +408,83 @@ class RestControllerSpec extends Test with TestDb {
     ) shouldEqual Vector("here", "and", "there")
   }
 
-  test("The ExecutionTrace's entry-points returns 404 when trying to access a non-existing DeploymentRequest") {
+  test("The ExecutionTrace's entry-point returns 404 when trying to access a non-existing DeploymentRequest") {
     getExecutionTracesByDeploymentRequestId("4242", NotFound)
   }
 
-  test("The ExecutionTrace's entry-points not fails when the existing DeploymentRequest doesn't have execution traces yet") {
+  test("The ExecutionTrace's entry-point doesn't fail when the existing DeploymentRequest doesn't have execution traces yet") {
     val attrs = new DeploymentRequestAttrs("my product", Version("\"v\""), "\"t\"", "c", "c", new Timestamp(System.currentTimeMillis))
-    val depReq = Await.result(controller.engine.createDeploymentRequest(attrs, immediateStart = false), 1.second)
+    val depReq = Await.result(controller.engine.createDeploymentRequest(attrs), 1.second)
     val traces = getExecutionTracesByDeploymentRequestId(depReq("id").toString).elements
     traces shouldBe empty
   }
 
-  test("The ExecutionTrace's entry-points returns a list of executions when trying to access an existing DeploymentRequest") {
+  test("The ExecutionTrace's entry-point returns a list of executions when trying to access a completed DeploymentRequest") {
     val traces = getExecutionTracesByDeploymentRequestId("1").elements
     traces.length shouldEqual 1
     Map(
       "id" -> T,
       "logHref" -> JsNull,
-      "state" -> "pending".toJson,
+      "state" -> "completed".toJson,
       "detail" -> "".toJson
     ) shouldEqual traces.head.asJsObject.fields
   }
 
-  test("The ExecutionTrace's entry-points updates one record's execution state on a PUT") {
-    val (depReqId, executionTraces) = createAndStartDeployment("1112", "paris".toJson)
+  test("The ExecutionTrace's entry-point updates one record's execution state on a PUT") {
+    val (depReqId, executionTraces) = createProductAndStartDeployment("1112", "paris".toJson)
     updateExecTrace(
       depReqId, executionTraces.head, "completed", None, None, Some("execution detail"),
       expectedTargetStatus = Map()
     )
   }
 
-  test("The ExecutionTrace's entry-points updates one record's execution state and log href on a PUT") {
-    val (depReqId, executionTraces) = createAndStartDeployment("1112", "paris".toJson)
+  test("The ExecutionTrace's entry-point updates one record's execution state and log href on a PUT") {
+    val (depReqId, executionTraces) = createProductAndStartDeployment("1112", "paris".toJson)
     updateExecTrace(
-      depReqId, executionTraces.head, "completed", Some("http://somewhe.re"),
-      expectedTargetStatus = Map()
+      depReqId, executionTraces.head, "completed", Some("http://somewhe.re"), None, None, Map()
     )
   }
 
-  test("The ExecutionTrace's entry-points updates one record's execution state and target status on a PUT") {
-    val (depReqId, executionTraces) = createAndStartDeployment("653", Seq("paris", "ams").toJson)
+  test("The ExecutionTrace's entry-point updates one record's execution state and target status on a PUT") {
+    val (depReqId, executionTraces) = createProductAndStartDeployment("653", Seq("paris", "ams").toJson)
     updateExecTrace(
       depReqId, executionTraces.head, "initFailed", None,
-      targetStatus = Some(Map("paris" -> Map("code" -> "success", "detail" -> "").toJson)),
-      expectedTargetStatus = Map("paris" -> ("success", ""))
+      Some(Map("paris" -> Map("code" -> "success", "detail" -> "").toJson)),
+      None, Map("paris" -> ("success", ""))
     )
   }
 
   // todo: restore once Engine supports partial update
   /*
-  test("The ExecutionTrace's entry-points updates one record's execution state, log href and target status (partially) on a PUT") {
-    val depReqId = requestDeployment("my product", "653", Seq("paris", "amsterdam").toJson, None, start = false).idAsLong
+  test("The ExecutionTrace's entry-point updates one record's execution state, log href and target status (partially) on a PUT") {
+    val depReqId = requestDeployment("my product", "653", Seq("paris", "amsterdam").toJson, None)
     startDeploymentRequest(depReqId)
     val execTraceId = getExecutionTracesByDeploymentRequestId(depReqId.toString).elements(0).idAsLong
     updateExecTrace(
       depReqId, execTraceId, "conflicting", Some("http://"),
-      targetStatus = Some(Map("amsterdam" -> Map("code" -> "notDone", "detail" -> "").toJson)),
-      expectedTargetStatus = Map("amsterdam" -> ("notDone", ""))
+      Some(Map("amsterdam" -> Map("code" -> "notDone", "detail" -> "").toJson)),
+      None, Map("amsterdam" -> ("notDone", ""))
     )
   }
 
-  test("The ExecutionTrace's entry-points partially updates one record's target status on a PUT") {
-    val depReqId = requestDeployment("my product", "653", Seq("paris", "amsterdam").toJson, None, start = false).idAsLong
+  test("The ExecutionTrace's entry-point partially updates one record's target status on a PUT") {
+    val depReqId = requestDeployment("my product", "653", Seq("paris", "amsterdam").toJson, None)
     startDeploymentRequest(depReqId)
     val execTraceId = getExecutionTracesByDeploymentRequestId(depReqId.toString).elements(0).idAsLong
     updateExecTrace(
       depReqId, execTraceId, "conflicting", None,
-      targetStatus = Some(Map("amsterdam" -> Map("code" -> "notDone", "detail" -> "").toJson)),
-      expectedTargetStatus = Map("amsterdam" -> ("notDone", ""))
+      Some(Map("amsterdam" -> Map("code" -> "notDone", "detail" -> "").toJson)),
+      None, Map("amsterdam" -> ("notDone", ""))
     )
     updateExecTrace(
       depReqId, execTraceId, "completed", Some("http://final"),
-      targetStatus = Some(Map("amsterdam" -> Map("code" -> "hostFailure", "detail" -> "some details...").toJson)),
-      expectedTargetStatus = Map("paris" -> ("success", ""), "amsterdam" -> ("hostFailure", "some details..."))
+      Some(Map("amsterdam" -> Map("code" -> "hostFailure", "detail" -> "some details...").toJson)),
+      None, Map("paris" -> ("success", ""), "amsterdam" -> ("hostFailure", "some details..."))
     )
   }
   */
 
-  test("The ExecutionTrace's entry-points returns 404 on non-integral ID") {
+  test("The ExecutionTrace's entry-point returns 404 on non-integral ID") {
     httpPut(
       RestApi.executionCallbackPath("abc"),
       Map("state" -> "conflicting").toJson,
@@ -478,7 +492,7 @@ class RestControllerSpec extends Test with TestDb {
     )
   }
 
-  test("The ExecutionTrace's entry-points returns 404 if trying to update an unknown execution trace") {
+  test("The ExecutionTrace's entry-point returns 404 if trying to update an unknown execution trace") {
     httpPut(
       RestApi.executionCallbackPath("12345"),
       Map("state" -> "conflicting").toJson,
@@ -486,8 +500,8 @@ class RestControllerSpec extends Test with TestDb {
     )
   }
 
-  test("The ExecutionTrace's entry-points returns 400 if the target status is badly formatted and not update the state") {
-    val (depReqId, executionTraces) = createAndStartDeployment("2456", Seq("paris", "amsterdam").toJson)
+  test("The ExecutionTrace's entry-point returns 400 if the target status is badly formatted and not update the state") {
+    val (depReqId, executionTraces) = createProductAndStartDeployment("2456", Seq("paris", "amsterdam").toJson)
     val execTraceId = executionTraces.head
 
     httpPut(
@@ -496,13 +510,10 @@ class RestControllerSpec extends Test with TestDb {
       BadRequest
     ).contentString should include("targetStatus: Can not deserialize")
 
-    updateExecTrace(
-      depReqId, execTraceId, "completed", None,
-      expectedTargetStatus = Map()
-    )
+    updateExecTrace(depReqId, execTraceId, "completed", None, None, None, Map())
   }
 
-  test("The ExecutionTrace's entry-points returns 400 if no state is provided") {
+  test("The ExecutionTrace's entry-point returns 400 if no state is provided") {
     httpPut(
       RestApi.executionCallbackPath("1"),
       JsObject("targetStatus" -> Map("par" -> "success").toJson),
@@ -510,8 +521,8 @@ class RestControllerSpec extends Test with TestDb {
     ).contentString should include("state: field is required")
   }
 
-  test("The ExecutionTrace's entry-points returns 400 if the provided state is unknown") {
-    val (_, executionTraces) = createAndStartDeployment("2456", Seq("paris", "amsterdam").toJson)
+  test("The ExecutionTrace's entry-point returns 400 if the provided state is unknown") {
+    val (_, executionTraces) = createProductAndStartDeployment("2456", Seq("paris", "amsterdam").toJson)
 
     httpPut(
       RestApi.executionCallbackPath(executionTraces.head.toString),
@@ -520,8 +531,8 @@ class RestControllerSpec extends Test with TestDb {
     ).contentString should include("Unknown state `what?`")
   }
 
-  test("The ExecutionTrace's entry-points returns 400 and not update the state if a provided target status is unknown") {
-    val (depReqId, executionTraces) = createAndStartDeployment("2456", Seq("paris", "amsterdam").toJson)
+  test("The ExecutionTrace's entry-point returns 400 and not update the state if a provided target status is unknown") {
+    val (depReqId, executionTraces) = createProductAndStartDeployment("2456", Seq("paris", "amsterdam").toJson)
     val execTraceId = executionTraces.head
 
     httpPut(
@@ -530,10 +541,7 @@ class RestControllerSpec extends Test with TestDb {
       BadRequest
     ).contentString should include("Bad target status for `par`: code='foobar', detail=''")
 
-    updateExecTrace(
-      depReqId, execTraceId, "completed", None,
-      expectedTargetStatus = Map()
-    )
+    updateExecTrace(depReqId, execTraceId, "completed", None, None, None, Map())
   }
 
   test("Deep query selects single one") {
@@ -553,21 +561,21 @@ class RestControllerSpec extends Test with TestDb {
   }
 
   test("Deep query displays correctly formatted versions") {
-    val depReqId = requestDeployment("my product", "8080", "paris".toJson, None, start = false).idAsLong
+    val depReqId = requestDeployment("my product", "8080", "paris".toJson)
 
     val depReq = deepGetDepReq(depReqId)
     depReq.fields("version").asInstanceOf[JsString].value shouldEqual "8080"
   }
 
   test("Deep query returns the right executions in a valid JSON") {
-    val (depReqId, executionTraces) = createAndStartDeployment("3211", Seq("paris", "amsterdam").toJson)
+    val (depReqId, executionTraces) = createProductAndStartDeployment("3211", Seq("paris", "amsterdam").toJson)
     val execTraceId = executionTraces.head
     updateExecTrace(
       depReqId, execTraceId, "completed", Some("http://final"),
-      targetStatus = Some(Map(
+      Some(Map(
         "paris" -> Map("code" -> "success", "detail" -> "").toJson,
         "amsterdam" -> Map("code" -> "hostFailure", "detail" -> "some interesting details").toJson)),
-      expectedTargetStatus = Map(
+      None, Map(
         "paris" -> ("success", ""),
         "amsterdam" -> ("hostFailure", "some interesting details"))
     )
@@ -597,7 +605,7 @@ class RestControllerSpec extends Test with TestDb {
     ) shouldEqual depReq.fields("operations")
 
     createProduct("my product D")
-    val delayedDepReqId = requestDeployment("my product D", "5133", "tokyo".toJson, None, start = false).idAsLong
+    val delayedDepReqId = requestDeployment("my product D", "5133", "tokyo".toJson)
     startDeploymentRequest(delayedDepReqId)
     val delayedDepReq = deepGetDepReq(delayedDepReqId)
     JsArray(

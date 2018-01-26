@@ -7,9 +7,9 @@ import scala.concurrent.Future
 
 
 class DefaultListenerPlugin extends SyncListener with Plugin {
-  def onDeploymentRequestCreated(deploymentRequest: DeepDeploymentRequest, immediateStart: Boolean): String = null
+  def onDeploymentRequestCreated(deploymentRequest: DeepDeploymentRequest): String = null
 
-  def onDeploymentRequestStarted(deploymentRequest: DeepDeploymentRequest, startedExecutions: Int, failedToStart: Int, atCreation: Boolean): Unit = {}
+  def onDeploymentRequestStarted(deploymentRequest: DeepDeploymentRequest, startedExecutions: Int, failedToStart: Int): Unit = {}
 
   def onDeploymentRequestRetried(deploymentRequest: DeepDeploymentRequest, startedExecutions: Int, failedToStart: Int): Unit = {}
 
@@ -24,11 +24,11 @@ class DefaultListenerPlugin extends SyncListener with Plugin {
 
 
 private[config] class ListenerPluginWrapper(implementation: DefaultListenerPlugin) extends PluginRunner(implementation, new DefaultListenerPlugin) with AsyncListener {
-  def onDeploymentRequestCreated(deploymentRequest: DeepDeploymentRequest, immediateStart: Boolean): Future[String] =
-    wrapTransition(_.onDeploymentRequestCreated(deploymentRequest, immediateStart))
+  def onDeploymentRequestCreated(deploymentRequest: DeepDeploymentRequest): Future[String] =
+    wrapTransition(_.onDeploymentRequestCreated(deploymentRequest))
 
-  def onDeploymentRequestStarted(deploymentRequest: DeepDeploymentRequest, startedExecutions: Int, failedToStart: Int, atCreation: Boolean): Future[Unit] =
-    wrap(_.onDeploymentRequestStarted(deploymentRequest, startedExecutions, failedToStart, atCreation))
+  def onDeploymentRequestStarted(deploymentRequest: DeepDeploymentRequest, startedExecutions: Int, failedToStart: Int): Future[Unit] =
+    wrap(_.onDeploymentRequestStarted(deploymentRequest, startedExecutions, failedToStart))
 
   def onDeploymentRequestRetried(deploymentRequest: DeepDeploymentRequest, startedExecutions: Int, failedToStart: Int): Future[Unit] =
     wrap(_.onDeploymentRequestRetried(deploymentRequest, startedExecutions, failedToStart))

@@ -120,7 +120,6 @@ class RestController @Inject()(val engine: Engine)
   )
 
   post("/api/deployment-requests") { r: Request =>
-    val autoStart = r.getBooleanParam("start", default = false)
     authenticate(r) { case user =>
       val (allAttrs, targets) = try {
         val attrs = DeploymentRequestParser.parse(r.contentString, user.name)
@@ -129,16 +128,13 @@ class RestController @Inject()(val engine: Engine)
         case e: ParsingException => throw BadRequestException(e.getMessage)
       }
 
-      def authorized(actionType: DeploymentAction.Value) =
-        permissions.isAuthorized(user, actionType, Operation.deploy, allAttrs.productName, targets)
-
-      if (!authorized(DeploymentAction.requestOperation) || (autoStart && !authorized(DeploymentAction.applyOperation)))
+      if (!permissions.isAuthorized(user, DeploymentAction.requestOperation, Operation.deploy, allAttrs.productName, targets))
         throw new HttpResponseException(response.forbidden)
 
       timeBoxed(
         {
           val resp = try {
-            engine.createDeploymentRequest(allAttrs, autoStart)
+            engine.createDeploymentRequest(allAttrs)
           } catch {
             case e: UnprocessableIntent => throw BadRequestException(e.getMessage)
           }

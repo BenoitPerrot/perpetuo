@@ -27,7 +27,7 @@ class EngineSpec extends Test with TestDb {
     Await.result(
       for {
         product <- engine.insertProduct("human")
-        deploymentRequestId <- engine.createDeploymentRequest(new DeploymentRequestAttrs(product.name, Version(JsString("42").compactPrint), """["moon","mars"]}""", "", "robert", new Timestamp(System.currentTimeMillis)), immediateStart = false).map(_ ("id").toString.toLong)
+        deploymentRequestId <- engine.createDeploymentRequest(new DeploymentRequestAttrs(product.name, Version(JsString("42").compactPrint), """["moon","mars"]}""", "", "robert", new Timestamp(System.currentTimeMillis))).map(_ ("id").toString.toLong)
         _ <- engine.startDeploymentRequest(deploymentRequestId, "ignace")
         operationTraces <- engine.findOperationTracesByDeploymentRequest(deploymentRequestId).map(_.get)
         operationTrace = operationTraces.head
@@ -50,7 +50,7 @@ class EngineSpec extends Test with TestDb {
       futureProductWithNoDeployType
         .flatMap(product =>
           try {
-            engine.createDeploymentRequest(new DeploymentRequestAttrs(product.name, Version(JsString("1").compactPrint), """["sink"]""", "", "c.reator", new Timestamp(System.currentTimeMillis)), immediateStart = false)
+            engine.createDeploymentRequest(new DeploymentRequestAttrs(product.name, Version(JsString("1").compactPrint), """["sink"]""", "", "c.reator", new Timestamp(System.currentTimeMillis)))
               .map(_ => false)
           } catch {
             case _: UnprocessableIntent => Future.successful(true)
@@ -62,7 +62,7 @@ class EngineSpec extends Test with TestDb {
 
   def mockDeployExecution(productName: String, v: String, targetAtomToStatus: Map[String, Status.Code], initFailure: Option[String] = None): Future[(Long, Long)] = {
     for {
-      deploymentRequestId <- engine.createDeploymentRequest(new DeploymentRequestAttrs(productName, Version(JsString(v).compactPrint), targetAtomToStatus.keys.toJson.compactPrint, "", "r.equestor", new Timestamp(System.currentTimeMillis)), immediateStart = false).map(_ ("id").toString.toLong)
+      deploymentRequestId <- engine.createDeploymentRequest(new DeploymentRequestAttrs(productName, Version(JsString(v).compactPrint), targetAtomToStatus.keys.toJson.compactPrint, "", "r.equestor", new Timestamp(System.currentTimeMillis))).map(_ ("id").toString.toLong)
       operationTraceId <- engine.startDeploymentRequest(deploymentRequestId, "s.tarter").map(_.get.id)
       executionTraceIds <- engine.dbBinding.findExecutionTraceIdsByOperationTrace(operationTraceId)
       executionSpecIds <- engine.dbBinding.findExecutionSpecIdsByOperationTrace(operationTraceId)
@@ -281,7 +281,7 @@ class EngineSpec extends Test with TestDb {
     Await.result(
       for {
         product <- engine.insertProduct("martian")
-        deploymentRequestId <- engine.createDeploymentRequest(new DeploymentRequestAttrs(product.name, Version(JsString("42").compactPrint), """["moon","mars"]}""", "", "robert", new Timestamp(System.currentTimeMillis)), immediateStart = false).map(_ ("id").toString.toLong)
+        deploymentRequestId <- engine.createDeploymentRequest(new DeploymentRequestAttrs(product.name, Version(JsString("42").compactPrint), """["moon","mars"]}""", "", "robert", new Timestamp(System.currentTimeMillis))).map(_ ("id").toString.toLong)
         _ <- engine.startDeploymentRequest(deploymentRequestId, "ignace")
         operationTraces <- engine.findOperationTracesByDeploymentRequest(deploymentRequestId).map(_.get)
         operationTraceId = operationTraces.head.id

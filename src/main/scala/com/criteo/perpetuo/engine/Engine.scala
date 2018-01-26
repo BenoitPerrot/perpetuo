@@ -85,34 +85,28 @@ class Engine @Inject()(val dbBinding: DbBinding,
   def findDeepDeploymentRequestById(deploymentRequestId: Long): Future[Option[DeepDeploymentRequest]] =
     dbBinding.findDeepDeploymentRequestById(deploymentRequestId)
 
-  def createDeploymentRequest(attrs: DeploymentRequestAttrs, immediateStart: Boolean): Future[Map[String, Any]] = {
+  def createDeploymentRequest(attrs: DeploymentRequestAttrs): Future[Map[String, Any]] = {
     // todo: replace that by the creation of all the related records when the first deploy operation will be created simultaneously
     targetDispatcher.freezeParameters(attrs.productName, attrs.version)
     operationStarter.expandTarget(targetResolver, attrs.productName, attrs.version, attrs.parsedTarget)
 
     // todo: remove once new workflow is completely in place <<
-    if (isCoveredByOldWorkflow(attrs.productName) && !immediateStart) {
+    if (isCoveredByOldWorkflow(attrs.productName)) {
       dbBinding.findProductByName(attrs.productName)
         .map(_.map(DeepDeploymentRequest(0, _, attrs.version, attrs.target, attrs.comment, attrs.creator, attrs.creationDate))
           .getOrElse {
             throw new UnknownProduct(attrs.productName)
           })
-        .map(depReq => Map("ticketUrl" -> listeners.map(_.onDeploymentRequestCreated(depReq, immediateStart)).mkString("")))
+        .map(depReq => Map("ticketUrl" -> listeners.map(_.onDeploymentRequestCreated(depReq)).mkString("")))
     } // >>
     else {
       val futureDepReq = dbBinding.insertDeploymentRequest(attrs)
 
       futureDepReq.map { deploymentRequest =>
         // todo: onDeploymentRequestCreated returning an extra comment feels wrong, probably it should not
-        val listenersCalls = listeners.map(_.onDeploymentRequestCreated(deploymentRequest, immediateStart).map(Option.apply))
-        val asyncCalls = if (immediateStart)
-          startDeploymentRequest(deploymentRequest, attrs.creator, atCreation = true).map(_ => None) :: listenersCalls.toList
-        else
-          listenersCalls
-
         Future
-          .sequence(asyncCalls)
-          .map(_.flatten)
+          .sequence(listeners.map(_.onDeploymentRequestCreated(deploymentRequest)))
+          .map(_.flatMap(Option(_)))
           .foreach { moreComments =>
             if (moreComments.nonEmpty) {
               val allComments = if (deploymentRequest.comment.nonEmpty) Seq(deploymentRequest.comment) ++ moreComments else moreComments
@@ -177,11 +171,11 @@ class Engine @Inject()(val dbBinding: DbBinding,
         }
     }
 
-  private def startDeploymentRequest(req: DeepDeploymentRequest, initiatorName: String, atCreation: Boolean): Future[ShallowOperationTrace] = {
+  private def startDeploymentRequest(req: DeepDeploymentRequest, initiatorName: String): Future[ShallowOperationTrace] = {
     startOperation(
       req,
       operationStarter.start(targetResolver, targetDispatcher, req, Operation.deploy, initiatorName),
-      listeners.map(listener => listener.onDeploymentRequestStarted(_: DeepDeploymentRequest, _: Int, _: Int, atCreation))
+      listeners.map(listener => (deploymentRequest: DeepDeploymentRequest, startedExecutions: Int, failedToStart: Int) => listener.onDeploymentRequestStarted(deploymentRequest, startedExecutions, failedToStart))
     )
   }
 
@@ -241,7 +235,7 @@ class Engine @Inject()(val dbBinding: DbBinding,
 
   def startDeploymentRequest(deploymentRequestId: Long, initiatorName: String): Future[Option[ShallowOperationTrace]] = {
     dbBinding.findDeepDeploymentRequestById(deploymentRequestId).flatMap(_
-      .map(req => startDeploymentRequest(req, initiatorName, atCreation = false).map(Some(_)))
+      .map(req => startDeploymentRequest(req, initiatorName).map(Some(_)))
       .getOrElse(Future.successful(None))
     )
   }
