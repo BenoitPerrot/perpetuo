@@ -89,7 +89,7 @@
       }
 
       lastSelectedItem() {
-        return this.selectedItems.length === 0 ? undefined : this.selectedItems[this.selectedItems.length - 1];
+        return this.selectedItems.length === 0 ? null : this.selectedItems[this.selectedItems.length - 1];
       }
 
       onInputKeyDown(e) {
