@@ -207,16 +207,24 @@ class Engine @Inject()(val dbBinding: DbBinding,
   def isDeploymentRequestStarted(deploymentRequestId: Long): Future[Option[(DeepDeploymentRequest, Boolean)]] =
     dbBinding.isDeploymentRequestStarted(deploymentRequestId)
 
-  private def rejectIfOutdated(deploymentRequest: DeploymentRequest): Future[Unit] =
-    dbBinding.isOutdated(deploymentRequest).flatMap(
-      if (_)
-        Future.failed(Conflict("a newer one has already been applied"))
-      else
-        Future.successful()
-    )
+  private def rejectIfOutdatedOrLocked(deploymentRequest: DeploymentRequest): Future[Unit] =
+    Future.sequence(Seq(
+      dbBinding.lockExists(getOperationLockName(deploymentRequest)).flatMap(
+        if (_)
+          Future.failed(Conflict("an operation is still running for it"))
+        else
+          Future.successful()
+      ),
+      dbBinding.isOutdated(deploymentRequest).flatMap(
+        if (_)
+          Future.failed(Conflict("a newer one has already been applied"))
+        else
+          Future.successful()
+      )
+    )).map(_ => ())
 
   def canDeployDeploymentRequest(deploymentRequest: DeploymentRequest): Future[Unit] =
-    rejectIfOutdated(deploymentRequest)
+    rejectIfOutdatedOrLocked(deploymentRequest)
 
   def canRevertDeploymentRequest(deploymentRequest: DeploymentRequest, isStarted: Boolean): Future[Unit] =
     if (!isStarted)
@@ -224,7 +232,7 @@ class Engine @Inject()(val dbBinding: DbBinding,
     else {
       // todo: now we can allow successive rollbacks,
       // by using dbBinding.findTargetAtomNotActionableBy instead of `outdated` here
-      rejectIfOutdated(deploymentRequest)
+      rejectIfOutdatedOrLocked(deploymentRequest)
     }
 
   def startDeploymentRequest(deploymentRequestId: Long, initiatorName: String): Future[Option[ShallowOperationTrace]] = {
