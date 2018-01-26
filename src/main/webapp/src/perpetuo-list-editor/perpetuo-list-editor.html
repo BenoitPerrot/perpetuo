@@ -97,6 +97,8 @@
           if (this.filter === '') {
             this.splice('selectedItems', -1, 1);
           }
+        } else if (e.key === 'ArrowDown') {
+          this.$.listbox.focus();
         }
       }
 
