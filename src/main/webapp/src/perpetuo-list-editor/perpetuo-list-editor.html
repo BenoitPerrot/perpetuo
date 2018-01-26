@@ -4,6 +4,7 @@
 <link rel="import" href="../../bower_components/paper-input/paper-input.html">
 <link rel="import" href="../../bower_components/paper-input/paper-input-container.html">
 <link rel="import" href="../../bower_components/paper-listbox/paper-listbox.html">
+<link rel="import" href="../../bower_components/paper-styles/shadow.html">
 
 <dom-module id="perpetuo-list-editor">
   <template>
@@ -36,6 +37,10 @@
 
     paper-input-container input {
       all: inherit;
+    }
+
+    #dropdown {
+      @apply --shadow-elevation-2dp;
     }
     </style>
     <paper-input-container always-float-label="[[selectedItems.length]]" disabled$="[[disabled]]">
