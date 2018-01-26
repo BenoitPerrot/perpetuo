@@ -111,10 +111,7 @@
 
       completeOrSuggest(e) {
         if (0 < this.filteredChoices.length) {
-          if (1 < this.filteredChoices.length)
-            this.$.dropdown.open();
-          else
-            this.addElement(this.filteredChoices[0]);
+          this.$.dropdown.open();
         }
       }
 
