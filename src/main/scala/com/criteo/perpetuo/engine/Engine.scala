@@ -144,33 +144,37 @@ class Engine @Inject()(val dbBinding: DbBinding,
       if (alreadyRunning.nonEmpty)
         throw Conflict("Cannot be processed for the moment because another operation is running for the same deployment request")
 
-      dbBinding.tryAcquireLocks(getTransactionLockNames(deploymentRequest), deploymentRequest.id, reentrant = true).flatMap { conflictingRequestIds =>
-        if (conflictingRequestIds.nonEmpty) {
-          dbBinding.releaseLock(getOperationLockName(deploymentRequest), deploymentRequest.id)
-          throw Conflict(
-            "Cannot be processed for the moment because a conflicting transaction is ongoing, which must first succeed or be reverted",
-            conflictingRequestIds
-          )
-        }
-
-        val opStart = try {
-          operationStart
-        } catch {
-          case _: Throwable => Future.failed(new Exception)
-        }
-        opStart
-          .flatMap { case (operationTrace, started, failed) =>
-            onOperationStartedListeners.foreach(_ (deploymentRequest, started, failed))
-            (if (started == 0) closeOperation(operationTrace, deploymentRequest) else Future.successful()).map(_ =>
-              operationTrace
+      dbBinding.tryAcquireLocks(getTransactionLockNames(deploymentRequest), deploymentRequest.id, reentrant = true)
+        .flatMap { conflictingRequestIds =>
+          if (conflictingRequestIds.nonEmpty)
+            throw Conflict(
+              "Cannot be processed for the moment because a conflicting transaction is ongoing, which must first succeed or be reverted",
+              conflictingRequestIds
             )
+
+          val opStart = try {
+            operationStart
+          } catch {
+            case _: Throwable => Future.failed(new Exception)
           }
-          .recover {
-            case e: Throwable =>
-              releaseLocks(deploymentRequest, transactionOngoing = false)
-              throw e
-          }
-      }
+          opStart
+            .flatMap { case (operationTrace, started, failed) =>
+              onOperationStartedListeners.foreach(_ (deploymentRequest, started, failed))
+              (if (started == 0) closeOperation(operationTrace, deploymentRequest) else Future.successful()).map(_ =>
+                operationTrace
+              )
+            }
+            .recover {
+              case e: Throwable =>
+                releaseLocks(deploymentRequest, transactionOngoing = false) // todo: `= false` is not accurate: we should only release the locks that have just been acquired
+                throw e
+            }
+        }
+        .recover {
+          case e: Throwable =>
+            dbBinding.releaseLock(getOperationLockName(deploymentRequest), deploymentRequest.id)
+            throw e
+        }
     }
 
   private def startDeploymentRequest(req: DeepDeploymentRequest, initiatorName: String, atCreation: Boolean): Future[ShallowOperationTrace] = {
