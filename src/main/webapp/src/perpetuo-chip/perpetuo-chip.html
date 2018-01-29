@@ -1,0 +1,63 @@
+<link rel="import" href="../../bower_components/polymer/polymer.html">
+<link rel="import" href="../../bower_components/iron-behaviors/iron-control-state.html">
+<link rel="import" href="../../bower_components/paper-icon-button/paper-icon-button.html">
+
+<dom-module id="perpetuo-chip">
+  <template>
+    <style>
+    :host {
+      margin: 4px 4px 4px 0;
+      display: inline-flex;
+      flex-direction: row;
+      align-items: center;
+      border-radius: 32px;
+      background-color: #e0dee0;
+      display: flex;
+      align-items: center;
+    }
+    :host > span {
+      margin: 8px -4px 8px 12px;
+    }
+    :host > paper-icon-button {
+      color: #9e9c9e;
+      min-width: 40px;
+      min-height: 40px;
+    }
+    :host(:hover) {
+      background-color: #767476;
+      color: #fff
+    }
+    :host(:hover) > paper-icon-button {
+      color: #fff;
+    }
+    :host([non-deletable]) > paper-icon-button {
+      display: none;
+    }
+    :host([non-deletable]) > span {
+      margin-right: 12px;
+    }
+    </style>
+    <span>[[label]]</span>
+    <paper-icon-button disabled$="[[disabled]]" icon="cancel" on-tap="fireDeleteTap"></paper-icon-button>
+  </template>
+  <script>
+  (function () {
+    'use strict'
+    class PerpetuoChip extends Polymer.mixinBehaviors([Polymer.IronControlState], Polymer.Element) {
+      static get is() { return 'perpetuo-chip'; }
+
+      static get properties() {
+        return {
+          label: String
+        }
+      }
+
+      fireDeleteTap() {
+        this.dispatchEvent(new CustomEvent('delete-tap'));
+      }
+    }
+
+    customElements.define(PerpetuoChip.is, PerpetuoChip);
+  } ());
+  </script>
+</dom-module>

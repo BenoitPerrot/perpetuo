@@ -1,10 +1,11 @@
 <link rel="import" href="../../bower_components/polymer/polymer.html">
 <link rel="import" href="../../bower_components/iron-dropdown/iron-dropdown.html">
-<link rel="import" href="../../bower_components/paper-icon-button/paper-icon-button.html">
 <link rel="import" href="../../bower_components/paper-input/paper-input.html">
 <link rel="import" href="../../bower_components/paper-input/paper-input-container.html">
 <link rel="import" href="../../bower_components/paper-listbox/paper-listbox.html">
 <link rel="import" href="../../bower_components/paper-styles/shadow.html">
+
+<link rel="import" href="../perpetuo-chip/perpetuo-chip.html">
 
 <dom-module id="perpetuo-list-editor">
   <template>
@@ -15,24 +16,6 @@
 
     .chip-container {
       display: inline-flex;
-    }
-    .chip {
-      margin: 4px 4px 4px 0;
-      display: inline-flex;
-      flex-direction: row;
-      align-items: center;
-      border-radius: 32px;
-      background-color: hsl(0,0%,90%);
-      display: flex;
-      align-items: center;
-    }
-    .chip span {
-      margin: 8px -4px 8px 12px;
-    }
-    .chip paper-icon-button {
-      color: hsl(0,0%,54%);
-      min-width: 40px;
-      min-height: 40px;
     }
 
     paper-input-container input {
@@ -47,10 +30,7 @@
       <label slot="label">[[label]]</label>
       <div slot="prefix" class="chip-container">
         <template is="dom-repeat" items="[[selectedItems]]">
-          <div class="chip">
-            <span>[[item]]</span>
-            <paper-icon-button disabled$="[[disabled]]" icon="cancel" on-tap="removeElement" index="[[index]]"></paper-icon-button>
-          </div>
+          <perpetuo-chip label="[[item]]" disabled="[[disabled]]" index="[[index]]" on-delete-tap="removeElement"></perpetuo-chip>
         </template>
       </div>
       <iron-input slot="input"><input id="filterEditor" on-focus="onFilterEditorFocus" disabled$="[[computeInputDisabled(disabled, multi, selectedItems.*)]]" on-keydown="onInputKeyDown" value="{{filter::input}}"></input></iron-input>
