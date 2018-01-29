@@ -53,7 +53,7 @@
           </div>
         </template>
       </div>
-      <iron-input slot="input"><input disabled$="[[computeInputDisabled(disabled, multi, selectedItems.*)]]" on-keydown="onInputKeyDown" value="{{filter::input}}"></input></iron-input>
+      <iron-input slot="input"><input id="filterEditor" on-focus="onFilterEditorFocus" disabled$="[[computeInputDisabled(disabled, multi, selectedItems.*)]]" on-keydown="onInputKeyDown" value="{{filter::input}}"></input></iron-input>
     </paper-input-container>
     <div>
       <iron-dropdown id="dropdown" no-auto-focus>
@@ -78,10 +78,22 @@
           multi: Boolean,
           filter: {type: String, notify: true},
           choices: Array,
-          filteredChoices: {type: Array, computed: 'applyFilter(choices, filter)', observer: 'completeOrSuggest'},
+          filteredChoices: {type: Array, computed: 'applyFilter(choices, filter)'},
           selectedItems: {type: Array, value: () => [], notify: true},
           selectedItem: {type: Object, notify: true, reflectToAttribute: true, computed: 'lastSelectedItem(selectedItems.*)'}
         };
+      }
+
+      ready() {
+        super.ready();
+        this.$.dropdown.focusTarget = this.$.filterEditor;
+      }
+
+      onFilterEditorFocus() {
+        // When giving the focus with a click, the focus event is raised before the click event, so
+        // do not open the dropdown immediately (otherwise the click event will close the dropdown,
+        // as it occurs outside of it)
+        setTimeout(() => { this.$.dropdown.open(); }, 100);
       }
 
       computeInputDisabled(disabled, multi, _) {
@@ -103,18 +115,16 @@
       }
 
       applyFilter(choices, filter) {
-        if (choices && choices.length &&
-            filter && filter.length) {
-              const words = filter.toLowerCase().split(' ');
-              return this.choices.filter(c => words.every(w => c.toLowerCase().includes(w)));
+        if (choices && choices.length) {
+          if (filter && filter.length) {
+            const words = filter.toLowerCase().split(' ');
+            return this.choices.filter(c => words.every(w => c.toLowerCase().includes(w)));
+          }
+          else {
+            return this.choices;
+          }
         }
         return [];
-      }
-
-      completeOrSuggest(e) {
-        if (0 < this.filteredChoices.length) {
-          this.$.dropdown.open();
-        }
       }
 
       select(e) {
