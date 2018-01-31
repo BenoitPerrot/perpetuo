@@ -454,8 +454,6 @@ class RestControllerSpec extends Test with TestDb {
     )
   }
 
-  // todo: restore once Engine supports partial update
-  /*
   test("The ExecutionTrace's entry-point updates one record's execution state, log href and target status (partially) on a PUT") {
     val depReqId = requestDeployment("my product", "653", Seq("paris", "amsterdam").toJson, None)
     startDeploymentRequest(depReqId)
@@ -477,12 +475,16 @@ class RestControllerSpec extends Test with TestDb {
       None, Map("amsterdam" -> ("notDone", ""))
     )
     updateExecTrace(
+      depReqId, execTraceId, "conflicting", None,
+      Some(Map("amsterdam" -> Map("code" -> "running", "detail" -> "").toJson, "paris" -> Map("code" -> "notDone", "detail" -> "waiting...").toJson)),
+      None, Map("amsterdam" -> ("running", ""), "paris" -> ("notDone", "waiting..."))
+    )
+    updateExecTrace(
       depReqId, execTraceId, "completed", Some("http://final"),
-      Some(Map("amsterdam" -> Map("code" -> "hostFailure", "detail" -> "some details...").toJson)),
-      None, Map("paris" -> ("success", ""), "amsterdam" -> ("hostFailure", "some details..."))
+      Some(Map("paris" -> Map("code" -> "hostFailure", "detail" -> "crashed").toJson)),
+      None, Map("paris" -> ("hostFailure", "crashed"), "amsterdam" -> ("running", ""))
     )
   }
-  */
 
   test("The ExecutionTrace's entry-point returns 404 on non-integral ID") {
     httpPut(
