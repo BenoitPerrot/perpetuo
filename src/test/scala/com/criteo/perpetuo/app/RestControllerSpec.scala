@@ -232,24 +232,6 @@ class RestControllerSpec extends Test with TestDb {
     ) shouldEqual operations.head
   }
 
-
-  test("Any protected route responds 401 if the user is not logged in") {
-    server.httpPost(
-      path = s"/api/products",
-      andExpect = Unauthorized,
-      postBody = JsObject("name" -> JsString("this project will never be created")).compactPrint
-    )
-  }
-
-  test("Any protected route responds 403 if the user is not allowed to do the operation") {
-    server.httpPost(
-      path = s"/api/products",
-      headers = Map("Cookie" -> s"jwt=$stdUserJWT"),
-      andExpect = Forbidden,
-      postBody = JsObject("name" -> JsString("this project will never be created")).compactPrint
-    )
-  }
-
   test("The Product's entry-point returns 201 when creating a Product") {
     createProduct("my product")
     createProduct("my other product")
@@ -752,6 +734,32 @@ class RestControllerSpec extends Test with TestDb {
 
     getDeploymentRequest(id.toString).fields("creator").asInstanceOf[JsString].value shouldEqual
       "too-long-user-name/too-long-user-name/too-long-user-name/too-lon"
+  }
+
+
+  test("Any protected route responds 401 if the user is not logged in") {
+    server.httpPost(
+      path = s"/api/products",
+      andExpect = Unauthorized,
+      postBody = JsObject("name" -> JsString("this project will never be created")).compactPrint
+    )
+  }
+
+  test("Any protected route responds 403 if the user is not allowed to do the operation") {
+    server.httpPost(
+      path = s"/api/products",
+      headers = Map("Cookie" -> s"jwt=$stdUserJWT"),
+      andExpect = Forbidden,
+      postBody = JsObject("name" -> JsString("this project will never be created")).compactPrint
+    )
+
+    val depReqId = requestDeployment("my product", "version", "target".toJson)
+    server.httpPost(
+      path = s"/api/deployment-requests/$depReqId/actions/deploy",
+      headers = Map("Cookie" -> s"jwt=$stdUserJWT"),
+      andExpect = Forbidden,
+      postBody = JsObject().compactPrint
+    )
   }
 
 }

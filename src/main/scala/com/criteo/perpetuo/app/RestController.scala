@@ -8,8 +8,8 @@ import com.criteo.perpetuo.dao.UnknownProduct
 import com.criteo.perpetuo.engine.dispatchers.UnprocessableIntent
 import com.criteo.perpetuo.engine.{Engine, OperationStatus, RejectingError}
 import com.criteo.perpetuo.model._
-import com.twitter.finagle.http.{Request, Response}
-import com.twitter.finatra.http.exceptions.{BadRequestException, HttpResponseException}
+import com.twitter.finagle.http.{Request, Response, Status => HttpStatus}
+import com.twitter.finatra.http.exceptions.{BadRequestException, ForbiddenException, HttpException}
 import com.twitter.finatra.http.{Controller => BaseController}
 import com.twitter.finatra.request._
 import com.twitter.finatra.utils.FuturePools
@@ -79,8 +79,8 @@ class RestController @Inject()(val engine: Engine)
 
   private def authenticate(r: Request)(callback: PartialFunction[User, TwitterFuture[Option[Response]]]): TwitterFuture[Option[Response]] = {
     r.user
-      .map(callback.orElse { case _ => TwitterFuture(Some(response.forbidden)) })
-      .getOrElse(TwitterFuture(Some(response.unauthorized)))
+      .map(callback.orElse { case _ => throw ForbiddenException() })
+      .getOrElse(throw HttpException(HttpStatus.Unauthorized))
   }
 
   get("/api/products") { _: Request =>
@@ -129,7 +129,7 @@ class RestController @Inject()(val engine: Engine)
       }
 
       if (!permissions.isAuthorized(user, DeploymentAction.requestOperation, Operation.deploy, allAttrs.productName, targets))
-        throw new HttpResponseException(response.forbidden)
+        throw ForbiddenException()
 
       timeBoxed(
         {
@@ -185,18 +185,18 @@ class RestController @Inject()(val engine: Engine)
                   case _: NoSuchElementException => throw BadRequestException(s"Action ${r.actionType} doesn't exist")
                 }
                 val targets = deploymentRequest.parsedTarget.select
-                if (permissions.isAuthorized(user, DeploymentAction.applyOperation, operation, deploymentRequest.product.name, targets)) {
-                  val (checking, effect) = operation match {
-                    case Operation.deploy => (engine.canDeployDeploymentRequest(deploymentRequest), if (isStarted) engine.deployAgain _ else engine.startDeploymentRequest _)
-                    case Operation.revert => (engine.canRevertDeploymentRequest(deploymentRequest, isStarted), engine.revert(_: Long, _: String, r.defaultVersion.map(Version.apply)))
-                  }
-                  checking
-                    .flatMap(_ => effect(id, user.name))
-                    .recover { case e: RejectingError => throw e.copy(s"Cannot ${r.actionType} the request #$id: ${e.msg}") }
-                    .map(_.map(_ => response.ok.json(Map("id" -> id))))
+
+                if (!permissions.isAuthorized(user, DeploymentAction.applyOperation, operation, deploymentRequest.product.name, targets))
+                  throw ForbiddenException()
+
+                val (checking, effect) = operation match {
+                  case Operation.deploy => (engine.canDeployDeploymentRequest(deploymentRequest), if (isStarted) engine.deployAgain _ else engine.startDeploymentRequest _)
+                  case Operation.revert => (engine.canRevertDeploymentRequest(deploymentRequest, isStarted), engine.revert(_: Long, _: String, r.defaultVersion.map(Version.apply)))
                 }
-                else
-                  Future.successful(Some(response.forbidden))
+                checking
+                  .flatMap(_ => effect(id, user.name))
+                  .recover { case e: RejectingError => throw e.copy(s"Cannot ${r.actionType} the request #$id: ${e.msg}") }
+                  .map(_.map(_ => response.ok.json(Map("id" -> id))))
               }.getOrElse(Future.successful(None))
             )
         },
