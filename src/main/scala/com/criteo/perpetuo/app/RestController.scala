@@ -143,7 +143,7 @@ class RestController @Inject()(val engine: Engine)
               case e: UnknownProduct => throw BadRequestException(s"Product `${e.productName}` could not be found")
             }
         },
-        5.seconds // fixme: get back to 2 seconds when the listener will be called asynchronously
+        5.seconds
       )
     }
   }
