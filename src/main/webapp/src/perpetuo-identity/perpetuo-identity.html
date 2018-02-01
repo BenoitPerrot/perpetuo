@@ -35,7 +35,7 @@
         });
       }
 
-      acknownledge() {
+      acknowledge() {
         const query = window.location.hash.slice(1).split('&').reduce((m, p) => {
           const kv = p.split('=');
           return m.set(kv[0], kv[1]);
