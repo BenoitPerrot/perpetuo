@@ -331,6 +331,15 @@ class RestController @Inject()(val engine: Engine)
     throw NotFoundException()
   }
 
+  get("/api/unstable/db/locks/drop-em-all") { r: Request =>
+    authenticate(r) { case user if permissions.isAuthorized(user, GeneralAction.administrate) =>
+      timeBoxed(
+        engine.dbBinding.releaseAllLocks().map(count => Some(Map("deleted" -> count))),
+        5.seconds
+      )
+    }
+  }
+
 }
 
 

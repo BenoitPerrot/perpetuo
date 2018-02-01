@@ -81,4 +81,7 @@ trait LockBinder extends TableBinder with Logging {
   def lockExists(name: String): Future[Boolean] =
     dbContext.db.run(lockQuery.filter(_.name === name).exists.result)
 
+  // fixme: for maintenance only; that should not be necessary
+  def releaseAllLocks(): Future[Int] =
+    dbContext.db.run(lockQuery.delete)
 }
