@@ -8,8 +8,8 @@ import com.criteo.perpetuo.dao.UnknownProduct
 import com.criteo.perpetuo.engine.dispatchers.UnprocessableIntent
 import com.criteo.perpetuo.engine.{Engine, OperationStatus, RejectingError}
 import com.criteo.perpetuo.model._
-import com.twitter.finagle.http.{Request, Response, Status => HttpStatus}
-import com.twitter.finatra.http.exceptions.{BadRequestException, ForbiddenException, HttpException}
+import com.twitter.finagle.http.{Request, Status => HttpStatus}
+import com.twitter.finatra.http.exceptions.{BadRequestException, ForbiddenException, HttpException, NotFoundException}
 import com.twitter.finatra.http.{Controller => BaseController}
 import com.twitter.finatra.request._
 import com.twitter.finatra.utils.FuturePools
@@ -77,7 +77,7 @@ class RestController @Inject()(val engine: Engine)
       Try(request.id.toLong).toOption.map(view(_, request)).flatMap(await(_, maxDuration))
     }
 
-  private def authenticate(r: Request)(callback: PartialFunction[User, TwitterFuture[Option[Response]]]): TwitterFuture[Option[Response]] = {
+  private def authenticate[T](r: Request)(callback: PartialFunction[User, TwitterFuture[Option[T]]]): TwitterFuture[Option[T]] = {
     r.user
       .map(callback.orElse { case _ => throw ForbiddenException() })
       .getOrElse(throw HttpException(HttpStatus.Unauthorized))
@@ -196,7 +196,7 @@ class RestController @Inject()(val engine: Engine)
                 checking
                   .flatMap(_ => effect(id, user.name))
                   .recover { case e: RejectingError => throw e.copy(s"Cannot ${r.actionType} the request #$id: ${e.msg}") }
-                  .map(_.map(_ => response.ok.json(Map("id" -> id))))
+                  .map(_.map(_ => Map("id" -> id)))
               }.getOrElse(Future.successful(None))
             )
         },
@@ -328,7 +328,7 @@ class RestController @Inject()(val engine: Engine)
 
   // Be sure to capture invalid calls to APIs
   get("/api/:*") { _: Request =>
-    response.notFound
+    throw NotFoundException()
   }
 
 }
