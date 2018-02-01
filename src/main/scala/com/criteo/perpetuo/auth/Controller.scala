@@ -32,7 +32,7 @@ class Controller @Inject()(identityProvider: IdentityProvider, permissions: Perm
         if (permissions.isAuthorized(requestingUser, GeneralAction.administrate)) {
           identityProvider.identifyByName(r.name)
             .map(user =>
-              response.ok.plain(user.toJWT(jwtEncoder))
+              response.ok.plain(user.toJWT(jwtEncoder, expiring = false))
             )
             .rescue {
               case e => Future.value(response.forbidden(e.getMessage))
