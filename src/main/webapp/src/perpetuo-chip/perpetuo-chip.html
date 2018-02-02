@@ -14,6 +14,7 @@
       background-color: #e0dee0;
       display: flex;
       align-items: center;
+      @apply --perpetuo-chip;
     }
     :host > span {
       margin: 8px -4px 8px 12px;
@@ -22,13 +23,16 @@
       color: #9e9c9e;
       min-width: 40px;
       min-height: 40px;
+      @apply --perpetuo-chip-button;
     }
     :host(:hover) {
       background-color: #767476;
-      color: #fff
+      color: #fff;
+      @apply --perpetuo-chip-hover;
     }
     :host(:hover) > paper-icon-button {
       color: #fff;
+      @apply --perpetuo-chip-button-hover;
     }
     :host([non-deletable]) > paper-icon-button {
       display: none;
