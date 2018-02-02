@@ -9,6 +9,7 @@
 <link rel="import" href="../perpetuo-deployment-request/perpetuo-deployment-request-creation-form.html">
 <link rel="import" href="../perpetuo-deployment-request/perpetuo-deployment-request-entry.html">
 <link rel="import" href="../perpetuo-list-editor/perpetuo-list-editor.html">
+<link rel="import" href="../perpetuo-paging/perpetuo-paging.html">
 <link rel="import" href="../perpetuo-up-down-none/perpetuo-up-down-none.html">
 
 <dom-module id="perpetuo-deployment-request-table">
@@ -89,17 +90,16 @@
       </div>
     </div>
     <paper-fab icon="add" style="position:fixed; left: 20px; top: 105px; background: #ff8f1c;" on-tap="onCreateTap"></paper-fab>
-    <div class="table">
+    <perpetuo-paging page-size="[[deploymentRequestLimit]]"
+                     page="{{page}}" is-last-page="[[!hasNextPage]]"
+                     offset="{{deploymentRequestOffset}}"
+                     count-on-page="[[data.length]]"
+                     total="..."
+                     class="table">
       <template is="dom-repeat" items="[[data]]">
         <perpetuo-deployment-request-entry data="[[item]]" expanded="[[isEntryExpanded(item.id)]]" on-expanded-changed="onEntryExpandedChanged"></perpetuo-deployment-request-entry>
       </template>
-    </div>
-    <div>
-      <paper-icon-button icon="first-page" on-tap="onFirstPageTap" disabled="[[!hasPreviousPage]]"></paper-icon-button>
-      <paper-icon-button icon="chevron-left" on-tap="onPreviousPageTap" disabled="[[!hasPreviousPage]]"></paper-icon-button>
-      <span>[[page]]</span>
-      <paper-icon-button icon="chevron-right" on-tap="onNextPageTap" disabled="[[!hasNextPage]]"></paper-icon-button>
-    </div>
+    </perpetuo-paging>
 
     <perpetuo-deployment-request-creation-form id="creationForm"></perpetuo-deployment-request-creation-form>
 
@@ -121,8 +121,9 @@
           timestampConverter: { type: String, computed: 'computeTimestampConverter(timeZoneItem)', observer: 'convertTimestamp' },
 
           page: {type: Number, value: 1, observer: 'onPageChanged', notify: true},
-          hasPreviousPage: {type: Boolean, computed: 'computeHasPreviousPage(page)'},
           hasNextPage: Boolean,
+          deploymentRequestOffset: {type: Number, value: 0, notify: true},
+          deploymentRequestLimit: {type: Number, value: 20, notify: true}
         };
       }
 
@@ -138,8 +139,6 @@
         this.expandedDeploymentRequests = new Set();
         this.deploymentRequestFilters = [];
         this.deploymentRequestOrder = [];
-        this.deploymentRequestOffset = 0;
-        this.deploymentRequestLimit = 20;
       }
 
       connectedCallback() {
@@ -231,29 +230,8 @@
         this.refresh(true);
       }
 
-      computeHasPreviousPage(page) {
-        return 1 < page;
-      }
-
-      onFirstPageTap() {
-        this.page = 1;
-      }
-
-      onPreviousPageTap() {
-        if (this.hasPreviousPage) {
-          --this.page;
-        }
-      }
-
-      onNextPageTap() {
-        if (this.hasNextPage) {
-          ++this.page;
-        }
-      }
-
       onPageChanged() {
         this.hasNextPage = false; // Assume no more page
-        this.deploymentRequestOffset = (this.page - 1) * this.deploymentRequestLimit;
         this.refresh();
       }
 

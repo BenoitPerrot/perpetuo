@@ -1,0 +1,91 @@
+<link rel="import" href="../../bower_components/polymer/polymer.html">
+
+<link rel="import" href="../../bower_components/paper-icon-button/paper-icon-button.html">
+
+<dom-module id="perpetuo-paging">
+  <template>
+    <style>
+    :host {
+      display: flex;
+      flex-direction: column;
+    }
+    .footer {
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+    }
+    paper-dropdown-menu {
+      --paper-dropdown-menu-input: {
+        text-align: right;
+      }
+      --paper-input-container-underline: {
+        display: none;
+      }
+    }
+    </style>
+    <slot></slot>
+    <div class="footer">
+      <span>Items per page:</span><span>[[pageSize]]</span>
+      <span style="margin-left:32px;">[[firstIndexOnPage]]-[[lastIndexOnPage]]</span>
+      <span style="margin-left:10px;margin-right:32px;">of [[total]]</span>
+      <paper-icon-button icon="chevron-left" on-tap="onPreviousPageTap" disabled="[[isFirstPage]]"></paper-icon-button>
+      <paper-icon-button icon="chevron-right" on-tap="onNextPageTap" disabled="[[isLastPage]]"></paper-icon-button>
+    </div>
+  </template>
+  <script>
+  (function () {
+    'use strict';
+
+    class PerpetuoPaging extends Polymer.Element {
+      static get is() { return 'perpetuo-paging'; }
+
+      static get properties() {
+        return {
+          pageSize: {type: Number},
+
+          page: {type: Number, value: 1, notify: true},
+          isFirstPage: {type: Boolean, computed: 'computeIsFirstPage(page)', notify: true},
+          isLastPage: {type: Boolean, value: false},
+
+          offset: {type: Number, computed: 'computeOffset(page, pageSize)', notify: true},
+          total: {type: String},
+
+          firstIndexOnPage: {type: Number, computed: 'computeFirstIndexOnPage(offset)', notify: true},
+          lastIndexOnPage: {type: Number, computed: 'computeLastIndexOnPage(offset, countOnPage)', notify: true},
+          countOnPage: {type: Number}
+        }
+      }
+
+      computeOffset(page, pageSize) {
+        return (page - 1) * pageSize;
+      }
+
+      computeFirstIndexOnPage(offset) {
+        return 1 + offset;
+      }
+
+      computeLastIndexOnPage(offset, countOnPage) {
+        return offset + countOnPage;
+      }
+
+      computeIsFirstPage(page) {
+        return page === 1;
+      }
+
+      onPreviousPageTap() {
+        if (!this.isFirstPage) {
+          --this.page;
+        }
+      }
+
+      onNextPageTap() {
+        if (!this.isLastPage) {
+          ++this.page;
+        }
+      }
+    }
+
+    customElements.define(PerpetuoPaging.is, PerpetuoPaging);
+  } ());
+  </script>
+</dom-module>
