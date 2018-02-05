@@ -20,6 +20,8 @@ class FineGrainedPermissionsSpec extends Test {
 
   object UserGroups {
     val registeredUsers = "Registered Users"
+    val hipsters ="Hipsters"
+    val generationY = "Generation Y"
   }
 
   object Users {
@@ -44,7 +46,10 @@ class FineGrainedPermissionsSpec extends Test {
         ProductRule(
           Pattern.compile(Products.foo.toString),
           Map(
-            DeploymentAction.applyOperation -> Authority(Set(Users.authorizedToProceedOnFoo.name), Set())
+            DeploymentAction.applyOperation -> Authority(
+              Set(Users.authorizedToProceedOnFoo.name),
+              Set(UserGroups.hipsters, UserGroups.generationY)
+            )
           )
         )
       )
@@ -71,6 +76,7 @@ class FineGrainedPermissionsSpec extends Test {
         |    perAction {
         |      applyOperation {
         |        userNames = ["${Users.authorizedToProceedOnFoo.name}"]
+        |        groupNames = ["${UserGroups.hipsters}", "${UserGroups.generationY}"]
         |      }
         |    }
         |  }
@@ -104,6 +110,10 @@ class FineGrainedPermissionsSpec extends Test {
           )
         )
       ) shouldBe false
+    }
+
+    test(s"$subject collects relevant group names") {
+      permissions.permittedGroupNames shouldBe Set(UserGroups.registeredUsers, UserGroups.hipsters, UserGroups.generationY)
     }
   }
 

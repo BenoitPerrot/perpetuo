@@ -19,6 +19,11 @@ case class ProductRule(productPattern: Pattern, actionRules: Map[DeploymentActio
 }
 
 class FineGrainedPermissions(generalActionRules: Map[GeneralAction.Value, Authority], productRules: Seq[ProductRule]) extends Permissions {
+  val permittedGroupNames: Set[String] = (
+    generalActionRules.values.flatMap(_.authorizedGroupNames) ++
+      productRules.flatMap(_.actionRules.values.flatMap(_.authorizedGroupNames))
+    ).toSet
+
   override def isAuthorized(user: User, action: GeneralAction.Value): Boolean =
     generalActionRules.get(action).exists(_.authorizes(user))
 
