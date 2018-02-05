@@ -4,6 +4,7 @@ import javax.inject.{Inject, Singleton}
 
 import com.criteo.perpetuo.engine.Select
 import com.criteo.perpetuo.model._
+import slick.jdbc.TransactionIsolation
 
 import scala.collection.mutable.{ArrayBuffer, LinkedHashMap => MutableMap}
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -40,6 +41,9 @@ class DbBinding @Inject()(val dbContext: DbContext)
   import dbContext.driver.api._
 
   type DeepRecords = (DeploymentRequestRecord, ProductRecord, Option[OperationTraceRecord], Option[ExecutionTraceRecord], Option[TargetStatusRecord])
+
+  def executeInSerializableTransaction[T](q: DBIOAction[T, NoStream, _]): Future[T] =
+    dbContext.db.run(q.transactionally.withTransactionIsolation(TransactionIsolation.Serializable))
 
   private def toOperationEffect(operationTrace: OperationTrace, joinedRecords: Seq[(Option[ExecutionTraceRecord], Option[TargetStatusRecord])]): OperationEffect = {
     val executionTraces = joinedRecords.flatMap(_._1).distinct.map(_.toExecutionTrace)

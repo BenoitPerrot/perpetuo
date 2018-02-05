@@ -10,6 +10,7 @@ import com.criteo.perpetuo.engine.dispatchers.TargetDispatcher
 import com.criteo.perpetuo.engine.resolvers.TargetResolver
 import com.criteo.perpetuo.model.ExecutionState.ExecutionState
 import com.criteo.perpetuo.model._
+import slick.dbio._
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
@@ -134,41 +135,36 @@ class Engine @Inject()(val dbBinding: DbBinding,
   private def startOperation(deploymentRequest: DeepDeploymentRequest,
                              operationStart: => Future[(ShallowOperationTrace, Int, Int)],
                              onOperationStartedListeners: Seq[(DeepDeploymentRequest, Int, Int) => Future[Unit]]): Future[ShallowOperationTrace] =
-    dbBinding.tryAcquireLocks(Seq(getOperationLockName(deploymentRequest)), deploymentRequest.id, reentrant = false).flatMap { alreadyRunning =>
-      if (alreadyRunning.nonEmpty)
-        throw Conflict("Cannot be processed for the moment because another operation is running for the same deployment request")
+    dbBinding.executeInSerializableTransaction(
+      dbBinding.tryAcquireLocks(Seq(getOperationLockName(deploymentRequest)), deploymentRequest.id, reentrant = false).flatMap { alreadyRunning =>
+        if (alreadyRunning.nonEmpty)
+          throw Conflict(
+            "Cannot be processed for the moment because another operation is running for the same deployment request"
+          )
 
-      dbBinding.tryAcquireLocks(getTransactionLockNames(deploymentRequest), deploymentRequest.id, reentrant = true)
-        .flatMap { conflictingRequestIds =>
+        dbBinding.tryAcquireLocks(getTransactionLockNames(deploymentRequest), deploymentRequest.id, reentrant = true).flatMap { conflictingRequestIds =>
           if (conflictingRequestIds.nonEmpty)
             throw Conflict(
               "Cannot be processed for the moment because a conflicting transaction is ongoing, which must first succeed or be reverted",
               conflictingRequestIds
             )
 
-          val opStart = try {
-            operationStart
-          } catch {
-            case _: Throwable => Future.failed(new Exception)
+          DBIOAction.from(operationStart).map { case (operationTrace, started, failed) =>
+            if (started == 0) {
+              // we should never get feedback from any execution since we presumably failed to start any,
+              // but if the failure came from a network or executor error occurred after the executor actually
+              // started processing the job, the important thing here is that the executor will fail to acquire
+              // the "execution lock", a.k.a. the right to apply an effect on the target, i.e. setting the
+              // target status as "running", precisely because we cancel the transaction creating the operation:
+              throw new Exception(s"Failed to trigger all $failed executions")
+            }
+            (operationTrace, started, failed)
           }
-          opStart
-            .flatMap { case (operationTrace, started, failed) =>
-              onOperationStartedListeners.foreach(_ (deploymentRequest, started, failed))
-              (if (started == 0) closeOperation(operationTrace, deploymentRequest) else Future.successful()).map(_ =>
-                operationTrace
-              )
-            }
-            .recover {
-              case e: Throwable =>
-                releaseLocks(deploymentRequest, transactionOngoing = false) // todo: `= false` is not accurate: we should only release the locks that have just been acquired
-                throw e
-            }
         }
-        .recover {
-          case e: Throwable =>
-            dbBinding.releaseLock(getOperationLockName(deploymentRequest), deploymentRequest.id)
-            throw e
-        }
+      }
+    ).map { case (operationTrace, started, failed) => // TODO: move that to the caller
+      onOperationStartedListeners.foreach(_ (deploymentRequest, started, failed))
+      operationTrace
     }
 
   private def startDeploymentRequest(req: DeepDeploymentRequest, initiatorName: String): Future[ShallowOperationTrace] = {

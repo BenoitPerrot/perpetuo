@@ -1,7 +1,6 @@
 package com.criteo.perpetuo.dao
 
 import com.twitter.inject.Logging
-import slick.jdbc.TransactionIsolation
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
@@ -37,29 +36,27 @@ trait LockBinder extends TableBinder with Logging {
     * @param reentrant either locks are considered acquired (if true) or conflicting (if false) when they are
     *                  already owned by the requester
     */
-  def tryAcquireLocks(names: Iterable[String], acquiringDeploymentRequestId: DeploymentRequestId, reentrant: Boolean): Future[Iterable[DeploymentRequestId]] = {
-    val q = lockQuery.filter(_.name.inSet(names)).result.flatMap { previouslyAcquired =>
-      val (namesToAcquire, conflicting) = if (reentrant) {
-        val (toIgnore, conflicting) = previouslyAcquired.toStream.partition(_.deploymentRequestId == acquiringDeploymentRequestId)
-        val ignoredNames = toIgnore.map(_.name).toSet
-        (names.toStream.filter(!ignoredNames.contains(_)), conflicting)
+  def tryAcquireLocks(names: Iterable[String], acquiringDeploymentRequestId: DeploymentRequestId, reentrant: Boolean): DBIOAction[Iterable[DeploymentRequestId], NoStream, Effect.Read with Effect.Write] = {
+    lockQuery.filter(_.name.inSet(names)).result
+      .flatMap { previouslyAcquired =>
+        val (namesToAcquire, conflicting) = if (reentrant) {
+          val (toIgnore, conflicting) = previouslyAcquired.toStream.partition(_.deploymentRequestId == acquiringDeploymentRequestId)
+          val ignoredNames = toIgnore.map(_.name).toSet
+          (names.toStream.filter(!ignoredNames.contains(_)), conflicting)
+        }
+        else
+          (names, previouslyAcquired)
+
+        val conflictingIds = conflicting.map(lock => lock.deploymentRequestId -> lock.name).toMap
+        if (conflictingIds.isEmpty)
+          (lockQuery ++= namesToAcquire.map(LockRecord(_, acquiringDeploymentRequestId))).map(_ => conflictingIds /* empty */)
+        else
+          DBIO.successful(conflictingIds)
       }
-      else
-        (names, previouslyAcquired)
-
-      val conflictingIds = conflicting.map(lock => lock.deploymentRequestId -> lock.name).toMap
-      if (conflictingIds.isEmpty)
-        (lockQuery ++= namesToAcquire.map(LockRecord(_, acquiringDeploymentRequestId))).map(_ => conflictingIds /* empty */)
-      else
-        DBIO.successful(conflictingIds)
-    }
-
-    dbContext.db.run(q.transactionally.withTransactionIsolation(TransactionIsolation.Serializable)).map { conflictSamples =>
-      conflictSamples.map { case (ownerId, name) =>
+      .map(_.map { case (ownerId, name) =>
         logger.debug(s"Couldn't acquire lock `$name` for request #$acquiringDeploymentRequestId because request #$ownerId owns it")
         ownerId
-      }
-    }
+      })
   }
 
   /**
