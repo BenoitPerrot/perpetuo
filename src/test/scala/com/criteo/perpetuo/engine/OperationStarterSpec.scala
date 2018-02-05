@@ -7,7 +7,7 @@ import com.criteo.perpetuo.dao._
 import com.criteo.perpetuo.engine.dispatchers.{SingleTargetDispatcher, TargetDispatcher}
 import com.criteo.perpetuo.engine.invokers.{DummyInvoker, ExecutorInvoker}
 import com.criteo.perpetuo.engine.resolvers.TargetResolver
-import com.criteo.perpetuo.model.{DeploymentRequestAttrs, Operation, Product, Version}
+import com.criteo.perpetuo.model._
 import com.twitter.inject.Test
 import spray.json.DefaultJsonProtocol._
 import spray.json._
@@ -77,7 +77,7 @@ class OperationStarterSpec extends Test with TestDb {
     val req = new DeploymentRequestAttrs(product.name, Version("\"v42\""), """"*"""", "No fear", "c.norris", new Timestamp(123456789))
 
     val depReq = execution.dbBinding.insertDeploymentRequest(req)
-    val asyncStart = depReq.flatMap(execution.start(testResolver, dispatcher, _, Operation.deploy, "c.norris"))
+    val asyncStart = depReq.flatMap(execution.start(testResolver, dispatcher, _, "c.norris"))
     asyncStart.flatMap { case (_, successes, failures) =>
       depReq.map(_.id).flatMap(execution.dbBinding.findExecutionTracesByDeploymentRequest).map { traces =>
         val executions = traces.map(trace => {
@@ -104,7 +104,7 @@ class OperationStarterSpec extends Test with TestDb {
     def dispatchedAs(that: Map[ExecutorInvoker, TargetExpr]): Unit = {
       execLogs.clear()
       Await.result(
-        depReq.flatMap(execution.start(testResolver, TestTargetDispatcher, _, Operation.deploy, "c.norris").map(_ =>
+        depReq.flatMap(execution.start(testResolver, TestTargetDispatcher, _, "c.norris").map(_ =>
           assertEqual(execLogs, that)
         )),
         1.second

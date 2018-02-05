@@ -19,7 +19,7 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
     * Start all relevant executions and return the numbers of successful
     * and failed execution starts.
     */
-  def start(resolver: TargetResolver, dispatcher: TargetDispatcher, deploymentRequest: DeepDeploymentRequest, operation: Operation.Kind, userName: String): Future[(ShallowOperationTrace, Int, Int)] = {
+  def start(resolver: TargetResolver, dispatcher: TargetDispatcher, deploymentRequest: DeepDeploymentRequest, userName: String): Future[(ShallowOperationTrace, Int, Int)] = {
     // generation of specific parameters
     val specificParameters = dispatcher.freezeParameters(deploymentRequest.product.name, deploymentRequest.version)
     // target resolution
@@ -27,7 +27,7 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
     // execution dispatching
     val invocations = dispatch(dispatcher, expandedTarget, specificParameters).toSeq
 
-    dbBinding.insertOperationTrace(deploymentRequest.id, operation, userName).flatMap(operationTrace =>
+    dbBinding.insertOperationTrace(deploymentRequest.id, Operation.deploy, userName).flatMap(operationTrace =>
       dbBinding.insertExecutionSpecification(specificParameters, deploymentRequest.version).flatMap(executionSpecification =>
         startExecution(invocations, deploymentRequest, operationTrace, executionSpecification).map {
           case (successes, failures) => (operationTrace, successes, failures)

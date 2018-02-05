@@ -170,7 +170,7 @@ class Engine @Inject()(val dbBinding: DbBinding,
   private def startDeploymentRequest(req: DeepDeploymentRequest, initiatorName: String): Future[ShallowOperationTrace] = {
     startOperation(
       req,
-      operationStarter.start(targetResolver, targetDispatcher, req, Operation.deploy, initiatorName),
+      operationStarter.start(targetResolver, targetDispatcher, req, initiatorName),
       listeners.map(listener => (deploymentRequest: DeepDeploymentRequest, startedExecutions: Int, failedToStart: Int) => listener.onDeploymentRequestStarted(deploymentRequest, startedExecutions, failedToStart))
     )
   }
