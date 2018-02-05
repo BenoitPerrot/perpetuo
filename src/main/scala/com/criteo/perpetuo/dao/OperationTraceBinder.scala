@@ -73,7 +73,6 @@ trait OperationTraceBinder extends TableBinder {
         .filter(op => op.id === operationTrace.id && op.startingDate.nonEmpty && op.closingDate.isEmpty)
         .map(_.closingDate)
         .update(now)
-        .transactionally
     ).map(count => {
       assert(count <= 1)
       if (count == 1)

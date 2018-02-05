@@ -1,6 +1,7 @@
 package com.criteo.perpetuo.dao
 
 import com.criteo.perpetuo.model.{Status, TargetAtom, TargetAtomStatus, TargetStatus}
+import slick.jdbc.TransactionIsolation
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
@@ -49,7 +50,8 @@ trait TargetStatusBinder extends TableBinder {
 
     // there is no bulk insert-or-update, so to remain efficient in case of many statuses,
     // we delete them all and re-insert them in the same transaction
-    val query = oldValues.delete.andThen(targetStatusQuery ++= newValues).transactionally
+    val query = oldValues.delete.andThen(targetStatusQuery ++= newValues)
+      .transactionally.withTransactionIsolation(TransactionIsolation.Serializable)
 
     dbContext.db.run(query).map(_ => ())
   }
