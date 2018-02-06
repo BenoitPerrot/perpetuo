@@ -14,6 +14,20 @@ import scala.concurrent.Future
 
 
 class OperationStarter(val dbBinding: DbBinding) extends Logging {
+  def createAndTrigger(deploymentRequest: DeepDeploymentRequest, operation: Operation.Kind, userName: String, dispatcher: TargetDispatcher, executions: Iterable[(TargetExpr, ExecutionSpecification)]): Future[(ShallowOperationTrace, Int, Int)] =
+    dbBinding
+      .insertOperationTrace(deploymentRequest.id, operation, userName)
+      .flatMap { newOp =>
+        val specAndInvocations = executions.map { case (target, spec) =>
+          (spec, dispatch(dispatcher, target, spec.specificParameters).toVector)
+        }
+        Future
+          .traverse(specAndInvocations) { case (spec, invocations) =>
+            startExecution(invocations, deploymentRequest, newOp, spec)
+          }
+          .map(_.fold((0, 0)) { case ((a, b), (c, d)) => (a + c, b + d) })
+          .map { case (successes, failures) => (newOp, successes, failures) }
+      }
 
   /**
     * Start all relevant executions and return the numbers of successful
@@ -24,15 +38,13 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
     val specificParameters = dispatcher.freezeParameters(deploymentRequest.product.name, deploymentRequest.version)
     // target resolution
     val expandedTarget = expandTarget(resolver, deploymentRequest.product.name, deploymentRequest.version, deploymentRequest.parsedTarget)
-    // execution dispatching
-    val invocations = dispatch(dispatcher, expandedTarget, specificParameters).toSeq
 
-    dbBinding.insertOperationTrace(deploymentRequest.id, Operation.deploy, userName).flatMap(operationTrace =>
-      dbBinding.insertExecutionSpecification(specificParameters, deploymentRequest.version).flatMap(executionSpecification =>
-        startExecution(invocations, deploymentRequest, operationTrace, executionSpecification).map {
-          case (successes, failures) => (operationTrace, successes, failures)
-        }
-      )
+    // Create the execution specification outside of any transaction: it's not an issue if the request
+    // fails afterward and the specification remains unbound.
+    // Moreover, this will likely be rewritten eventually for the specifications to be created alongside with the
+    // `deploy` operations at the time the deployment request is created.
+    dbBinding.insertExecutionSpecification(specificParameters, deploymentRequest.version).flatMap(spec =>
+      createAndTrigger(deploymentRequest, Operation.deploy, userName, dispatcher, Seq((expandedTarget, spec)))
     )
   }
 
@@ -41,18 +53,11 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
                   deploymentRequest: DeepDeploymentRequest,
                   executionSpecs: Seq[ExecutionSpecification],
                   userName: String): Future[(ShallowOperationTrace, Int, Int)] = {
-
-    dbBinding.insertOperationTrace(deploymentRequest.id, Operation.deploy, userName).flatMap { newOperationTrace =>
-      val allSuccessesAndFailures = executionSpecs.map { executionSpec =>
-        // todo: retrieve the real target of the very retried execution
-        val expandedTarget = expandTarget(resolver, deploymentRequest.product.name, deploymentRequest.version, deploymentRequest.parsedTarget)
-        val invocations = dispatch(dispatcher, expandedTarget, executionSpec.specificParameters).toSeq
-        startExecution(invocations, deploymentRequest, newOperationTrace, executionSpec)
-      }
-      Future.sequence(allSuccessesAndFailures).map(_.foldLeft((0, 0)) { case (initialValue, (successes, failures)) =>
-        (initialValue._1 + successes, initialValue._2 + failures)
-      }).map { case (started, failed) => (newOperationTrace, started, failed) }
-    }
+    val executions = executionSpecs.map(spec =>
+      // todo: retrieve the real target of the very retried execution
+      (expandTarget(resolver, deploymentRequest.product.name, deploymentRequest.version, deploymentRequest.parsedTarget), spec)
+    )
+    createAndTrigger(deploymentRequest, Operation.deploy, userName, dispatcher, executions)
   }
 
   def startExecution(invocations: Seq[(ExecutorInvoker, TargetExpr)],
@@ -125,6 +130,8 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
         if (undetermined.nonEmpty)
           defaultVersion.map { version =>
             val specificParameters = dispatcher.freezeParameters(deploymentRequest.product.name, version)
+            // Create the execution specification outside of any transaction: it's not an issue if the request
+            // fails afterward and the specification remains unbound.
             dbBinding.insertExecutionSpecification(specificParameters, version).map(executionSpecification =>
               Stream.cons((executionSpecification, undetermined), determined.toStream)
             )
@@ -136,20 +143,8 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
           Future.successful(determined)
       }
       .flatMap { groups =>
-
-        val executionSpecificationsAndInvocations = groups.map { case (execSpec, targets) =>
-          (execSpec, dispatch(dispatcher, Set(TargetTerm(select = targets)), execSpec.specificParameters).toSeq)
-        }
-
-        dbBinding
-          .insertOperationTrace(deploymentRequest.id, Operation.revert, userName)
-          .flatMap(newOp =>
-            Future.traverse(executionSpecificationsAndInvocations) { case (execSpec, invocations) =>
-              startExecution(invocations, deploymentRequest, newOp, execSpec)
-            }
-              .map(_.fold((0, 0)) { case ((a, b), (c, d)) => (a + c, b + d) })
-              .map { case (successes, failures) => (newOp, successes, failures) }
-          )
+        val executions = groups.map { case (spec, targets) => (Set(TargetTerm(select = targets)), spec) }
+        createAndTrigger(deploymentRequest, Operation.revert, userName, dispatcher, executions)
       }
   }
 
