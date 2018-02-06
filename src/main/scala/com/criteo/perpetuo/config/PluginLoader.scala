@@ -37,7 +37,7 @@ class PluginLoader {
       .map(_.newInstance(args: _*).asInstanceOf[T])
   }
 
-  def load[T <: AnyRef](config: Config, typeName: String, groovySupported: Boolean = false)(f: PartialFunction[String, T] = PartialFunction.empty): T = {
+  def load[T <: AnyRef](config: Config, typeName: String)(f: PartialFunction[String, T] = PartialFunction.empty): T = {
     val t = config.tryGet[String]("type").getOrElse(throw new Exception(s"No $typeName is configured, while one is required"))
     lazy val pluginConfig = config.tryGetConfig("config")
     lazy val stringValue = config.getString(t)
@@ -55,9 +55,6 @@ class PluginLoader {
         throw new Exception(s"Unknown $typeName configured: $unknownType")
     }
 
-    if (groovySupported)
-      f.applyOrElse(t, instantiate_)
-    else
-      f(t)
+    f.applyOrElse(t, instantiate_)
   }
 }

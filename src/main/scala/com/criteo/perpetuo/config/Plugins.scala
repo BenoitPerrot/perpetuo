@@ -39,7 +39,7 @@ class Plugins @Inject()(loader: PluginLoader) {
   val resolver: TargetResolver = config
     .tryGetConfig("targetResolver")
     .map { desc =>
-      loader.load[Provider[TargetResolver]](desc, "target resolver", groovySupported = true)()
+      loader.load[Provider[TargetResolver]](desc, "target resolver")()
     }
     .getOrElse(new TargetResolver {})
     .get
@@ -47,7 +47,7 @@ class Plugins @Inject()(loader: PluginLoader) {
   val dispatcher: TargetDispatcher = config
     .tryGetConfig("targetDispatcher")
     .map { desc =>
-      loader.load[Provider[TargetDispatcher]](desc, "target dispatcher", groovySupported = true) {
+      loader.load[Provider[TargetDispatcher]](desc, "target dispatcher") {
         case t@"singleInvoker" =>
           SingleTargetDispatcher(invoker(desc.getConfig(t)))
       }
@@ -70,7 +70,7 @@ class Plugins @Inject()(loader: PluginLoader) {
 
   val permissions: Permissions =
     config.tryGetConfig("permissions").map { desc =>
-      loader.load[Permissions](desc, "type of permissions", groovySupported = true) {
+      loader.load[Permissions](desc, "type of permissions") {
         case t@"fineGrained" =>
           FineGrainedPermissions.fromConfig(desc.getConfig(t))
       }
@@ -79,7 +79,7 @@ class Plugins @Inject()(loader: PluginLoader) {
   val listeners: Seq[AsyncListener] =
     if (config.hasPath("engineListeners"))
       config.getConfigList("engineListeners").asScala.map(desc =>
-        new ListenerPluginWrapper(loader.load[DefaultListenerPlugin](desc, "engine listener", groovySupported = true)())
+        new ListenerPluginWrapper(loader.load[DefaultListenerPlugin](desc, "engine listener")())
       )
     else
       Seq()
