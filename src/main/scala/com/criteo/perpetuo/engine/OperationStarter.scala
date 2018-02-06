@@ -23,7 +23,12 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
         }
         Future
           .traverse(specAndInvocations) { case (spec, invocations) =>
-            startExecution(invocations, deploymentRequest, newOp, spec)
+            dbBinding.insertExecution(newOp.id, spec.id).flatMap(
+              // create as many traces, all at the same time
+              dbBinding.insertExecutionTraces(_, invocations.length)
+                .map(invocations.zip(_))
+                .flatMap(startExecution(deploymentRequest, newOp, spec, _))
+            )
           }
           .map(_.fold((0, 0)) { case ((a, b), (c, d)) => (a + c, b + d) })
           .map { case (successes, failures) => (newOp, successes, failures) }
@@ -60,67 +65,58 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
     createAndTrigger(deploymentRequest, Operation.deploy, userName, dispatcher, executions)
   }
 
-  def startExecution(invocations: Seq[(ExecutorInvoker, TargetExpr)],
-                     deploymentRequest: DeepDeploymentRequest,
+  def startExecution(deploymentRequest: DeepDeploymentRequest,
                      operationTrace: OperationTrace,
-                     executionSpecification: ExecutionSpecification): Future[(Int, Int)] = {
+                     executionSpecification: ExecutionSpecification,
+                     executionSpecs: Seq[((ExecutorInvoker, TargetExpr), Long)]): Future[(Int, Int)] = {
     val productName = deploymentRequest.product.name
     val version = executionSpecification.version
-
-    dbBinding.insertExecution(operationTrace.id, executionSpecification.id).flatMap(executionId =>
-      // create as many traces, all at the same time
-      dbBinding.insertExecutionTraces(executionId, invocations.length)
-        .map(x => invocations.zip(x))
-        .flatMap { executionSpecs =>
-          // and only then, for each execution to do:
-          Future.traverse(executionSpecs) {
-            case ((executor, target), execTraceId) =>
-              // log the execution
-              logger.debug(s"Triggering ${operationTrace.kind} job for execution #$execTraceId of $productName v. $version on $executor")
-              // trigger the execution
-              val trigger = try {
-                executor.trigger(
-                  execTraceId,
-                  productName,
-                  version,
-                  target,
-                  deploymentRequest.creator
-                )
-              } catch {
-                case e: Throwable => Future.failed(new Exception("Could not trigger the execution; please contact #sre-perpetual", e))
-              }
-              trigger
-                .flatMap(
-                  // if that answers a log href, update the trace with it, and consider that the job
-                  // is running (i.e. already followable and not yet terminated, really)
-                  _.map(logHref =>
-                    dbBinding.updateExecutionTrace(execTraceId, ExecutionState.running, "", logHref).map { updated =>
-                      assert(updated)
-                      (true, s"`$logHref` succeeded")
-                    }
-                  ).getOrElse(
-                    Future.successful((true, "succeeded (but with an unknown log href)"))
-                  )
-                )
-                .recoverWith {
-                  // if triggering the job throws an error, mark the execution as failed at initialization
-                  case e: Throwable =>
-                    logger.error(e.getMessage, e)
-                    dbBinding.updateExecutionTrace(execTraceId, ExecutionState.initFailed, e.getMessage).map { updated =>
-                      assert(updated)
-                      (false, s"failed (${e.getMessage})")
-                    }
-                }
-                .map { case (succeeded, identifier) =>
-                  logExecution(identifier, execTraceId, executor, target)
-                  succeeded
-                }
-          }.map { statuses =>
-            val successes = statuses.count(s => s)
-            (successes, statuses.length - successes)
-          }
+    Future.traverse(executionSpecs) {
+      case ((executor, target), execTraceId) =>
+        // log the execution
+        logger.debug(s"Triggering ${operationTrace.kind} job for execution #$execTraceId of $productName v. $version on $executor")
+        // trigger the execution
+        val trigger = try {
+          executor.trigger(
+            execTraceId,
+            productName,
+            version,
+            target,
+            deploymentRequest.creator
+          )
+        } catch {
+          case e: Throwable => Future.failed(new Exception("Could not trigger the execution; please contact #sre-perpetual", e))
         }
-    )
+        trigger
+          .flatMap(
+            // if that answers a log href, update the trace with it, and consider that the job
+            // is running (i.e. already followable and not yet terminated, really)
+            _.map(logHref =>
+              dbBinding.updateExecutionTrace(execTraceId, ExecutionState.running, "", logHref).map { updated =>
+                assert(updated)
+                (true, s"`$logHref` succeeded")
+              }
+            ).getOrElse(
+              Future.successful((true, "succeeded (but with an unknown log href)"))
+            )
+          )
+          .recoverWith {
+            // if triggering the job throws an error, mark the execution as failed at initialization
+            case e: Throwable =>
+              logger.error(e.getMessage, e)
+              dbBinding.updateExecutionTrace(execTraceId, ExecutionState.initFailed, e.getMessage).map { updated =>
+                assert(updated)
+                (false, s"failed (${e.getMessage})")
+              }
+          }
+          .map { case (succeeded, identifier) =>
+            logExecution(identifier, execTraceId, executor, target)
+            succeeded
+          }
+    }.map { statuses =>
+      val successes = statuses.count(s => s)
+      (successes, statuses.length - successes)
+    }
   }
 
   def revert(dispatcher: TargetDispatcher, deploymentRequest: DeepDeploymentRequest, userName: String, defaultVersion: Option[Version]): Future[(ShallowOperationTrace, Int, Int)] = {
