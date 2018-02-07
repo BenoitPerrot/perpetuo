@@ -5,7 +5,8 @@ import java.sql.Timestamp
 import com.criteo.perpetuo.TestDb
 import com.criteo.perpetuo.config.{PluginLoader, Plugins}
 import com.criteo.perpetuo.dao.DbBinding
-import com.criteo.perpetuo.engine.dispatchers.UnprocessableIntent
+import com.criteo.perpetuo.engine.dispatchers.{SingleTargetDispatcher, UnprocessableIntent}
+import com.criteo.perpetuo.engine.invokers.DummyInvoker
 import com.criteo.perpetuo.model._
 import com.twitter.inject.Test
 import spray.json.DefaultJsonProtocol._
@@ -15,6 +16,23 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}
 
+
+object FailingInvoker extends DummyInvoker("DummyWithLogHref") {
+  override def trigger(execTraceId: Long, productName: String, version: Version, target: TargetExpr, initiator: String): Future[Option[String]] = {
+    throw new RuntimeException("too bad, dude")
+  }
+}
+
+object DummyInvokerWithLogHref extends DummyInvoker("DummyWithLogHref") {
+  override def trigger(execTraceId: Long, productName: String, version: Version, target: TargetExpr, initiator: String): Future[Option[String]] = {
+    super.trigger(execTraceId, productName, version, target, initiator).map { logHref =>
+      assert(logHref.isEmpty)
+      Some("now you can track me down")
+    }
+  }
+}
+
+
 class EngineSpec extends Test with TestDb {
 
   private val plugins = new Plugins(new PluginLoader)
@@ -22,6 +40,32 @@ class EngineSpec extends Test with TestDb {
   private val engine = new Engine(new DbBinding(dbContext), plugins.resolver, plugins.dispatcher, plugins.permissions, plugins.listeners)
 
   private val futureProductWithNoDeployType = engine.insertProduct(TargetDispatcherForTesting.productWithNoDeployTypeName)
+
+
+  test("A trivial execution triggers a job with no log href when there is no log href provided") {
+    Await.result(
+      for {
+        product <- engine.insertProduct("product #1")
+        depReq <- engine.dbBinding.insertDeploymentRequest(new DeploymentRequestAttrs(product.name, Version("\"1000\""), """"*"""", "", "s.omeone", new Timestamp(123456789)))
+        _ <- engine.startDeploymentRequest(depReq.id, "s.tarter")
+        traces <- engine.findExecutionTracesByDeploymentRequest(depReq.id)
+      } yield traces.get.map(trace => (trace.id, trace.logHref)),
+      1.second
+    ) shouldEqual Seq((1, None))
+  }
+
+  test("A trivial execution triggers a job with a log href when a log href is provided as a Future") {
+    val eng = new Engine(new DbBinding(dbContext), plugins.resolver, SingleTargetDispatcher(DummyInvokerWithLogHref), plugins.permissions, plugins.listeners)
+    Await.result(
+      for {
+        product <- engine.insertProduct("product #2")
+        depReq <- eng.dbBinding.insertDeploymentRequest(new DeploymentRequestAttrs(product.name, Version("\"1000\""), """"*"""", "", "s.omeone", new Timestamp(123456789)))
+        _ <- eng.startDeploymentRequest(depReq.id, "s.tarter")
+        traces <- eng.findExecutionTracesByDeploymentRequest(depReq.id)
+      } yield traces.get.map(trace => (trace.id, trace.logHref)),
+      1.second
+    ) shouldEqual Seq((2, Some("now you can track me down")))
+  }
 
   test("Engine keeps track of open executions for an operation") {
     Await.result(

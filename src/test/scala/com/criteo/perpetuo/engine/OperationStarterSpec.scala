@@ -14,10 +14,9 @@ import spray.json._
 
 import scala.collection.TraversableOnce
 import scala.collection.concurrent.{TrieMap, Map => ConcurrentMap}
-import scala.collection.immutable.Stream
+import scala.concurrent.Await
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
-import scala.concurrent.{Await, Future}
 import scala.reflect.{ClassTag, classTag}
 
 
@@ -48,7 +47,6 @@ class OperationStarterSpec extends Test with TestDb {
 
   import TestTargetDispatcher._
 
-  private val dummyCounter = Stream.from(1).toIterator
   private val execLogs: ConcurrentMap[ExecutorInvoker, TargetExpr] = new TrieMap()
   private val execution = new OperationStarter(new DbBinding(dbContext)) {
     override protected def logExecution(identifier: String, execId: Long, executor: ExecutorInvoker, target: TargetExpr): Unit = {
@@ -62,33 +60,7 @@ class OperationStarterSpec extends Test with TestDb {
     }
   }
 
-  object DummyInvokerWithLogHref extends DummyInvoker("DummyWithLogHref") {
-    override def trigger(execTraceId: Long, productName: String, version: Version, target: TargetExpr, initiator: String): Future[Option[String]] = {
-      super.trigger(execTraceId, productName, version, target, initiator).map { logHref =>
-        assert(logHref.isEmpty)
-        Some(s"#${dummyCounter.next}")
-      }
-    }
-  }
-
   private val product: Product = Await.result(execution.dbBinding.insertProduct("perpetuo-app"), 1.second)
-
-  private def getExecutions(dispatcher: TargetDispatcher): Future[Seq[(Long, Option[String])]] = {
-    val req = new DeploymentRequestAttrs(product.name, Version("\"v42\""), """"*"""", "No fear", "c.norris", new Timestamp(123456789))
-
-    val depReq = execution.dbBinding.insertDeploymentRequest(req)
-    val asyncStart = depReq.flatMap(execution.start(testResolver, dispatcher, _, "c.norris"))
-    asyncStart.flatMap { case (_, successes, failures) =>
-      depReq.map(_.id).flatMap(execution.dbBinding.findExecutionTracesByDeploymentRequest).map { traces =>
-        val executions = traces.map(trace => {
-          (trace.id, trace.logHref)
-        })
-        successes shouldEqual executions.length
-        failures shouldEqual 0
-        executions
-      }
-    }
-  }
 
   implicit class SimpleDispatchTest(private val select: Select) {
     def dispatchedAs(that: Map[ExecutorInvoker, Select]): Unit = {
@@ -110,21 +82,6 @@ class OperationStarterSpec extends Test with TestDb {
         1.second
       )
     }
-  }
-
-
-  test("A trivial execution triggers a job with no log href when there is no log href provided") {
-    Await.result(
-      getExecutions(DummyTargetDispatcher).map(_ shouldEqual Seq((1, None))),
-      1.second
-    )
-  }
-
-  test("A trivial execution triggers a job with a log href when a log href is provided as a Future") {
-    Await.result(
-      getExecutions(SingleTargetDispatcher(DummyInvokerWithLogHref)).map(_ shouldEqual Seq((2, Some("#1")))),
-      1.second
-    )
   }
 
 
