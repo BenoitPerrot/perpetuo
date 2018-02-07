@@ -151,11 +151,7 @@ class Engine @Inject()(val dbBinding: DbBinding,
 
           DBIOAction.from(operationStart).map { case (operationTrace, started, failed) =>
             if (started == 0) {
-              // we should never get feedback from any execution since we presumably failed to start any,
-              // but if the failure came from a network or executor error occurred after the executor actually
-              // started processing the job, the important thing here is that the executor will fail to acquire
-              // the "execution lock", a.k.a. the right to apply an effect on the target, i.e. setting the
-              // target status as "running", precisely because we cancel the transaction creating the operation:
+              closeOperation(operationTrace, deploymentRequest)
               throw new Exception(s"Failed to trigger all $failed executions")
             }
             (operationTrace, started, failed)
