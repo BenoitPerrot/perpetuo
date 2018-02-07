@@ -48,7 +48,7 @@ class OperationStarterSpec extends Test with TestDb {
   import TestTargetDispatcher._
 
   private val execLogs: ConcurrentMap[ExecutorInvoker, TargetExpr] = new TrieMap()
-  private val execution = new OperationStarter(new DbBinding(dbContext)) {
+  private val operationStarter = new OperationStarter(new DbBinding(dbContext)) {
     override protected def logExecution(identifier: String, execId: Long, executor: ExecutorInvoker, target: TargetExpr): Unit = {
       execLogs.put(executor, target).map(prev => fail(s"Logs say the executor has ${target.toJson.compactPrint} to do, but it already has $prev to do!"))
     }
@@ -60,7 +60,7 @@ class OperationStarterSpec extends Test with TestDb {
     }
   }
 
-  private val product: Product = Await.result(execution.dbBinding.insertProduct("perpetuo-app"), 1.second)
+  private val product: Product = Await.result(operationStarter.dbBinding.insertProduct("perpetuo-app"), 1.second)
 
   implicit class SimpleDispatchTest(private val select: Select) {
     def dispatchedAs(that: Map[ExecutorInvoker, Select]): Unit = {
@@ -71,12 +71,12 @@ class OperationStarterSpec extends Test with TestDb {
   implicit class ComplexDispatchTest(private val target: TargetExpr) {
     private val rawTarget = target.toJson.compactPrint
     private val request = new DeploymentRequestAttrs(product.name, Version("\"v42\""), rawTarget, "No fear", "c.norris", new Timestamp(123456789))
-    private val depReq = execution.dbBinding.insertDeploymentRequest(request)
+    private val depReq = operationStarter.dbBinding.insertDeploymentRequest(request)
 
     def dispatchedAs(that: Map[ExecutorInvoker, TargetExpr]): Unit = {
       execLogs.clear()
       Await.result(
-        depReq.flatMap(execution.start(testResolver, TestTargetDispatcher, _, "c.norris").map(_ =>
+        depReq.flatMap(operationStarter.start(testResolver, TestTargetDispatcher, _, "c.norris").map(_ =>
           assertEqual(execLogs, that)
         )),
         1.second
@@ -101,13 +101,13 @@ class OperationStarterSpec extends Test with TestDb {
   }
 
   test("A complex execution raises if a target cannot be solved to atomic targets") {
-    val thrown = the[IllegalArgumentException] thrownBy execution.expandTarget(testResolver, null, Version("\"\""), Set(TargetTerm(select = Set("ab", "-"))))
+    val thrown = the[IllegalArgumentException] thrownBy operationStarter.expandTarget(testResolver, null, Version("\"\""), Set(TargetTerm(select = Set("ab", "-"))))
     thrown.getMessage should endWith("`-` is not a valid target in that context")
   }
 
   test("A complex execution raises if a target is not fully covered by executors") {
     val params = TestTargetDispatcher.freezeParameters("", Version(""""42""""))
-    val thrown = the[IllegalArgumentException] thrownBy execution.dispatchToExecutors(TestTargetDispatcher, Set("def"), params)
+    val thrown = the[IllegalArgumentException] thrownBy operationStarter.dispatchToExecutors(TestTargetDispatcher, Set("def"), params)
     thrown.getMessage shouldEqual "requirement failed: Some targets have been lost in dispatching: def"
   }
 
@@ -184,7 +184,7 @@ class OperationStarterSpec extends Test with TestDb {
     val Alternatives = Set
     val params = TestTargetDispatcher.freezeParameters("", Version(""""42""""))
     assertEqual(
-      execution.dispatchAlternatives(TestTargetDispatcher, Set(
+      operationStarter.dispatchAlternatives(TestTargetDispatcher, Set(
         TargetTerm(Set(JsObject("ratio" -> JsNumber(0.05), "foo" -> JsString("bar"))), Set("ab")),
         TargetTerm(Set(JsObject("ratio" -> JsNumber(0.05))), Set("assault")),
         TargetTerm(Set(JsObject("ratio" -> JsNumber(0.05))), Set("appendix")),
@@ -224,7 +224,7 @@ class OperationStarterSpec extends Test with TestDb {
       TargetTerm(Set(JsObject("foo" -> JsString("bar2"))), Set("ghi")),
       TargetTerm(Set(JsObject("foo2" -> JsString("bar"))), Set("ghi"))
     )
-    val dispatchedTargets = execution
+    val dispatchedTargets = operationStarter
       .dispatch(DummyTargetDispatcher, targetWithDuplicates, "")
       .map(_._2)
     assertEqual(dispatchedTargets, Seq(
