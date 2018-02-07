@@ -279,11 +279,7 @@ class Engine @Inject()(val dbBinding: DbBinding,
     }
 
   def updateExecutionTrace(id: Long, executionState: ExecutionState, detail: String, logHref: String, statusMap: Map[String, TargetAtomStatus]): Future[Option[Unit]] = {
-    val executionUpdate =
-      if (logHref.nonEmpty)
-        dbBinding.updateExecutionTrace(id, executionState, detail, logHref)
-      else
-        dbBinding.updateExecutionTrace(id, executionState, detail)
+    val executionUpdate = dbBinding.updateExecutionTrace(id, executionState, detail, logHref.headOption.map(_ => logHref))
 
     executionUpdate.flatMap {
       if (_) {

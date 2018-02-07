@@ -88,11 +88,11 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
           case e: Throwable => Future.failed(new Exception("Could not trigger the execution; please contact #sre-perpetual", e))
         }
         trigger
-          .flatMap(
+          .flatMap(optLogHref =>
             // if that answers a log href, update the trace with it, and consider that the job
             // is running (i.e. already followable and not yet terminated, really)
-            _.map(logHref =>
-              dbBinding.updateExecutionTrace(execTraceId, ExecutionState.running, "", logHref).map { updated =>
+            optLogHref.map(logHref =>
+              dbBinding.updateExecutionTrace(execTraceId, ExecutionState.running, "", optLogHref).map { updated =>
                 assert(updated)
                 (true, s"`$logHref` succeeded")
               }
