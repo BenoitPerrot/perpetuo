@@ -1,14 +1,16 @@
 package com.criteo.perpetuo.auth
 
+import spray.json.DefaultJsonProtocol._
 import spray.json._
 
 import scala.concurrent.duration._
 
-case class User(name: String, groupNames: Set[String] = Set("Users")) { // TODO: actually create this set
+case class User(name: String, groupNames: Set[String] = Set()) {
   def toJWT(encoder: JWTEncoder, expiring: Boolean = true): String = {
     encoder.encode(JsObject(
-      Map("name" -> JsString(name)) ++
-        (if (expiring) Map("iat" -> JsNumber(User.currentTimestamp)) else Map.empty)
+      Map("name" -> JsString(name))
+        ++ (if (groupNames.nonEmpty) Map("groupNames" -> groupNames.toVector.toJson) else Map.empty)
+        ++ (if (expiring) Map("iat" -> JsNumber(User.currentTimestamp)) else Map.empty)
       // iat = "issued at": https://tools.ietf.org/html/rfc7519#section-4.1.6
     ).compactPrint)
   }
@@ -27,6 +29,13 @@ object User {
     if (expired)
       None
     else
-      Some(User(values("name").asInstanceOf[JsString].value.take(maxSize)))
+      Some(User(
+        values("name").asInstanceOf[JsString].value.take(maxSize),
+        values.get("groupNames").map(
+          _.asInstanceOf[JsArray].elements
+            .map(_.asInstanceOf[JsString].value)
+            .toSet
+        ).getOrElse(Set())
+      ))
   }
 }

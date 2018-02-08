@@ -30,15 +30,17 @@ class RestControllerSpec extends Test with TestDb {
     def idAsLong: Long = o.asJsObject.fields("id").asInstanceOf[JsNumber].value.longValue
   }
 
+  private def makeUser(userName: String) = User(userName, Set("Users"))
+
   val config = AppConfigProvider.config
   val authModule = new AuthModule(config.getConfig("auth"))
-  val productUser = User("bob.the.producer")
+  val productUser = makeUser("bob.the.producer")
   val productUserJWT = productUser.toJWT(authModule.jwtEncoder)
-  val deployUser = User("r.eleaser")
+  val deployUser = makeUser("r.eleaser")
   val deployUserJWT = deployUser.toJWT(authModule.jwtEncoder)
-  val stdUser = User("stdUser")
+  val stdUser = makeUser("stdUser")
   val stdUserJWT = stdUser.toJWT(authModule.jwtEncoder)
-  val deprecatedDeployUser = User("qabot") // todo: remove once the deprecated route for starting deployments is removed
+  val deprecatedDeployUser = makeUser("qabot") // todo: remove once the deprecated route for starting deployments is removed
   val deprecatedDeployUserJWT = deprecatedDeployUser.toJWT(authModule.jwtEncoder)
 
   var controller: RestController = _
@@ -718,7 +720,7 @@ class RestControllerSpec extends Test with TestDb {
   }
 
   test("Creating a deployment request with a too long name works but store a truncated user name") {
-    val longUser = User("too-long-user-name/" * 42)
+    val longUser = makeUser("too-long-user-name/" * 42)
     val longUserJWT = longUser.toJWT(authModule.jwtEncoder)
 
     val id = server.httpPost(
