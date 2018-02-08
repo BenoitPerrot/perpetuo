@@ -1,6 +1,5 @@
 package com.criteo.perpetuo.config
 
-import java.net.URL
 import java.util.logging.Logger
 
 import com.criteo.perpetuo.auth._
@@ -59,12 +58,7 @@ class Plugins @Inject()(loader: PluginLoader) {
     config.tryGetConfig("auth.identityProvider").map { desc =>
       loader.load[IdentityProvider](desc, "type of identity provider") {
         case t@"openAm" =>
-          val openAmConfig = desc.getConfig(t)
-          val localUserNames = openAmConfig.tryGet[Seq[String]]("localUserNames").getOrElse(Seq()).toSet
-          new OpenAmIdentityProvider(
-            new URL(openAmConfig.getString("authorize.url")),
-            new URL(openAmConfig.getString("tokeninfo.url")),
-            localUserNames)
+          OpenAmIdentityProvider.fromConfig(desc.getConfig(t))
       }
     }.getOrElse(AnonymousIdentityProvider)
 

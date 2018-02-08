@@ -2,10 +2,12 @@ package com.criteo.perpetuo.auth
 
 import java.net.URL
 
+import com.criteo.perpetuo.config.ConfigSyntacticSugar._
 import com.twitter.finagle.builder.ClientBuilder
 import com.twitter.finagle.http._
 import com.twitter.finagle.{Http, Service}
 import com.twitter.util.Future
+import com.typesafe.config.Config
 import spray.json._
 
 
@@ -49,4 +51,14 @@ class OpenAmIdentityProvider(authorize: URL, tokeninfo: URL, localUserNames: Set
     else
       Future.exception(new Exception(s"$userName is not in the set of users that can be identified by name only"))
 
+}
+
+object OpenAmIdentityProvider {
+  def fromConfig(config: Config): OpenAmIdentityProvider = {
+    val localUserNames = config.tryGet[Seq[String]]("localUserNames").getOrElse(Seq()).toSet
+    new OpenAmIdentityProvider(
+      new URL(config.getString("authorize.url")),
+      new URL(config.getString("tokeninfo.url")),
+      localUserNames)
+  }
 }
