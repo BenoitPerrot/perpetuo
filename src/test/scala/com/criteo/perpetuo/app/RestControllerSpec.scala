@@ -40,8 +40,6 @@ class RestControllerSpec extends Test with TestDb {
   val deployUserJWT = deployUser.toJWT(authModule.jwtEncoder)
   val stdUser = makeUser("stdUser")
   val stdUserJWT = stdUser.toJWT(authModule.jwtEncoder)
-  val deprecatedDeployUser = makeUser("qabot") // todo: remove once the deprecated route for starting deployments is removed
-  val deprecatedDeployUserJWT = deprecatedDeployUser.toJWT(authModule.jwtEncoder)
 
   var controller: RestController = _
 
@@ -150,10 +148,9 @@ class RestControllerSpec extends Test with TestDb {
     ).contentString.parseJson.asInstanceOf[JsArray].elements.map(_.asJsObject.fields)
   }
 
-  private def httpPut(path: String, body: JsValue, expect: Status) =
+  private def putExecutionTrace(execTraceId: String, body: JsValue, expect: Status) =
     server.httpPut(
-      path = path,
-      headers = Map("Cookie" -> s"jwt=$deprecatedDeployUserJWT"),
+      path = RestApi.executionCallbackPath(execTraceId),
       putBody = body.compactPrint,
       andExpect = expect
     )
@@ -194,8 +191,8 @@ class RestControllerSpec extends Test with TestDb {
     ).collect {
       case (k, v) if v.isDefined => k -> v.get
     }
-    httpPut(
-      RestApi.executionCallbackPath(execTraceId.toString),
+    putExecutionTrace(
+      execTraceId.toString,
       params.toJson,
       NoContent
     )
@@ -471,16 +468,16 @@ class RestControllerSpec extends Test with TestDb {
   }
 
   test("The ExecutionTrace's entry-point returns 404 on non-integral ID") {
-    httpPut(
-      RestApi.executionCallbackPath("abc"),
+    putExecutionTrace(
+      "abc",
       Map("state" -> "conflicting").toJson,
       NotFound
     )
   }
 
   test("The ExecutionTrace's entry-point returns 404 if trying to update an unknown execution trace") {
-    httpPut(
-      RestApi.executionCallbackPath("12345"),
+    putExecutionTrace(
+      "12345",
       Map("state" -> "conflicting").toJson,
       NotFound
     )
@@ -490,8 +487,8 @@ class RestControllerSpec extends Test with TestDb {
     val (depReqId, executionTraces) = createProductAndStartDeployment("2456", Seq("paris", "amsterdam").toJson)
     val execTraceId = executionTraces.head
 
-    httpPut(
-      RestApi.executionCallbackPath(execTraceId.toString),
+    putExecutionTrace(
+      execTraceId.toString,
       JsObject("state" -> "conflicting".toJson, "targetStatus" -> Vector("paris", "amsterdam").toJson),
       BadRequest
     ).contentString should include("targetStatus: Can not deserialize")
@@ -500,8 +497,8 @@ class RestControllerSpec extends Test with TestDb {
   }
 
   test("The ExecutionTrace's entry-point returns 400 if no state is provided") {
-    httpPut(
-      RestApi.executionCallbackPath("1"),
+    putExecutionTrace(
+      "1",
       JsObject("targetStatus" -> Map("par" -> "success").toJson),
       BadRequest
     ).contentString should include("state: field is required")
@@ -510,8 +507,8 @@ class RestControllerSpec extends Test with TestDb {
   test("The ExecutionTrace's entry-point returns 400 if the provided state is unknown") {
     val (_, executionTraces) = createProductAndStartDeployment("2456", Seq("paris", "amsterdam").toJson)
 
-    httpPut(
-      RestApi.executionCallbackPath(executionTraces.head.toString),
+    putExecutionTrace(
+      executionTraces.head.toString,
       Map("state" -> "what?").toJson,
       BadRequest
     ).contentString should include("Unknown state `what?`")
@@ -521,8 +518,8 @@ class RestControllerSpec extends Test with TestDb {
     val (depReqId, executionTraces) = createProductAndStartDeployment("2456", Seq("paris", "amsterdam").toJson)
     val execTraceId = executionTraces.head
 
-    httpPut(
-      RestApi.executionCallbackPath(execTraceId.toString),
+    putExecutionTrace(
+      execTraceId.toString,
       JsObject("state" -> "conflicting".toJson, "targetStatus" -> Map("par" -> Map("code" -> "foobar", "detail" -> "")).toJson),
       BadRequest
     ).contentString should include("Bad target status for `par`: code='foobar', detail=''")
