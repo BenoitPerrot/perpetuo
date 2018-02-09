@@ -14,9 +14,9 @@ import scala.concurrent.Future
 
 
 class OperationStarter(val dbBinding: DbBinding) extends Logging {
-  private def createRecords(deploymentRequest: DeepDeploymentRequest, operation: Operation.Kind, userName: String, dispatcher: TargetDispatcher, executions: Iterable[(TargetExpr, ExecutionSpecification)]): Future[(ShallowOperationTrace, ExecutionsToTrigger)] =
+  private def createRecords(deploymentRequestId: Long, operation: Operation.Kind, userName: String, dispatcher: TargetDispatcher, executions: Iterable[(TargetExpr, ExecutionSpecification)]): Future[(ShallowOperationTrace, ExecutionsToTrigger)] =
     dbBinding
-      .insertOperationTrace(deploymentRequest.id, operation, userName)
+      .insertOperationTrace(deploymentRequestId, operation, userName)
       .flatMap { newOp =>
         val specAndInvocations = executions.map { case (target, spec) =>
           (spec, dispatch(dispatcher, target, spec.specificParameters).toVector)
@@ -46,7 +46,7 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
     // Moreover, this will likely be rewritten eventually for the specifications to be created alongside with the
     // `deploy` operations at the time the deployment request is created.
     dbBinding.insertExecutionSpecification(specificParameters, deploymentRequest.version).flatMap(spec =>
-      createRecords(deploymentRequest, Operation.deploy, userName, dispatcher, Seq((expandedTarget, spec)))
+      createRecords(deploymentRequest.id, Operation.deploy, userName, dispatcher, Seq((expandedTarget, spec)))
     )
   }
 
@@ -59,7 +59,7 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
       // todo: retrieve the real target of the very retried execution
       (expandTarget(resolver, deploymentRequest.product.name, deploymentRequest.version, deploymentRequest.parsedTarget), spec)
     )
-    createRecords(deploymentRequest, Operation.deploy, userName, dispatcher, executions)
+    createRecords(deploymentRequest.id, Operation.deploy, userName, dispatcher, executions)
   }
 
   def triggerExecutions(deploymentRequest: DeepDeploymentRequest,
@@ -124,7 +124,7 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
       }
       .flatMap { groups =>
         val executions = groups.map { case (spec, targets) => (Set(TargetTerm(select = targets)), spec) }
-        createRecords(deploymentRequest, Operation.revert, userName, dispatcher, executions)
+        createRecords(deploymentRequest.id, Operation.revert, userName, dispatcher, executions)
       }
   }
 
