@@ -4,7 +4,7 @@ import com.criteo.perpetuo.dao._
 import com.criteo.perpetuo.engine.dispatchers.{TargetDispatcher, UnprocessableIntent}
 import com.criteo.perpetuo.engine.invokers.ExecutorInvoker
 import com.criteo.perpetuo.engine.resolvers.TargetResolver
-import com.criteo.perpetuo.model._
+import com.criteo.perpetuo.model.{ExecutionState, _}
 import com.twitter.inject.Logging
 import spray.json.DefaultJsonProtocol._
 import spray.json._
@@ -14,7 +14,7 @@ import scala.concurrent.Future
 
 
 class OperationStarter(val dbBinding: DbBinding) extends Logging {
-  def createAndTrigger(deploymentRequest: DeepDeploymentRequest, operation: Operation.Kind, userName: String, dispatcher: TargetDispatcher, executions: Iterable[(TargetExpr, ExecutionSpecification)]): OperationStartEffects =
+  private def createRecords(deploymentRequest: DeepDeploymentRequest, operation: Operation.Kind, userName: String, dispatcher: TargetDispatcher, executions: Iterable[(TargetExpr, ExecutionSpecification)]): Future[(ShallowOperationTrace, ExecutionsToTrigger)] =
     dbBinding
       .insertOperationTrace(deploymentRequest.id, operation, userName)
       .flatMap { newOp =>
@@ -23,12 +23,10 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
         }
         Future
           .traverse(specAndInvocations) { case (spec, invocations) =>
-            dbBinding.insertExecution(newOp.id, spec.id).flatMap(
+            dbBinding.insertExecution(newOp.id, spec.id)
               // create as many traces, all at the same time
-              dbBinding.insertExecutionTraces(_, invocations.length)
-                .map(invocations.zip(_))
-                .flatMap(startExecution(deploymentRequest, newOp, spec, _))
-            )
+              .flatMap(dbBinding.insertExecutionTraces(_, invocations.length))
+              .map(_.zip(invocations).map { case (execTraceId, (invoker, target)) => (execTraceId, spec.version, target, invoker) })
           }
           .map(effects => (newOp, effects.flatten))
       }
@@ -37,7 +35,7 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
     * Start all relevant executions and return the numbers of successful
     * and failed execution starts.
     */
-  def start(resolver: TargetResolver, dispatcher: TargetDispatcher, deploymentRequest: DeepDeploymentRequest, userName: String): OperationStartEffects = {
+  def start(resolver: TargetResolver, dispatcher: TargetDispatcher, deploymentRequest: DeepDeploymentRequest, userName: String): Future[(ShallowOperationTrace, ExecutionsToTrigger)] = {
     // generation of specific parameters
     val specificParameters = dispatcher.freezeParameters(deploymentRequest.product.name, deploymentRequest.version)
     // target resolution
@@ -48,7 +46,7 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
     // Moreover, this will likely be rewritten eventually for the specifications to be created alongside with the
     // `deploy` operations at the time the deployment request is created.
     dbBinding.insertExecutionSpecification(specificParameters, deploymentRequest.version).flatMap(spec =>
-      createAndTrigger(deploymentRequest, Operation.deploy, userName, dispatcher, Seq((expandedTarget, spec)))
+      createRecords(deploymentRequest, Operation.deploy, userName, dispatcher, Seq((expandedTarget, spec)))
     )
   }
 
@@ -56,60 +54,56 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
                   dispatcher: TargetDispatcher,
                   deploymentRequest: DeepDeploymentRequest,
                   executionSpecs: Seq[ExecutionSpecification],
-                  userName: String): OperationStartEffects = {
+                  userName: String): Future[(ShallowOperationTrace, ExecutionsToTrigger)] = {
     val executions = executionSpecs.map(spec =>
       // todo: retrieve the real target of the very retried execution
       (expandTarget(resolver, deploymentRequest.product.name, deploymentRequest.version, deploymentRequest.parsedTarget), spec)
     )
-    createAndTrigger(deploymentRequest, Operation.deploy, userName, dispatcher, executions)
+    createRecords(deploymentRequest, Operation.deploy, userName, dispatcher, executions)
   }
 
-  def startExecution(deploymentRequest: DeepDeploymentRequest,
-                     operationTrace: OperationTrace,
-                     executionSpecification: ExecutionSpecification,
-                     executionSpecs: Seq[((ExecutorInvoker, TargetExpr), Long)]): Future[Seq[(Boolean, Long, Option[(ExecutionState.Value, String, Option[String])])]] = {
+  def triggerExecutions(deploymentRequest: DeepDeploymentRequest,
+                        toTrigger: ExecutionsToTrigger): Future[Iterable[(Boolean, Long, Option[(ExecutionState.Value, String, Option[String])])]] = {
     val productName = deploymentRequest.product.name
-    val version = executionSpecification.version
-    Future.traverse(executionSpecs) {
-      case ((executor, target), execTraceId) =>
-        // log the execution
-        logger.debug(s"Triggering ${operationTrace.kind} job for execution #$execTraceId of $productName v. $version on $executor")
-        // trigger the execution
-        val trigger = try {
-          executor.trigger(
-            execTraceId,
-            productName,
-            version,
-            target,
-            deploymentRequest.creator
+    Future.traverse(toTrigger) { case (execTraceId, version, target, executor) =>
+      // log the execution
+      logger.debug(s"Triggering job for execution #$execTraceId of $productName v. $version on $executor")
+      // trigger the execution
+      val trigger = try {
+        executor.trigger(
+          execTraceId,
+          productName,
+          version,
+          target,
+          deploymentRequest.creator
+        )
+      } catch {
+        case e: Throwable => Future.failed(new Exception("Could not trigger the execution; please contact #sre-perpetual", e))
+      }
+      trigger
+        .map(optLogHref =>
+          // if that answers a log href, update the trace with it, and consider that the job
+          // is running (i.e. already followable and not yet terminated, really)
+          optLogHref.map(logHref =>
+            (true, s"`$logHref` succeeded", Some((ExecutionState.running, "", optLogHref)))
+          ).getOrElse(
+            (true, "succeeded (but with an unknown log href)", None)
           )
-        } catch {
-          case e: Throwable => Future.failed(new Exception("Could not trigger the execution; please contact #sre-perpetual", e))
+        )
+        .recover {
+          // if triggering the job throws an error, mark the execution as failed at initialization
+          case e: Throwable =>
+            logger.error(e.getMessage, e)
+            (false, s"failed (${e.getMessage})", Some((ExecutionState.initFailed, e.getMessage, None)))
         }
-        trigger
-          .map(optLogHref =>
-            // if that answers a log href, update the trace with it, and consider that the job
-            // is running (i.e. already followable and not yet terminated, really)
-            optLogHref.map(logHref =>
-              (true, s"`$logHref` succeeded", Some((ExecutionState.running, "", optLogHref)))
-            ).getOrElse(
-              (true, "succeeded (but with an unknown log href)", None)
-            )
-          )
-          .recover {
-            // if triggering the job throws an error, mark the execution as failed at initialization
-            case e: Throwable =>
-              logger.error(e.getMessage, e)
-              (false, s"failed (${e.getMessage})", Some((ExecutionState.initFailed, e.getMessage, None)))
-          }
-          .map { case (succeeded, identifier, toUpdate) =>
-            logExecution(identifier, execTraceId, executor, target)
-            (succeeded, execTraceId, toUpdate)
-          }
+        .map { case (succeeded, identifier, toUpdate) =>
+          logExecution(identifier, execTraceId, executor, target)
+          (succeeded, execTraceId, toUpdate)
+        }
     }
   }
 
-  def revert(dispatcher: TargetDispatcher, deploymentRequest: DeepDeploymentRequest, userName: String, defaultVersion: Option[Version]): OperationStartEffects = {
+  def revert(dispatcher: TargetDispatcher, deploymentRequest: DeepDeploymentRequest, userName: String, defaultVersion: Option[Version]): Future[(ShallowOperationTrace, ExecutionsToTrigger)] = {
     dbBinding
       .findExecutionSpecificationsForRevert(deploymentRequest)
       .flatMap { case (undetermined, determined) =>
@@ -130,7 +124,7 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
       }
       .flatMap { groups =>
         val executions = groups.map { case (spec, targets) => (Set(TargetTerm(select = targets)), spec) }
-        createAndTrigger(deploymentRequest, Operation.revert, userName, dispatcher, executions)
+        createRecords(deploymentRequest, Operation.revert, userName, dispatcher, executions)
       }
   }
 

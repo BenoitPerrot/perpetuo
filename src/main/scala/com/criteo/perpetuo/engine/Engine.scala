@@ -134,7 +134,7 @@ class Engine @Inject()(val dbBinding: DbBinding,
       dbBinding.releaseLocks(deploymentRequest.id)
 
   private def startOperation(deploymentRequest: DeepDeploymentRequest,
-                             operationStart: => OperationStartEffects,
+                             reflectInDb: => Future[(ShallowOperationTrace, ExecutionsToTrigger)],
                              onOperationStartedListeners: Seq[(DeepDeploymentRequest, Int, Int) => Future[Unit]]): Future[ShallowOperationTrace] =
     dbBinding
       .executeInSerializableTransaction(
@@ -151,33 +151,29 @@ class Engine @Inject()(val dbBinding: DbBinding,
                 conflictingRequestIds
               )
 
-            DBIOAction.from(operationStart).map { case (operationTrace, effects) =>
-              if (!effects.exists { case (isSuccess, _, _) => isSuccess }) {
-                closeOperation(operationTrace, deploymentRequest)
-                throw new Exception(s"None of the ${effects.size} executions could be triggered")
-              }
-              (operationTrace, effects)
-            }
+            DBIOAction.from(reflectInDb)
           }
         }
       )
-      .flatMap { case (createdOperation, effects) =>
-        Future.traverse(effects) { case (status, execTraceId, executionUpdate) =>
-          executionUpdate
-            .map { case (state, detail, logHref) =>
-              dbBinding.updateExecutionTrace(execTraceId, state, detail, logHref)
-                .map(_ => status)
-                .recover { case e =>
-                  // only log update errors, which are not critical in that case
-                  logger.error(s"Could not update execution trace #$execTraceId${logHref.map(s => s" ($s)").getOrElse("")} as $state: $detail", e)
-                  status
-                }
-            }
-            .getOrElse(Future.successful(status))
-        }.map { statuses =>
-          val (successes, failures) = statuses.partition(identity)
-          (createdOperation, successes.size, failures.size)
-        }
+      .flatMap { case (createdOperation, executionsToTrigger) =>
+        operationStarter.triggerExecutions(deploymentRequest, executionsToTrigger).flatMap(effects =>
+          Future.traverse(effects) { case (status, execTraceId, executionUpdate) =>
+            executionUpdate
+              .map { case (state, detail, logHref) =>
+                updateExecutionTrace(execTraceId, state, detail, logHref) // will close the operation if there is no more ongoing execution
+                  .map(_ => status)
+                  .recover { case e =>
+                    // only log update errors, which are not critical in that case
+                    logger.error(s"Could not update execution trace #$execTraceId${logHref.map(s => s" ($s)").getOrElse("")} as $state: $detail", e)
+                    status
+                  }
+              }
+              .getOrElse(Future.successful(status))
+          }.map { statuses =>
+            val (successes, failures) = statuses.partition(identity)
+            (createdOperation, successes.size, failures.size)
+          }
+        )
       }
       .map { case (operationTrace, started, failed) =>
         onOperationStartedListeners.foreach(_ (deploymentRequest, started, failed))

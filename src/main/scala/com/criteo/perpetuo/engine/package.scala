@@ -3,12 +3,12 @@ package com.criteo.perpetuo
 import java.lang.{Iterable => JavaIterable}
 import java.util.{Map => JavaMap}
 
-import com.criteo.perpetuo.model.{ExecutionState, ShallowOperationTrace}
+import com.criteo.perpetuo.engine.invokers.ExecutorInvoker
+import com.criteo.perpetuo.model.Version
 import spray.json.DefaultJsonProtocol._
 import spray.json.{JsObject, JsonFormat}
 
 import scala.collection.JavaConverters._
-import scala.concurrent.Future
 
 
 package object engine {
@@ -36,5 +36,5 @@ package object engine {
   }
 
 
-  type OperationStartEffects = Future[(ShallowOperationTrace, Iterable[(Boolean, Long, Option[(ExecutionState.Value, String, Option[String])])])]
+  type ExecutionsToTrigger = Iterable[(Long, Version, TargetExpr, ExecutorInvoker)]
 }

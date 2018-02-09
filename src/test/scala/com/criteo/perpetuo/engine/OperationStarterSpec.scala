@@ -13,7 +13,6 @@ import spray.json.DefaultJsonProtocol._
 import spray.json._
 
 import scala.collection.TraversableOnce
-import scala.collection.concurrent.{TrieMap, Map => ConcurrentMap}
 import scala.concurrent.Await
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
@@ -47,12 +46,7 @@ class OperationStarterSpec extends Test with TestDb {
 
   import TestTargetDispatcher._
 
-  private val execLogs: ConcurrentMap[ExecutorInvoker, TargetExpr] = new TrieMap()
-  private val operationStarter = new OperationStarter(new DbBinding(dbContext)) {
-    override protected def logExecution(identifier: String, execId: Long, executor: ExecutorInvoker, target: TargetExpr): Unit = {
-      execLogs.put(executor, target).map(prev => fail(s"Logs say the executor has ${target.toJson.compactPrint} to do, but it already has $prev to do!"))
-    }
-  }
+  private val operationStarter = new OperationStarter(new DbBinding(dbContext))
   private val testResolver = new TargetResolver {
     override def toAtoms(productName: String, productVersion: Version, targetWords: Select): Map[String, Select] = {
       // the atomic targets are the input word split on dashes
@@ -74,11 +68,13 @@ class OperationStarterSpec extends Test with TestDb {
     private val depReq = operationStarter.dbBinding.insertDeploymentRequest(request)
 
     def dispatchedAs(that: Map[ExecutorInvoker, TargetExpr]): Unit = {
-      execLogs.clear()
       Await.result(
-        depReq.flatMap(operationStarter.start(testResolver, TestTargetDispatcher, _, "c.norris").map(_ =>
-          assertEqual(execLogs, that)
-        )),
+        depReq.flatMap(
+          operationStarter.start(testResolver, TestTargetDispatcher, _, "c.norris").map { case (_, toTrigger) =>
+            assertEqual(toTrigger.map { case (_, _, targetExpr, invoker) => (invoker, targetExpr) }.toMap, that)
+            assertEqual(toTrigger.size, that.size) // look for unexpected duplicates
+          }
+        ),
         1.second
       )
     }
