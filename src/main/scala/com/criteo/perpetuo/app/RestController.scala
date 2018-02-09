@@ -231,7 +231,8 @@ class RestController @Inject()(val engine: Engine)
                 throw BadRequestException(s"Bad target status for `$atom`: ${status.map { case (k, v) => s"$k='$v'" }.mkString(", ")}")
             }
           }
-        engine.updateExecutionTrace(id, executionState, r.detail, r.logHref, statusMap).map(_.map(_ => response.noContent))
+        engine.updateExecutionTrace(id, executionState, r.detail, r.logHref.headOption.map(_ => r.logHref), statusMap)
+          .map(_.map(_ => response.noContent))
       },
       3.seconds
     )
