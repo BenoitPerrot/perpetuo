@@ -70,10 +70,12 @@ class OperationStarterSpec extends Test with TestDb {
     def dispatchedAs(that: Map[ExecutorInvoker, TargetExpr]): Unit = {
       Await.result(
         depReq.flatMap(
-          operationStarter.start(testResolver, TestTargetDispatcher, _, "c.norris").map { case (_, toTrigger) =>
-            assertEqual(toTrigger.map { case (_, _, targetExpr, invoker) => (invoker, targetExpr) }.toMap, that)
-            assertEqual(toTrigger.size, that.size) // look for unexpected duplicates
-          }
+          operationStarter.start(testResolver, TestTargetDispatcher, _, "c.norris")
+            .flatMap(dbContext.db.run)
+            .map { case (_, toTrigger) =>
+              assertEqual(toTrigger.map { case (_, _, targetExpr, invoker) => (invoker, targetExpr) }.toMap, that)
+              assertEqual(toTrigger.size, that.size) // look for unexpected duplicates
+            }
         ),
         1.second
       )

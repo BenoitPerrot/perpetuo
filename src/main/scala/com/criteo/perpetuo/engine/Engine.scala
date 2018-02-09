@@ -134,26 +134,28 @@ class Engine @Inject()(val dbBinding: DbBinding,
       dbBinding.releaseLocks(deploymentRequest.id)
 
   private def startOperation(deploymentRequest: DeepDeploymentRequest,
-                             reflectInDb: => Future[(ShallowOperationTrace, ExecutionsToTrigger)],
+                             reflectInDb: Future[DBIOAction[(ShallowOperationTrace, ExecutionsToTrigger), NoStream, Effect.Write]],
                              onOperationStartedListeners: Seq[(DeepDeploymentRequest, Int, Int) => Future[Unit]]): Future[ShallowOperationTrace] =
-    dbBinding
-      .executeInSerializableTransaction(
-        dbBinding.tryAcquireLocks(Seq(getOperationLockName(deploymentRequest)), deploymentRequest.id, reentrant = false).flatMap { alreadyRunning =>
-          if (alreadyRunning.nonEmpty)
-            throw Conflict(
-              "Cannot be processed for the moment because another operation is running for the same deployment request"
-            )
-
-          dbBinding.tryAcquireLocks(getTransactionLockNames(deploymentRequest), deploymentRequest.id, reentrant = true).flatMap { conflictingRequestIds =>
-            if (conflictingRequestIds.nonEmpty)
+    reflectInDb
+      .flatMap(recordsCreation =>
+        dbBinding.executeInSerializableTransaction(
+          dbBinding.tryAcquireLocks(Seq(getOperationLockName(deploymentRequest)), deploymentRequest.id, reentrant = false).flatMap { alreadyRunning =>
+            if (alreadyRunning.nonEmpty)
               throw Conflict(
-                "Cannot be processed for the moment because a conflicting transaction is ongoing, which must first succeed or be reverted",
-                conflictingRequestIds
+                "Cannot be processed for the moment because another operation is running for the same deployment request"
               )
 
-            DBIOAction.from(reflectInDb)
+            dbBinding.tryAcquireLocks(getTransactionLockNames(deploymentRequest), deploymentRequest.id, reentrant = true).flatMap { conflictingRequestIds =>
+              if (conflictingRequestIds.nonEmpty)
+                throw Conflict(
+                  "Cannot be processed for the moment because a conflicting transaction is ongoing, which must first succeed or be reverted",
+                  conflictingRequestIds
+                )
+
+              recordsCreation
+            }
           }
-        }
+        )
       )
       .flatMap { case (createdOperation, executionsToTrigger) =>
         operationStarter.triggerExecutions(deploymentRequest, executionsToTrigger).flatMap(effects =>

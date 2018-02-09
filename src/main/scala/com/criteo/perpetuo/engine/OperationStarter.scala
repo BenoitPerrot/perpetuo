@@ -6,6 +6,7 @@ import com.criteo.perpetuo.engine.invokers.ExecutorInvoker
 import com.criteo.perpetuo.engine.resolvers.TargetResolver
 import com.criteo.perpetuo.model.{ExecutionState, _}
 import com.twitter.inject.Logging
+import slick.dbio.{DBIOAction, Effect, NoStream}
 import spray.json.DefaultJsonProtocol._
 import spray.json._
 
@@ -14,28 +15,31 @@ import scala.concurrent.Future
 
 
 class OperationStarter(val dbBinding: DbBinding) extends Logging {
-  private def createRecords(deploymentRequestId: Long, operation: Operation.Kind, userName: String, dispatcher: TargetDispatcher, executions: Iterable[(TargetExpr, ExecutionSpecification)]): Future[(ShallowOperationTrace, ExecutionsToTrigger)] =
-    dbBinding.dbContext.db.run(dbBinding
-      .insertOperationTrace(deploymentRequestId, operation, userName))
+  private def createRecords(deploymentRequestId: Long, operation: Operation.Kind, userName: String, dispatcher: TargetDispatcher, executions: Iterable[(TargetExpr, ExecutionSpecification)]): DBIOAction[(ShallowOperationTrace, ExecutionsToTrigger), NoStream, Effect.Write] =
+    dbBinding
+      .insertOperationTrace(deploymentRequestId, operation, userName)
       .flatMap { newOp =>
         val specAndInvocations = executions.map { case (target, spec) =>
           (spec, dispatch(dispatcher, target, spec.specificParameters).toVector)
         }
-        Future
-          .traverse(specAndInvocations) { case (spec, invocations) =>
-            dbBinding.dbContext.db.run(dbBinding.insertExecution(newOp.id, spec.id))
-              // create as many traces, all at the same time
-              .flatMap(executionId => dbBinding.dbContext.db.run(dbBinding.insertExecutionTraces(executionId, invocations.length)))
-              .map(_.zip(invocations).map { case (execTraceId, (invoker, target)) => (execTraceId, spec.version, target, invoker) })
-          }
+        DBIOAction
+          .sequence( // in sequence to be able to put all these SQL queries in the same transaction
+            specAndInvocations.map { case (spec, invocations) =>
+              dbBinding.insertExecution(newOp.id, spec.id)
+                // create as many traces, all at the same time
+                .flatMap(executionId => dbBinding.insertExecutionTraces(executionId, invocations.length))
+                .map(_.zip(invocations).map { case (execTraceId, (invoker, target)) => (execTraceId, spec.version, target, invoker) })
+            }
+          )
           .map(effects => (newOp, effects.flatten))
       }
+
 
   /**
     * Start all relevant executions and return the numbers of successful
     * and failed execution starts.
     */
-  def start(resolver: TargetResolver, dispatcher: TargetDispatcher, deploymentRequest: DeepDeploymentRequest, userName: String): Future[(ShallowOperationTrace, ExecutionsToTrigger)] = {
+  def start(resolver: TargetResolver, dispatcher: TargetDispatcher, deploymentRequest: DeepDeploymentRequest, userName: String): Future[DBIOAction[(ShallowOperationTrace, ExecutionsToTrigger), NoStream, Effect.Write]] = {
     // generation of specific parameters
     val specificParameters = dispatcher.freezeParameters(deploymentRequest.product.name, deploymentRequest.version)
     // target resolution
@@ -45,7 +49,7 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
     // fails afterward and the specification remains unbound.
     // Moreover, this will likely be rewritten eventually for the specifications to be created alongside with the
     // `deploy` operations at the time the deployment request is created.
-    dbBinding.insertExecutionSpecification(specificParameters, deploymentRequest.version).flatMap(spec =>
+    dbBinding.insertExecutionSpecification(specificParameters, deploymentRequest.version).map(spec =>
       createRecords(deploymentRequest.id, Operation.deploy, userName, dispatcher, Seq((expandedTarget, spec)))
     )
   }
@@ -54,12 +58,12 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
                   dispatcher: TargetDispatcher,
                   deploymentRequest: DeepDeploymentRequest,
                   executionSpecs: Seq[ExecutionSpecification],
-                  userName: String): Future[(ShallowOperationTrace, ExecutionsToTrigger)] = {
+                  userName: String): Future[DBIOAction[(ShallowOperationTrace, ExecutionsToTrigger), NoStream, Effect.Write]] = {
     val executions = executionSpecs.map(spec =>
       // todo: retrieve the real target of the very retried execution
       (expandTarget(resolver, deploymentRequest.product.name, deploymentRequest.version, deploymentRequest.parsedTarget), spec)
     )
-    createRecords(deploymentRequest.id, Operation.deploy, userName, dispatcher, executions)
+    Future.successful(createRecords(deploymentRequest.id, Operation.deploy, userName, dispatcher, executions))
   }
 
   def triggerExecutions(deploymentRequest: DeepDeploymentRequest,
@@ -103,7 +107,7 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
     }
   }
 
-  def revert(dispatcher: TargetDispatcher, deploymentRequest: DeepDeploymentRequest, userName: String, defaultVersion: Option[Version]): Future[(ShallowOperationTrace, ExecutionsToTrigger)] = {
+  def revert(dispatcher: TargetDispatcher, deploymentRequest: DeepDeploymentRequest, userName: String, defaultVersion: Option[Version]): Future[DBIOAction[(ShallowOperationTrace, ExecutionsToTrigger), NoStream, Effect.Write]] =
     dbBinding
       .findExecutionSpecificationsForRevert(deploymentRequest)
       .flatMap { case (undetermined, determined) =>
@@ -122,11 +126,10 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
         else
           Future.successful(determined)
       }
-      .flatMap { groups =>
+      .map { groups =>
         val executions = groups.map { case (spec, targets) => (Set(TargetTerm(select = targets)), spec) }
         createRecords(deploymentRequest.id, Operation.revert, userName, dispatcher, executions)
       }
-  }
 
   def expandTarget(resolver: TargetResolver, productName: String, productVersion: Version, target: TargetExpr): TargetExpr = {
     val select = target.select
