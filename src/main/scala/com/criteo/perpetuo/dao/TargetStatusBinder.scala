@@ -42,6 +42,9 @@ trait TargetStatusBinder extends TableBinder {
   val targetStatusQuery: TableQuery[TargetStatusTable] = TableQuery[TargetStatusTable]
 
   def updateTargetStatuses(executionId: Long, statusMap: Map[String, TargetAtomStatus]): Future[Unit] = {
+    if (statusMap.isEmpty)
+      return Future.successful()
+
     val atoms = statusMap.keySet
     val oldValues = targetStatusQuery.filter(ts => ts.executionId === executionId && ts.targetAtom.inSet(atoms))
     val newValues = statusMap.map { case (atom, status) =>
