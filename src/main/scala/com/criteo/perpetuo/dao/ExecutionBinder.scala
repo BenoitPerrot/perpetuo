@@ -1,5 +1,7 @@
 package com.criteo.perpetuo.dao
 
+import slick.profile.FixedSqlAction
+
 import scala.concurrent.Future
 
 
@@ -28,8 +30,8 @@ trait ExecutionBinder extends TableBinder {
 
   val executionQuery: TableQuery[ExecutionTable] = TableQuery[ExecutionTable]
 
-  def insertExecution(operationTraceId: Long, executionSpecificationId: Long): Future[Long] = {
-    dbContext.db.run((executionQuery returning executionQuery.map(_.id)) += ExecutionRecord(None, operationTraceId, executionSpecificationId))
+  def insertExecution(operationTraceId: Long, executionSpecificationId: Long): FixedSqlAction[Long, NoStream, Effect.Write] = {
+    (executionQuery returning executionQuery.map(_.id)) += ExecutionRecord(None, operationTraceId, executionSpecificationId)
   }
 
   // for tests only

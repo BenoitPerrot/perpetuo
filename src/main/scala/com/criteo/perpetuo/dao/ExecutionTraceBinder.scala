@@ -2,6 +2,7 @@ package com.criteo.perpetuo.dao
 
 import com.criteo.perpetuo.model.ExecutionState.ExecutionState
 import com.criteo.perpetuo.model._
+import slick.profile.FixedSqlAction
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
@@ -46,12 +47,9 @@ trait ExecutionTraceBinder extends TableBinder {
 
   val executionTraceQuery = TableQuery[ExecutionTraceTable]
 
-  def insertExecutionTraces(executionId: Long, numberOfTraces: Int): Future[Seq[Long]] = { // fixme: deprecated
+  def insertExecutionTraces(executionId: Long, numberOfTraces: Int): FixedSqlAction[Seq[Long], NoStream, Effect.Write] = {
     val execTrace = ExecutionTraceRecord(None, executionId)
-    dbContext.db.run((executionTraceQuery returning executionTraceQuery.map(_.id)) ++= List.fill(numberOfTraces)(execTrace)).map { seq =>
-      assert(seq.length == numberOfTraces)
-      seq
-    }
+    (executionTraceQuery returning executionTraceQuery.map(_.id)) ++= List.fill(numberOfTraces)(execTrace)
   }
 
   def findExecutionTracesByDeploymentRequest(deploymentRequestId: Long): Future[Seq[ShallowExecutionTrace]] =

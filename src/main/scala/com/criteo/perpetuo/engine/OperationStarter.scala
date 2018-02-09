@@ -15,17 +15,17 @@ import scala.concurrent.Future
 
 class OperationStarter(val dbBinding: DbBinding) extends Logging {
   private def createRecords(deploymentRequestId: Long, operation: Operation.Kind, userName: String, dispatcher: TargetDispatcher, executions: Iterable[(TargetExpr, ExecutionSpecification)]): Future[(ShallowOperationTrace, ExecutionsToTrigger)] =
-    dbBinding
-      .insertOperationTrace(deploymentRequestId, operation, userName)
+    dbBinding.dbContext.db.run(dbBinding
+      .insertOperationTrace(deploymentRequestId, operation, userName))
       .flatMap { newOp =>
         val specAndInvocations = executions.map { case (target, spec) =>
           (spec, dispatch(dispatcher, target, spec.specificParameters).toVector)
         }
         Future
           .traverse(specAndInvocations) { case (spec, invocations) =>
-            dbBinding.insertExecution(newOp.id, spec.id)
+            dbBinding.dbContext.db.run(dbBinding.insertExecution(newOp.id, spec.id))
               // create as many traces, all at the same time
-              .flatMap(dbBinding.insertExecutionTraces(_, invocations.length))
+              .flatMap(executionId => dbBinding.dbContext.db.run(dbBinding.insertExecutionTraces(executionId, invocations.length)))
               .map(_.zip(invocations).map { case (execTraceId, (invoker, target)) => (execTraceId, spec.version, target, invoker) })
           }
           .map(effects => (newOp, effects.flatten))
