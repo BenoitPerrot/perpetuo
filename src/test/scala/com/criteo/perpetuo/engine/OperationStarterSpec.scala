@@ -254,10 +254,10 @@ class OperationStarterSpec extends Test with TestDb {
         }.size
         val cSuffix = lc.drop(common)
         val eSuffix = le.drop(common)
-        Predef.assert(cSuffix.isEmpty, s"Unexpected elements in the iterable at $path from element $common: ${cSuffix.mkString(", ")}")
-        Predef.assert(eSuffix.isEmpty, s"Missing elements in the iterable at $path from element $common: ${eSuffix.mkString(", ")}")
+        assert(cSuffix.isEmpty, s"Unexpected elements in the iterable at $path from element $common: ${cSuffix.mkString(", ")}")
+        assert(eSuffix.isEmpty, s"Missing elements in the iterable at $path from element $common: ${eSuffix.mkString(", ")}")
       case _ =>
-        Predef.assert(challenger == expected, s"Expected $expected, found $challenger at $path")
+        assert(challenger == expected, s"Expected $expected, found $challenger at $path")
     }
   }
 
@@ -267,7 +267,7 @@ class OperationStarterSpec extends Test with TestDb {
   }
 
   private def assertEqualSets(l: scala.collection.Set[Any], r: scala.collection.Set[Any], path: String): Unit = {
-    Predef.assert(l == r,
+    assert(l == r,
       if (l.diff(r).nonEmpty) s"Unexpected element(s) in $path: ${l.diff(r).mkString(", ")}"
       else s"Missing element(s) in $path: ${r.diff(l).mkString(", ")}"
     )
