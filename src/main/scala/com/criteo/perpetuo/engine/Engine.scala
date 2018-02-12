@@ -10,6 +10,7 @@ import com.criteo.perpetuo.engine.dispatchers.TargetDispatcher
 import com.criteo.perpetuo.engine.resolvers.TargetResolver
 import com.criteo.perpetuo.model.ExecutionState.ExecutionState
 import com.criteo.perpetuo.model._
+import com.twitter.inject.Logging
 import slick.dbio._
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -58,7 +59,7 @@ class Engine @Inject()(val dbBinding: DbBinding,
                        val targetResolver: TargetResolver,
                        val targetDispatcher: TargetDispatcher,
                        val permissions: Permissions,
-                       val listeners: Seq[AsyncListener]) {
+                       val listeners: Seq[AsyncListener]) extends Logging {
 
   val config = AppConfigProvider.config
 
@@ -133,35 +134,55 @@ class Engine @Inject()(val dbBinding: DbBinding,
       dbBinding.releaseLocks(deploymentRequest.id)
 
   private def startOperation(deploymentRequest: DeepDeploymentRequest,
-                             operationStart: => Future[(ShallowOperationTrace, Int, Int)],
+                             operationStart: => OperationStartEffects,
                              onOperationStartedListeners: Seq[(DeepDeploymentRequest, Int, Int) => Future[Unit]]): Future[ShallowOperationTrace] =
-    dbBinding.executeInSerializableTransaction(
-      dbBinding.tryAcquireLocks(Seq(getOperationLockName(deploymentRequest)), deploymentRequest.id, reentrant = false).flatMap { alreadyRunning =>
-        if (alreadyRunning.nonEmpty)
-          throw Conflict(
-            "Cannot be processed for the moment because another operation is running for the same deployment request"
-          )
-
-        dbBinding.tryAcquireLocks(getTransactionLockNames(deploymentRequest), deploymentRequest.id, reentrant = true).flatMap { conflictingRequestIds =>
-          if (conflictingRequestIds.nonEmpty)
+    dbBinding
+      .executeInSerializableTransaction(
+        dbBinding.tryAcquireLocks(Seq(getOperationLockName(deploymentRequest)), deploymentRequest.id, reentrant = false).flatMap { alreadyRunning =>
+          if (alreadyRunning.nonEmpty)
             throw Conflict(
-              "Cannot be processed for the moment because a conflicting transaction is ongoing, which must first succeed or be reverted",
-              conflictingRequestIds
+              "Cannot be processed for the moment because another operation is running for the same deployment request"
             )
 
-          DBIOAction.from(operationStart).map { case (operationTrace, started, failed) =>
-            if (started == 0) {
-              closeOperation(operationTrace, deploymentRequest)
-              throw new Exception(s"Failed to trigger all $failed executions")
+          dbBinding.tryAcquireLocks(getTransactionLockNames(deploymentRequest), deploymentRequest.id, reentrant = true).flatMap { conflictingRequestIds =>
+            if (conflictingRequestIds.nonEmpty)
+              throw Conflict(
+                "Cannot be processed for the moment because a conflicting transaction is ongoing, which must first succeed or be reverted",
+                conflictingRequestIds
+              )
+
+            DBIOAction.from(operationStart).map { case (operationTrace, effects) =>
+              if (!effects.exists { case (isSuccess, _, _) => isSuccess }) {
+                closeOperation(operationTrace, deploymentRequest)
+                throw new Exception(s"None of the ${effects.size} executions could be triggered")
+              }
+              (operationTrace, effects)
             }
-            (operationTrace, started, failed)
           }
         }
+      )
+      .flatMap { case (createdOperation, effects) =>
+        Future.traverse(effects) { case (status, execTraceId, executionUpdate) =>
+          executionUpdate
+            .map { case (state, detail, logHref) =>
+              dbBinding.updateExecutionTrace(execTraceId, state, detail, logHref)
+                .map(_ => status)
+                .recover { case e =>
+                  // only log update errors, which are not critical in that case
+                  logger.error(s"Could not update execution trace #$execTraceId${logHref.map(s => s" ($s)").getOrElse("")} as $state: $detail", e)
+                  status
+                }
+            }
+            .getOrElse(Future.successful(status))
+        }.map { statuses =>
+          val (successes, failures) = statuses.partition(identity)
+          (createdOperation, successes.size, failures.size)
+        }
       }
-    ).map { case (operationTrace, started, failed) => // TODO: move that to the caller
-      onOperationStartedListeners.foreach(_ (deploymentRequest, started, failed))
-      operationTrace
-    }
+      .map { case (operationTrace, started, failed) =>
+        onOperationStartedListeners.foreach(_ (deploymentRequest, started, failed))
+        operationTrace
+      }
 
   private def startDeploymentRequest(req: DeepDeploymentRequest, initiatorName: String): Future[ShallowOperationTrace] = {
     startOperation(

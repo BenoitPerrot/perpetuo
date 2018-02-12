@@ -14,7 +14,7 @@ import scala.concurrent.Future
 
 
 class OperationStarter(val dbBinding: DbBinding) extends Logging {
-  def createAndTrigger(deploymentRequest: DeepDeploymentRequest, operation: Operation.Kind, userName: String, dispatcher: TargetDispatcher, executions: Iterable[(TargetExpr, ExecutionSpecification)]): Future[(ShallowOperationTrace, Int, Int)] =
+  def createAndTrigger(deploymentRequest: DeepDeploymentRequest, operation: Operation.Kind, userName: String, dispatcher: TargetDispatcher, executions: Iterable[(TargetExpr, ExecutionSpecification)]): OperationStartEffects =
     dbBinding
       .insertOperationTrace(deploymentRequest.id, operation, userName)
       .flatMap { newOp =>
@@ -30,15 +30,14 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
                 .flatMap(startExecution(deploymentRequest, newOp, spec, _))
             )
           }
-          .map(_.fold((0, 0)) { case ((a, b), (c, d)) => (a + c, b + d) })
-          .map { case (successes, failures) => (newOp, successes, failures) }
+          .map(effects => (newOp, effects.flatten))
       }
 
   /**
     * Start all relevant executions and return the numbers of successful
     * and failed execution starts.
     */
-  def start(resolver: TargetResolver, dispatcher: TargetDispatcher, deploymentRequest: DeepDeploymentRequest, userName: String): Future[(ShallowOperationTrace, Int, Int)] = {
+  def start(resolver: TargetResolver, dispatcher: TargetDispatcher, deploymentRequest: DeepDeploymentRequest, userName: String): OperationStartEffects = {
     // generation of specific parameters
     val specificParameters = dispatcher.freezeParameters(deploymentRequest.product.name, deploymentRequest.version)
     // target resolution
@@ -57,7 +56,7 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
                   dispatcher: TargetDispatcher,
                   deploymentRequest: DeepDeploymentRequest,
                   executionSpecs: Seq[ExecutionSpecification],
-                  userName: String): Future[(ShallowOperationTrace, Int, Int)] = {
+                  userName: String): OperationStartEffects = {
     val executions = executionSpecs.map(spec =>
       // todo: retrieve the real target of the very retried execution
       (expandTarget(resolver, deploymentRequest.product.name, deploymentRequest.version, deploymentRequest.parsedTarget), spec)
@@ -68,7 +67,7 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
   def startExecution(deploymentRequest: DeepDeploymentRequest,
                      operationTrace: OperationTrace,
                      executionSpecification: ExecutionSpecification,
-                     executionSpecs: Seq[((ExecutorInvoker, TargetExpr), Long)]): Future[(Int, Int)] = {
+                     executionSpecs: Seq[((ExecutorInvoker, TargetExpr), Long)]): Future[Seq[(Boolean, Long, Option[(ExecutionState.Value, String, Option[String])])]] = {
     val productName = deploymentRequest.product.name
     val version = executionSpecification.version
     Future.traverse(executionSpecs) {
@@ -88,38 +87,29 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
           case e: Throwable => Future.failed(new Exception("Could not trigger the execution; please contact #sre-perpetual", e))
         }
         trigger
-          .flatMap(optLogHref =>
+          .map(optLogHref =>
             // if that answers a log href, update the trace with it, and consider that the job
             // is running (i.e. already followable and not yet terminated, really)
             optLogHref.map(logHref =>
-              dbBinding.updateExecutionTrace(execTraceId, ExecutionState.running, "", optLogHref).map { updated =>
-                assert(updated)
-                (true, s"`$logHref` succeeded")
-              }
+              (true, s"`$logHref` succeeded", Some((ExecutionState.running, "", optLogHref)))
             ).getOrElse(
-              Future.successful((true, "succeeded (but with an unknown log href)"))
+              (true, "succeeded (but with an unknown log href)", None)
             )
           )
-          .recoverWith {
+          .recover {
             // if triggering the job throws an error, mark the execution as failed at initialization
             case e: Throwable =>
               logger.error(e.getMessage, e)
-              dbBinding.updateExecutionTrace(execTraceId, ExecutionState.initFailed, e.getMessage).map { updated =>
-                assert(updated)
-                (false, s"failed (${e.getMessage})")
-              }
+              (false, s"failed (${e.getMessage})", Some((ExecutionState.initFailed, e.getMessage, None)))
           }
-          .map { case (succeeded, identifier) =>
+          .map { case (succeeded, identifier, toUpdate) =>
             logExecution(identifier, execTraceId, executor, target)
-            succeeded
+            (succeeded, execTraceId, toUpdate)
           }
-    }.map { statuses =>
-      val successes = statuses.count(s => s)
-      (successes, statuses.length - successes)
     }
   }
 
-  def revert(dispatcher: TargetDispatcher, deploymentRequest: DeepDeploymentRequest, userName: String, defaultVersion: Option[Version]): Future[(ShallowOperationTrace, Int, Int)] = {
+  def revert(dispatcher: TargetDispatcher, deploymentRequest: DeepDeploymentRequest, userName: String, defaultVersion: Option[Version]): OperationStartEffects = {
     dbBinding
       .findExecutionSpecificationsForRevert(deploymentRequest)
       .flatMap { case (undetermined, determined) =>
