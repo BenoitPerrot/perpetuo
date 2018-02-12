@@ -104,6 +104,24 @@ class EngineSpec extends Test with TestDb {
     ) shouldBe true
   }
 
+  test("Engine keeps the created records in DB and marks an execution trace as failed if the trigger fails") {
+    val engineWithFailingTrigger = new Engine(new DbBinding(dbContext), plugins.resolver, SingleTargetDispatcher(FailingInvoker), plugins.permissions, plugins.listeners)
+    Await.result(
+      for {
+        product <- engineWithFailingTrigger.insertProduct("airplane")
+        deploymentRequestId <- engineWithFailingTrigger.createDeploymentRequest(new DeploymentRequestAttrs(product.name, Version(JsString("42").compactPrint), """["moon","mars"]}""", "", "bob", new Timestamp(System.currentTimeMillis))).map(_ ("id").toString.toLong)
+        _ <- engineWithFailingTrigger.startDeploymentRequest(deploymentRequestId, "ignace")
+        operationTraces <- engine.findOperationTracesByDeploymentRequest(deploymentRequestId).map(_.get)
+        operationTrace = operationTraces.head
+        hasOpenExecution <- engine.dbBinding.hasOpenExecutionTracesForOperation(operationTrace.id)
+        executionTrace <- engine.dbBinding.findExecutionTracesByDeploymentRequest(deploymentRequestId).map(_.head)
+      } yield (
+        hasOpenExecution, executionTrace.state
+      ),
+      2.seconds
+    ) shouldBe(false, ExecutionState.initFailed)
+  }
+
   def mockDeployExecution(productName: String, v: String, targetAtomToStatus: Map[String, Status.Code], initFailure: Option[String] = None): Future[(Long, Long)] = {
     for {
       deploymentRequestId <- engine.createDeploymentRequest(new DeploymentRequestAttrs(productName, Version(JsString(v).compactPrint), targetAtomToStatus.keys.toJson.compactPrint, "", "r.equestor", new Timestamp(System.currentTimeMillis))).map(_ ("id").toString.toLong)
