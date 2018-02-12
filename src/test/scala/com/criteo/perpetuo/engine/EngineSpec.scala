@@ -39,8 +39,6 @@ class EngineSpec extends Test with TestDb {
   // TODO: should instantiate TargetDispatcherForTesting explicitly instead of by-conf, for clarity
   private val engine = new Engine(new DbBinding(dbContext), plugins.resolver, plugins.dispatcher, plugins.permissions, plugins.listeners)
 
-  private val futureProductWithNoDeployType = engine.insertProduct(TargetDispatcherForTesting.productWithNoDeployTypeName)
-
 
   test("A trivial execution triggers a job with no log href when there is no log href provided") {
     Await.result(
@@ -91,7 +89,7 @@ class EngineSpec extends Test with TestDb {
 
   test("Engine rejects deployment request for products with no deploy type") {
     Await.result(
-      futureProductWithNoDeployType
+      engine.insertProduct(TargetDispatcherForTesting.productWithNoDeployTypeName)
         .flatMap(product =>
           try {
             engine.createDeploymentRequest(new DeploymentRequestAttrs(product.name, Version(JsString("1").compactPrint), """["sink"]""", "", "c.reator", new Timestamp(System.currentTimeMillis)))
