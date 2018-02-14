@@ -4,6 +4,7 @@ import javax.inject.Inject
 
 import com.criteo.perpetuo.auth.UserFilter._
 import com.criteo.perpetuo.auth.{DeploymentAction, GeneralAction, User}
+import com.criteo.perpetuo.config.AppConfigProvider
 import com.criteo.perpetuo.dao.UnknownProduct
 import com.criteo.perpetuo.engine.dispatchers.UnprocessableIntent
 import com.criteo.perpetuo.engine.{Engine, OperationStatus, RejectingError}
@@ -325,6 +326,12 @@ class RestController @Inject()(val engine: Engine)
         }
       },
       5.seconds)
+  }
+
+  private val version = AppConfigProvider.config.getString("perpetuo.version")
+
+  get("/api/version") { _: Request =>
+    response.ok.plain(version)
   }
 
   // Be sure to capture invalid calls to APIs

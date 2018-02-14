@@ -36,6 +36,8 @@
     <twitter.util.version>${twitter.version}</twitter.util.version>
     <finagle.version>${twitter.version}</finagle.version>
     <finatra.version>${twitter.version}</finatra.version>
+
+    <perpetuo.version>${project.version}</perpetuo.version>
   </properties>
 
   <dependencies>
@@ -259,6 +261,7 @@
       </resource>
       <resource>
         <directory>src/main/resources</directory>
+        <filtering>true</filtering>
       </resource>
     </resources>
 
