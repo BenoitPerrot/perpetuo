@@ -55,6 +55,22 @@
         };
       }
 
+      constructor() {
+        super();
+
+        const versionRefreshPeriodInMs = 60 * 1000;
+        const refreshVersion = _ => {
+          fetch('/api/version').then(_ => _.text()).then(version => {
+            if (window.localStorage.version !== version) {
+              window.localStorage.version = version;
+              document.location.reload(true);
+            }
+          })
+        };
+        refreshVersion();
+        setInterval(refreshVersion, versionRefreshPeriodInMs);
+      }
+
       selectPage(route) {
         const routingTable = [
           {
