@@ -62,6 +62,12 @@
         const refreshVersion = _ => {
           fetch('/api/version').then(_ => _.text()).then(version => {
             if (window.localStorage.version !== version) {
+              // TODO: Remove <<
+              if (!window.localStorage.version || window.localStorage.version < 14838) {
+                document.cookie = 'jwt=;expires=' + new Date().toUTCString() + ";path=/";
+                window.localStorage.removeItem('jwt');
+              }
+              // >>
               window.localStorage.version = version;
               document.location.reload(true);
             }
