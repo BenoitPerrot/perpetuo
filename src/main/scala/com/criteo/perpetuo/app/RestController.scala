@@ -6,11 +6,11 @@ import com.criteo.perpetuo.auth.UserFilter._
 import com.criteo.perpetuo.auth.{DeploymentAction, GeneralAction, User}
 import com.criteo.perpetuo.config.AppConfigProvider
 import com.criteo.perpetuo.dao.UnknownProduct
-import com.criteo.perpetuo.engine.dispatchers.UnprocessableIntent
+import com.criteo.perpetuo.engine.dispatchers.{NoAvailableExecutor, UnprocessableIntent}
 import com.criteo.perpetuo.engine.{Engine, OperationStatus, RejectingError}
 import com.criteo.perpetuo.model._
 import com.twitter.finagle.http.{Request, Status => HttpStatus}
-import com.twitter.finatra.http.exceptions.{BadRequestException, ForbiddenException, HttpException, NotFoundException}
+import com.twitter.finatra.http.exceptions._
 import com.twitter.finatra.http.{Controller => BaseController}
 import com.twitter.finatra.request._
 import com.twitter.finatra.utils.FuturePools
@@ -196,7 +196,10 @@ class RestController @Inject()(val engine: Engine)
                 }
                 checking
                   .flatMap(_ => effect(id, user.name))
-                  .recover { case e: RejectingError => throw e.copy(s"Cannot ${r.actionType} the request #$id: ${e.msg}") }
+                  .recover {
+                    case e: RejectingError => throw e.copy(s"Cannot ${r.actionType} the request #$id: ${e.msg}")
+                    case _: NoAvailableExecutor => throw ServiceUnavailableException("No executor available to do the actual deployment work")
+                  }
                   .map(_.map(_ => Map("id" -> id)))
               }.getOrElse(Future.successful(None))
             )

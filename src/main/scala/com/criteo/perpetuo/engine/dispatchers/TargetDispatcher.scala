@@ -23,9 +23,12 @@ trait TargetDispatcher extends Provider[TargetDispatcher] with ParameterFreezer 
 
   /**
     * @return all the provided target atoms grouped by their dedicated executors
+    * @throws NoAvailableExecutor if a target could not be dispatched
     */
   def dispatch(targetAtoms: Select, frozenParameters: String): Iterable[(ExecutorInvoker, Select)]
 }
 
 
 case class UnprocessableIntent(message: String) extends IllegalArgumentException(message)
+
+class NoAvailableExecutor extends RuntimeException
