@@ -291,11 +291,8 @@ class Engine @Inject()(val dbBinding: DbBinding,
     }
 
   def updateExecutionTrace(id: Long, executionState: ExecutionState, detail: String, logHref: Option[String], statusMap: Map[String, TargetAtomStatus] = Map()): Future[Option[Unit]] = {
-    val executionUpdate = dbBinding.updateExecutionTrace(id, executionState, detail, logHref)
-
-    executionUpdate.flatMap {
-      if (_) {
-        // the execution trace has been updated, so it must exist!
+    dbBinding.updateExecutionTrace(id, executionState, detail, logHref).flatMap(_
+      .map(_ => // the execution trace exists
         dbBinding.findExecutionTraceById(id).map(_.get).flatMap { execTrace =>
           val op = execTrace.operationTrace
 
@@ -310,10 +307,9 @@ class Engine @Inject()(val dbBinding: DbBinding,
                 }
             }
         }
-      }
-      else
-        Future.successful(None)
-    }
+      )
+      .getOrElse(Future.successful(None))
+    )
   }
 
   def findDeepDeploymentRequestAndEffects(deploymentRequestId: Long): Future[Option[(DeepDeploymentRequest, Iterable[OperationEffect])]] =

@@ -87,16 +87,13 @@ trait ExecutionTraceBinder extends TableBinder {
         .result
     )
 
-  def updateExecutionTrace(id: Long, state: ExecutionState, detail: String, logHref: Option[String] = None): Future[Boolean] =
+  def updateExecutionTrace(id: Long, state: ExecutionState, detail: String, logHref: Option[String] = None): Future[Option[Long]] =
     logHref
       .map(_ => runUpdate(id, _.map(r => (r.state, r.detail, r.logHref)).update((state, detail, logHref))))
       .getOrElse(runUpdate(id, _.map(r => (r.state, r.detail)).update((state, detail))))
 
-  private def runUpdate(id: Long, query: Query[ExecutionTraceTable, ExecutionTraceRecord, Seq] => DBIOAction[Int, NoStream, Effect.Write]): Future[Boolean] =
-    dbContext.db.run(query(executionTraceQuery.filter(_.id === id))).map(count => {
-      assert(count <= 1)
-      count == 1
-    })
+  private def runUpdate(id: Long, query: Query[ExecutionTraceTable, ExecutionTraceRecord, Seq] => DBIOAction[Int, NoStream, Effect.Write]): Future[Option[Long]] =
+    dbContext.db.run(query(executionTraceQuery.filter(_.id === id))).map(count => if (count == 0) None else Some(id))
 
   // for tests only
   def findExecutionTraceIdsByOperationTrace(operationTraceId: Long): Future[Seq[Long]] =
