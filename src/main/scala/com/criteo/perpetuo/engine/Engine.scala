@@ -176,13 +176,6 @@ class Engine @Inject()(val dbBinding: DbBinding,
           }
         )
       }
-  private def startDeploymentRequest(req: DeepDeploymentRequest, initiatorName: String): Future[ShallowOperationTrace] = {
-    startOperation(req, operationStarter.start(targetResolver, targetDispatcher, req, initiatorName))
-      .map { case (operationTrace, started, failed) =>
-        listeners.foreach(_.onDeploymentRequestStarted(req, started, failed))
-        operationTrace
-      }
-  }
 
   private def closeOperation(operationTrace: ShallowOperationTrace, deploymentRequest: DeepDeploymentRequest): Future[ShallowOperationTrace] =
     dbBinding.closeOperationTrace(operationTrace)
@@ -240,7 +233,13 @@ class Engine @Inject()(val dbBinding: DbBinding,
 
   def startDeploymentRequest(deploymentRequestId: Long, initiatorName: String): Future[Option[ShallowOperationTrace]] = {
     dbBinding.findDeepDeploymentRequestById(deploymentRequestId).flatMap(_
-      .map(req => startDeploymentRequest(req, initiatorName).map(Some(_)))
+      .map(req =>
+        startOperation(req, operationStarter.start(targetResolver, targetDispatcher, req, initiatorName))
+          .map { case (operationTrace, started, failed) =>
+            listeners.foreach(_.onDeploymentRequestStarted(req, started, failed))
+            Some(operationTrace)
+          }
+      )
       .getOrElse(Future.successful(None))
     )
   }
@@ -257,9 +256,6 @@ class Engine @Inject()(val dbBinding: DbBinding,
     )
   }
 
-  def findExecutionSpecificationsForRevert(deploymentRequest: DeploymentRequest): Future[(Select, Iterable[(ExecutionSpecification, Select)])] =
-    dbBinding.findExecutionSpecificationsForRevert(deploymentRequest)
-
   def revert(deploymentRequestId: Long, initiatorName: String, defaultVersion: Option[Version]): Future[Option[ShallowOperationTrace]] =
     dbBinding.findDeepDeploymentRequestById(deploymentRequestId).flatMap(
       _.map { depReq =>
@@ -270,6 +266,9 @@ class Engine @Inject()(val dbBinding: DbBinding,
           }
       }.getOrElse(Future.successful(None))
     )
+
+  def findExecutionSpecificationsForRevert(deploymentRequest: DeploymentRequest): Future[(Select, Iterable[(ExecutionSpecification, Select)])] =
+    dbBinding.findExecutionSpecificationsForRevert(deploymentRequest)
 
   def findOperationTracesByDeploymentRequest(deploymentRequestId: Long): Future[Option[Seq[ShallowOperationTrace]]] =
     dbBinding.findOperationTracesByDeploymentRequest(deploymentRequestId).flatMap { traces =>
