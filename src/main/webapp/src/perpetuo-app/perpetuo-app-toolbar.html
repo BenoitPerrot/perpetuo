@@ -81,7 +81,7 @@
       ready() {
         super.ready();
         const closeOnOutsideTap = tapEvent => {
-          if (!isChildOf(tapEvent.detail.sourceEvent.currentTarget, this.$.identityContainer)) {
+          if (!isChildOf(tapEvent.detail.sourceEvent.target, this.$.identityContainer)) {
             this.$.signOutContainer.hide();
           }
         };
