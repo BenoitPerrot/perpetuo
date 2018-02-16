@@ -14,10 +14,14 @@ abstract class JavaFriendlyTargetResolver extends Provider[TargetResolver] {
     val delegate = this
 
     new TargetResolver {
-      override def toAtoms(productName: String, productVersion: Version, targetWords: Select): Map[String, Select] =
-        delegate.toAtoms(productName, productVersion, targetWords.asJava).iterateAsScala.toMap
+      override def toAtoms(productName: String, productVersion: Version, targetWords: Select): Option[Map[String, Select]] =
+        Option(delegate.toAtoms(productName, productVersion, targetWords.asJava)).map(_.iterateAsScala.toMap)
     }
   }
 
+  /**
+    * A method easier to implement in Java or Groovy than com.criteo.perpetuo.engine.resolvers.TargetResolver.toAtoms;
+    * the difference is in the types used: for instance, it must return null where the documentation mentions None.
+    */
   protected def toAtoms(productName: String, productVersion: Version, targetWords: JavaSet[String]): JavaMap[String, JavaIterable[String]]
 }

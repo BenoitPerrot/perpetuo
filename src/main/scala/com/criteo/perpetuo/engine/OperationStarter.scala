@@ -133,16 +133,15 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
 
   def expandTarget(resolver: TargetResolver, productName: String, productVersion: Version, target: TargetExpr): TargetExpr = {
     val select = target.select
-    val toAtoms = resolver.toAtoms(productName, productVersion, select)
-
-    checkUnchangedTarget(select, toAtoms.keySet, "resolution")
-    toAtoms.foreach { case (word, atoms) =>
-      if (atoms.isEmpty)
-        throw UnprocessableIntent(s"`$word` is not a valid target in that context")
-      atoms.foreach(atom => assert(atom.length <= TargetAtom.maxSize, s"Target `$atom` is too long"))
-    }
-
-    target.map(term => TargetTerm(term.tactics, term.select.iterator.flatMap(toAtoms).toSet))
+    resolver.toAtoms(productName, productVersion, select).map { toAtoms =>
+      checkUnchangedTarget(select, toAtoms.keySet, "resolution")
+      toAtoms.foreach { case (word, atoms) =>
+        if (atoms.isEmpty)
+          throw UnprocessableIntent(s"`$word` is not a valid target in that context")
+        atoms.foreach(atom => assert(atom.length <= TargetAtom.maxSize, s"Target `$atom` is too long"))
+      }
+      target.map(term => TargetTerm(term.tactics, term.select.iterator.flatMap(toAtoms).toSet))
+    }.getOrElse(target)
   }
 
   private[engine] def dispatch(dispatcher: TargetDispatcher, expandedTarget: TargetExpr, frozenParameters: String): Iterable[(ExecutorInvoker, TargetExpr)] =

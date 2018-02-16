@@ -18,10 +18,13 @@ trait TargetResolver extends Provider[TargetResolver] {
     * but MUST contain at least "Paris" and "Lyon".
     * For a given atomic target (let's say "Lyon"), this function must return the input itself as
     * only element in the list (i.e. "Lyon" resolves to Iterable("Lyon")).
-    * If a target does not exist or must not host the given product, return the empty list.
     *
-    * @return the atomic target words to which each input target word is resolved wrt the given product and version.
+    * If a target does not exist or must not host the given product, return the empty list or
+    * raise an UnprocessableIntent.
+    *
+    * @return - the atomic target words mapped to each input target word being resolved wrt the given
+    *         product and version;
+    *         - None if it's NOT CERTAIN that ANY TARGET can be resolved to atoms for the given product.
     */
-  def toAtoms(productName: String, productVersion: Version, targetWords: Select): Map[String, Select] =
-    targetWords.iterator.map(word => word -> Set(word)).toMap
+  def toAtoms(productName: String, productVersion: Version, targetWords: Select): Option[Map[String, Select]] = None
 }
