@@ -15,34 +15,6 @@ import scala.concurrent.Future
 
 
 class OperationStarter(val dbBinding: DbBinding) extends Logging {
-  private def createRecords(deploymentRequestId: Long,
-                            operation: Operation.Kind,
-                            userName: String,
-                            dispatcher: TargetDispatcher,
-                            executions: Iterable[(TargetExpr, ExecutionSpecification)]): DBIOAction[(ShallowOperationTrace, ExecutionsToTrigger), NoStream, Effect.Write] =
-    dbBinding
-      .insertOperationTrace(deploymentRequestId, operation, userName)
-      .flatMap { newOp =>
-        val specAndInvocations = executions.map { case (target, spec) =>
-          (spec, dispatch(dispatcher, target, spec.specificParameters).toVector)
-        }
-        DBIOAction
-          .sequence( // in sequence to be able to put all these SQL queries in the same transaction
-            specAndInvocations.map { case (spec, invocations) =>
-              dbBinding.insertExecution(newOp.id, spec.id)
-                // create as many traces, all at the same time
-                .flatMap(executionId => dbBinding.insertExecutionTraces(executionId, invocations.length))
-                .map(_.zip(invocations).map { case (execTraceId, (invoker, target)) => (execTraceId, spec.version, target, invoker) })
-            }
-          )
-          .map(effects => (newOp, effects.flatten))
-      }
-
-
-  /**
-    * Start all relevant executions and return the numbers of successful
-    * and failed execution starts.
-    */
   def startDeploymentRequest(resolver: TargetResolver,
                              dispatcher: TargetDispatcher,
                              deploymentRequest: DeepDeploymentRequest,
@@ -73,6 +45,36 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
     val executions = executionSpecs.map(spec => (expandedTarget.getOrElse(deploymentRequest.parsedTarget), spec))
     val reflectInDb = createRecords(deploymentRequest.id, Operation.deploy, userName, dispatcher, executions)
     Future.successful((reflectInDb, expandedTarget.map(_.flatMap(_.select))))
+  }
+
+  def revert(dispatcher: TargetDispatcher,
+             deploymentRequest: DeepDeploymentRequest,
+             userName: String,
+             defaultVersion: Option[Version]): OperationStartSpecifics = {
+    dbBinding
+      .findExecutionSpecificationsForRevert(deploymentRequest)
+      .flatMap { case (undetermined, determined) =>
+        if (undetermined.nonEmpty)
+          defaultVersion.map { version =>
+            val specificParameters = dispatcher.freezeParameters(deploymentRequest.product.name, version)
+            // Create the execution specification outside of any transaction: it's not an issue if the request
+            // fails afterward and the specification remains unbound.
+            dbBinding.insertExecutionSpecification(specificParameters, version).map(executionSpecification =>
+              Stream.cons((executionSpecification, undetermined), determined.toStream)
+            )
+          }.getOrElse(throw MissingInfo(
+            s"a default rollback version is required, as some targets have no known previous state (e.g. `${undetermined.head}`)",
+            "defaultVersion"
+          ))
+        else
+          Future.successful(determined)
+      }
+      .map { groups =>
+        val executions = groups.map { case (spec, targets) => (Set(TargetTerm(select = targets)), spec) }
+        val atoms = groups.flatMap { case (_, targets) => targets }
+        val reflectInDb = createRecords(deploymentRequest.id, Operation.revert, userName, dispatcher, executions)
+        (reflectInDb, Some(atoms.toSet))
+      }
   }
 
   def triggerExecutions(deploymentRequest: DeepDeploymentRequest,
@@ -116,36 +118,6 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
     }
   }
 
-  def revert(dispatcher: TargetDispatcher,
-             deploymentRequest: DeepDeploymentRequest,
-             userName: String,
-             defaultVersion: Option[Version]): OperationStartSpecifics = {
-    dbBinding
-      .findExecutionSpecificationsForRevert(deploymentRequest)
-      .flatMap { case (undetermined, determined) =>
-        if (undetermined.nonEmpty)
-          defaultVersion.map { version =>
-            val specificParameters = dispatcher.freezeParameters(deploymentRequest.product.name, version)
-            // Create the execution specification outside of any transaction: it's not an issue if the request
-            // fails afterward and the specification remains unbound.
-            dbBinding.insertExecutionSpecification(specificParameters, version).map(executionSpecification =>
-              Stream.cons((executionSpecification, undetermined), determined.toStream)
-            )
-          }.getOrElse(throw MissingInfo(
-            s"a default rollback version is required, as some targets have no known previous state (e.g. `${undetermined.head}`)",
-            "defaultVersion"
-          ))
-        else
-          Future.successful(determined)
-      }
-      .map { groups =>
-        val executions = groups.map { case (spec, targets) => (Set(TargetTerm(select = targets)), spec) }
-        val atoms = groups.flatMap { case (_, targets) => targets }
-        val reflectInDb = createRecords(deploymentRequest.id, Operation.revert, userName, dispatcher, executions)
-        (reflectInDb, Some(atoms.toSet))
-      }
-  }
-
   def expandTarget(resolver: TargetResolver, productName: String, productVersion: Version, target: TargetExpr): Option[TargetExpr] = {
     val select = target.select
     resolver.toAtoms(productName, productVersion, select).map { toAtoms =>
@@ -158,6 +130,29 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
       target.map(term => TargetTerm(term.tactics, term.select.iterator.flatMap(toAtoms).toSet))
     }
   }
+
+  private def createRecords(deploymentRequestId: Long,
+                            operation: Operation.Kind,
+                            userName: String,
+                            dispatcher: TargetDispatcher,
+                            executions: Iterable[(TargetExpr, ExecutionSpecification)]): DBIOAction[(ShallowOperationTrace, ExecutionsToTrigger), NoStream, Effect.Write] =
+    dbBinding
+      .insertOperationTrace(deploymentRequestId, operation, userName)
+      .flatMap { newOp =>
+        val specAndInvocations = executions.map { case (target, spec) =>
+          (spec, dispatch(dispatcher, target, spec.specificParameters).toVector)
+        }
+        DBIOAction
+          .sequence( // in sequence to be able to put all these SQL queries in the same transaction
+            specAndInvocations.map { case (spec, invocations) =>
+              dbBinding.insertExecution(newOp.id, spec.id)
+                // create as many traces, all at the same time
+                .flatMap(executionId => dbBinding.insertExecutionTraces(executionId, invocations.length))
+                .map(_.zip(invocations).map { case (execTraceId, (invoker, target)) => (execTraceId, spec.version, target, invoker) })
+            }
+          )
+          .map(effects => (newOp, effects.flatten))
+      }
 
   private[engine] def dispatch(dispatcher: TargetDispatcher, expandedTarget: TargetExpr, frozenParameters: String): Iterable[(ExecutorInvoker, TargetExpr)] =
     dispatchAlternatives(dispatcher, expandedTarget, frozenParameters).map {
