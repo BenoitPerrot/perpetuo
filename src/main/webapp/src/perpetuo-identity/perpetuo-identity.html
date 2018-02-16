@@ -49,6 +49,11 @@
       request() {
         this.client.redirectToAuthorizeURL(window);
       }
+
+      signOut() {
+        this.client.signOut();
+        this._setLogin(null);
+      }
     }
 
     customElements.define(PerpetuoIdentity.is, PerpetuoIdentity);
