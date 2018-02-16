@@ -136,8 +136,8 @@ class Engine @Inject()(val dbBinding: DbBinding,
       dbBinding.releaseLocks(deploymentRequest.id)
 
   private def startOperation(deploymentRequest: DeepDeploymentRequest,
-                             reflectInDb: Future[(DBIOAction[(ShallowOperationTrace, ExecutionsToTrigger), NoStream, Effect.Write], Option[Set[String]])]): Future[(ShallowOperationTrace, Int, Int)] =
-    reflectInDb
+                             operationStartSpecifics: OperationStartSpecifics): Future[(ShallowOperationTrace, Int, Int)] =
+    operationStartSpecifics
       .flatMap { case (recordsCreation, atoms) =>
         dbBinding.executeInSerializableTransaction(
           dbBinding.tryAcquireLocks(Seq(getOperationLockName(deploymentRequest)), deploymentRequest.id, reentrant = false).flatMap { alreadyRunning =>
@@ -236,7 +236,7 @@ class Engine @Inject()(val dbBinding: DbBinding,
   def startDeploymentRequest(deploymentRequestId: Long, initiatorName: String): Future[Option[ShallowOperationTrace]] = {
     dbBinding.findDeepDeploymentRequestById(deploymentRequestId).flatMap(_
       .map(req =>
-        startOperation(req, operationStarter.start(targetResolver, targetDispatcher, req, initiatorName))
+        startOperation(req, operationStarter.startDeploymentRequest(targetResolver, targetDispatcher, req, initiatorName))
           .map { case (operationTrace, started, failed) =>
             listeners.foreach(_.onDeploymentRequestStarted(req, started, failed))
             Some(operationTrace)

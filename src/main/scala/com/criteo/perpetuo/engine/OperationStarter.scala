@@ -15,7 +15,11 @@ import scala.concurrent.Future
 
 
 class OperationStarter(val dbBinding: DbBinding) extends Logging {
-  private def createRecords(deploymentRequestId: Long, operation: Operation.Kind, userName: String, dispatcher: TargetDispatcher, executions: Iterable[(TargetExpr, ExecutionSpecification)]): DBIOAction[(ShallowOperationTrace, ExecutionsToTrigger), NoStream, Effect.Write] =
+  private def createRecords(deploymentRequestId: Long,
+                            operation: Operation.Kind,
+                            userName: String,
+                            dispatcher: TargetDispatcher,
+                            executions: Iterable[(TargetExpr, ExecutionSpecification)]): DBIOAction[(ShallowOperationTrace, ExecutionsToTrigger), NoStream, Effect.Write] =
     dbBinding
       .insertOperationTrace(deploymentRequestId, operation, userName)
       .flatMap { newOp =>
@@ -39,7 +43,10 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
     * Start all relevant executions and return the numbers of successful
     * and failed execution starts.
     */
-  def start(resolver: TargetResolver, dispatcher: TargetDispatcher, deploymentRequest: DeepDeploymentRequest, userName: String): Future[(DBIOAction[(ShallowOperationTrace, ExecutionsToTrigger), NoStream, Effect.Write], Option[Set[String]])] = {
+  def startDeploymentRequest(resolver: TargetResolver,
+                             dispatcher: TargetDispatcher,
+                             deploymentRequest: DeepDeploymentRequest,
+                             userName: String): OperationStartSpecifics = {
     // generation of specific parameters
     val specificParameters = dispatcher.freezeParameters(deploymentRequest.product.name, deploymentRequest.version)
     // target resolution
@@ -60,7 +67,7 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
                   dispatcher: TargetDispatcher,
                   deploymentRequest: DeepDeploymentRequest,
                   executionSpecs: Seq[ExecutionSpecification],
-                  userName: String): Future[(DBIOAction[(ShallowOperationTrace, ExecutionsToTrigger), NoStream, Effect.Write], Option[Set[String]])] = {
+                  userName: String): OperationStartSpecifics = {
     // todo: retrieve the real target of the very retried execution
     val expandedTarget = expandTarget(resolver, deploymentRequest.product.name, deploymentRequest.version, deploymentRequest.parsedTarget)
     val executions = executionSpecs.map(spec => (expandedTarget.getOrElse(deploymentRequest.parsedTarget), spec))
@@ -109,7 +116,10 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
     }
   }
 
-  def revert(dispatcher: TargetDispatcher, deploymentRequest: DeepDeploymentRequest, userName: String, defaultVersion: Option[Version]): Future[(DBIOAction[(ShallowOperationTrace, ExecutionsToTrigger), NoStream, Effect.Write], Option[Set[String]])] = {
+  def revert(dispatcher: TargetDispatcher,
+             deploymentRequest: DeepDeploymentRequest,
+             userName: String,
+             defaultVersion: Option[Version]): OperationStartSpecifics = {
     dbBinding
       .findExecutionSpecificationsForRevert(deploymentRequest)
       .flatMap { case (undetermined, determined) =>

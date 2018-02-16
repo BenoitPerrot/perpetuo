@@ -70,7 +70,7 @@ class OperationStarterSpec extends Test with TestDb {
     def dispatchedAs(that: Map[ExecutorInvoker, TargetExpr]): Unit = {
       Await.result(
         depReq.flatMap(
-          operationStarter.start(testResolver, TestTargetDispatcher, _, "c.norris")
+          operationStarter.startDeploymentRequest(testResolver, TestTargetDispatcher, _, "c.norris")
             .map(_._1)
             .flatMap(dbContext.db.run)
             .map { case (_, toTrigger) =>
