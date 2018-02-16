@@ -49,6 +49,11 @@ this.Perpetuo.Client = this.Perpetuo.Client || (function () {
       });
     }
 
+    signOut() {
+      document.cookie = 'jwt=;expires=' + new Date().toUTCString() + ";path=/";
+      window.localStorage.removeItem('jwt');
+    }
+
     fetchIdentity() {
       return jsonFetch('/api/auth/identity').then(r => r.json()).then(o => o.name).catch(() => null);
     }

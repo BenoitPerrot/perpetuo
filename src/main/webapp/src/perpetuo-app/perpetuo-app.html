@@ -10,6 +10,7 @@
 
 <link rel="import" href="../perpetuo-app/perpetuo-app-drawer.html">
 <link rel="import" href="../perpetuo-app/perpetuo-app-toolbar.html">
+<link rel="import" href="../perpetuo-client/perpetuo-client.html">
 <link rel="import" href="../perpetuo-identity/perpetuo-identity.html">
 <link rel="import" href="../perpetuo-deployment-request/perpetuo-deployment-request.html">
 <link rel="import" href="../perpetuo-deployment-request/perpetuo-deployment-request-table.html">
@@ -64,8 +65,7 @@
             if (window.localStorage.version !== version) {
               // TODO: Remove <<
               if (!window.localStorage.version || window.localStorage.version < 14838) {
-                document.cookie = 'jwt=;expires=' + new Date().toUTCString() + ";path=/";
-                window.localStorage.removeItem('jwt');
+                new Perpetuo.Client().signOut();
               }
               // >>
               window.localStorage.version = version;
