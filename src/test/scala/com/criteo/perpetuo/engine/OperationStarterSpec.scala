@@ -71,6 +71,7 @@ class OperationStarterSpec extends Test with TestDb {
       Await.result(
         depReq.flatMap(
           operationStarter.start(testResolver, TestTargetDispatcher, _, "c.norris")
+            .map(_._1)
             .flatMap(dbContext.db.run)
             .map { case (_, toTrigger) =>
               assertEqual(toTrigger.map { case (_, _, targetExpr, invoker) => (invoker, targetExpr) }.toMap, that)

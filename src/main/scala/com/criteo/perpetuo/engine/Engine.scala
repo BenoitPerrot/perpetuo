@@ -124,8 +124,10 @@ class Engine @Inject()(val dbBinding: DbBinding,
   private def getOperationLockName(deploymentRequest: DeploymentRequest) =
     s"Operating on ${deploymentRequest.id}"
 
-  private def getTransactionLockNames(deploymentRequest: DeepDeploymentRequest) =
-    Seq("P_" + deploymentRequest.product.name)
+  private def getTransactionLockNames(deploymentRequest: DeepDeploymentRequest, atoms: Option[Set[String]]): Iterable[String] =
+    atoms
+      .map(_.map(atom => s"${atom.hashCode.toHexString}_${deploymentRequest.product.name}"))
+      .getOrElse(Seq("P_" + deploymentRequest.product.name))
 
   private def releaseLocks(deploymentRequest: DeploymentRequest, transactionOngoing: Boolean) =
     if (transactionOngoing && withTransactions)
@@ -134,9 +136,9 @@ class Engine @Inject()(val dbBinding: DbBinding,
       dbBinding.releaseLocks(deploymentRequest.id)
 
   private def startOperation(deploymentRequest: DeepDeploymentRequest,
-                             reflectInDb: Future[DBIOAction[(ShallowOperationTrace, ExecutionsToTrigger), NoStream, Effect.Write]]): Future[(ShallowOperationTrace, Int, Int)] =
+                             reflectInDb: Future[(DBIOAction[(ShallowOperationTrace, ExecutionsToTrigger), NoStream, Effect.Write], Option[Set[String]])]): Future[(ShallowOperationTrace, Int, Int)] =
     reflectInDb
-      .flatMap(recordsCreation =>
+      .flatMap { case (recordsCreation, atoms) =>
         dbBinding.executeInSerializableTransaction(
           dbBinding.tryAcquireLocks(Seq(getOperationLockName(deploymentRequest)), deploymentRequest.id, reentrant = false).flatMap { alreadyRunning =>
             if (alreadyRunning.nonEmpty)
@@ -144,7 +146,7 @@ class Engine @Inject()(val dbBinding: DbBinding,
                 "Cannot be processed for the moment because another operation is running for the same deployment request"
               )
 
-            dbBinding.tryAcquireLocks(getTransactionLockNames(deploymentRequest), deploymentRequest.id, reentrant = true).flatMap { conflictingRequestIds =>
+            dbBinding.tryAcquireLocks(getTransactionLockNames(deploymentRequest, atoms), deploymentRequest.id, reentrant = true).flatMap { conflictingRequestIds =>
               if (conflictingRequestIds.nonEmpty)
                 throw Conflict(
                   "Cannot be processed for the moment because a conflicting transaction is ongoing, which must first succeed or be reverted",
@@ -155,7 +157,7 @@ class Engine @Inject()(val dbBinding: DbBinding,
             }
           }
         )
-      )
+      }
       .flatMap { case (createdOperation, executionsToTrigger) =>
         operationStarter.triggerExecutions(deploymentRequest, executionsToTrigger).flatMap(effects =>
           Future.traverse(effects) { case (status, execTraceId, executionUpdate) =>

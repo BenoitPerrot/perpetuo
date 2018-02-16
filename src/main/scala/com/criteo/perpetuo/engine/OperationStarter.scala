@@ -39,7 +39,7 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
     * Start all relevant executions and return the numbers of successful
     * and failed execution starts.
     */
-  def start(resolver: TargetResolver, dispatcher: TargetDispatcher, deploymentRequest: DeepDeploymentRequest, userName: String): Future[DBIOAction[(ShallowOperationTrace, ExecutionsToTrigger), NoStream, Effect.Write]] = {
+  def start(resolver: TargetResolver, dispatcher: TargetDispatcher, deploymentRequest: DeepDeploymentRequest, userName: String): Future[(DBIOAction[(ShallowOperationTrace, ExecutionsToTrigger), NoStream, Effect.Write], Option[Set[String]])] = {
     // generation of specific parameters
     val specificParameters = dispatcher.freezeParameters(deploymentRequest.product.name, deploymentRequest.version)
     // target resolution
@@ -49,21 +49,23 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
     // fails afterward and the specification remains unbound.
     // Moreover, this will likely be rewritten eventually for the specifications to be created alongside with the
     // `deploy` operations at the time the deployment request is created.
-    dbBinding.insertExecutionSpecification(specificParameters, deploymentRequest.version).map(spec =>
-      createRecords(deploymentRequest.id, Operation.deploy, userName, dispatcher, Seq((expandedTarget, spec)))
-    )
+    dbBinding.insertExecutionSpecification(specificParameters, deploymentRequest.version).map { spec =>
+      val executions = Seq((expandedTarget.getOrElse(deploymentRequest.parsedTarget), spec))
+      val reflectInDb = createRecords(deploymentRequest.id, Operation.deploy, userName, dispatcher, executions)
+      (reflectInDb, expandedTarget.map(_.flatMap(_.select)))
+    }
   }
 
   def deployAgain(resolver: TargetResolver,
                   dispatcher: TargetDispatcher,
                   deploymentRequest: DeepDeploymentRequest,
                   executionSpecs: Seq[ExecutionSpecification],
-                  userName: String): Future[DBIOAction[(ShallowOperationTrace, ExecutionsToTrigger), NoStream, Effect.Write]] = {
-    val executions = executionSpecs.map(spec =>
-      // todo: retrieve the real target of the very retried execution
-      (expandTarget(resolver, deploymentRequest.product.name, deploymentRequest.version, deploymentRequest.parsedTarget), spec)
-    )
-    Future.successful(createRecords(deploymentRequest.id, Operation.deploy, userName, dispatcher, executions))
+                  userName: String): Future[(DBIOAction[(ShallowOperationTrace, ExecutionsToTrigger), NoStream, Effect.Write], Option[Set[String]])] = {
+    // todo: retrieve the real target of the very retried execution
+    val expandedTarget = expandTarget(resolver, deploymentRequest.product.name, deploymentRequest.version, deploymentRequest.parsedTarget)
+    val executions = executionSpecs.map(spec => (expandedTarget.getOrElse(deploymentRequest.parsedTarget), spec))
+    val reflectInDb = createRecords(deploymentRequest.id, Operation.deploy, userName, dispatcher, executions)
+    Future.successful((reflectInDb, expandedTarget.map(_.flatMap(_.select))))
   }
 
   def triggerExecutions(deploymentRequest: DeepDeploymentRequest,
@@ -107,7 +109,7 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
     }
   }
 
-  def revert(dispatcher: TargetDispatcher, deploymentRequest: DeepDeploymentRequest, userName: String, defaultVersion: Option[Version]): Future[DBIOAction[(ShallowOperationTrace, ExecutionsToTrigger), NoStream, Effect.Write]] =
+  def revert(dispatcher: TargetDispatcher, deploymentRequest: DeepDeploymentRequest, userName: String, defaultVersion: Option[Version]): Future[(DBIOAction[(ShallowOperationTrace, ExecutionsToTrigger), NoStream, Effect.Write], Option[Set[String]])] = {
     dbBinding
       .findExecutionSpecificationsForRevert(deploymentRequest)
       .flatMap { case (undetermined, determined) =>
@@ -128,10 +130,13 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
       }
       .map { groups =>
         val executions = groups.map { case (spec, targets) => (Set(TargetTerm(select = targets)), spec) }
-        createRecords(deploymentRequest.id, Operation.revert, userName, dispatcher, executions)
+        val atoms = groups.flatMap { case (_, targets) => targets }
+        val reflectInDb = createRecords(deploymentRequest.id, Operation.revert, userName, dispatcher, executions)
+        (reflectInDb, Some(atoms.toSet))
       }
+  }
 
-  def expandTarget(resolver: TargetResolver, productName: String, productVersion: Version, target: TargetExpr): TargetExpr = {
+  def expandTarget(resolver: TargetResolver, productName: String, productVersion: Version, target: TargetExpr): Option[TargetExpr] = {
     val select = target.select
     resolver.toAtoms(productName, productVersion, select).map { toAtoms =>
       checkUnchangedTarget(select, toAtoms.keySet, "resolution")
@@ -141,7 +146,7 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
         atoms.foreach(atom => assert(atom.length <= TargetAtom.maxSize, s"Target `$atom` is too long"))
       }
       target.map(term => TargetTerm(term.tactics, term.select.iterator.flatMap(toAtoms).toSet))
-    }.getOrElse(target)
+    }
   }
 
   private[engine] def dispatch(dispatcher: TargetDispatcher, expandedTarget: TargetExpr, frozenParameters: String): Iterable[(ExecutorInvoker, TargetExpr)] =
