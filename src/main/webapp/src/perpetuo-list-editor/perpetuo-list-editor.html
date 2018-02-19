@@ -47,7 +47,7 @@
       <iron-input slot="input"><input id="filterEditor" on-focus="onFilterEditorFocus" disabled$="[[computeInputDisabled(disabled, multi, selectedItems.*)]]" on-keydown="onInputKeyDown" value="{{filter::input}}"></input></iron-input>
     </paper-input-container>
     <div>
-      <iron-dropdown id="dropdown" no-auto-focus>
+      <iron-dropdown id="dropdown" no-auto-focus no-cancel-on-outside-click>
         <paper-listbox id="listbox" slot="dropdown-content" on-selected-changed="select">
           <template is="dom-repeat" items="[[filteredChoices]]" initial-count="[[initialCount]]">
             <paper-item>[[item]]</paper-item>
@@ -78,13 +78,14 @@
       ready() {
         super.ready();
         this.$.dropdown.focusTarget = this.$.filterEditor;
+
+        this.addEventListener('blur', e => {
+          this.$.dropdown.close();
+        });
       }
 
       onFilterEditorFocus() {
-        // When giving the focus with a click, the focus event is raised before the click event, so
-        // do not open the dropdown immediately (otherwise the click event will close the dropdown,
-        // as it occurs outside of it)
-        setTimeout(() => { this.$.dropdown.open(); }, 100);
+        this.$.dropdown.open();
       }
 
       computeInputDisabled(disabled, multi, _) {
