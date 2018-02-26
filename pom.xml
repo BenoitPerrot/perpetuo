@@ -17,8 +17,8 @@
   <name>Perpetuo</name>
 
   <properties>
-    <scala.version>2.11.12</scala.version>
     <scala.version.short>2.11</scala.version.short>
+    <scala.version>${scala211.version}</scala.version>
 
     <build-aux.directory>build-aux</build-aux.directory>
     <webapp.directory>src/main/webapp</webapp.directory>
