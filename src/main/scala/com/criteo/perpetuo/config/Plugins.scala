@@ -3,10 +3,10 @@ package com.criteo.perpetuo.config
 import java.util.logging.Logger
 
 import com.criteo.perpetuo.auth._
-import com.criteo.perpetuo.engine.{AsyncListener, Provider}
 import com.criteo.perpetuo.engine.dispatchers.{SingleTargetDispatcher, TargetDispatcher}
 import com.criteo.perpetuo.engine.invokers.{DummyInvoker, ExecutorInvoker, RundeckInvoker}
 import com.criteo.perpetuo.engine.resolvers.TargetResolver
+import com.criteo.perpetuo.engine.{AsyncListener, Provider}
 import com.google.inject.{Inject, Singleton}
 import com.typesafe.config.Config
 
