@@ -373,4 +373,22 @@ class DbBinding @Inject()(val dbContext: DbContext)
         }
       )
   }
+
+  // TODO: remove <<
+  private val queryUnreferencedProductIds =
+    productQuery
+      .joinLeft(deploymentRequestQuery).on { case (product, deploymentRequest) => product.id === deploymentRequest.productId }
+      .filter { case (_, deploymentRequest) => deploymentRequest.isEmpty }
+      .map { case (product, _) => product.id }
+
+  def countUnreferencedProducts(): Future[Int] =
+    dbContext.db.run(queryUnreferencedProductIds.countDistinct.result)
+
+  def deleteUnreferencedProducts(): Future[Int] =
+    dbContext.db.run(
+      productQuery
+        .filter(_.id.in(queryUnreferencedProductIds))
+        .delete
+    )
+  // >>
 }

@@ -351,8 +351,21 @@ class RestController @Inject()(val engine: Engine)
     }
   }
 
-}
+  // TODO: remove <<
+  get("/api/unstable/products/actions/count-unreferenced") { r: Request =>
+    timeBoxed(engine.dbBinding.countUnreferencedProducts(), 5.seconds)
+  }
 
+  post("/api/unstable/products/actions/delete-unreferenced") { r: Request =>
+    authenticate(r) { case user if permissions.isAuthorized(user, GeneralAction.administrate) =>
+      timeBoxed(
+        engine.dbBinding.deleteUnreferencedProducts().map(count => Some(Map("deleted" -> count))),
+        5.seconds
+      )
+    }
+  }
+  // >>
+}
 
 object RestApi {
   def executionCallbackPath(execTraceId: String): String = s"/api/execution-traces/$execTraceId"
