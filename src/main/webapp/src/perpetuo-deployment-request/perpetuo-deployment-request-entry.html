@@ -50,6 +50,20 @@
     }
     span.target {
       width: 20%;
+      position: relative;
+    }
+    span.target > span {
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      overflow: hidden;
+      /* CSS rules are such that the width of the host is first
+         computed based on its whole unconstrained content, then used
+         to compute percentage-based width on children. Setting
+         position to absolute removes the element selected from the
+         flow, so the computation of the host width does not take into
+         account the unconstrained width of this element. */
+      position: absolute;
+      width: 100%;
     }
     span.creation-date {
       width: 20%;
@@ -91,7 +105,7 @@
             [[item.value]]<template is="dom-if" if="[[item.ratio]]">&nbsp;<span class="ratio">[[asPercentage(item.ratio)]]%</span></template><br/>
           </template>
         </span>
-        <span class="target">[[data.target]]</span>
+        <span class="target"><span>[[data.target]]</span></span>
         <span class="creation-date">[[data.dateString]]</span>
         <div class="state">
           <span class$="[[toCssClasses(data.state)]]">[[humanReadable(data.state)]]</span>
