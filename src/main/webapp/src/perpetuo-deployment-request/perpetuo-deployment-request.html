@@ -256,7 +256,7 @@
         this.actionLock(() =>
           this.client.deployDeploymentRequest(this.deploymentRequestId)
               .then(r => {
-                if (r.status === 422)
+                if (400 <= r.status && r.status < 500)
                   return r.json()
                           .then(body => {
                             if (body.conflicts) {
