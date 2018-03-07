@@ -39,5 +39,5 @@ package object engine {
 
 
   type ExecutionsToTrigger = Iterable[(Long, Version, TargetExpr, ExecutorInvoker)]
-  type OperationStartSpecifics = Future[(DBIOAction[(ShallowOperationTrace, ExecutionsToTrigger), NoStream, Effect.Write], Option[Set[String]])]
+  type OperationStartSpecifics = Future[(DBIOAction[(ShallowOperationTrace, ExecutionsToTrigger), NoStream, Effect.Read with Effect.Write], Option[Set[String]])]
 }

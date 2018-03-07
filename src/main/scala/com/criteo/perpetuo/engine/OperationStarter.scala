@@ -131,11 +131,14 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
     }
   }
 
+  // fixme: type the targets to differentiate atomic from other ones in order to always create atomic targets
+  //        instead of taking the boolean as parameter (to be done later, since it's not trivial)
   private def createRecords(deploymentRequestId: Long,
                             operation: Operation.Kind,
                             userName: String,
                             dispatcher: TargetDispatcher,
-                            executions: Iterable[(TargetExpr, ExecutionSpecification)]): DBIOAction[(ShallowOperationTrace, ExecutionsToTrigger), NoStream, Effect.Write] =
+                            executions: Iterable[(TargetExpr, ExecutionSpecification)],
+                            createTargetStatuses: Boolean = false): DBIOAction[(ShallowOperationTrace, ExecutionsToTrigger), NoStream, Effect.Read with Effect.Write] =
     dbBinding
       .insertOperationTrace(deploymentRequestId, operation, userName)
       .flatMap { newOp =>
@@ -145,9 +148,26 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
         DBIOAction
           .sequence( // in sequence to be able to put all these SQL queries in the same transaction
             specAndInvocations.map { case (spec, invocations) =>
-              dbBinding.insertExecution(newOp.id, spec.id)
-                // create as many traces, all at the same time
-                .flatMap(executionId => dbBinding.insertExecutionTraces(executionId, invocations.length))
+              dbBinding
+                .insertExecution(newOp.id, spec.id)
+                .flatMap { executionId =>
+                  // create as many traces as needed, all at the same time
+                  val ret = dbBinding.insertExecutionTraces(executionId, invocations.length)
+                  if (createTargetStatuses)
+                    dbBinding
+                      .updateTargetStatuses(
+                        executionId,
+                        invocations
+                          .toStream
+                          .flatMap { case (_, target) => target.toStream.flatMap(_.select) }
+                          .map(_ -> TargetAtomStatus(Status.notDone, ""))
+                          // todo: change detail to "pending" when all executors send "running" statuses: DREDD-725
+                          .toMap
+                      )
+                      .flatMap(_ => ret)
+                  else
+                    ret
+                }
                 .map(_.zip(invocations).map { case (execTraceId, (invoker, target)) => (execTraceId, spec.version, target, invoker) })
             }
           )
