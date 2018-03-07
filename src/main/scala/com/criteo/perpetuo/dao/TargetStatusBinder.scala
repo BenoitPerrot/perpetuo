@@ -1,10 +1,10 @@
 package com.criteo.perpetuo.dao
 
 import com.criteo.perpetuo.model.{Status, TargetAtom, TargetAtomStatus, TargetStatus}
-import slick.jdbc.TransactionIsolation
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
+import scala.util.{Failure, Success}
 
 
 private[dao] case class TargetStatusRecord(executionId: Long,
@@ -41,21 +41,59 @@ trait TargetStatusBinder extends TableBinder {
 
   val targetStatusQuery: TableQuery[TargetStatusTable] = TableQuery[TargetStatusTable]
 
+  /**
+    * Hard-core implementation of a SQL bulk and transaction-free insert-or-update.
+    * - The base idea is that the state machine describing the target statuses and their transitions is acyclic
+    * (it's obvious for the status codes, it's also true for the statuses themselves, which are inserted but never removed).
+    * - The other idea is that an unlimited sequence of retries of the same call must eventually converge if it's
+    * not a bad request: if it's timing out because of too many records to create or update, the target statuses are
+    * considered independent so this function must apply as many changes as possible in order for the next client's
+    * attempts to have a chance to succeed.
+    */
   def updateTargetStatuses(executionId: Long, statusMap: Map[String, TargetAtomStatus]): Future[Unit] = {
-    if (statusMap.isEmpty)
-      return Future.successful()
-
-    val atoms = statusMap.keySet
-    val oldValues = targetStatusQuery.filter(ts => ts.executionId === executionId && ts.targetAtom.inSet(atoms))
-    val newValues = statusMap.map { case (atom, status) =>
-      TargetStatusRecord(executionId, atom, status.code, status.detail)
-    }
-
-    // there is no bulk insert-or-update, so to remain efficient in case of many statuses,
-    // we delete them all and re-insert them in the same transaction
-    val query = oldValues.delete.andThen(targetStatusQuery ++= newValues)
-      .transactionally.withTransactionIsolation(TransactionIsolation.Serializable)
-
+    val query = targetStatusQuery
+      // first look at what is already created (nothing is ever removed) in order to
+      // decrease the size of the following chain of inserts and updates (which can be costly)
+      .filter(ts => ts.executionId === executionId && ts.targetAtom.inSet(statusMap.keySet))
+      .result
+      .map { currentRecords =>
+        // todo: take the status code "precedence" into account in order to reject impossible transitions
+        val (same, different) = currentRecords.partition { currentRecord =>
+          val askedStatus = statusMap(currentRecord.targetAtom)
+          // look at the records that are up-to-date as of now, so we won't touch them at all
+          currentRecord.code == askedStatus.code && currentRecord.detail == askedStatus.detail
+        }
+        (same.map(_.targetAtom), different.map(_.targetAtom))
+      }
+      .flatMap { case (same, different) =>
+        val alreadyCreated = (same.toStream ++ different).toSet
+        val toUpdate = Iterable.newBuilder[String] ++= different
+        DBIO
+          .sequence(
+            statusMap.toStream.collect { case (atom, status) if !alreadyCreated(atom) =>
+              // try to create missing atoms
+              (targetStatusQuery += TargetStatusRecord(executionId, atom, status.code, status.detail)).asTry.map {
+                case Success(_) => ()
+                case Failure(_) => toUpdate += atom // it has possibly been created meanwhile but we don't know with which values
+              }
+            }
+          )
+          .flatMap(_ => DBIO.sequence(
+            toUpdate
+              .result
+              // for efficiency purpose, try to chain as less requests as possible by gathering the atoms sharing the same status
+              .groupBy(statusMap)
+              .map { case (TargetAtomStatus(newCode, newDetail), atomsToUpdate) =>
+                targetStatusQuery
+                  .filter(_.targetAtom.inSet(atomsToUpdate)) // we could reject impossible transitions here too but it's not that important: see below
+                  .map(ts => (ts.code, ts.detail))
+                  // there might be a race condition here, but we don't care: if two requests give different results
+                  // at the "same time" for the same target, we don't know which one is right anyway
+                  .update(newCode, newDetail)
+              }
+          ))
+      }
+      .withPinnedSession
     dbContext.db.run(query).map(_ => ())
   }
 }
