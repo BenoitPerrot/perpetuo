@@ -248,16 +248,13 @@ class DbBinding @Inject()(val dbContext: DbContext)
       .map { case (((targetStatus, _), _), _) => targetStatus }
 
     val lastExecutionIdPerTarget = operationTraceQuery
-      .filter(_.deploymentRequestId === deploymentRequest.id)
-      .map(_.id)
-      .sortBy(_.desc)
-      .take(1)
       .join(executionQuery)
       .join(targetStatusQuery)
-      .filter { case ((operationTraceId, execution), targetStatus) =>
-        operationTraceId === execution.operationTraceId && execution.id === targetStatus.executionId
+      .filter { case ((operationTrace, execution), targetStatus) =>
+        targetStatus.executionId === execution.id && execution.operationTraceId === operationTrace.id && operationTrace.deploymentRequestId === deploymentRequest.id
       }
       .map { case (_, targetStatus) => targetStatus.targetAtom }
+      .distinct
       .joinLeft(previousTargetStatuses)
       .on { case (impactedTargetAtom, anyTargetStatus) => impactedTargetAtom === anyTargetStatus.targetAtom }
       .groupBy { case (targetAtom, _) => targetAtom }
@@ -387,5 +384,6 @@ class DbBinding @Inject()(val dbContext: DbContext)
         .filter(_.id.in(queryUnreferencedProductIds))
         .delete
     )
+
   // >>
 }
