@@ -231,19 +231,6 @@ class DbBinding @Inject()(val dbContext: DbContext)
     dbContext.db.run(outdatedByOperation.result)
   }
 
-  private def targetAtomsQuery(deploymentRequest: DeploymentRequest) =
-    operationTraceQuery
-      .filter(_.deploymentRequestId === deploymentRequest.id)
-      .map(_.id)
-      .sortBy(_.desc)
-      .take(1)
-      .join(executionQuery)
-      .join(targetStatusQuery)
-      .filter { case ((operationTraceId, execution), targetStatus) =>
-        operationTraceId === execution.operationTraceId && execution.id === targetStatus.executionId
-      }
-      .map { case (_, targetStatus) => targetStatus.targetAtom }
-
   /**
     * @return the target atoms for which there is no previous execution specification on the same product,
     *         followed by the groups of target atoms sharing the same last execution specification for the same product.
@@ -260,7 +247,17 @@ class DbBinding @Inject()(val dbContext: DbContext)
       }
       .map { case (((targetStatus, _), _), _) => targetStatus }
 
-    val lastExecutionIdPerTarget = targetAtomsQuery(deploymentRequest)
+    val lastExecutionIdPerTarget = operationTraceQuery
+      .filter(_.deploymentRequestId === deploymentRequest.id)
+      .map(_.id)
+      .sortBy(_.desc)
+      .take(1)
+      .join(executionQuery)
+      .join(targetStatusQuery)
+      .filter { case ((operationTraceId, execution), targetStatus) =>
+        operationTraceId === execution.operationTraceId && execution.id === targetStatus.executionId
+      }
+      .map { case (_, targetStatus) => targetStatus.targetAtom }
       .joinLeft(previousTargetStatuses)
       .on { case (impactedTargetAtom, anyTargetStatus) => impactedTargetAtom === anyTargetStatus.targetAtom }
       .groupBy { case (targetAtom, _) => targetAtom }
