@@ -72,7 +72,7 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
       .map { groups =>
         val executions = groups.map { case (spec, targets) => (Set(TargetTerm(select = targets)), spec) }
         val atoms = groups.flatMap { case (_, targets) => targets }
-        val reflectInDb = createRecords(deploymentRequest.id, Operation.revert, userName, dispatcher, executions)
+        val reflectInDb = createRecords(deploymentRequest.id, Operation.revert, userName, dispatcher, executions, createTargetStatuses = true)
         (reflectInDb, Some(atoms.toSet))
       }
   }
