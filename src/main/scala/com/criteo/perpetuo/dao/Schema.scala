@@ -241,7 +241,8 @@ class DbBinding @Inject()(val dbContext: DbContext)
       .join(operationTraceQuery)
       .join(deploymentRequestQuery)
       .filter { case (((targetStatus, execution), operationTrace), oldDeploymentRequest) =>
-        targetStatus.executionId === execution.id && execution.operationTraceId === operationTrace.id && operationTrace.deploymentRequestId === oldDeploymentRequest.id &&
+        targetStatus.code =!= Status.notDone && targetStatus.executionId === execution.id &&
+          execution.operationTraceId === operationTrace.id && operationTrace.deploymentRequestId === oldDeploymentRequest.id &&
           oldDeploymentRequest.productId === deploymentRequest.productId && oldDeploymentRequest.id < deploymentRequest.id
         // because it's impossible to apply deployment requests in another order than creation one
       }
@@ -251,7 +252,8 @@ class DbBinding @Inject()(val dbContext: DbContext)
       .join(executionQuery)
       .join(targetStatusQuery)
       .filter { case ((operationTrace, execution), targetStatus) =>
-        targetStatus.executionId === execution.id && execution.operationTraceId === operationTrace.id && operationTrace.deploymentRequestId === deploymentRequest.id
+        targetStatus.code =!= Status.notDone && targetStatus.executionId === execution.id &&
+          execution.operationTraceId === operationTrace.id && operationTrace.deploymentRequestId === deploymentRequest.id
       }
       .map { case (_, targetStatus) => targetStatus.targetAtom }
       .distinct
