@@ -297,7 +297,7 @@ class Engine @Inject()(val dbBinding: DbBinding,
         dbBinding.findExecutionTraceById(id).map(_.get).flatMap { execTrace =>
           val op = execTrace.operationTrace
 
-          dbBinding.updateTargetStatuses(execTrace.executionId, statusMap)
+          dbBinding.dbContext.db.run(dbBinding.updateTargetStatuses(execTrace.executionId, statusMap))
             .flatMap(_ => dbBinding.hasOpenExecutionTracesForOperation(op.id))
             .flatMap { hasOpenExecutions =>
               if (hasOpenExecutions)

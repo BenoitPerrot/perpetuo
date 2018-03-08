@@ -36,8 +36,8 @@ class TargetStatusSpec extends FunSuite with ScalaFutures
         deployOperationTrace <- dbContext.db.run(insertOperationTrace(request.id, Operation.deploy, "n.armstrong"))
         execSpec <- insertExecutionSpecification("{}", Version("\"456\""))
         execId <- dbContext.db.run(insertExecution(deployOperationTrace.id, execSpec.id))
-        _ <- updateTargetStatuses(execId, Map(
-          "Moon" -> TargetAtomStatus(Status.hostFailure, "Houston, we've got a problem")))
+        _ <- dbContext.db.run(updateTargetStatuses(execId, Map(
+          "Moon" -> TargetAtomStatus(Status.hostFailure, "Houston, we've got a problem"))))
         targetStatuses <- readStatuses
         nbStatuses <- dbContext.db.run(targetStatusQuery.filter(_.executionId === execId).length.result)
       } yield {
@@ -58,15 +58,15 @@ class TargetStatusSpec extends FunSuite with ScalaFutures
         execSpec <- insertExecutionSpecification("{}", Version("\"0\""))
         execId <- dbContext.db.run(insertExecution(deployOperationTrace.id, execSpec.id))
         statuses1 <- readStatuses
-        _ <- updateTargetStatuses(execId, Map(
-          "West" -> TargetAtomStatus(Status.running, "confident")))
+        _ <- dbContext.db.run(updateTargetStatuses(execId, Map(
+          "West" -> TargetAtomStatus(Status.running, "confident"))))
         statuses2 <- readStatuses
-        _ <- updateTargetStatuses(execId, Map(
+        _ <- dbContext.db.run(updateTargetStatuses(execId, Map(
           "West" -> TargetAtomStatus(Status.productFailure, "crashing"),
-          "East" -> TargetAtomStatus(Status.running, "starting")))
+          "East" -> TargetAtomStatus(Status.running, "starting"))))
         statuses3 <- readStatuses
-        _ <- updateTargetStatuses(execId, Map(
-          "East" -> TargetAtomStatus(Status.running, "soaring")))
+        _ <- dbContext.db.run(updateTargetStatuses(execId, Map(
+          "East" -> TargetAtomStatus(Status.running, "soaring"))))
         statuses4 <- readStatuses
       } yield {
         assert(statuses1 == "")

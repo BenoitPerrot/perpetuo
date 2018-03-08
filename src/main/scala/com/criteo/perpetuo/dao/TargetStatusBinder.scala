@@ -3,7 +3,6 @@ package com.criteo.perpetuo.dao
 import com.criteo.perpetuo.model.{Status, TargetAtom, TargetAtomStatus, TargetStatus}
 
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.Future
 import scala.util.{Failure, Success}
 
 
@@ -50,8 +49,8 @@ trait TargetStatusBinder extends TableBinder {
     * considered independent so this function must apply as many changes as possible in order for the next client's
     * attempts to have a chance to succeed.
     */
-  def updateTargetStatuses(executionId: Long, statusMap: Map[String, TargetAtomStatus]): Future[Unit] = {
-    val query = targetStatusQuery
+  def updateTargetStatuses(executionId: Long, statusMap: Map[String, TargetAtomStatus]): DBIOAction[Unit, NoStream, Effect.Read with Effect.Write] =
+    targetStatusQuery
       // first look at what is already created (nothing is ever removed) in order to
       // decrease the size of the following chain of inserts and updates (which can be costly)
       .filter(ts => ts.executionId === executionId && ts.targetAtom.inSet(statusMap.keySet))
@@ -93,7 +92,6 @@ trait TargetStatusBinder extends TableBinder {
               }
           ))
       }
+      .map(_ => ())
       .withPinnedSession
-    dbContext.db.run(query).map(_ => ())
-  }
 }
