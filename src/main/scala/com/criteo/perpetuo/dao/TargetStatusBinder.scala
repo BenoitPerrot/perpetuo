@@ -3,6 +3,7 @@ package com.criteo.perpetuo.dao
 import com.criteo.perpetuo.model.{Status, TargetAtom, TargetAtomStatus, TargetStatus}
 
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.Future
 import scala.util.{Failure, Success}
 
 
@@ -39,6 +40,9 @@ trait TargetStatusBinder extends TableBinder {
   }
 
   val targetStatusQuery: TableQuery[TargetStatusTable] = TableQuery[TargetStatusTable]
+
+  def findTargetsByExecution(executionId: Long): Future[Seq[String]] =
+    dbContext.db.run(targetStatusQuery.filter(_.executionId === executionId).map(_.targetAtom).result)
 
   /**
     * Hard-core implementation of a SQL bulk and transaction-free insert-or-update.

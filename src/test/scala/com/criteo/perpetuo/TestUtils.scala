@@ -1,8 +1,20 @@
 package com.criteo.perpetuo
 
-import com.criteo.perpetuo.config.AppConfigProvider
-import com.criteo.perpetuo.dao.{DbContext, DbContextProvider, TestingDbContextModule}
+import java.sql.Timestamp
 
+import com.criteo.perpetuo.config.{AppConfigProvider, PluginLoader, Plugins}
+import com.criteo.perpetuo.dao.{DbBinding, DbContext, DbContextProvider, TestingDbContextModule}
+import com.criteo.perpetuo.engine.Engine
+import com.criteo.perpetuo.model._
+import com.twitter.inject.Test
+import org.scalatest.matchers.Matcher
+import spray.json.DefaultJsonProtocol._
+import spray.json._
+
+import scala.collection.mutable
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.duration._
+import scala.concurrent.{Await, Awaitable, Future}
 import scala.io.Source
 
 
@@ -17,4 +29,63 @@ object TestUtils {
 trait TestDb extends DbContextProvider {
   lazy val dbTestModule = new TestingDbContextModule(AppConfigProvider.config.getConfig("db"))
   lazy val dbContext: DbContext = dbTestModule.providesDbContext
+}
+
+
+trait SimpleScenarioTesting extends Test with TestDb {
+  private val lastDeploymentRequests = mutable.Map[String, Long]()
+  val plugins = new Plugins(new PluginLoader)
+  val engine = new Engine(new DbBinding(dbContext), plugins.resolver, plugins.dispatcher, plugins.permissions, plugins.listeners)
+
+  def become[T](value: T): Matcher[Future[T]] = be(value).compose(Await.result(_, 1.second))
+
+  def await[T](a: Awaitable[T]): T = Await.result(a, 1.second)
+
+  def deploy(productName: String, version: String, target: Seq[String], finalStatus: Status.Code = Status.success): Unit = {
+    if (!lastDeploymentRequests.contains(productName))
+      await(engine.insertProduct(productName))
+
+    val attrs = new DeploymentRequestAttrs(productName, Version(version.toJson), target.toJson.compactPrint, "", "de.ployer", new Timestamp(System.currentTimeMillis))
+    await {
+      for {
+        depReqId <- engine.createDeploymentRequest(attrs).map { output =>
+          val id = output("id").asInstanceOf[Long]
+          lastDeploymentRequests(productName) = id
+          id
+        }
+        op <- engine.startDeploymentRequest(depReqId, "s.tarter")
+        operationTraceId = op.get.id
+        executionTraceIds <- engine.dbBinding.findExecutionTraceIdsByOperationTrace(operationTraceId)
+        _ <- Future.traverse(executionTraceIds) { executionTraceId =>
+          engine.updateExecutionTrace(
+            executionTraceId, ExecutionState.completed, "", None,
+            target.map(_ -> TargetAtomStatus(finalStatus, "")).toMap
+          )
+        }
+      } yield operationTraceId
+    }
+  }
+
+  def revert(productName: String, defaultVersion: Option[String] = None): Unit = {
+    val depReqId = lastDeploymentRequests(productName)
+    await {
+      for {
+        op <- engine.revert(depReqId, "r.everter", defaultVersion.map(v => Version(v.toJson)))
+        operationTraceId = op.get.id
+        executionIds <- engine.dbBinding.findExecutionIdsByOperationTrace(operationTraceId)
+        _ <- Future.traverse(executionIds) { executionId =>
+          engine.dbBinding.findTargetsByExecution(executionId).flatMap { atoms =>
+            engine.dbBinding.findExecutionTraceIdsByExecution(executionId).flatMap(executionTraceIds =>
+              Future.traverse(executionTraceIds) { executionTraceId =>
+                engine.updateExecutionTrace(
+                  executionTraceId, ExecutionState.completed, "", None,
+                  atoms.map(_ -> TargetAtomStatus(Status.success, "")).toMap
+                )
+              }
+            )
+          }
+        }
+      } yield operationTraceId
+    }
+  }
 }

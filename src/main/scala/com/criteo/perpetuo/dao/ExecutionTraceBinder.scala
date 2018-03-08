@@ -95,6 +95,14 @@ trait ExecutionTraceBinder extends TableBinder {
   private def runUpdate(id: Long, query: Query[ExecutionTraceTable, ExecutionTraceRecord, Seq] => DBIOAction[Int, NoStream, Effect.Write]): Future[Option[Long]] =
     dbContext.db.run(query(executionTraceQuery.filter(_.id === id))).map(count => if (count == 0) None else Some(id))
 
+  def findExecutionTraceIdsByExecution(executionId: Long): Future[Seq[Long]] =
+    dbContext.db.run(
+      executionTraceQuery
+        .filter(_.executionId === executionId)
+        .map(_.id)
+        .result
+    )
+
   // for tests only
   def findExecutionTraceIdsByOperationTrace(operationTraceId: Long): Future[Seq[Long]] =
     dbContext.db.run(
