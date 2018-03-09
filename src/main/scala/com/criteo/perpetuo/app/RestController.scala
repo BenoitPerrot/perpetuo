@@ -269,9 +269,9 @@ class RestController @Inject()(val engine: Engine)
         "creator" -> op.creator,
         "creationDate" -> op.creationDate,
         "targetStatus" -> {
-          val x = targetStatus.map(targetAtomStatus =>
-            targetAtomStatus.targetAtom -> Map("code" -> targetAtomStatus.code.toString, "detail" -> targetAtomStatus.detail))
-          Map[String, Map[String, String]](x.toSeq: _*)
+          targetStatus
+            .map(ts => ts.targetAtom -> Map("code" -> ts.code.toString, "detail" -> ts.detail))
+            .toMap
         },
         "executions" -> executionTraces
       ) ++ op.closingDate.map("closingDate" -> _)
