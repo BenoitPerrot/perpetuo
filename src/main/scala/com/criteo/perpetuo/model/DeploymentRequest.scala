@@ -41,7 +41,7 @@ trait DeploymentRequest extends ParsedTarget {
 
 class DeploymentRequestAttrs(val productName: String,
                              val version: Version,
-                             val target: String,
+                             val target: String, // fixme: at least a JsValue, or a TargetExpr
                              val comment: String,
                              val creator: String,
                              val creationDate: java.sql.Timestamp) extends ParsedTarget

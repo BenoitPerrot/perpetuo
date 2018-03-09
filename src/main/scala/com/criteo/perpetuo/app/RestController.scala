@@ -91,6 +91,7 @@ class RestController @Inject()(val engine: Engine)
     )
   }
 
+  // todo: remove
   post("/api/products") { r: RequestWithName =>
     authenticate(r.request) { case user if permissions.isAuthorized(user, GeneralAction.addProduct) =>
       timeBoxed(
@@ -217,7 +218,7 @@ class RestController @Inject()(val engine: Engine)
   )
 
   put(RestApi.executionCallbackPath(":id")) {
-    // todo: give the permission to Rundeck only
+    // todo: give the permissions to actual executors
     withIdAndRequest(
       (id, r: ExecutionTracePut) => {
         val executionState =

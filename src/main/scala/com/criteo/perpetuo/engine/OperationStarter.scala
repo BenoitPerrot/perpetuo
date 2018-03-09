@@ -40,7 +40,7 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
                   deploymentRequest: DeepDeploymentRequest,
                   executionSpecs: Seq[ExecutionSpecification],
                   userName: String): OperationStartSpecifics = {
-    // todo: retrieve the real target of the very retried execution
+    // todo: map the right target to the right specification
     val expandedTarget = expandTarget(resolver, deploymentRequest.product.name, deploymentRequest.version, deploymentRequest.parsedTarget)
     val executions = executionSpecs.map(spec => (expandedTarget.getOrElse(deploymentRequest.parsedTarget), spec))
     val reflectInDb = createRecords(deploymentRequest.id, Operation.deploy, userName, dispatcher, executions)
@@ -160,8 +160,8 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
                         invocations
                           .toStream
                           .flatMap { case (_, target) => target.toStream.flatMap(_.select) }
-                          .map(_ -> TargetAtomStatus(Status.notDone, ""))
-                          // todo: change detail to "pending" when all executors send "running" statuses: DREDD-725
+                          .map(_ -> TargetAtomStatus(Status.notDone, "running..."))
+                          // todo: change detail to "pending" when all executors send `running` status codes: DREDD-725
                           .toMap
                       )
                       .flatMap(_ => ret)

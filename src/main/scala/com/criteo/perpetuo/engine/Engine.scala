@@ -184,6 +184,7 @@ class Engine @Inject()(val dbBinding: DbBinding,
       .flatMap { case (trace, updated) =>
         dbBinding.findOperationEffect(trace).flatMap(_
           .map { effect =>
+            // todo: if there still are unfinished target statuses, update them here
             val (kind, status) = computeState(effect)
             val transactionOngoing = kind == Operation.deploy && status == OperationStatus.failed
             if (updated) {

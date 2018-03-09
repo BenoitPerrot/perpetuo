@@ -52,6 +52,7 @@ trait ExecutionTraceBinder extends TableBinder {
     (executionTraceQuery returning executionTraceQuery.map(_.id)) ++= List.fill(numberOfTraces)(execTrace)
   }
 
+  // todo: this method should actually not exist, it's a dangerous shortcut: migrate clients and remove
   def findExecutionTracesByDeploymentRequest(deploymentRequestId: Long): Future[Seq[ShallowExecutionTrace]] =
     dbContext.db.run(
       operationTraceQuery
@@ -87,6 +88,7 @@ trait ExecutionTraceBinder extends TableBinder {
         .result
     )
 
+  // todo: reject forbidden transitions, e.g. from failed to running
   def updateExecutionTrace(id: Long, state: ExecutionState, detail: String, logHref: Option[String] = None): Future[Option[Long]] =
     logHref
       .map(_ => runUpdate(id, _.map(r => (r.state, r.detail, r.logHref)).update((state, detail, logHref))))
