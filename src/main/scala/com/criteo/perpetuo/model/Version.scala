@@ -9,7 +9,7 @@ import spray.json._
 case class PartialVersion(value: JsValue, ratio: Float = 1f)
 
 
-class Version(serialized: String) extends MappedTo[String] {
+case class Version(serialized: String) extends MappedTo[String] {
   val structured: Iterable[PartialVersion] = serialized.parseJson match {
       case JsArray(arr) => arr.map(Version.parseVersion)
       case other => Seq(PartialVersion(other))
@@ -18,8 +18,6 @@ class Version(serialized: String) extends MappedTo[String] {
   override def toString: String = serialized
 
   override def value: String = serialized
-
-  override def equals(o: scala.Any): Boolean = o.isInstanceOf[Version] && o.asInstanceOf[Version].value == value
 }
 
 
@@ -40,8 +38,6 @@ object Version {
 
   val maxSize: Int = 1024
   val ratioPrecision = 1e-6
-
-  def apply(input: String): Version = new Version(input)
 
   def apply(input: JsValue): Version = {
     val versionArray = input match {
