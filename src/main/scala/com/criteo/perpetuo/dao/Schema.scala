@@ -261,6 +261,7 @@ class DbBinding @Inject()(val dbContext: DbContext)
       .on { case (impactedTargetAtom, anyTargetStatus) => impactedTargetAtom === anyTargetStatus.targetAtom }
       .groupBy { case (targetAtom, _) => targetAtom }
       .map { case (targetAtom, q) =>
+        // todo: try to modify and reuse `latestExecutions` (it seems runtime-incompatible with the current query!)
         (targetAtom, q.map { case (_, targetStatus) => targetStatus.map(_.executionId) }.max)
       }
 
@@ -368,6 +369,47 @@ class DbBinding @Inject()(val dbContext: DbContext)
           toOperationEffect(operationTrace, results.map { case (_, e, t) => (e, t) })
         }
       )
+  }
+
+  private def latestExecutions(targetStatuses: Query[TargetStatusTable, TargetStatusRecord, Seq]) =
+    targetStatuses
+      .groupBy(_.targetAtom)
+      .map { case (targetAtom, q) =>
+        (targetAtom, q.map(_.executionId).max) // fixme: only true as long as the order of the requests is preserved
+      }
+      .join(executionQuery)
+      .join(executionSpecificationQuery)
+      .filter { case (((_, executionId), execution), execSpec) =>
+        executionId === execution.id && execution.executionSpecificationId === execSpec.id
+      }
+      .map { case (((atom, _), _), execSpec) => (atom, execSpec) }
+
+  /**
+    * Compute the last version deployed on each given target if applicable for the given product,
+    * with respect to the deployment history only.
+    * Caution: it's hence a supposition about the current status of the targets as for the given product,
+    * but unaware of the actual availability of the targets, for instance.
+    *
+    * @return for each target atom, the version assumed to be running (either successfully, failing, or still being deployed)
+    */
+  def findCurrentVersionForEachKnownTarget(productName: String, amongAtoms: Iterable[String]): Future[Map[String, Version]] = {
+    val allStatuses = targetStatusQuery
+      .join(executionQuery)
+      .join(operationTraceQuery)
+      .join(deploymentRequestQuery)
+      .join(productQuery)
+      .filter { case ((((ts, ex), op), dr), p) =>
+        ts.targetAtom.inSet(amongAtoms) && ts.code =!= Status.notDone &&
+          ts.executionId === ex.id && ex.operationTraceId === op.id &&
+          op.deploymentRequestId === dr.id && dr.productId === p.id && p.name === productName
+      }
+      .map { case ((((ts, _), _), _), _) => ts }
+
+    dbContext.db.run(
+      latestExecutions(allStatuses)
+        .map { case (atom, spec) => (atom, spec.version) }
+        .result
+    ).map(_.toMap)
   }
 
   // TODO: remove <<

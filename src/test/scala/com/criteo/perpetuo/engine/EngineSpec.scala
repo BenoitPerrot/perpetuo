@@ -2,13 +2,11 @@ package com.criteo.perpetuo.engine
 
 import java.sql.Timestamp
 
-import com.criteo.perpetuo.TestDb
-import com.criteo.perpetuo.config.{PluginLoader, Plugins}
+import com.criteo.perpetuo.SimpleScenarioTesting
 import com.criteo.perpetuo.dao.DbBinding
 import com.criteo.perpetuo.engine.dispatchers.{SingleTargetDispatcher, UnprocessableIntent}
 import com.criteo.perpetuo.engine.invokers.DummyInvoker
 import com.criteo.perpetuo.model._
-import com.twitter.inject.Test
 import spray.json.DefaultJsonProtocol._
 import spray.json._
 
@@ -33,12 +31,7 @@ object DummyInvokerWithLogHref extends DummyInvoker("DummyWithLogHref") {
 }
 
 
-class EngineSpec extends Test with TestDb {
-
-  private val plugins = new Plugins(new PluginLoader)
-  // TODO: should instantiate TargetDispatcherForTesting explicitly instead of by-conf, for clarity
-  private val engine = new Engine(new DbBinding(dbContext), plugins.resolver, plugins.dispatcher, plugins.permissions, plugins.listeners)
-
+class EngineSpec extends SimpleScenarioTesting {
 
   test("A trivial execution triggers a job with no log href when there is no log href provided") {
     Await.result(
@@ -368,6 +361,32 @@ class EngineSpec extends Test with TestDb {
       ),
       2.seconds
     ) shouldBe(1, 2, false, false, false, true, true)
+  }
+
+  test("Engine's binding provides the last version deployed on a given target") {
+    def v(versionName: String): Version = Version(JsString(versionName))
+
+    deploy("mournful-moray", "v13", Seq("paris", "london", "tokyo"))
+    deploy("pirate-piranha", "0.0.1", Seq("london", "tokyo"))
+    deploy("mournful-moray", "v14.doomed", Seq("paris", "tokyo"), Status.notDone)
+    deploy("mournful-moray", "v13.eu", Seq("paris", "london", "kuala lumpur"), Status.productFailure)
+
+    // projects don't override each other
+    engine.dbBinding.findCurrentVersionForEachKnownTarget("pirate-piranha", Seq("paris", "london", "tokyo")) should
+      become(Map("london" -> v("0.0.1"), "tokyo" -> v("0.0.1"))) // no "paris"
+
+    // if a version failed to start, it still counts as the last deployed version
+    engine.dbBinding.findCurrentVersionForEachKnownTarget("mournful-moray", Seq("london", "paris", "new-york")) should
+      become(Map("paris" -> v("v13.eu"), "london" -> v("v13.eu"))) // no "new-york"
+
+    // if a version has not been actually deployed on a target (i.e. despite the request, see status `notDone`)
+    // it must not be considered as the last deployed version on the target
+    engine.dbBinding.findCurrentVersionForEachKnownTarget("mournful-moray", Seq("tokyo")) should
+      become(Map("tokyo" -> v("v13")))
+
+    revert("mournful-moray", Some("prewar"))
+    engine.dbBinding.findCurrentVersionForEachKnownTarget("mournful-moray", Seq("paris", "london", "tokyo", "kuala lumpur")) should
+      become(Map("paris" -> v("v13"), "london" -> v("v13"), "tokyo" -> v("v13"), "kuala lumpur" -> v("prewar")))
   }
 
 }
