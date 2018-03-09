@@ -334,4 +334,34 @@ class Engine @Inject()(val dbBinding: DbBinding,
     (operationTrace.kind, lastOperationState)
   }
 
+  /**
+    * Compute the version that should be used in order to align the given target
+    * with the main version deployed lately in reference targets, if applicable.
+    *
+    * @param referenceAtoms : ordered sequence of sets of target *atoms* whose "current" versions
+    *                       must be inferred from the deployment history; the queries are applied
+    *                       per set and in sequence until one responds at least a version.
+    * @return the majority version of the first reference pool for which a version is found
+    */
+  def computeDominantVersion(productName: String, referenceAtoms: Iterable[Iterable[String]]): Future[Option[Version]] = {
+    // the fold function to chain the asynchronous queries as long as we get no result
+    def chainQueries(acc: Future[Map[String, Version]], atomsGroup: Iterable[String]) =
+      acc.flatMap(lastVersions =>
+        if (lastVersions.isEmpty) // run the query below until we get a non-empty result
+          dbBinding.findCurrentVersionForEachKnownTarget(productName, atomsGroup)
+        else
+          Future.successful(lastVersions)
+      )
+
+    referenceAtoms
+      .foldLeft(Future.successful(Map[String, Version]()))(chainQueries)
+      .map { knownVersions =>
+        // get the most represented version in that pool
+        knownVersions.headOption.map { _ =>
+          val (version, _) = knownVersions.values.groupBy(identity).maxBy { case (_, list) => list.size }
+          version
+        }
+      }
+  }
+
 }

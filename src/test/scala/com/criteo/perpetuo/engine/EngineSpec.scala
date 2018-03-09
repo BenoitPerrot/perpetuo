@@ -389,4 +389,45 @@ class EngineSpec extends SimpleScenarioTesting {
       become(Map("paris" -> v("v13"), "london" -> v("v13"), "tokyo" -> v("v13"), "kuala lumpur" -> v("prewar")))
   }
 
+  test("Engine computes the dominant version when given an ordered sequence of reference pools") {
+    def v(versionName: String): Option[Version] = Some(Version(JsString(versionName)))
+
+    deploy("spatial-sparrow", "hot-fix", Seq("sun"))
+    deploy("side-siberian", "universal", Seq("sun", "earth", "saturn", "proxima"))
+    deploy("spatial-sparrow", "sunny", Seq("mercury", "venus", "earth", "mars"))
+    deploy("spatial-sparrow", "cold", Seq("jupiter", "saturn", "uranus", "neptune"))
+    deploy("side-siberian", "future", Seq("earth", "mars", "neptune"))
+    deploy("spatial-sparrow", "fantasy", Seq("earth", "mars", "moon"))
+    revert("spatial-sparrow", defaultVersion = Some("big-bang"))
+    deploy("spatial-sparrow", "no-op", Seq("mercury", "earth"), Status.notDone)
+
+    engine.computeDominantVersion("spatial-sparrow", Seq(
+      Seq("unknown"))
+    ) should become(Option.empty[Version])
+
+    engine.computeDominantVersion("spatial-sparrow", Seq(
+      Seq("sun"))
+    ) should become(v("hot-fix"))
+
+    engine.computeDominantVersion("spatial-sparrow", Seq(
+      Seq("sun", "mercury", "venus"), // hot-fix, sunny, sunny
+      Seq("jupiter", "saturn", "uranus", "neptune") // cold, cold, cold, cold
+    )) should become(v("sunny"))
+
+    engine.computeDominantVersion("spatial-sparrow", Seq(
+      Seq("unknown", "target"), //
+      Seq("mercury", "venus"), // sunny, sunny
+      Seq("jupiter", "saturn", "uranus", "neptune") // cold, cold, cold, cold
+    )) should become(v("sunny"))
+
+    engine.computeDominantVersion("spatial-sparrow", Seq(
+      Seq("moon")
+    )) should become(v("big-bang"))
+
+    engine.computeDominantVersion("spatial-sparrow", Seq(
+      Seq("earth", "mars", "uranus"), // sunny (from revert), sunny (from revert), cold
+      Seq("jupiter", "saturn", "neptune") // cold, cold, cold
+    )) should become(v("sunny"))
+  }
+
 }
