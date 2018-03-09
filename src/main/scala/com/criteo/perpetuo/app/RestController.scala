@@ -5,8 +5,7 @@ import javax.inject.Inject
 import com.criteo.perpetuo.auth.UserFilter._
 import com.criteo.perpetuo.auth.{DeploymentAction, GeneralAction, User}
 import com.criteo.perpetuo.config.AppConfigProvider
-import com.criteo.perpetuo.dao.UnknownProduct
-import com.criteo.perpetuo.engine.dispatchers.{NoAvailableExecutor, UnprocessableIntent}
+import com.criteo.perpetuo.engine.dispatchers.NoAvailableExecutor
 import com.criteo.perpetuo.engine.{Engine, OperationStatus, RejectingError}
 import com.criteo.perpetuo.model._
 import com.twitter.finagle.http.{Request, Status => HttpStatus}
@@ -134,17 +133,7 @@ class RestController @Inject()(val engine: Engine)
         throw ForbiddenException()
 
       timeBoxed(
-        {
-          val resp = try {
-            engine.createDeploymentRequest(allAttrs)
-          } catch {
-            case e: UnprocessableIntent => throw BadRequestException(e.getMessage)
-          }
-          resp.map(x => Some(response.created.json(x)))
-            .recover {
-              case e: UnknownProduct => throw BadRequestException(s"Product `${e.productName}` could not be found")
-            }
-        },
+        engine.createDeploymentRequest(allAttrs).map(x => Some(response.created.json(x))),
         5.seconds
       )
     }
