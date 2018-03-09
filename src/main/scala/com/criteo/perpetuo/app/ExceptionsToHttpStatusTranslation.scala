@@ -14,7 +14,7 @@ import scala.concurrent.{Await, Future, TimeoutException}
 trait ExceptionsToHttpStatusTranslation {
   protected def response: ResponseBuilder
 
-  def await[T](future: Future[T], maxDuration: Duration): T =
+  def await[T](future: => Future[T], maxDuration: Duration): T =
     handleExceptions(Await.result(future, maxDuration))
 
   private def toHttpResponseException(e: RejectingError, status: Status): HttpResponseException = {
