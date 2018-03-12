@@ -16,9 +16,9 @@ object Status extends Enumeration {
   type Code = Value
 
   // these values must be stable, since they are persisted in the DB
-  val running = Value(0)
-  val success = Value(1)
-  val productFailure = Value(2)
-  val hostFailure = Value(3)
-  val notDone = Value(4)
+  val running = Value(0, "running")
+  val success = Value(1, "success")
+  val productFailure = Value(2, "productFailure")
+  val hostFailure = Value(3, "hostFailure")
+  val notDone = Value(4, "notDone")
 }

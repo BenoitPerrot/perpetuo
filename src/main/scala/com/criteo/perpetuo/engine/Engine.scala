@@ -18,10 +18,10 @@ import scala.util.Try
 
 
 object OperationStatus extends Enumeration {
-  val inProgress = Value
-  val flopped = Value
-  val failed = Value
-  val succeeded = Value
+  val inProgress = Value("inProgress")
+  val flopped = Value("flopped")
+  val failed = Value("failed")
+  val succeeded = Value("succeeded")
 }
 
 abstract class RejectingError extends RuntimeException {
