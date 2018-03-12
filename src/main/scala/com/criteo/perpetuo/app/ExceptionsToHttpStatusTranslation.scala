@@ -4,8 +4,10 @@ import com.criteo.perpetuo.dao.UnknownProduct
 import com.criteo.perpetuo.engine.dispatchers.UnprocessableIntent
 import com.criteo.perpetuo.engine.{Conflict, MissingInfo, RejectingError, UnavailableAction}
 import com.twitter.finagle.http.Status
+import com.twitter.finagle.{TimeoutException => FinagleTimeout}
 import com.twitter.finatra.http.exceptions.{BadRequestException, HttpException, HttpResponseException}
 import com.twitter.finatra.http.response.ResponseBuilder
+import com.twitter.util.{TimeoutException => TwitterTimeout}
 
 import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, Future, TimeoutException}
@@ -27,6 +29,8 @@ trait ExceptionsToHttpStatusTranslation {
       action
     }
     catch {
+      case e: FinagleTimeout => throw HttpException(Status.GatewayTimeout, e.getMessage)
+      case e: TwitterTimeout => throw HttpException(Status.GatewayTimeout, e.getMessage)
       case e: TimeoutException => throw HttpException(Status.GatewayTimeout, e.getMessage)
       case e: Conflict => throw toHttpResponseException(e, Status.Conflict)
       case e: MissingInfo => throw toHttpResponseException(e, Status.UnprocessableEntity)

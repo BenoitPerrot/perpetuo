@@ -12,7 +12,7 @@ import com.twitter.finagle.service.{Backoff, RetryPolicy}
 import com.twitter.util.{Await, Duration, Future => TwitterFuture, TimeoutException => TwitterTimeout, Try => TwitterTry}
 
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.{Future, TimeoutException}
+import scala.concurrent.Future
 
 
 abstract class HttpInvoker(val host: String,
@@ -52,12 +52,8 @@ abstract class HttpInvoker(val host: String,
 
     // trigger the job and return a future to the execution's log href
     Future {
-      // convert a twitter Future to a scala one, as well as the possibly induced timeout exception
-      val response = try {
-        Await.result(client(req), requestTimeout + 1.second)
-      } catch {
-        case e: TwitterTimeout => throw new TimeoutException(e.getMessage)
-      }
+      // convert a twitter Future to a scala one
+      val response = Await.result(client(req), requestTimeout + 1.second)
 
       val content = response.contentString
       response.status match {
