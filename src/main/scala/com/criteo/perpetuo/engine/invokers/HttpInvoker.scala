@@ -12,7 +12,7 @@ import com.twitter.finagle.service.{Backoff, RetryPolicy}
 import com.twitter.util.{Await, Duration, Future => TwitterFuture, TimeoutException => TwitterTimeout, Try => TwitterTry}
 
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.{Future => ScalaFuture, TimeoutException => ScalaTimeout}
+import scala.concurrent.{Future, TimeoutException}
 
 
 abstract class HttpInvoker(val host: String,
@@ -46,17 +46,17 @@ abstract class HttpInvoker(val host: String,
 
   override def toString: String = name
 
-  override def trigger(execTraceId: Long, productName: String, version: Version, target: TargetExpr, initiator: String): ScalaFuture[Option[String]] = {
+  override def trigger(execTraceId: Long, productName: String, version: Version, target: TargetExpr, initiator: String): Future[Option[String]] = {
     // todo: while we only support deployment tactics, we directly give the select dimension, and formatted differently
     val req = buildRequest(execTraceId, productName, version, Target.getSimpleSelect(target).mkString(","), initiator)
 
     // trigger the job and return a future to the execution's log href
-    ScalaFuture {
+    Future {
       // convert a twitter Future to a scala one, as well as the possibly induced timeout exception
       val response = try {
         Await.result(client(req), requestTimeout + 1.second)
       } catch {
-        case e: TwitterTimeout => throw new ScalaTimeout(e.getMessage)
+        case e: TwitterTimeout => throw new TimeoutException(e.getMessage)
       }
 
       val content = response.contentString

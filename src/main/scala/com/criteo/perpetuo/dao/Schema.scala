@@ -6,7 +6,7 @@ import com.criteo.perpetuo.engine.Select
 import com.criteo.perpetuo.model._
 import slick.jdbc.TransactionIsolation
 
-import scala.collection.mutable.{ArrayBuffer, LinkedHashMap => MutableMap}
+import scala.collection.mutable.{ArrayBuffer, LinkedHashMap}
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}
@@ -174,7 +174,7 @@ class DbBinding @Inject()(val dbContext: DbContext)
 
   private def deepQueryDeploymentRequests(q: Query[(DeploymentRequestTable, ProductTable), (DeploymentRequestRecord, ProductRecord), scala.Seq],
                                           order: Seq[Map[String, Any]]): Future[Iterable[(DeepDeploymentRequest, Option[OperationEffect])]] = {
-    type StableMap = MutableMap[Long, ArrayBuffer[DeepRecords]]
+    type StableMap = LinkedHashMap[Long, ArrayBuffer[DeepRecords]]
 
     def groupByDeploymentRequestId(x: Iterable[DeepRecords]): StableMap = {
       x.foldLeft(new StableMap()) { case (result, records) =>
