@@ -60,6 +60,7 @@ class Engine @Inject()(val dbBinding: DbBinding,
                        val permissions: Permissions,
                        val listeners: Seq[AsyncListener]) extends Logging {
 
+  // todo: cosmetics in attributes
   val config = AppConfigProvider.config
 
   private val withTransactions = !Try(config.getBoolean("noTransactions")).getOrElse(false)
@@ -236,7 +237,7 @@ class Engine @Inject()(val dbBinding: DbBinding,
   def startDeploymentRequest(deploymentRequestId: Long, initiatorName: String): Future[Option[ShallowOperationTrace]] = {
     dbBinding.findDeepDeploymentRequestById(deploymentRequestId).flatMap(_
       .map(req =>
-        startOperation(req, operationStarter.startDeploymentRequest(targetResolver, targetDispatcher, req, initiatorName))
+        pureStartDeploymentRequest(req, initiatorName)
           .map { case (operationTrace, started, failed) =>
             listeners.foreach(_.onDeploymentRequestStarted(req, started, failed))
             Some(operationTrace)
@@ -245,6 +246,12 @@ class Engine @Inject()(val dbBinding: DbBinding,
       .getOrElse(Future.successful(None))
     )
   }
+
+  def pureStartDeploymentRequest(deploymentRequest: DeepDeploymentRequest, initiatorName: String): Future[(ShallowOperationTrace, Int, Int)] =
+    startOperation(
+      deploymentRequest,
+      operationStarter.startDeploymentRequest(targetResolver, targetDispatcher, deploymentRequest, initiatorName)
+    )
 
   def deployAgain(deploymentRequestId: Long, initiatorName: String): Future[Option[ShallowOperationTrace]] = {
     dbBinding.findDeepDeploymentRequestAndSpecs(deploymentRequestId).flatMap(
