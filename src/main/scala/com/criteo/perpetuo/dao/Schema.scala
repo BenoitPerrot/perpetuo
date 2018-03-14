@@ -68,7 +68,6 @@ class DbBinding @Inject()(val dbContext: DbContext)
         val operationTrace = operationTraceRecord.toOperationTrace
         toOperationEffect(operationTrace, l.map { case (_, e, t) => (e, t) })
       }
-      .filter { case OperationEffect(_, et, _) => et.nonEmpty } // todo: remove that
 
     (deploymentRequest, sortedEffects)
   }
