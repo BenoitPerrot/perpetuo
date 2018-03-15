@@ -5,15 +5,25 @@ import com.criteo.perpetuo.dao.drivers.DriverByName
 import com.criteo.perpetuo.dao.{DbContext, Schema}
 import com.google.inject.{Provides, Singleton}
 import com.twitter.inject.TwitterModule
-import com.typesafe.config.{Config, ConfigFactory}
+import com.typesafe.config.{Config, ConfigException, ConfigFactory}
 import com.zaxxer.hikari.{HikariConfig, HikariDataSource}
 import slick.driver.JdbcDriver
 import slick.jdbc.JdbcBackend.Database
+import slick.util.AsyncExecutor
 
 class DbContextModule(val config: Config) extends TwitterModule {
+  val threadPrefix = "DB"
+
   val driverName: String = config.getString("driver.name")
   val driverProfile: String = config.getString("driver.profile")
   val driver: JdbcDriver = DriverByName.get(driverProfile)
+  val numThreadsAndQueueSize: Option[(Int, Int)] = {
+    val numThreads = config.tryGet[Int]("numThreads")
+    val queueSize = config.tryGet[Int]("queueSize")
+    if (numThreads.isDefined ^ queueSize.isDefined)
+      throw new ConfigException.Generic("db.numThreads and db.queueSize: either both or none must be provided")
+    numThreads.map((_, queueSize.get))
+  }
 
   private def toHikariConfig(jdbcUrl: String, config: Config) = {
     val maxPoolSize = config.tryGet[Int]("poolMaxSize").getOrElse(10)
@@ -40,6 +50,11 @@ class DbContextModule(val config: Config) extends TwitterModule {
     Database.forDataSource(
       new HikariDataSource(
         toHikariConfig(config.getString("jdbcUrl"), config.tryGetConfig("hikari").getOrElse(ConfigFactory.empty()))
+      ),
+      executor = numThreadsAndQueueSize.map { case (numThreads, queueSize) =>
+        AsyncExecutor(threadPrefix, numThreads, queueSize)
+      }.getOrElse(
+        AsyncExecutor.default(threadPrefix)
       )
     )
 
