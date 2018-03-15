@@ -9,7 +9,7 @@ import com.twitter.finagle.Http.Client
 import com.twitter.finagle.builder.ClientBuilder
 import com.twitter.finagle.http.{Request, Response, Status}
 import com.twitter.finagle.service.{Backoff, RetryPolicy}
-import com.twitter.util.{Await, Duration, Future => TwitterFuture, TimeoutException => TwitterTimeout, Try => TwitterTry}
+import com.twitter.util.{Await, Duration, Future => TwitterFuture, Try => TwitterTry}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
