@@ -183,8 +183,8 @@ class Engine @Inject()(val dbBinding: DbBinding,
     dbBinding.closeOperationTrace(operationTrace)
       .map(_.map((_, true)).getOrElse((operationTrace, false)))
       .flatMap { case (trace, updated) =>
-        dbBinding.findOperationEffect(trace).flatMap(_
-          .map { effect =>
+        dbBinding.getOperationEffect(trace)
+          .flatMap { effect =>
             // todo: if there still are unfinished target statuses, update them here
             val (kind, status) = computeState(effect)
             val transactionOngoing = kind == Operation.deploy && status == OperationStatus.failed
@@ -197,10 +197,7 @@ class Engine @Inject()(val dbBinding: DbBinding,
             }
             releaseLocks(deploymentRequest, transactionOngoing)
           }
-          .getOrElse(
-            Future.successful(0)
-          )
-        ).map(_ => trace)
+          .map(_ => trace)
       }
 
   def isDeploymentRequestStarted(deploymentRequestId: Long): Future[Option[(DeepDeploymentRequest, Boolean)]] =
