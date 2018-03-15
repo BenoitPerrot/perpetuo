@@ -51,7 +51,7 @@ class Server extends HttpServer {
       .add[RestController]
 
       // Add controller for serving static assets as the last one / fallback one
-      .add(new StaticAssetsController(config.tryGet("staticAssets.roots").getOrElse(Seq())))
+      .add(new StaticAssetsController(config.getOrElse("staticAssets.roots", Seq())))
   }
 }
 

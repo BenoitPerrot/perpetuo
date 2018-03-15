@@ -38,7 +38,7 @@ class PluginLoader {
   }
 
   def load[T <: AnyRef](config: Config, typeName: String)(f: PartialFunction[String, T] = PartialFunction.empty): T = {
-    val t = config.tryGet[String]("type").getOrElse(throw new Exception(s"No $typeName is configured, while one is required"))
+    val t = config.getOrElse[String]("type", throw new Exception(s"No $typeName is configured, while one is required"))
     lazy val pluginConfig = config.tryGetConfig("config")
     lazy val stringValue = config.getString(t)
 

@@ -68,7 +68,7 @@ class Engine @Inject()(val dbBinding: DbBinding,
   private val operationStarter = new OperationStarter(dbBinding)
 
   // todo: remove once new workflow is completely in place <<
-  lazy val productsExcludedFromNewWorkflow: Seq[String] = config.tryGet("productsExcludedFromNewWorkflow").getOrElse(Seq())
+  lazy val productsExcludedFromNewWorkflow: Seq[String] = config.getOrElse("productsExcludedFromNewWorkflow", Seq())
 
   def isCoveredByOldWorkflow(productName: String): Boolean =
     productsExcludedFromNewWorkflow.contains(productName)

@@ -34,8 +34,8 @@ class FineGrainedPermissions(generalActionRules: Map[GeneralAction.Value, Author
 object FineGrainedPermissions extends Logging {
   private def createAuthority(config: Config): Authority =
     Authority(
-      config.tryGet[Seq[String]]("userNames").map(_.toSet).getOrElse(Set()),
-      config.tryGet[Seq[String]]("groupNames").map(_.toSet).getOrElse(Set())
+      config.getOrElse[Seq[String]]("userNames", Seq()).toSet,
+      config.getOrElse[Seq[String]]("groupNames", Seq()).toSet
     )
 
   private def createProductRule(config: Config): ProductRule =
