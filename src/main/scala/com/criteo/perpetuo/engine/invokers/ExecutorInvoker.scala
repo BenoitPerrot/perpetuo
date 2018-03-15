@@ -6,37 +6,13 @@ import com.criteo.perpetuo.engine.TargetExpr
 import com.criteo.perpetuo.model.Version
 import com.twitter.inject.Logging
 
-import scala.collection.mutable
 import scala.concurrent.Future
 
 
 abstract class ExecutorInvoker {
-  ExecutorInvoker.registeredInvokers += this
-
   protected def callbackUrl(execTraceId: Long): String = AppConfigProvider.config.getString("selfUrl") + RestApi.executionCallbackPath(execTraceId.toString)
 
   def trigger(execTraceId: Long, productName: String, version: Version, target: TargetExpr, initiator: String): Future[Option[String]]
-
-  def getExecutionDetailsUrlIfApplicable(logHref: String): Option[String] = None
-}
-
-
-object ExecutorInvoker {
-  protected val registeredInvokers: mutable.Set[ExecutorInvoker] = mutable.Set()
-
-  def getExecutionDetailsUrl(logHref: String): String = {
-    if (logHref.contains("://"))
-      logHref
-    else {
-      val urls = ExecutorInvoker.registeredInvokers.flatMap(_.getExecutionDetailsUrlIfApplicable(logHref))
-      if (urls.size != 1)
-        throw new Exception(
-          if (urls.isEmpty) s"Could not interpret log href `$logHref`"
-          else s"Multiple interpretations for `$logHref`: ${urls.mkString(", ")}"
-        )
-      urls.head
-    }
-  }
 }
 
 
