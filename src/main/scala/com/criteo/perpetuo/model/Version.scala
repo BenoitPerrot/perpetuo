@@ -10,10 +10,10 @@ case class PartialVersion(value: JsValue, ratio: Float = 1f)
 
 
 case class Version(serialized: String) extends MappedTo[String] {
-  val structured: Iterable[PartialVersion] = serialized.parseJson match {
-      case JsArray(arr) => arr.map(Version.parseVersion)
-      case other => Seq(PartialVersion(other))
-    }
+  lazy val structured: Iterable[PartialVersion] = serialized.parseJson match {
+    case JsArray(arr) => arr.map(Version.parseVersion)
+    case other => Seq(PartialVersion(other))
+  }
 
   override def toString: String = serialized
 
