@@ -1,5 +1,6 @@
 package com.criteo.perpetuo.engine.invokers
 
+import com.criteo.perpetuo.app.RestApi
 import com.criteo.perpetuo.model.Version
 import com.twitter.finagle.http.{Message, Method, Request}
 import spray.json.DefaultJsonProtocol._
@@ -28,7 +29,7 @@ class RundeckInvoker(name: String, host: String, port: Int, authToken: String, j
 
     // Rundeck before API version 18 does not support invocation with structured arguments
     val args = Map(
-      "callback-url" -> squote(callbackUrl(execTraceId)),
+      "callback-url" -> squote(RestApi.executionCallbackUrl(execTraceId)),
       "product-name" -> squote(productName),
       "target" -> squote(target),
       "product-version" -> quotedVersion

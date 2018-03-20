@@ -358,5 +358,9 @@ class RestController @Inject()(val engine: Engine)
 }
 
 object RestApi {
+  val selfUrl: String = AppConfigProvider.config.getString("selfUrl")
+
   def executionCallbackPath(execTraceId: String): String = s"/api/execution-traces/$execTraceId"
+
+  def executionCallbackUrl(execTraceId: Long): String = selfUrl + executionCallbackPath(execTraceId.toString)
 }
