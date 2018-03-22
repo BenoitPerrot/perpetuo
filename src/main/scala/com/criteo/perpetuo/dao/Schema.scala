@@ -52,17 +52,15 @@ class DbBinding @Inject()(val dbContext: DbContext)
       .result
 
       .flatMap { executionTracesTree =>
-        val operationIdsByExecutionId = executionTracesTree.flatMap { case (_, _, operationTrace, executionId, _) => executionId.map(_ -> operationTrace.get.id.get) }.toMap
+        val executionIdToOperationId = executionTracesTree.flatMap { case (_, _, operationTrace, executionId, _) => executionId.map(_ -> operationTrace.get.id.get) }.toMap
 
-        // in a separate request to not create huge joins between two orthogonal tables: ExecutionTrace and TargetStatus:
+        // in a separate request to not create huge joins between two orthogonal tables: ExecutionTrace and TargetStatus
         targetStatusQuery
-          .filter(_.executionId.inSet(operationIdsByExecutionId.keys))
+          .filter(_.executionId.inSet(executionIdToOperationId.keys))
           .result
 
           .map { targetStatuses =>
-            val targetStatusesByOperationId = targetStatuses
-              .groupBy(targetStatus => operationIdsByExecutionId(targetStatus.executionId))
-              .mapValues(_.map { targetStatus => targetStatus.toTargetStatus })
+            val operationIdToTargetStatuses = targetStatuses.groupBy(targetStatus => executionIdToOperationId(targetStatus.executionId))
 
             executionTracesTree
               .groupBy { case (deploymentRequest, _, _, _, _) => deploymentRequest.id.get }
@@ -77,7 +75,7 @@ class DbBinding @Inject()(val dbContext: DbContext)
                   .map { case (_, operationGroup) =>
                     val (operationTrace, _) = operationGroup.head
                     val executionTraces = operationGroup.flatMap { case (_, executionTrace) => executionTrace.map(_.toExecutionTrace) }
-                    val targetStatuses = targetStatusesByOperationId.getOrElse(operationTrace.id.get, Seq())
+                    val targetStatuses = operationIdToTargetStatuses.getOrElse(operationTrace.id.get, Seq()).map(_.toTargetStatus)
                     OperationEffect(operationTrace.toOperationTrace, executionTraces, targetStatuses)
                   }
                 (deploymentRequest.toDeepDeploymentRequest(product), effects)
