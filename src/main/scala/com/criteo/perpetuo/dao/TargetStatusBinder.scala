@@ -88,7 +88,7 @@ trait TargetStatusBinder extends TableBinder {
               .groupBy(statusMap)
               .map { case (TargetAtomStatus(newCode, newDetail), atomsToUpdate) =>
                 targetStatusQuery
-                  .filter(_.targetAtom.inSet(atomsToUpdate)) // we could reject impossible transitions here too but it's not that important: see below
+                  .filter(ts => ts.executionId === executionId && ts.targetAtom.inSet(atomsToUpdate)) // we could reject impossible transitions here too but it's not that important: see below
                   .map(ts => (ts.code, ts.detail))
                   // there might be a race condition here, but we don't care: if two requests give different results
                   // at the "same time" for the same target, we don't know which one is right anyway
