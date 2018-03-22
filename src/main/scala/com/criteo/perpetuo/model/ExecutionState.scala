@@ -8,7 +8,7 @@ object ExecutionState extends Enumeration {
   val running = Value(2, "running")
   val initFailed = Value(3, "initFailed") // todo: obsolete: migrate clients and remove
   val conflicting = Value(4, "conflicting") // no need to try with another executor: abort everything and revert
-  val aborted = Value(5, "aborted") // the job run has been killed on purpose but sent a [partial] result
-  val lost = Value(6, "lost") // the job run is terminated but the executor never reached Perpetuo
-  val completed = Value(7, "completed") // the final status has been received, either succeeded or failed (per target)
+  val aborted = Value(5, "aborted") // the job terminated too early (everything has not been done), sending a [partial] result
+  val unresolved = Value(6, "unresolved") // the job has terminated without sending the completion status to Perpetuo (should be considered as aborted)
+  val completed = Value(7, "completed") // the completion status has been received, either succeeded or failed (per target)
 }
