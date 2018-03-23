@@ -18,7 +18,7 @@ class RundeckInvoker(name: String,
 
   val API_VERSION = 16
 
-  override def toString: String = s"$name (job $jobName)"
+  override def toString: String = s"$name (job: $jobName)"
 
   private def authenticated(path: String): String =
     s"$path?authtoken=$authToken"
