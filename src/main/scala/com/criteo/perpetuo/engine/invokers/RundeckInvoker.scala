@@ -10,11 +10,11 @@ import scala.collection.JavaConverters._
 
 
 class RundeckInvoker(name: String,
-                     host: String,
-                     port: Int,
+                     val host: String,
+                     val port: Int,
                      authToken: String,
                      jobName: String,
-                     specificParameters: Iterable[(String, String)] = Map()) extends ExecutorHttpTrigger(host, port, name) with UnstoppableInvoker {
+                     specificParameters: Iterable[(String, String)] = Map()) extends ExecutorHttpTrigger with UnstoppableInvoker {
 
   val API_VERSION = 16
 

@@ -37,7 +37,7 @@ class RundeckInvokerSpec extends Test with TestDb {
 
   test("Rundeck's API is followed when a connection problem occurs") {
     val exc = the[Exception] thrownBy testWhenResponseIs(403, "<html>gibberish</html>")
-    exc.getMessage shouldEqual "Bad response from rundeck: Forbidden"
+    exc.getMessage shouldEqual "Bad response from rundeck (job: perpetuo-deployment): Forbidden"
   }
 
   test("Rundeck's API is followed when an internal server error occurs") {

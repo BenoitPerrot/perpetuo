@@ -15,9 +15,9 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
 
-abstract class ExecutorHttpTrigger(val host: String,
-                                   val port: Int,
-                                   val name: String) extends Trigger {
+trait ExecutorHttpTrigger extends Trigger {
+  val host: String
+  val port: Int
 
   // to implement in concrete classes
   /** `buildRequest` returns the HTTP request object ready to invoke the appropriate executor in charge of running the execution. */
@@ -44,8 +44,6 @@ abstract class ExecutorHttpTrigger(val host: String,
     .failFast(false)
     .build()
 
-  override def toString: String = name
-
   override def trigger(execTraceId: Long, productName: String, version: Version, target: TargetExpr, initiator: String): Future[Option[String]] = {
     // todo: while we only support deployment tactics, we directly give the select dimension, and formatted differently
     val req = buildRequest(execTraceId, productName, version, Target.getSimpleSelect(target).mkString(","), initiator)
@@ -63,7 +61,7 @@ abstract class ExecutorHttpTrigger(val host: String,
         case s =>
           val embeddedDetail = extractMessage(response.statusCode, content)
           val detail = if (embeddedDetail.nonEmpty) s"${s.reason}: $embeddedDetail" else s.reason
-          throw new Exception(s"Bad response from $name: " + detail)
+          throw new Exception(s"Bad response from $this: " + detail)
       }
     }
   }
