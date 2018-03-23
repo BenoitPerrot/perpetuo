@@ -1,13 +1,13 @@
 package com.criteo.perpetuo.engine
 
 import com.criteo.perpetuo.engine.dispatchers.{TargetDispatcher, UnprocessableIntent}
-import com.criteo.perpetuo.engine.invokers.{DummyInvoker, ExecutorInvoker}
+import com.criteo.perpetuo.engine.invokers.{DummyUnstoppableInvoker, ExecutorInvoker}
 import com.criteo.perpetuo.model.Version
 
 
 class TargetDispatcherForTesting extends TargetDispatcher {
 
-  private val executorInvoker = new DummyInvoker("invoker-for-testing")
+  private val executorInvoker = new DummyUnstoppableInvoker("invoker-for-testing")
 
   override def freezeParameters(productName: String, version: Version): String = {
     if (productName == TargetDispatcherForTesting.productWithNoDeployTypeName)

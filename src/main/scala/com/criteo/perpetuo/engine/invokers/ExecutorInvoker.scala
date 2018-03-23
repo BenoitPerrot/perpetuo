@@ -7,12 +7,19 @@ import com.twitter.inject.Logging
 import scala.concurrent.Future
 
 
-abstract class ExecutorInvoker {
+trait Trigger {
   def trigger(execTraceId: Long, productName: String, version: Version, target: TargetExpr, initiator: String): Future[Option[String]]
 }
 
 
-class DummyInvoker(name: String) extends ExecutorInvoker with Logging {
+sealed trait ExecutorInvoker extends Trigger
+
+trait UnstoppableInvoker extends ExecutorInvoker
+
+
+// default no-op implementation of an invoker, whose execution is for now seen as running forever
+// todo: add support for synchronous invokers to ease the integration of trivial deployments? they would immediately return their final status
+class DummyUnstoppableInvoker(name: String) extends UnstoppableInvoker with Logging {
   override def toString: String = name
 
   override def trigger(execTraceId: Long, productName: String, version: Version, target: TargetExpr, initiator: String): Future[Option[String]] = {

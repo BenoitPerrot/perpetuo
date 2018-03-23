@@ -4,7 +4,7 @@ import java.util.logging.Logger
 
 import com.criteo.perpetuo.auth._
 import com.criteo.perpetuo.engine.dispatchers.{SingleTargetDispatcher, TargetDispatcher}
-import com.criteo.perpetuo.engine.invokers.{DummyInvoker, ExecutorInvoker, RundeckInvoker}
+import com.criteo.perpetuo.engine.invokers.{DummyUnstoppableInvoker, ExecutorInvoker, RundeckInvoker}
 import com.criteo.perpetuo.engine.resolvers.TargetResolver
 import com.criteo.perpetuo.engine.{AsyncListener, Provider}
 import com.google.inject.{Inject, Singleton}
@@ -24,7 +24,7 @@ class Plugins @Inject()(loader: PluginLoader) {
 
   def invoker(invokerConfig: Config): ExecutorInvoker = {
     loader.load[ExecutorInvoker](invokerConfig, "invoker") {
-      case "dummy" => new DummyInvoker(invokerConfig.getString("dummy.name"))
+      case "dummy" => new DummyUnstoppableInvoker(invokerConfig.getString("dummy.name"))
       case "rundeck" => new RundeckInvoker(
         invokerConfig.getString("rundeck.name"),
         invokerConfig.getString("rundeck.host"),

@@ -5,7 +5,7 @@ import java.sql.Timestamp
 import com.criteo.perpetuo.SimpleScenarioTesting
 import com.criteo.perpetuo.dao.DbBinding
 import com.criteo.perpetuo.engine.dispatchers.{SingleTargetDispatcher, UnprocessableIntent}
-import com.criteo.perpetuo.engine.invokers.DummyInvoker
+import com.criteo.perpetuo.engine.invokers.DummyUnstoppableInvoker
 import com.criteo.perpetuo.model._
 import spray.json.DefaultJsonProtocol._
 import spray.json._
@@ -15,13 +15,13 @@ import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}
 
 
-object FailingInvoker extends DummyInvoker("DummyWithLogHref") {
+object FailingInvoker extends DummyUnstoppableInvoker("DummyWithLogHref") {
   override def trigger(execTraceId: Long, productName: String, version: Version, target: TargetExpr, initiator: String): Future[Option[String]] = {
     throw new RuntimeException("too bad, dude")
   }
 }
 
-object DummyInvokerWithLogHref extends DummyInvoker("DummyWithLogHref") {
+object DummyInvokerWithLogHref extends DummyUnstoppableInvoker("DummyWithLogHref") {
   override def trigger(execTraceId: Long, productName: String, version: Version, target: TargetExpr, initiator: String): Future[Option[String]] = {
     super.trigger(execTraceId, productName, version, target, initiator).map { logHref =>
       assert(logHref.isEmpty)

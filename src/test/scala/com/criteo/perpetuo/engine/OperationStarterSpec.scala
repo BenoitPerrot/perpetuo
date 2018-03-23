@@ -5,7 +5,7 @@ import java.sql.Timestamp
 import com.criteo.perpetuo.TestDb
 import com.criteo.perpetuo.dao._
 import com.criteo.perpetuo.engine.dispatchers.{SingleTargetDispatcher, TargetDispatcher}
-import com.criteo.perpetuo.engine.invokers.{DummyInvoker, ExecutorInvoker}
+import com.criteo.perpetuo.engine.invokers.{DummyUnstoppableInvoker, ExecutorInvoker}
 import com.criteo.perpetuo.engine.resolvers.TargetResolver
 import com.criteo.perpetuo.model._
 import com.twitter.inject.Test
@@ -20,9 +20,9 @@ import scala.reflect.{ClassTag, classTag}
 
 
 object TestTargetDispatcher extends TargetDispatcher {
-  val aInvoker = new DummyInvoker("A's invoker")
-  val bInvoker = new DummyInvoker("B's invoker")
-  val cInvoker = new DummyInvoker("C's invoker")
+  val aInvoker = new DummyUnstoppableInvoker("A's invoker")
+  val bInvoker = new DummyUnstoppableInvoker("B's invoker")
+  val cInvoker = new DummyUnstoppableInvoker("C's invoker")
 
   override def freezeParameters(productName: String, version: Version): String = "foobar"
 
@@ -40,7 +40,7 @@ object TestTargetDispatcher extends TargetDispatcher {
   }
 }
 
-object DummyTargetDispatcher extends SingleTargetDispatcher(executorInvoker = new DummyInvoker("Default Dummy Invoker"))
+object DummyTargetDispatcher extends SingleTargetDispatcher(executorInvoker = new DummyUnstoppableInvoker("Default Dummy Invoker"))
 
 class OperationStarterSpec extends Test with TestDb {
 

@@ -15,9 +15,9 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
 
-abstract class HttpInvoker(val host: String,
-                           val port: Int,
-                           val name: String) extends ExecutorInvoker {
+abstract class ExecutorHttpTrigger(val host: String,
+                                   val port: Int,
+                                   val name: String) extends Trigger {
 
   // to implement in concrete classes
   /** `buildRequest` returns the HTTP request object ready to invoke the appropriate executor in charge of running the execution. */

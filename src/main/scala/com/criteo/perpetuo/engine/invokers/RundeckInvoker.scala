@@ -9,7 +9,13 @@ import spray.json._
 import scala.collection.JavaConverters._
 
 
-class RundeckInvoker(name: String, host: String, port: Int, authToken: String, jobName: String, specificParameters: Iterable[(String, String)] = Map()) extends HttpInvoker(host, port, name) {
+class RundeckInvoker(name: String,
+                     host: String,
+                     port: Int,
+                     authToken: String,
+                     jobName: String,
+                     specificParameters: Iterable[(String, String)] = Map()) extends ExecutorHttpTrigger(host, port, name) with UnstoppableInvoker {
+
   val API_VERSION = 16
 
   override def toString: String = s"$name (job $jobName)"
