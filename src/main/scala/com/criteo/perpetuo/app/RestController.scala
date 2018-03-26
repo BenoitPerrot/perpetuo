@@ -5,7 +5,6 @@ import javax.inject.Inject
 import com.criteo.perpetuo.auth.UserFilter._
 import com.criteo.perpetuo.auth.{DeploymentAction, GeneralAction, User}
 import com.criteo.perpetuo.config.AppConfigProvider
-import com.criteo.perpetuo.engine.dispatchers.NoAvailableExecutor
 import com.criteo.perpetuo.engine.{Engine, OperationStatus, RejectingError}
 import com.criteo.perpetuo.model._
 import com.twitter.finagle.http.{Request, Status => HttpStatus}
@@ -36,10 +35,9 @@ private case class RequestWithName(@NotEmpty name: String,
 private case class ProductPostWithVersion(@NotEmpty name: String,
                                           @NotEmpty version: String)
 
-private case class ActionPost(@RouteParam @NotEmpty id: String,
-                              @RouteParam @NotEmpty actionType: String,
-                              @NotEmpty defaultVersion: Option[String] = None,
-                              @Inject request: Request) extends WithId
+private case class RequestWithIdAndDefaultVersion(@RouteParam @NotEmpty id: String,
+                                                  @NotEmpty defaultVersion: Option[String] = None,
+                                                  @Inject request: Request) extends WithId
 
 private case class ExecutionTracePut(@RouteParam @NotEmpty id: String,
                                      @NotEmpty state: String,
@@ -163,33 +161,41 @@ class RestController @Inject()(val engine: Engine)
     )(r)
   }
 
-  post("/api/deployment-requests/:id/actions/:actionType") { r: ActionPost =>
+  post("/api/deployment-requests/:id/actions/deploy") { r: RequestWithId =>
     authenticate(r.request) { case user =>
       withIdAndRequest(
-        (id, _: ActionPost) => {
+        (id, _: RequestWithId) => {
           engine.isDeploymentRequestStarted(id)
             .flatMap(
               _.map { case (deploymentRequest, isStarted) =>
-                val operation = try {
-                  Operation.withName(r.actionType)
-                } catch {
-                  case _: NoSuchElementException => throw BadRequestException(s"Action ${r.actionType} doesn't exist")
-                }
-                val targets = deploymentRequest.parsedTarget.select
-
-                if (!permissions.isAuthorized(user, DeploymentAction.applyOperation, operation, deploymentRequest.product.name, targets))
+                if (!permissions.isAuthorized(user, DeploymentAction.applyOperation, Operation.deploy, deploymentRequest.product.name, deploymentRequest.parsedTarget.select))
                   throw ForbiddenException()
 
-                val (checking, effect) = operation match {
-                  case Operation.deploy => (engine.canDeployDeploymentRequest(deploymentRequest), if (isStarted) engine.deployAgain _ else engine.startDeploymentRequest _)
-                  case Operation.revert => (engine.canRevertDeploymentRequest(deploymentRequest, isStarted), engine.revert(_: Long, _: String, r.defaultVersion.map(Version.apply)))
-                }
-                checking
-                  .flatMap(_ => effect(id, user.name))
-                  .recover {
-                    case e: RejectingError => throw e.copy(s"Cannot ${r.actionType} the request #$id: ${e.msg}")
-                    case _: NoAvailableExecutor => throw ServiceUnavailableException("No executor available to do the actual deployment work")
-                  }
+                engine
+                  .canDeployDeploymentRequest(deploymentRequest)
+                  .flatMap(_ => if (isStarted) engine.deployAgain(id, user.name) else engine.startDeploymentRequest(id, user.name))
+                  .map(_.map(_ => Map("id" -> id)))
+              }.getOrElse(Future.successful(None))
+            )
+        },
+        5.seconds
+      )(r)
+    }
+  }
+
+  post("/api/deployment-requests/:id/actions/revert") { r: RequestWithIdAndDefaultVersion =>
+    authenticate(r.request) { case user =>
+      withIdAndRequest(
+        (id, _: RequestWithIdAndDefaultVersion) => {
+          engine.isDeploymentRequestStarted(id)
+            .flatMap(
+              _.map { case (deploymentRequest, isStarted) =>
+                if (!permissions.isAuthorized(user, DeploymentAction.applyOperation, Operation.revert, deploymentRequest.product.name, deploymentRequest.parsedTarget.select))
+                  throw ForbiddenException()
+
+                engine
+                  .canRevertDeploymentRequest(deploymentRequest, isStarted)
+                  .flatMap(_ => engine.revert(id, user.name, r.defaultVersion.map(Version.apply)))
                   .map(_.map(_ => Map("id" -> id)))
               }.getOrElse(Future.successful(None))
             )

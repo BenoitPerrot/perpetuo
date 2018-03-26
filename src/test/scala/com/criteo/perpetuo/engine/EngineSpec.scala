@@ -190,7 +190,7 @@ class EngineSpec extends SimpleScenarioTesting {
         // The last one of course is retryable
         thirdDeploymentRequest <- engine.dbBinding.findDeepDeploymentRequestById(thirdDeploymentRequestId).map(_.get)
         _ <- engine.canDeployDeploymentRequest(thirdDeploymentRequest)
-      } yield rejectionOfSecond.getMessage,
+      } yield rejectionOfSecond.getMessage.split(":")(1).trim,
       2.seconds
     ) shouldBe "a newer one has already been applied"
   }
@@ -258,7 +258,7 @@ class EngineSpec extends SimpleScenarioTesting {
         // Meanwhile the deployment on another product can be reverted (even when it's the first one for that product: it just requires a default revert version)
         otherDeploymentRequest <- engine.dbBinding.findDeepDeploymentRequestById(otherDeploymentRequestId).map(_.get)
         _ <- engine.canRevertDeploymentRequest(otherDeploymentRequest, isStarted = true)
-      } yield rejectionOfSecond.getMessage,
+      } yield rejectionOfSecond.getMessage.split(":")(1).trim,
       2.seconds
     ) shouldBe "a newer one has already been applied"
   }
@@ -306,12 +306,12 @@ class EngineSpec extends SimpleScenarioTesting {
         revertExecutionSpecIdsA.length,
         revertExecutionSpecIdsA.contains(firstExecSpecId),
 
-        rejectionOfSecondA.getMessage,
+        rejectionOfSecondA.getMessage.split(":")(1).trim,
 
         revertExecutionSpecIdsB.length,
         revertExecutionSpecIdsB.contains(firstExecSpecId),
 
-        rejectionOfSecondB.getMessage,
+        rejectionOfSecondB.getMessage.split(":")(1).trim,
 
         required,
 

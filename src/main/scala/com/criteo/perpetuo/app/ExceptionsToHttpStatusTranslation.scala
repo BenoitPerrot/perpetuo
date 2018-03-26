@@ -1,11 +1,11 @@
 package com.criteo.perpetuo.app
 
 import com.criteo.perpetuo.dao.UnknownProduct
-import com.criteo.perpetuo.engine.dispatchers.UnprocessableIntent
+import com.criteo.perpetuo.engine.dispatchers.{NoAvailableExecutor, UnprocessableIntent}
 import com.criteo.perpetuo.engine.{Conflict, MissingInfo, RejectingError, UnavailableAction}
 import com.twitter.finagle.http.Status
 import com.twitter.finagle.{TimeoutException => FinagleTimeout}
-import com.twitter.finatra.http.exceptions.{BadRequestException, HttpException, HttpResponseException}
+import com.twitter.finatra.http.exceptions.{BadRequestException, HttpException, HttpResponseException, ServiceUnavailableException}
 import com.twitter.finatra.http.response.ResponseBuilder
 import com.twitter.util.{TimeoutException => TwitterTimeout}
 
@@ -34,6 +34,7 @@ trait ExceptionsToHttpStatusTranslation {
       case e: TimeoutException => throw HttpException(Status.GatewayTimeout, e.getMessage)
       case e: Conflict => throw toHttpResponseException(e, Status.Conflict)
       case e: MissingInfo => throw toHttpResponseException(e, Status.UnprocessableEntity)
+      case e: NoAvailableExecutor => throw ServiceUnavailableException(s"No executor available to do the actual deployment work")
       case e: UnavailableAction => throw toHttpResponseException(e, Status.UnprocessableEntity)
       case e: UnknownProduct => throw BadRequestException(s"Product `${e.productName}` could not be found")
       case e: UnprocessableIntent => throw BadRequestException(e.getMessage)

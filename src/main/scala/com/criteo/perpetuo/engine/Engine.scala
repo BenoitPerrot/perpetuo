@@ -207,13 +207,13 @@ class Engine @Inject()(val dbBinding: DbBinding,
     Future.sequence(Seq(
       dbBinding.lockExists(getOperationLockName(deploymentRequest)).flatMap(
         if (_)
-          Future.failed(Conflict("an operation is still running for it"))
+          Future.failed(Conflict(s"${deploymentRequest.id}: an operation is still running for it"))
         else
           Future.successful()
       ),
       dbBinding.isOutdated(deploymentRequest).flatMap(
         if (_)
-          Future.failed(Conflict("a newer one has already been applied"))
+          Future.failed(Conflict(s"${deploymentRequest.id}: a newer one has already been applied"))
         else
           Future.successful()
       )

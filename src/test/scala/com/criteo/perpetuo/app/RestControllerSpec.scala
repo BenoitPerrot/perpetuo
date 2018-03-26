@@ -287,8 +287,8 @@ class RestControllerSpec extends Test with TestDb {
     startDeploymentRequest(4242, NotFound)
   }
 
-  test("The DeploymentRequest's actions entry-point returns 400 when posting a non-existing action") {
-    actOnDeploymentRequest(1, "ploup", JsObject(), BadRequest)
+  test("The DeploymentRequest's actions entry-point returns 404 when posting a non-existing action") {
+    actOnDeploymentRequest(1, "ploup", JsObject(), NotFound)
   }
 
   test("The DeploymentRequest's actions entry-point returns 422 when trying to revert new targets") {
