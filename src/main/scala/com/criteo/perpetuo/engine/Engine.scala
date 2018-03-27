@@ -99,7 +99,11 @@ class Engine @Inject()(val dbBinding: DbBinding,
           .getOrElse {
             throw new UnknownProduct(attrs.productName)
           })
-        .map(depReq => Map("ticketUrl" -> listeners.map(_.onDeploymentRequestCreated(depReq)).mkString("")))
+        .flatMap(depReq =>
+          Future
+            .sequence(listeners.map(_.onDeploymentRequestCreated(depReq)))
+            .map(x => Map("ticketUrl" -> x.filter(_ != null).mkString("")))
+        )
     } // >>
     else {
       val futureDepReq = dbBinding.insertDeploymentRequest(attrs)
