@@ -106,22 +106,13 @@ class Engine @Inject()(val dbBinding: DbBinding,
         )
     } // >>
     else {
-      val futureDepReq = dbBinding.insertDeploymentRequest(attrs)
+      dbBinding
+        .insertDeploymentRequest(attrs)
+        .map { deploymentRequest =>
+          Future.sequence(listeners.map(_.onDeploymentRequestCreated(deploymentRequest)))
 
-      futureDepReq.map { deploymentRequest =>
-        // todo: onDeploymentRequestCreated returning an extra comment feels wrong, probably it should not
-        Future
-          .sequence(listeners.map(_.onDeploymentRequestCreated(deploymentRequest)))
-          .map(_.flatMap(Option(_)))
-          .foreach { moreComments =>
-            if (moreComments.nonEmpty) {
-              val allComments = if (deploymentRequest.comment.nonEmpty) Seq(deploymentRequest.comment) ++ moreComments else moreComments
-              dbBinding.updateDeploymentRequestComment(deploymentRequest.id, allComments.mkString("\n"))
-            }
-          }
-
-        Map("id" -> deploymentRequest.id)
-      }
+          Map("id" -> deploymentRequest.id)
+        }
     }
   }
 
