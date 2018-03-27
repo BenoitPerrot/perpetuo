@@ -2,11 +2,11 @@ package com.criteo.perpetuo.config
 
 import java.io.File
 
-import com.google.inject.Singleton
+import com.google.inject.{Inject, Singleton}
 import com.typesafe.config.Config
 
 @Singleton
-class PluginLoader {
+class PluginLoader @Inject()(engineProxy: EngineProxy) {
   import com.criteo.perpetuo.config.ConfigSyntacticSugar._
 
   val groovyScriptLoader = new GroovyScriptLoader()
@@ -14,7 +14,8 @@ class PluginLoader {
   private def instantiate[T <: AnyRef](cls: Class[T], optPluginConfig: Option[Config]): T = {
     val instantiationParameters =
       optPluginConfig.map(pluginConfig => Seq(
-        Seq(pluginConfig)
+        Seq(pluginConfig),
+        Seq(pluginConfig, engineProxy)
       )).getOrElse(Seq()) ++ Seq(
         Seq()
       )
@@ -23,7 +24,7 @@ class PluginLoader {
       .flatMap(instantiate(cls, _))
       .headOption
       .getOrElse {
-        throw new NoSuchMethodException(s"As a plugin, ${cls.getSimpleName} must have at least a constructor taking either its Config (if one is provided) or nothing")
+        throw new NoSuchMethodException(s"As a plugin, ${cls.getSimpleName} must have at least a constructor taking either its Config (if one is provided), or its Config and an EngineProxy, or nothing")
       }
   }
 
