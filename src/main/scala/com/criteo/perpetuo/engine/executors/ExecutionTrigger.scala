@@ -46,3 +46,8 @@ trait TriggeredExecution {
     */
   val stopper: Option[() => Option[(ExecutionState, String)]]
 }
+
+
+class UncontrollableTriggeredExecution(logHref: String) extends TriggeredExecution {
+  override val stopper: Option[() => Option[(ExecutionState, String)]] = None
+}
