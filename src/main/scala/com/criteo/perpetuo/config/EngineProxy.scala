@@ -6,6 +6,7 @@ import com.google.inject.{Inject, Provider, Singleton}
 
 import scala.concurrent.duration._
 import scala.concurrent.Await
+import scala.concurrent.ExecutionContext.Implicits.global
 
 /**
   * Provides a simplified, limited view of the Engine
@@ -22,5 +23,8 @@ class EngineProxy @Inject()(engineProvider: Provider[Engine]) {
         s"${if (deploymentRequest.comment.nonEmpty) s"${deploymentRequest.comment}\n" else ""}$comment"
       ), 2.seconds
     )
+
+  def readComment(deploymentRequest: DeploymentRequest): String =
+    Await.result(engine.dbBinding.findDeepDeploymentRequestById(deploymentRequest.id).map(_.get.comment), 2.seconds)
 
 }
