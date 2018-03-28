@@ -1,7 +1,5 @@
 package com.criteo.perpetuo.engine
 
-import javax.inject.{Inject, Singleton}
-
 import com.criteo.perpetuo.auth.Permissions
 import com.criteo.perpetuo.config.AppConfigProvider
 import com.criteo.perpetuo.config.ConfigSyntacticSugar._
@@ -11,6 +9,7 @@ import com.criteo.perpetuo.engine.resolvers.TargetResolver
 import com.criteo.perpetuo.model.ExecutionState.ExecutionState
 import com.criteo.perpetuo.model._
 import com.twitter.inject.Logging
+import javax.inject.{Inject, Singleton}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
