@@ -75,6 +75,8 @@ class RundeckTrigger(name: String,
         }
     }
   }
+
+  override val executorName: String = "rundeck"
 }
 
 
