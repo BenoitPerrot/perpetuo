@@ -4,7 +4,7 @@ import java.sql.Timestamp
 
 import com.criteo.perpetuo.SimpleScenarioTesting
 import com.criteo.perpetuo.dao.DbBinding
-import com.criteo.perpetuo.engine.dispatchers.{SingleTargetDispatcher, TargetDispatcherForTesting, UnprocessableIntent}
+import com.criteo.perpetuo.engine.dispatchers.SingleTargetDispatcher
 import com.criteo.perpetuo.engine.executors.DummyExecutionTrigger
 import com.criteo.perpetuo.model._
 import spray.json.DefaultJsonProtocol._
@@ -78,18 +78,6 @@ class EngineSpec extends SimpleScenarioTesting {
       ),
       2.seconds
     ) shouldBe(true, false, false)
-  }
-
-  test("Engine rejects deployment request for products with no deploy type") {
-    Await.result(
-      engine.insertProduct(TargetDispatcherForTesting.productWithNoDeployTypeName)
-        .flatMap(product =>
-          engine.createDeploymentRequest(new DeploymentRequestAttrs(product.name, Version(JsString("1").compactPrint), """["sink"]""", "", "c.reator", new Timestamp(System.currentTimeMillis)))
-              .map(_ => false)
-        )
-        .recover { case _: UnprocessableIntent => true },
-      2.seconds
-    ) shouldBe true
   }
 
   test("Engine keeps the created records in DB and marks an execution trace as failed if the trigger fails") {
