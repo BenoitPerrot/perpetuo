@@ -4,7 +4,7 @@ import java.sql.Timestamp
 
 import com.criteo.perpetuo.SimpleScenarioTesting
 import com.criteo.perpetuo.dao.DbBinding
-import com.criteo.perpetuo.engine.dispatchers.{SingleTargetDispatcher, UnprocessableIntent}
+import com.criteo.perpetuo.engine.dispatchers.{SingleTargetDispatcher, TargetDispatcherForTesting, UnprocessableIntent}
 import com.criteo.perpetuo.engine.executors.DummyExecutionTrigger
 import com.criteo.perpetuo.model._
 import spray.json.DefaultJsonProtocol._

@@ -1,6 +1,6 @@
-package com.criteo.perpetuo.engine
+package com.criteo.perpetuo.engine.dispatchers
 
-import com.criteo.perpetuo.engine.dispatchers.{TargetDispatcher, UnprocessableIntent}
+import com.criteo.perpetuo.engine.Select
 import com.criteo.perpetuo.engine.executors.{DummyExecutionTrigger, ExecutionTrigger}
 import com.criteo.perpetuo.model.Version
 
