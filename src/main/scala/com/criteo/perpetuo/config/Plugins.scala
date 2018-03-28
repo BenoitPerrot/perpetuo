@@ -48,7 +48,7 @@ class Plugins @Inject()(loader: PluginLoader) {
     .map { desc =>
       loader.load[Provider[TargetDispatcher]](desc, "target dispatcher") {
         case t@"singleExecutor" =>
-          SingleTargetDispatcher(executionTrigger(desc.getConfig(t)))
+          new SingleTargetDispatcher(executionTrigger(desc.getConfig(t)))
       }
     }
     .getOrElse(throw new Exception(s"No target dispatcher is configured, while one is required"))

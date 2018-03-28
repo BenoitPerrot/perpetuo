@@ -46,7 +46,7 @@ class EngineSpec extends SimpleScenarioTesting {
   }
 
   test("A trivial execution triggers a job with a log href when a log href is provided as a Future") {
-    val eng = new Engine(new DbBinding(dbContext), plugins.resolver, SingleTargetDispatcher(DummyExecutionTriggerWithLogHref), plugins.permissions, plugins.listeners)
+    val eng = new Engine(new DbBinding(dbContext), plugins.resolver, new SingleTargetDispatcher(DummyExecutionTriggerWithLogHref), plugins.permissions, plugins.listeners)
     Await.result(
       for {
         product <- engine.insertProduct("product #2")
@@ -93,7 +93,7 @@ class EngineSpec extends SimpleScenarioTesting {
   }
 
   test("Engine keeps the created records in DB and marks an execution trace as failed if the trigger fails") {
-    val engineWithFailingTrigger = new Engine(new DbBinding(dbContext), plugins.resolver, SingleTargetDispatcher(FailingExecutionTrigger), plugins.permissions, plugins.listeners)
+    val engineWithFailingTrigger = new Engine(new DbBinding(dbContext), plugins.resolver, new SingleTargetDispatcher(FailingExecutionTrigger), plugins.permissions, plugins.listeners)
     Await.result(
       for {
         product <- engineWithFailingTrigger.insertProduct("airplane")
