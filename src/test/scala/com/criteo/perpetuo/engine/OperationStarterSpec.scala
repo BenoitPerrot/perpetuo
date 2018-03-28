@@ -5,7 +5,7 @@ import java.sql.Timestamp
 import com.criteo.perpetuo.TestDb
 import com.criteo.perpetuo.dao._
 import com.criteo.perpetuo.engine.dispatchers.{SingleTargetDispatcher, TargetDispatcher}
-import com.criteo.perpetuo.engine.invokers.{DummyUnstoppableInvoker, ExecutorInvoker}
+import com.criteo.perpetuo.engine.executors.{DummyExecutionTrigger, ExecutionTrigger}
 import com.criteo.perpetuo.engine.resolvers.TargetResolver
 import com.criteo.perpetuo.model._
 import com.twitter.inject.Test
@@ -20,27 +20,27 @@ import scala.reflect.{ClassTag, classTag}
 
 
 object TestTargetDispatcher extends TargetDispatcher {
-  val aInvoker = new DummyUnstoppableInvoker("A's invoker")
-  val bInvoker = new DummyUnstoppableInvoker("B's invoker")
-  val cInvoker = new DummyUnstoppableInvoker("C's invoker")
+  val aTrigger = new DummyExecutionTrigger("A's trigger")
+  val bTrigger = new DummyExecutionTrigger("B's trigger")
+  val cTrigger = new DummyExecutionTrigger("C's trigger")
 
   override def freezeParameters(productName: String, version: Version): String = "foobar"
 
-  override def dispatch(targetAtoms: Select, frozenParameters: String): Iterable[(ExecutorInvoker, Select)] = {
+  override def dispatch(targetAtoms: Select, frozenParameters: String): Iterable[(ExecutionTrigger, Select)] = {
     assert(frozenParameters == "foobar")
     // associate executors to target words wrt the each target word's characters
     targetAtoms.flatMap { targetAtom =>
       targetAtom.flatMap {
-        case 'a' => Some(aInvoker)
-        case 'b' => Some(bInvoker)
-        case 'c' => Some(cInvoker)
+        case 'a' => Some(aTrigger)
+        case 'b' => Some(bTrigger)
+        case 'c' => Some(cTrigger)
         case _ => None
       }.map(executor => (executor, targetAtom))
-    }.groupBy(_._1).map { case (executor, it) => executor.asInstanceOf[ExecutorInvoker] -> it.map(_._2) }
+    }.groupBy(_._1).map { case (executor, it) => executor.asInstanceOf[ExecutionTrigger] -> it.map(_._2) }
   }
 }
 
-object DummyTargetDispatcher extends SingleTargetDispatcher(executorInvoker = new DummyUnstoppableInvoker("Default Dummy Invoker"))
+object DummyTargetDispatcher extends SingleTargetDispatcher(executionTrigger = new DummyExecutionTrigger("Default Dummy Trigger"))
 
 class OperationStarterSpec extends Test with TestDb {
 
@@ -57,7 +57,7 @@ class OperationStarterSpec extends Test with TestDb {
   private val product: Product = Await.result(operationStarter.dbBinding.insertProduct("perpetuo-app"), 1.second)
 
   implicit class SimpleDispatchTest(private val select: Select) {
-    def dispatchedAs(that: Map[ExecutorInvoker, Select]): Unit = {
+    def dispatchedAs(that: Map[ExecutionTrigger, Select]): Unit = {
       Set(TargetTerm(select = select)) dispatchedAs that.map { case (e, s) => (e, Set(TargetTerm(select = s))) }
     }
   }
@@ -67,14 +67,14 @@ class OperationStarterSpec extends Test with TestDb {
     private val request = new DeploymentRequestAttrs(product.name, Version("\"v42\""), rawTarget, "No fear", "c.norris", new Timestamp(123456789))
     private val depReq = operationStarter.dbBinding.insertDeploymentRequest(request)
 
-    def dispatchedAs(that: Map[ExecutorInvoker, TargetExpr]): Unit = {
+    def dispatchedAs(that: Map[ExecutionTrigger, TargetExpr]): Unit = {
       Await.result(
         depReq.flatMap(
           operationStarter.startDeploymentRequest(testResolver, TestTargetDispatcher, _, "c.norris")
             .map(_._1)
             .flatMap(dbContext.db.run)
             .map { case (_, toTrigger) =>
-              assertEqual(toTrigger.map { case (_, _, targetExpr, invoker) => (invoker, targetExpr) }.toMap, that)
+              assertEqual(toTrigger.map { case (_, _, targetExpr, trigger) => (trigger, targetExpr) }.toMap, that)
               assertEqual(toTrigger.size, that.size) // look for unexpected duplicates
             }
         ),
@@ -86,16 +86,16 @@ class OperationStarterSpec extends Test with TestDb {
 
   test("A complex execution calls the right executor when available for each exact target word") {
     Set("a", "c") dispatchedAs Map(
-      aInvoker -> Set("a"),
-      cInvoker -> Set("c")
+      aTrigger -> Set("a"),
+      cTrigger -> Set("c")
     )
   }
 
   test("A complex execution gathers target words on executors") {
     Set("abc-ab", "cb") dispatchedAs Map(
-      aInvoker -> Set("abc", "ab"),
-      bInvoker -> Set("abc", "ab", "cb"),
-      cInvoker -> Set("abc", "cb")
+      aTrigger -> Set("abc", "ab"),
+      bTrigger -> Set("abc", "ab", "cb"),
+      cTrigger -> Set("abc", "cb")
     )
   }
 
@@ -128,7 +128,7 @@ class OperationStarterSpec extends Test with TestDb {
         Set("bb-ab", "cc")
       )
     ) dispatchedAs Map(
-      aInvoker -> Set(
+      aTrigger -> Set(
         TargetTerm(select = Set("aa", "a")),
         TargetTerm(
           Set(
@@ -145,7 +145,7 @@ class OperationStarterSpec extends Test with TestDb {
           Set("ab")
         )
       ),
-      bInvoker -> Set(
+      bTrigger -> Set(
         TargetTerm(select = Set("ab")),
         TargetTerm(
           Set(
@@ -161,7 +161,7 @@ class OperationStarterSpec extends Test with TestDb {
           Set("bb", "ab")
         )
       ),
-      cInvoker -> Set(
+      cTrigger -> Set(
         TargetTerm(
           Set(
             JsObject(
@@ -191,7 +191,7 @@ class OperationStarterSpec extends Test with TestDb {
         TargetTerm(select = Set("alpha"))
       ), params).toMap,
       Map(
-        aInvoker -> Alternatives(
+        aTrigger -> Alternatives(
           Set(
             TargetTerm(Set(JsObject("ratio" -> JsNumber(0.05), "foo" -> JsString("bar"))), Set("ab")),
             TargetTerm(Set(JsObject("ratio" -> JsNumber(0.05))), Set("assault", "appendix", "alpha")),
@@ -203,7 +203,7 @@ class OperationStarterSpec extends Test with TestDb {
             TargetTerm(Set(JsObject("ratio" -> JsNumber(0.05)), JsObject()), Set("alpha"))
           )
         ),
-        bInvoker -> Alternatives( // there is only one possible representation for such a simple expression
+        bTrigger -> Alternatives( // there is only one possible representation for such a simple expression
           Set(
             TargetTerm(Set(JsObject("ratio" -> JsNumber(0.05), "foo" -> JsString("bar"))), Set("ab"))
           )

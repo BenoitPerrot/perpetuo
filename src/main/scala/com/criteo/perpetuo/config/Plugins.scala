@@ -4,7 +4,7 @@ import java.util.logging.Logger
 
 import com.criteo.perpetuo.auth._
 import com.criteo.perpetuo.engine.dispatchers.{SingleTargetDispatcher, TargetDispatcher}
-import com.criteo.perpetuo.engine.invokers.{DummyUnstoppableInvoker, ExecutorInvoker, RundeckInvoker}
+import com.criteo.perpetuo.engine.executors.{DummyExecutionTrigger, ExecutionTrigger, RundeckTrigger}
 import com.criteo.perpetuo.engine.resolvers.TargetResolver
 import com.criteo.perpetuo.engine.{AsyncListener, Provider}
 import com.google.inject.{Inject, Singleton}
@@ -22,15 +22,15 @@ class Plugins @Inject()(loader: PluginLoader) {
 
   import com.criteo.perpetuo.config.ConfigSyntacticSugar._
 
-  def invoker(invokerConfig: Config): ExecutorInvoker = {
-    loader.load[ExecutorInvoker](invokerConfig, "invoker") {
-      case "dummy" => new DummyUnstoppableInvoker(invokerConfig.getString("dummy.name"))
-      case "rundeck" => new RundeckInvoker(
-        invokerConfig.getString("rundeck.name"),
-        invokerConfig.getString("rundeck.host"),
-        invokerConfig.getInt("rundeck.port"),
-        invokerConfig.getString("rundeck.token"),
-        invokerConfig.getString("rundeck.jobName")
+  def executionTrigger(executorConfig: Config): ExecutionTrigger = {
+    loader.load[ExecutionTrigger](executorConfig, "executor") {
+      case "dummy" => new DummyExecutionTrigger(executorConfig.getString("dummy.name"))
+      case "rundeck" => new RundeckTrigger(
+        executorConfig.getString("rundeck.name"),
+        executorConfig.getString("rundeck.host"),
+        executorConfig.getInt("rundeck.port"),
+        executorConfig.getString("rundeck.token"),
+        executorConfig.getString("rundeck.jobName")
       )
     }
   }
@@ -47,8 +47,8 @@ class Plugins @Inject()(loader: PluginLoader) {
     .tryGetConfig("targetDispatcher")
     .map { desc =>
       loader.load[Provider[TargetDispatcher]](desc, "target dispatcher") {
-        case t@"singleInvoker" =>
-          SingleTargetDispatcher(invoker(desc.getConfig(t)))
+        case t@"singleExecutor" =>
+          SingleTargetDispatcher(executionTrigger(desc.getConfig(t)))
       }
     }
     .getOrElse(throw new Exception(s"No target dispatcher is configured, while one is required"))

@@ -1,4 +1,4 @@
-package com.criteo.perpetuo.engine.invokers
+package com.criteo.perpetuo.engine.executors
 
 import com.criteo.perpetuo.app.RestApi
 import com.criteo.perpetuo.model.Version
@@ -9,12 +9,12 @@ import spray.json._
 import scala.collection.JavaConverters._
 
 
-class RundeckInvoker(name: String,
+class RundeckTrigger(name: String,
                      val host: String,
                      val port: Int,
                      authToken: String,
                      jobName: String,
-                     specificParameters: Iterable[(String, String)] = Map()) extends ExecutorHttpTrigger with UnstoppableInvoker {
+                     specificParameters: Iterable[(String, String)] = Map()) extends ExecutionHttpTrigger {
 
   val API_VERSION = 16
 
@@ -78,7 +78,7 @@ class RundeckInvoker(name: String,
 }
 
 
-object RundeckInvoker {
+object RundeckTrigger {
   def fromJavaTypes(name: String, host: String, port: Int, authToken: String, jobName: String, specificParameters: java.util.Map[String, String]) =
-    new RundeckInvoker(name, host, port, authToken, jobName, specificParameters.asScala)
+    new RundeckTrigger(name, host, port, authToken, jobName, specificParameters.asScala)
 }

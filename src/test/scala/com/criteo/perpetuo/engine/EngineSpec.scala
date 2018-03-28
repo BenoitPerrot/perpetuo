@@ -5,7 +5,7 @@ import java.sql.Timestamp
 import com.criteo.perpetuo.SimpleScenarioTesting
 import com.criteo.perpetuo.dao.DbBinding
 import com.criteo.perpetuo.engine.dispatchers.{SingleTargetDispatcher, UnprocessableIntent}
-import com.criteo.perpetuo.engine.invokers.DummyUnstoppableInvoker
+import com.criteo.perpetuo.engine.executors.DummyExecutionTrigger
 import com.criteo.perpetuo.model._
 import spray.json.DefaultJsonProtocol._
 import spray.json._
@@ -15,13 +15,13 @@ import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}
 
 
-object FailingInvoker extends DummyUnstoppableInvoker("DummyWithLogHref") {
+object FailingExecutionTrigger extends DummyExecutionTrigger("DummyWithLogHref") {
   override def trigger(execTraceId: Long, productName: String, version: Version, target: TargetExpr, initiator: String): Future[Option[String]] = {
     throw new RuntimeException("too bad, dude")
   }
 }
 
-object DummyInvokerWithLogHref extends DummyUnstoppableInvoker("DummyWithLogHref") {
+object DummyExecutionTriggerWithLogHref extends DummyExecutionTrigger("DummyWithLogHref") {
   override def trigger(execTraceId: Long, productName: String, version: Version, target: TargetExpr, initiator: String): Future[Option[String]] = {
     super.trigger(execTraceId, productName, version, target, initiator).map { logHref =>
       assert(logHref.isEmpty)
@@ -46,7 +46,7 @@ class EngineSpec extends SimpleScenarioTesting {
   }
 
   test("A trivial execution triggers a job with a log href when a log href is provided as a Future") {
-    val eng = new Engine(new DbBinding(dbContext), plugins.resolver, SingleTargetDispatcher(DummyInvokerWithLogHref), plugins.permissions, plugins.listeners)
+    val eng = new Engine(new DbBinding(dbContext), plugins.resolver, SingleTargetDispatcher(DummyExecutionTriggerWithLogHref), plugins.permissions, plugins.listeners)
     Await.result(
       for {
         product <- engine.insertProduct("product #2")
@@ -96,7 +96,7 @@ class EngineSpec extends SimpleScenarioTesting {
   }
 
   test("Engine keeps the created records in DB and marks an execution trace as failed if the trigger fails") {
-    val engineWithFailingTrigger = new Engine(new DbBinding(dbContext), plugins.resolver, SingleTargetDispatcher(FailingInvoker), plugins.permissions, plugins.listeners)
+    val engineWithFailingTrigger = new Engine(new DbBinding(dbContext), plugins.resolver, SingleTargetDispatcher(FailingExecutionTrigger), plugins.permissions, plugins.listeners)
     Await.result(
       for {
         product <- engineWithFailingTrigger.insertProduct("airplane")

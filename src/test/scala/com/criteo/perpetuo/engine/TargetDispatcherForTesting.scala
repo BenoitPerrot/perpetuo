@@ -1,13 +1,12 @@
 package com.criteo.perpetuo.engine
 
 import com.criteo.perpetuo.engine.dispatchers.{TargetDispatcher, UnprocessableIntent}
-import com.criteo.perpetuo.engine.invokers.{DummyUnstoppableInvoker, ExecutorInvoker}
+import com.criteo.perpetuo.engine.executors.{DummyExecutionTrigger, ExecutionTrigger}
 import com.criteo.perpetuo.model.Version
 
 
 class TargetDispatcherForTesting extends TargetDispatcher {
-
-  private val executorInvoker = new DummyUnstoppableInvoker("invoker-for-testing")
+  private val executionTrigger = new DummyExecutionTrigger("trigger-for-testing")
 
   override def freezeParameters(productName: String, version: Version): String = {
     if (productName == TargetDispatcherForTesting.productWithNoDeployTypeName)
@@ -15,8 +14,8 @@ class TargetDispatcherForTesting extends TargetDispatcher {
     ""
   }
 
-  override def dispatch(targetAtoms: Select, frozenParameters: String): Iterable[(ExecutorInvoker, Select)] =
-    Map(executorInvoker -> targetAtoms)
+  override def dispatch(targetAtoms: Select, frozenParameters: String): Iterable[(ExecutionTrigger, Select)] =
+    Map(executionTrigger -> targetAtoms)
 }
 
 object TargetDispatcherForTesting {

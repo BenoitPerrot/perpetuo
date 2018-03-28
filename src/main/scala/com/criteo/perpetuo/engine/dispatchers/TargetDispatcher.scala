@@ -1,6 +1,6 @@
 package com.criteo.perpetuo.engine.dispatchers
 
-import com.criteo.perpetuo.engine.invokers.ExecutorInvoker
+import com.criteo.perpetuo.engine.executors.ExecutionTrigger
 import com.criteo.perpetuo.engine.{Provider, Select}
 import com.criteo.perpetuo.model.Version
 
@@ -25,7 +25,7 @@ trait TargetDispatcher extends Provider[TargetDispatcher] with ParameterFreezer 
     * @return all the provided target atoms grouped by their dedicated executors
     * @throws NoAvailableExecutor if a target could not be dispatched
     */
-  def dispatch(targetAtoms: Select, frozenParameters: String): Iterable[(ExecutorInvoker, Select)]
+  def dispatch(targetAtoms: Select, frozenParameters: String): Iterable[(ExecutionTrigger, Select)]
 }
 
 

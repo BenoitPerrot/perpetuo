@@ -2,7 +2,7 @@ package com.criteo.perpetuo.engine
 
 import com.criteo.perpetuo.dao._
 import com.criteo.perpetuo.engine.dispatchers.{TargetDispatcher, UnprocessableIntent}
-import com.criteo.perpetuo.engine.invokers.ExecutorInvoker
+import com.criteo.perpetuo.engine.executors.ExecutionTrigger
 import com.criteo.perpetuo.engine.resolvers.TargetResolver
 import com.criteo.perpetuo.model.{ExecutionState, _}
 import com.twitter.inject.Logging
@@ -168,19 +168,19 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
                   else
                     ret
                 }
-                .map(_.zip(invocations).map { case (execTraceId, (invoker, target)) => (execTraceId, spec.version, target, invoker) })
+                .map(_.zip(invocations).map { case (execTraceId, (trigger, target)) => (execTraceId, spec.version, target, trigger) })
             }
           )
           .map(effects => (newOp, effects.flatten))
       }
 
-  private[engine] def dispatch(dispatcher: TargetDispatcher, expandedTarget: TargetExpr, frozenParameters: String): Iterable[(ExecutorInvoker, TargetExpr)] =
+  private[engine] def dispatch(dispatcher: TargetDispatcher, expandedTarget: TargetExpr, frozenParameters: String): Iterable[(ExecutionTrigger, TargetExpr)] =
     dispatchAlternatives(dispatcher, expandedTarget, frozenParameters).map {
       // return the shortest target expression for the executor
       case (executor, expressions) => (executor, expressions.minBy(_.toJson.compactPrint.length))
     }
 
-  private[engine] def dispatchAlternatives(dispatcher: TargetDispatcher, expandedTarget: TargetExpr, frozenParameters: String): Iterable[(ExecutorInvoker, Set[TargetExpr])] = {
+  private[engine] def dispatchAlternatives(dispatcher: TargetDispatcher, expandedTarget: TargetExpr, frozenParameters: String): Iterable[(ExecutionTrigger, Set[TargetExpr])] = {
     def groupOn2[A, B](it: Iterable[(A, B)]): Map[B, Set[A]] =
       it.groupBy(_._2).map { case (k, v) => (k, v.map(_._1).toSet) }
 
@@ -226,7 +226,7 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
       s"Some targets have been lost in $reason: " + (before -- after).map(_.toString).mkString(", "))
   }
 
-  protected def logExecution(identifier: String, execId: Long, executor: ExecutorInvoker, target: TargetExpr): Unit = {
+  protected def logExecution(identifier: String, execId: Long, executor: ExecutionTrigger, target: TargetExpr): Unit = {
     logger.debug(s"Triggering job $identifier for execution #$execId: $executor <- ${target.toJson.compactPrint}")
   }
 }

@@ -1,4 +1,4 @@
-package com.criteo.perpetuo.engine.invokers
+package com.criteo.perpetuo.engine.executors
 
 import java.net.InetSocketAddress
 
@@ -15,7 +15,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
 
-trait ExecutorHttpTrigger extends Trigger {
+trait ExecutionHttpTrigger extends ExecutionTrigger {
   val host: String
   val port: Int
 

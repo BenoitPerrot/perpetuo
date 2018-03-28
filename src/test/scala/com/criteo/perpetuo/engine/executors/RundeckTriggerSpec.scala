@@ -1,4 +1,4 @@
-package com.criteo.perpetuo.engine.invokers
+package com.criteo.perpetuo.engine.executors
 
 import com.criteo.perpetuo.TestDb
 import com.criteo.perpetuo.engine.TargetTerm
@@ -12,11 +12,11 @@ import scala.concurrent.Await
 import scala.concurrent.duration._
 
 
-class RundeckInvokerSpec extends Test with TestDb {
+class RundeckTriggerSpec extends Test with TestDb {
   private def testWhenResponseIs(statusCode: Int, content: String) = {
-    val rundeckInvoker = new RundeckInvoker("rundeck", "localhost", 4440, "my-super-secret-token", "perpetuo-deployment")
-    assert(rundeckInvoker.getClass.getSimpleName == "RundeckInvoker")
-    rundeckInvoker.client = request => {
+    val rundeckTrigger = new RundeckTrigger("rundeck", "localhost", 4440, "my-super-secret-token", "perpetuo-deployment")
+    assert(rundeckTrigger.getClass.getSimpleName == "RundeckTrigger")
+    rundeckTrigger.client = request => {
       request.uri shouldEqual s"/api/16/job/perpetuo-deployment/executions?authtoken=my-super-secret-token"
       request.contentString shouldEqual """{"argString":"-callback-url 'http://somewhere/api/execution-traces/42' -product-name 'My\"Beautiful\"Project' -target 'a,b' -product-version \"the 042nd version\""}"""
       val resp = Response(Status(statusCode))
@@ -26,7 +26,7 @@ class RundeckInvokerSpec extends Test with TestDb {
     val productName = "My\"Beautiful\"Project"
     val version = Version("\"the 042nd version\"")
     val target = Set(TargetTerm(Set(JsObject("abc" -> JsString("def"), "ghi" -> JsNumber(51.3))), Set("a", "b")))
-    val logHref = Await.result(rundeckInvoker.trigger(42, productName, version, target, "guy next door"), 1.second)
+    val logHref = Await.result(rundeckTrigger.trigger(42, productName, version, target, "guy next door"), 1.second)
     logHref shouldBe defined
     logHref.get
   }
