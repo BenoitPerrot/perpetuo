@@ -1,12 +1,14 @@
 package com.criteo.perpetuo.config
 
 import com.criteo.perpetuo.engine.{AsyncListener, SyncListener}
-import com.criteo.perpetuo.model.{DeepDeploymentRequest, OperationTrace}
+import com.criteo.perpetuo.model.{DeepDeploymentRequest, DeploymentRequestAttrs, OperationTrace}
 
 import scala.concurrent.Future
 
 
 class DefaultListenerPlugin extends SyncListener with Plugin {
+  def onCreatingDeploymentRequest(deploymentRequestAttrs: DeploymentRequestAttrs): Unit = {}
+
   def onDeploymentRequestCreated(deploymentRequest: DeepDeploymentRequest): String = null
 
   def onDeploymentRequestStarted(deploymentRequest: DeepDeploymentRequest, startedExecutions: Int, failedToStart: Int): Unit = {}
@@ -24,6 +26,9 @@ class DefaultListenerPlugin extends SyncListener with Plugin {
 
 
 private[config] class ListenerPluginWrapper(implementation: DefaultListenerPlugin) extends PluginRunner(implementation, new DefaultListenerPlugin) with AsyncListener {
+  def onCreatingDeploymentRequest(deploymentRequestAttrs: DeploymentRequestAttrs): Future[Unit] =
+    wrap(_.onCreatingDeploymentRequest(deploymentRequestAttrs))
+
   def onDeploymentRequestCreated(deploymentRequest: DeepDeploymentRequest): Future[String] =
     wrapTransition(_.onDeploymentRequestCreated(deploymentRequest))
 

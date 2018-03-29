@@ -1,11 +1,13 @@
 package com.criteo.perpetuo.engine
 
-import com.criteo.perpetuo.model.{DeepDeploymentRequest, OperationTrace}
+import com.criteo.perpetuo.model.{DeepDeploymentRequest, DeploymentRequestAttrs, OperationTrace}
 
 import scala.concurrent.Future
 
 
 trait SyncListener {
+  def onCreatingDeploymentRequest(deploymentRequestAttrs: DeploymentRequestAttrs): Unit
+
   def onDeploymentRequestCreated(deploymentRequest: DeepDeploymentRequest): String
 
   def onDeploymentRequestStarted(deploymentRequest: DeepDeploymentRequest, startedExecutions: Int, failedToStart: Int): Unit
@@ -20,6 +22,8 @@ trait SyncListener {
 }
 
 trait AsyncListener {
+  def onCreatingDeploymentRequest(deploymentRequestAttrs: DeploymentRequestAttrs): Future[Unit]
+
   def onDeploymentRequestCreated(deploymentRequest: DeepDeploymentRequest): Future[String]
 
   def onDeploymentRequestStarted(deploymentRequest: DeepDeploymentRequest, startedExecutions: Int, failedToStart: Int): Future[Unit]

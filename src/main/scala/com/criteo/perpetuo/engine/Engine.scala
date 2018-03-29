@@ -86,34 +86,37 @@ class Engine @Inject()(val dbBinding: DbBinding,
   def findDeepDeploymentRequestById(deploymentRequestId: Long): Future[Option[DeepDeploymentRequest]] =
     dbBinding.findDeepDeploymentRequestById(deploymentRequestId)
 
-  def createDeploymentRequest(attrs: DeploymentRequestAttrs): Future[Map[String, Any]] = {
-    // todo: replace that by the creation of all the related records when the first deploy operation will be created simultaneously
-    targetDispatcher.freezeParameters(attrs.productName, attrs.version)
-    operationStarter.expandTarget(targetResolver, attrs.productName, attrs.version, attrs.parsedTarget)
+  def createDeploymentRequest(attrs: DeploymentRequestAttrs): Future[Map[String, Any]] =
+    Future
+      .sequence(listeners.map(_.onCreatingDeploymentRequest(attrs)))
+      .flatMap { _ =>
+        // todo: replace that by the creation of all the related records when the first deploy operation will be created simultaneously
+        targetDispatcher.freezeParameters(attrs.productName, attrs.version)
+        operationStarter.expandTarget(targetResolver, attrs.productName, attrs.version, attrs.parsedTarget)
 
-    // todo: remove once new workflow is completely in place <<
-    if (isCoveredByOldWorkflow(attrs.productName)) {
-      dbBinding.findProductByName(attrs.productName)
-        .map(_.map(DeepDeploymentRequest(0, _, attrs.version, attrs.target, attrs.comment, attrs.creator, attrs.creationDate))
-          .getOrElse {
-            throw new UnknownProduct(attrs.productName)
-          })
-        .flatMap(depReq =>
-          Future
-            .sequence(listeners.map(_.onDeploymentRequestCreated(depReq)))
-            .map(x => Map("ticketUrl" -> x.filter(_ != null).mkString("")))
-        )
-    } // >>
-    else {
-      dbBinding
-        .insertDeploymentRequest(attrs)
-        .map { deploymentRequest =>
-          Future.sequence(listeners.map(_.onDeploymentRequestCreated(deploymentRequest)))
+        // todo: remove once new workflow is completely in place <<
+        if (isCoveredByOldWorkflow(attrs.productName)) {
+          dbBinding.findProductByName(attrs.productName)
+            .map(_.map(DeepDeploymentRequest(0, _, attrs.version, attrs.target, attrs.comment, attrs.creator, attrs.creationDate))
+              .getOrElse {
+                throw new UnknownProduct(attrs.productName)
+              })
+            .flatMap(depReq =>
+              Future
+                .sequence(listeners.map(_.onDeploymentRequestCreated(depReq)))
+                .map(x => Map("ticketUrl" -> x.filter(_ != null).mkString("")))
+            )
+        } // >>
+        else {
+          dbBinding
+            .insertDeploymentRequest(attrs)
+            .map { deploymentRequest =>
+              Future.sequence(listeners.map(_.onDeploymentRequestCreated(deploymentRequest)))
 
-          Map("id" -> deploymentRequest.id)
+              Map("id" -> deploymentRequest.id)
+            }
         }
-    }
-  }
+      }
 
   private def getOperationLockName(deploymentRequest: DeploymentRequest) =
     s"Operating on ${deploymentRequest.id}"

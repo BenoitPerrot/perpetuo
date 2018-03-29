@@ -84,13 +84,10 @@ class EngineSpec extends SimpleScenarioTesting {
     Await.result(
       engine.insertProduct(TargetDispatcherForTesting.productWithNoDeployTypeName)
         .flatMap(product =>
-          try {
-            engine.createDeploymentRequest(new DeploymentRequestAttrs(product.name, Version(JsString("1").compactPrint), """["sink"]""", "", "c.reator", new Timestamp(System.currentTimeMillis)))
+          engine.createDeploymentRequest(new DeploymentRequestAttrs(product.name, Version(JsString("1").compactPrint), """["sink"]""", "", "c.reator", new Timestamp(System.currentTimeMillis)))
               .map(_ => false)
-          } catch {
-            case _: UnprocessableIntent => Future.successful(true)
-          }
-        ),
+        )
+        .recover { case _: UnprocessableIntent => true },
       2.seconds
     ) shouldBe true
   }
