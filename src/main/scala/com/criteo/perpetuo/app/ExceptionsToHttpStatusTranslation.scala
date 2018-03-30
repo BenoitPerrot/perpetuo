@@ -36,7 +36,7 @@ trait ExceptionsToHttpStatusTranslation {
       case e: UnavailableAction => throw toHttpResponseException(e, Status.UnprocessableEntity)
       case e: UnknownProduct => throw BadRequestException(s"Product `${e.productName}` could not be found")
       case e: UnprocessableIntent => throw BadRequestException(e.getMessage)
-      case e: Veto => throw toHttpResponseException(e, Status.BadRequest)
+      case e: Veto => throw toHttpResponseException(e, Status.UnprocessableEntity)
       case e: RejectingError => throw BadRequestException(e.msg) // should not happen: every subclass of RejectingError should be covered above
     }
 }
