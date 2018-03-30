@@ -4,16 +4,16 @@ import java.util.logging.Logger
 
 import com.criteo.perpetuo.auth._
 import com.criteo.perpetuo.engine.dispatchers.{SingleTargetDispatcher, TargetDispatcher}
-import com.criteo.perpetuo.engine.executors.{DummyExecutionTrigger, ExecutionTrigger, RundeckTrigger}
+import com.criteo.perpetuo.engine.executors.ExecutionTrigger
 import com.criteo.perpetuo.engine.resolvers.TargetResolver
 import com.criteo.perpetuo.engine.{AsyncListener, Provider}
 import com.google.inject.{Inject, Singleton}
-import com.typesafe.config.Config
 
 import scala.collection.JavaConverters._
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionException, Future, blocking}
+
 
 @Singleton
 class Plugins @Inject()(loader: PluginLoader) {
@@ -21,19 +21,6 @@ class Plugins @Inject()(loader: PluginLoader) {
   private val config = AppConfigProvider.config
 
   import com.criteo.perpetuo.config.ConfigSyntacticSugar._
-
-  def executionTrigger(executorConfig: Config): ExecutionTrigger = {
-    loader.load[ExecutionTrigger](executorConfig, "executor") {
-      case "dummy" => new DummyExecutionTrigger(executorConfig.getString("dummy.name"))
-      case "rundeck" => new RundeckTrigger(
-        executorConfig.getString("rundeck.name"),
-        executorConfig.getString("rundeck.host"),
-        executorConfig.getInt("rundeck.port"),
-        executorConfig.getString("rundeck.token"),
-        executorConfig.getString("rundeck.jobName")
-      )
-    }
-  }
 
   val resolver: TargetResolver = config
     .tryGetConfig("targetResolver")
@@ -48,7 +35,9 @@ class Plugins @Inject()(loader: PluginLoader) {
     .map { desc =>
       loader.load[Provider[TargetDispatcher]](desc, "target dispatcher") {
         case t@"singleExecutor" =>
-          new SingleTargetDispatcher(executionTrigger(desc.getConfig(t)))
+          val executorConfig = desc.getConfig(t)
+          val executionTrigger = loader.load[ExecutionTrigger](executorConfig, "executor")()
+          new SingleTargetDispatcher(executionTrigger)
       }
     }
     .getOrElse(throw new Exception(s"No target dispatcher is configured, while one is required"))

@@ -3,6 +3,7 @@ package com.criteo.perpetuo.engine.executors
 import com.criteo.perpetuo.app.RestApi
 import com.criteo.perpetuo.model.Version
 import com.twitter.finagle.http.{Message, Method, Request}
+import com.typesafe.config.Config
 import spray.json.DefaultJsonProtocol._
 import spray.json._
 
@@ -15,6 +16,15 @@ class RundeckTrigger(name: String,
                      authToken: String,
                      jobName: String,
                      specificParameters: Iterable[(String, String)] = Map()) extends ExecutionHttpTrigger {
+  def this(config: Config) {
+    this(
+      config.getString("name"),
+      config.getString("host"),
+      config.getInt("port"),
+      config.getString("token"),
+      config.getString("jobName")
+    )
+  }
 
   val API_VERSION = 16
 
