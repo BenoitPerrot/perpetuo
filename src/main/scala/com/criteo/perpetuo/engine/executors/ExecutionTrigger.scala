@@ -1,7 +1,6 @@
 package com.criteo.perpetuo.engine.executors
 
 import com.criteo.perpetuo.engine.TargetExpr
-import com.criteo.perpetuo.model.ExecutionState.ExecutionState
 import com.criteo.perpetuo.model.Version
 
 import scala.concurrent.Future
@@ -25,29 +24,4 @@ trait ExecutionTrigger {
     * to interact with an execution.
     */
   val executorName: String
-}
-
-
-/**
-  * Reflect an execution that has been triggered on an executor.
-  * An instantiation must not try to actually reach the executor; each method does.
-  */
-trait TriggeredExecution {
-  /**
-    * To forcefully stop an execution if supported.
-    *
-    * @return a function if stopping is supported; the function takes no argument and returns the state
-    *         of the execution (along with a reason, possibly empty) after the stop was attempted:
-    *         - 'pending' if it is impossible to kill the execution because it is not started yet
-    *         - 'running' if the execution could not be killed and is still seen as running
-    *         - 'unreachable' if it is impossible to interact with the execution (permanently lost)
-    *         - 'killed' if it was successfully stopped while running
-    *         - None if it was already stopped (converted by the caller to 'unresolved' if appropriate)
-    */
-  val stopper: Option[() => Option[(ExecutionState, String)]]
-}
-
-
-class UncontrollableTriggeredExecution(logHref: String) extends TriggeredExecution {
-  override val stopper: Option[() => Option[(ExecutionState, String)]] = None
 }
