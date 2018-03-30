@@ -9,7 +9,7 @@ import scala.concurrent.Future
 class DefaultListenerPlugin extends SyncListener with Plugin {
   def onCreatingDeploymentRequest(deploymentRequestAttrs: DeploymentRequestAttrs): Unit = {}
 
-  def onDeploymentRequestCreated(deploymentRequest: DeepDeploymentRequest): String = null
+  def onDeploymentRequestCreated(deploymentRequest: DeepDeploymentRequest): Unit = {}
 
   def onDeploymentRequestStarted(deploymentRequest: DeepDeploymentRequest, startedExecutions: Int, failedToStart: Int): Unit = {}
 
@@ -29,8 +29,8 @@ private[config] class ListenerPluginWrapper(implementation: DefaultListenerPlugi
   def onCreatingDeploymentRequest(deploymentRequestAttrs: DeploymentRequestAttrs): Future[Unit] =
     wrapWithoutCatching(_.onCreatingDeploymentRequest(deploymentRequestAttrs))
 
-  def onDeploymentRequestCreated(deploymentRequest: DeepDeploymentRequest): Future[String] =
-    wrapTransition(_.onDeploymentRequestCreated(deploymentRequest))
+  def onDeploymentRequestCreated(deploymentRequest: DeepDeploymentRequest): Future[Unit] =
+    wrap(_.onDeploymentRequestCreated(deploymentRequest))
 
   def onDeploymentRequestStarted(deploymentRequest: DeepDeploymentRequest, startedExecutions: Int, failedToStart: Int): Future[Unit] =
     wrap(_.onDeploymentRequestStarted(deploymentRequest, startedExecutions, failedToStart))
