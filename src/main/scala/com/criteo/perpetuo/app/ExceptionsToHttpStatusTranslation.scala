@@ -29,12 +29,10 @@ trait ExceptionsToHttpStatusTranslation {
       action
     }
     catch {
-      case e: FinagleTimeout => throw HttpException(Status.GatewayTimeout, e.getMessage)
-      case e: TwitterTimeout => throw HttpException(Status.GatewayTimeout, e.getMessage)
-      case e: TimeoutException => throw HttpException(Status.GatewayTimeout, e.getMessage)
       case e: Conflict => throw toHttpResponseException(e, Status.Conflict)
       case e: MissingInfo => throw toHttpResponseException(e, Status.UnprocessableEntity)
-      case e: NoAvailableExecutor => throw ServiceUnavailableException(s"No executor available to do the actual deployment work")
+      case _: NoAvailableExecutor => throw ServiceUnavailableException(s"No executor available to do the actual deployment work")
+      case e@(_: TimeoutException | _: TwitterTimeout | _: FinagleTimeout) => throw HttpException(Status.GatewayTimeout, e.getMessage)
       case e: UnavailableAction => throw toHttpResponseException(e, Status.UnprocessableEntity)
       case e: UnknownProduct => throw BadRequestException(s"Product `${e.productName}` could not be found")
       case e: UnprocessableIntent => throw BadRequestException(e.getMessage)
