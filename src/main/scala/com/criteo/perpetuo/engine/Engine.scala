@@ -51,6 +51,11 @@ case class Conflict(msg: String, conflicts: Iterable[_] = Seq()) extends Rejecti
   def copy(newMessage: String) = Conflict(newMessage, conflicts)
 }
 
+case class Veto(msg: String, reason: String) extends RejectingError {
+  val detail: Map[String, String] = Map("reason" -> reason)
+
+  def copy(newMessage: String) = Veto(newMessage, reason)
+}
 
 @Singleton
 class Engine @Inject()(val dbBinding: DbBinding,

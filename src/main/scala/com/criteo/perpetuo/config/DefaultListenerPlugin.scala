@@ -27,7 +27,7 @@ class DefaultListenerPlugin extends SyncListener with Plugin {
 
 private[config] class ListenerPluginWrapper(implementation: DefaultListenerPlugin) extends PluginRunner(implementation, new DefaultListenerPlugin) with AsyncListener {
   def onCreatingDeploymentRequest(deploymentRequestAttrs: DeploymentRequestAttrs): Future[Unit] =
-    wrap(_.onCreatingDeploymentRequest(deploymentRequestAttrs))
+    wrapWithoutCatching(_.onCreatingDeploymentRequest(deploymentRequestAttrs))
 
   def onDeploymentRequestCreated(deploymentRequest: DeepDeploymentRequest): Future[String] =
     wrapTransition(_.onDeploymentRequestCreated(deploymentRequest))
