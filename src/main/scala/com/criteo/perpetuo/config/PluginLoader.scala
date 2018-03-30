@@ -1,12 +1,14 @@
 package com.criteo.perpetuo.config
 
 import java.io.File
+import java.lang.reflect.InvocationTargetException
 
 import com.google.inject.{Inject, Singleton}
 import com.typesafe.config.Config
 
 @Singleton
 class PluginLoader @Inject()(engineProxy: EngineProxy) {
+
   import com.criteo.perpetuo.config.ConfigSyntacticSugar._
 
   val groovyScriptLoader = new GroovyScriptLoader()
@@ -35,7 +37,13 @@ class PluginLoader @Inject()(engineProxy: EngineProxy) {
         types.length == args.length &&
           types.zip(args).forall { case (t, o) => t.isInstance(o) }
       }
-      .map(_.newInstance(args: _*).asInstanceOf[T])
+      .map { constructor =>
+        try {
+          constructor.newInstance(args: _*).asInstanceOf[T]
+        } catch {
+          case e: InvocationTargetException => throw e.getCause
+        }
+      }
   }
 
   def load[T <: AnyRef](config: Config, typeName: String)(f: PartialFunction[String, T] = PartialFunction.empty): T = {
