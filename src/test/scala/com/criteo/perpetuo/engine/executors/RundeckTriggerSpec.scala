@@ -15,7 +15,7 @@ import scala.concurrent.duration._
 class RundeckTriggerSpec extends Test with TestDb {
   private def testWhenResponseIs(statusCode: Int, content: String) = {
     val rundeckTrigger = new RundeckTrigger("rundeck", "localhost", 4440, "my-super-secret-token", "perpetuo-deployment")
-    assert(rundeckTrigger.getClass.getSimpleName == "RundeckTrigger")
+    rundeckTrigger.getClass.getSimpleName shouldEqual "RundeckTrigger"
     rundeckTrigger.client = request => {
       request.uri shouldEqual s"/api/16/job/perpetuo-deployment/executions?authtoken=my-super-secret-token"
       request.contentString shouldEqual """{"argString":"-callback-url 'http://somewhere/api/execution-traces/42' -product-name 'My\"Beautiful\"Project' -target 'a,b' -product-version \"the 042nd version\""}"""
