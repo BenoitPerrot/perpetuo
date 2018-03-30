@@ -71,14 +71,6 @@ class Engine @Inject()(val dbBinding: DbBinding,
 
   private val operationStarter = new OperationStarter(dbBinding)
 
-  // todo: remove once new workflow is completely in place <<
-  lazy val productsExcludedFromNewWorkflow: Seq[String] = config.getOrElse("productsExcludedFromNewWorkflow", Seq())
-
-  def isCoveredByOldWorkflow(productName: String): Boolean =
-    productsExcludedFromNewWorkflow.contains(productName)
-
-  // >>
-
   def getProductNames: Future[Seq[String]] =
     dbBinding.getProductNames
 
@@ -99,28 +91,13 @@ class Engine @Inject()(val dbBinding: DbBinding,
         targetDispatcher.freezeParameters(attrs.productName, attrs.version)
         operationStarter.expandTarget(targetResolver, attrs.productName, attrs.version, attrs.parsedTarget)
 
-        // todo: remove once new workflow is completely in place <<
-        if (isCoveredByOldWorkflow(attrs.productName)) {
-          dbBinding.findProductByName(attrs.productName)
-            .map(_.map(DeepDeploymentRequest(0, _, attrs.version, attrs.target, attrs.comment, attrs.creator, attrs.creationDate))
-              .getOrElse {
-                throw new UnknownProduct(attrs.productName)
-              })
-            .flatMap(depReq =>
-              Future
-                .sequence(listeners.map(_.onDeploymentRequestCreated(depReq)))
-                .map(x => Map("ticketUrl" -> x.filter(_ != null).mkString("")))
-            )
-        } // >>
-        else {
-          dbBinding
-            .insertDeploymentRequest(attrs)
-            .map { deploymentRequest =>
-              Future.sequence(listeners.map(_.onDeploymentRequestCreated(deploymentRequest)))
+        dbBinding
+          .insertDeploymentRequest(attrs)
+          .map { deploymentRequest =>
+            Future.sequence(listeners.map(_.onDeploymentRequestCreated(deploymentRequest)))
 
-              Map("id" -> deploymentRequest.id)
-            }
-        }
+            Map("id" -> deploymentRequest.id)
+          }
       }
 
   private def getOperationLockName(deploymentRequest: DeploymentRequest) =
