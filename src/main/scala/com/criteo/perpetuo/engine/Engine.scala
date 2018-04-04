@@ -183,20 +183,22 @@ class Engine @Inject()(val dbBinding: DbBinding,
     dbBinding.isDeploymentRequestStarted(deploymentRequestId)
 
   private def rejectIfOutdatedOrLocked(deploymentRequest: DeploymentRequest): Future[Unit] =
-    Future.sequence(Seq(
-      dbBinding.lockExists(getOperationLockName(deploymentRequest)).flatMap(
-        if (_)
-          Future.failed(Conflict(s"${deploymentRequest.id}: an operation is still running for it"))
-        else
-          Future.successful()
-      ),
-      dbBinding.isOutdated(deploymentRequest).flatMap(
-        if (_)
-          Future.failed(Conflict(s"${deploymentRequest.id}: a newer one has already been applied"))
-        else
-          Future.successful()
-      )
-    )).map(_ => ())
+    Future
+      .sequence(Seq(
+        dbBinding.lockExists(getOperationLockName(deploymentRequest)).flatMap(
+          if (_)
+            Future.failed(Conflict(s"${deploymentRequest.id}: an operation is still running for it"))
+          else
+            Future.successful()
+        ),
+        dbBinding.isOutdated(deploymentRequest).flatMap(
+          if (_)
+            Future.failed(Conflict(s"${deploymentRequest.id}: a newer one has already been applied"))
+          else
+            Future.successful()
+        )
+      ))
+      .map(_ => ())
 
   def canDeployDeploymentRequest(deploymentRequest: DeploymentRequest): Future[Unit] =
     rejectIfOutdatedOrLocked(deploymentRequest)
@@ -230,26 +232,28 @@ class Engine @Inject()(val dbBinding: DbBinding,
     )
 
   def deployAgain(deploymentRequestId: Long, initiatorName: String): Future[Option[ShallowOperationTrace]] = {
-    dbBinding.findDeepDeploymentRequestAndSpecs(deploymentRequestId).flatMap(
-      _.map { case (deploymentRequest, executionSpecs) =>
+    dbBinding.findDeepDeploymentRequestAndSpecs(deploymentRequestId).flatMap(_
+      .map { case (deploymentRequest, executionSpecs) =>
         startOperation(deploymentRequest, operationStarter.deployAgain(targetResolver, targetDispatcher, deploymentRequest, executionSpecs, initiatorName))
           .map { case (operationTrace, started, failed) =>
             listeners.foreach(_.onDeploymentRequestRetried(deploymentRequest, started, failed))
             Some(operationTrace)
           }
-      }.getOrElse(Future.successful(None))
+      }
+      .getOrElse(Future.successful(None))
     )
   }
 
   def revert(deploymentRequestId: Long, initiatorName: String, defaultVersion: Option[Version]): Future[Option[ShallowOperationTrace]] =
-    dbBinding.findDeepDeploymentRequestById(deploymentRequestId).flatMap(
-      _.map { depReq =>
+    dbBinding.findDeepDeploymentRequestById(deploymentRequestId).flatMap(_
+      .map { depReq =>
         startOperation(depReq, operationStarter.revert(targetDispatcher, depReq, initiatorName, defaultVersion))
           .map { case (operationTrace, started, failed) =>
             listeners.foreach(_.onDeploymentRequestReverted(depReq, started, failed))
             Some(operationTrace)
           }
-      }.getOrElse(Future.successful(None))
+      }
+      .getOrElse(Future.successful(None))
     )
 
   def findExecutionSpecificationsForRevert(deploymentRequest: DeploymentRequest): Future[(Select, Iterable[(ExecutionSpecification, Select)])] =
@@ -305,16 +309,16 @@ class Engine @Inject()(val dbBinding: DbBinding,
 
   def computeState(operationEffect: OperationEffect): (Operation.Kind, OperationStatus.Value) = {
     val OperationEffect(operationTrace, executionTraces, targetStatuses) = operationEffect
-    val lastOperationState = operationTrace.closingDate.map { _ =>
-      if (targetStatuses.forall(_.code == Status.notDone))
-        OperationStatus.flopped
-      else if (targetStatuses.forall(_.code == Status.success) && executionTraces.forall(_.state == ExecutionState.completed))
-        OperationStatus.succeeded
-      else
-        OperationStatus.failed
-    }.getOrElse(
-      OperationStatus.inProgress
-    )
+    val lastOperationState = operationTrace.closingDate
+      .map { _ =>
+        if (targetStatuses.forall(_.code == Status.notDone))
+          OperationStatus.flopped
+        else if (targetStatuses.forall(_.code == Status.success) && executionTraces.forall(_.state == ExecutionState.completed))
+          OperationStatus.succeeded
+        else
+          OperationStatus.failed
+      }
+      .getOrElse(OperationStatus.inProgress)
     (operationTrace.kind, lastOperationState)
   }
 

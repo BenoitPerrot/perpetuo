@@ -1,7 +1,5 @@
 package com.criteo.perpetuo.app
 
-import javax.inject.Inject
-
 import com.criteo.perpetuo.auth.UserFilter._
 import com.criteo.perpetuo.auth.{DeploymentAction, GeneralAction, User}
 import com.criteo.perpetuo.config.AppConfigProvider
@@ -14,6 +12,7 @@ import com.twitter.finatra.request._
 import com.twitter.finatra.utils.FuturePools
 import com.twitter.finatra.validation._
 import com.twitter.util.{Future => TwitterFuture}
+import javax.inject.Inject
 import spray.json.JsonParser.ParsingException
 
 import scala.concurrent.ExecutionContext.Implicits.global

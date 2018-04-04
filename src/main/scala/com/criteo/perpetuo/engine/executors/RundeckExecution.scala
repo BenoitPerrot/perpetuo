@@ -18,6 +18,6 @@ class RundeckExecution(logHref: String) extends TriggeredExecution {
 }
 
 
-object RundeckExecution {
+private object RundeckExecution {
   val logHrefPattern: Pattern = Pattern.compile("https?://([^/:]+)(:[0-9]+)?/.+/([0-9]+)")
 }

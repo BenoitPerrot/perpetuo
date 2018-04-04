@@ -59,11 +59,9 @@ trait ExecutionTraceBinder extends TableBinder {
         .filter(_.deploymentRequestId === deploymentRequestId)
         .join(executionQuery).on { case (operationTrace, execution) => operationTrace.id === execution.operationTraceId }
         .join(executionTraceQuery).on { case ((_, execution), executionTrace) => execution.id === executionTrace.executionId }
-        .map { case ((operationTrace, _), executionTrace) => (executionTrace, operationTrace) }
+        .map { case (_, executionTrace) => executionTrace }
         .result
-    ).map(_.map { case (exec, op) =>
-      exec.toExecutionTrace
-    })
+    ).map(_.map(_.toExecutionTrace))
 
   def findExecutionTraceById(executionTraceId: Long): Future[Option[DeepExecutionTrace]] =
     dbContext.db.run(
