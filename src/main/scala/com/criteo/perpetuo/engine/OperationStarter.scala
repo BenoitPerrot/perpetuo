@@ -4,7 +4,8 @@ import com.criteo.perpetuo.dao._
 import com.criteo.perpetuo.engine.dispatchers.{TargetDispatcher, UnprocessableIntent}
 import com.criteo.perpetuo.engine.executors.ExecutionTrigger
 import com.criteo.perpetuo.engine.resolvers.TargetResolver
-import com.criteo.perpetuo.model.{ExecutionState, _}
+import com.criteo.perpetuo.model.ExecutionState.ExecutionState
+import com.criteo.perpetuo.model._
 import com.twitter.inject.Logging
 import slick.dbio.{DBIOAction, Effect, NoStream}
 import spray.json.DefaultJsonProtocol._
@@ -78,7 +79,7 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
   }
 
   def triggerExecutions(deploymentRequest: DeepDeploymentRequest,
-                        toTrigger: ExecutionsToTrigger): Future[Iterable[(Boolean, Long, Option[(ExecutionState.Value, String, Option[String])])]] = {
+                        toTrigger: ExecutionsToTrigger): Future[Iterable[(Boolean, Long, Option[(ExecutionState, String, Option[String])])]] = {
     val productName = deploymentRequest.product.name
     Future.traverse(toTrigger) { case (execTraceId, version, target, executor) =>
       // log the execution

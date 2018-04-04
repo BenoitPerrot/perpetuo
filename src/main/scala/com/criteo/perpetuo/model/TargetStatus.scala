@@ -15,7 +15,8 @@ object TargetAtom {
 object Status extends Enumeration {
   type Code = Value
 
-  // these values must be stable, since they are persisted in the DB
+  // - the numeric values must be stable, since they are persisted in the DB
+  // - the strings are used in the API, so clients must be migrated in case of change
   val running = Value(0, "running")
   val success = Value(1, "success")
   val productFailure = Value(2, "productFailure")

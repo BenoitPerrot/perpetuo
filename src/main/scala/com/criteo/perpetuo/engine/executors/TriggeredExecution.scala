@@ -11,7 +11,7 @@ import com.criteo.perpetuo.model.ExecutionState.ExecutionState
   * (even for instance if the arguments given to the constructor make no sense).
   */
 trait TriggeredExecution {
-  val logHref: String
+  val logHref: String // todo: find another name for logHref (rename all occurrences) now that it's used to more generally interact with executions
 
   /**
     * To forcefully stop an execution if supported.
