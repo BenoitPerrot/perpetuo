@@ -5,11 +5,14 @@ import com.criteo.perpetuo.model.ExecutionState.ExecutionState
 
 /**
   * Reflect an execution that has been triggered on an executor.
+  * Any implementation of it must have a constructor taking a log href as single parameter.
   * An instantiation must not try to actually reach the executor; each method does.
   * An instantiation must not fail, but must instead consider the execution as unreachable
   * (even for instance if the arguments given to the constructor make no sense).
   */
 trait TriggeredExecution {
+  val logHref: String
+
   /**
     * To forcefully stop an execution if supported.
     *
@@ -25,6 +28,6 @@ trait TriggeredExecution {
 }
 
 
-class UncontrollableTriggeredExecution(logHref: String) extends TriggeredExecution {
+class UncontrollableTriggeredExecution(val logHref: String) extends TriggeredExecution {
   override val stopper: Option[() => Option[(ExecutionState, String)]] = None
 }
