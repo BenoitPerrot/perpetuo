@@ -18,10 +18,10 @@ trait TriggeredExecution {
     *
     * @return a function if stopping is supported; the function takes no argument and returns the state
     *         of the execution (along with a reason, possibly empty) after the stop was attempted:
-    *         - 'pending' if it is impossible to kill the execution because it is not started yet
-    *         - 'running' if the execution could not be killed and is still seen as running
+    *         - 'pending' if it is impossible to stop the execution because it is not started yet
+    *         - 'running' if the execution could not be stopped and is still seen as running
     *         - 'unreachable' if it is impossible to interact with the execution (permanently lost)
-    *         - 'killed' if it was successfully stopped while running
+    *         - 'stopped' if it was successfully stopped while running
     *         - None if it was already stopped (converted by the caller to 'unresolved' if appropriate)
     */
   val stopper: Option[() => Option[(ExecutionState, String)]]
