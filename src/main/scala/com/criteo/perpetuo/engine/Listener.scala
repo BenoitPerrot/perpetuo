@@ -16,6 +16,8 @@ trait SyncListener {
 
   def onDeploymentRequestReverted(deploymentRequest: DeepDeploymentRequest, startedExecutions: Int, failedToStart: Int): Unit
 
+  def onDeploymentRequestStopped(deploymentRequest: DeepDeploymentRequest, stopped: Int, failed: Int): Unit
+
   def onOperationFailed(operationTrace: OperationTrace, deploymentRequest: DeepDeploymentRequest): Unit
 
   def onOperationSucceeded(operationTrace: OperationTrace, deploymentRequest: DeepDeploymentRequest): Unit
@@ -31,6 +33,8 @@ trait AsyncListener {
   def onDeploymentRequestRetried(deploymentRequest: DeepDeploymentRequest, startedExecutions: Int, failedToStart: Int): Future[Unit]
 
   def onDeploymentRequestReverted(deploymentRequest: DeepDeploymentRequest, startedExecutions: Int, failedToStart: Int): Future[Unit]
+
+  def onDeploymentRequestStopped(deploymentRequest: DeepDeploymentRequest, stopped: Int, failed: Int): Future[Unit]
 
   def onOperationFailed(operationTrace: OperationTrace, deploymentRequest: DeepDeploymentRequest): Future[Unit]
 
