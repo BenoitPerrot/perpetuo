@@ -16,18 +16,16 @@ trait TriggeredExecution {
   /**
     * To forcefully stop an execution if supported.
     *
-    * @return a function if stopping is supported; the function takes no argument and returns the state
-    *         of the execution (along with a reason, possibly empty) after the stop was attempted:
+    * @return a function if stopping is supported; the function takes no argument and returns the
+    *         eventual state of the execution if it's still not terminated after trying to stop it:
     *         - 'pending' if it is impossible to stop the execution because it is not started yet
     *         - 'running' if the execution could not be stopped and is still seen as running
     *         - 'unreachable' if it is impossible to interact with the execution (permanently lost)
-    *         - 'stopped' if it was successfully stopped while running
-    *         - None if it was already stopped (converted by the caller to 'unresolved' if appropriate)
     */
-  val stopper: Option[() => Option[(ExecutionState, String)]]
+  val stopper: Option[() => Option[ExecutionState]]
 }
 
 
 class UncontrollableTriggeredExecution(val logHref: String) extends TriggeredExecution {
-  override val stopper: Option[() => Option[(ExecutionState, String)]] = None
+  override val stopper: Option[() => Option[ExecutionState]] = None
 }
