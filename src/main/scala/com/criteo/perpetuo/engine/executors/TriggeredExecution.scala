@@ -1,6 +1,10 @@
 package com.criteo.perpetuo.engine.executors
 
+import com.criteo.perpetuo.config.{AppConfigProvider, PluginLoader}
 import com.criteo.perpetuo.model.ExecutionState.ExecutionState
+import com.criteo.perpetuo.model.ShallowExecutionTrace
+import com.typesafe.config.ConfigUtil
+import javax.inject.{Inject, Singleton}
 
 
 /**
@@ -28,4 +32,38 @@ trait TriggeredExecution {
 
 class UncontrollableTriggeredExecution(val logHref: String) extends TriggeredExecution {
   override val stopper: Option[() => Option[ExecutionState]] = None
+}
+
+
+/**
+  * @return an instance of TriggeredExecution built from an execution trace if possible.
+  * @throws RuntimeException if not possible.
+  */
+@Singleton
+class TriggeredExecutionFinder @Inject()(loader: PluginLoader) {
+  def apply[T](executionTrace: ShallowExecutionTrace): TriggeredExecution =
+    executionTrace.logHref
+      .map { logHref =>
+        val executionName = logHref match { // todo: look at the executionName in the record instead
+          case _ if logHref.contains("/execution/show/") => "rundeck"
+          case _ => "unknown"
+        }
+
+        val executionConfig = try
+          AppConfigProvider.executorsConfig.getConfig(ConfigUtil.joinPath(executionName, "execution"))
+        catch // catch bad configuration path as well as missing configuration
+          throwWithCause(s"Could not find an execution configuration for the type `$executionName`")
+
+        try
+          loader.load[TriggeredExecution, String](executionConfig, "execution", logHref)
+        catch // catch any error when dynamically loading the object
+          throwWithCause("Could not load the configured executor")
+      }
+      .getOrElse(
+        throw new RuntimeException(s"No log href for execution trace #${executionTrace.id}, thus cannot interact with the actual execution")
+      )
+
+  private def throwWithCause(message: String): PartialFunction[Throwable, Nothing] = {
+    case cause => throw new RuntimeException(message, cause)
+  }
 }
