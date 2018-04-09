@@ -2,9 +2,9 @@ package com.criteo.perpetuo.engine
 
 import com.criteo.perpetuo.auth.Permissions
 import com.criteo.perpetuo.config.AppConfigProvider
-import com.criteo.perpetuo.config.ConfigSyntacticSugar._
-import com.criteo.perpetuo.dao.{DbBinding, UnknownProduct}
+import com.criteo.perpetuo.dao.DbBinding
 import com.criteo.perpetuo.engine.dispatchers.TargetDispatcher
+import com.criteo.perpetuo.engine.executors.TriggeredExecutionFinder
 import com.criteo.perpetuo.engine.resolvers.TargetResolver
 import com.criteo.perpetuo.model.ExecutionState.ExecutionState
 import com.criteo.perpetuo.model._
@@ -62,7 +62,8 @@ class Engine @Inject()(val dbBinding: DbBinding,
                        val targetResolver: TargetResolver,
                        val targetDispatcher: TargetDispatcher,
                        val permissions: Permissions,
-                       val listeners: Seq[AsyncListener]) extends Logging {
+                       val listeners: Seq[AsyncListener],
+                       val findTriggeredExecution: TriggeredExecutionFinder) extends Logging {
 
   // todo: cosmetics in attributes
   val config = AppConfigProvider.config

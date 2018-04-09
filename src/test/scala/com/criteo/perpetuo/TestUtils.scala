@@ -5,6 +5,7 @@ import java.sql.Timestamp
 import com.criteo.perpetuo.config.{AppConfigProvider, PluginLoader, Plugins}
 import com.criteo.perpetuo.dao.{DbBinding, DbContext, DbContextProvider, TestingDbContextModule}
 import com.criteo.perpetuo.engine.Engine
+import com.criteo.perpetuo.engine.executors.TriggeredExecutionFinder
 import com.criteo.perpetuo.model._
 import com.twitter.inject.Test
 import org.scalatest.matchers.Matcher
@@ -34,8 +35,10 @@ trait TestDb extends DbContextProvider {
 
 trait SimpleScenarioTesting extends Test with TestDb {
   private val lastDeploymentRequests = mutable.Map[String, Long]()
-  val plugins = new Plugins(new PluginLoader(null))
-  val engine = new Engine(new DbBinding(dbContext), plugins.resolver, plugins.dispatcher, plugins.permissions, plugins.listeners)
+  private val loader = new PluginLoader(null)
+  val plugins = new Plugins(loader)
+  val executionFinder = new TriggeredExecutionFinder(loader)
+  val engine = new Engine(new DbBinding(dbContext), plugins.resolver, plugins.dispatcher, plugins.permissions, plugins.listeners, executionFinder)
 
   def become[T](value: T): Matcher[Future[T]] = be(value).compose(Await.result(_, 1.second))
 
