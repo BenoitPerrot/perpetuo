@@ -169,11 +169,10 @@ class RestControllerSpec extends Test with TestDb {
   private def startDeploymentRequest(deploymentRequestId: Long): JsObject =
     startDeploymentRequest(deploymentRequestId, Ok).contentString.parseJson.asJsObject
 
-  private var randomProductCounter = 1000
+  private val randomProductCounter = Stream.from(1000).iterator
 
   private def createProductAndStartDeployment(version: String, target: JsValue) = {
-    randomProductCounter += 1
-    val productName = s"random product $randomProductCounter"
+    val productName = s"random product ${randomProductCounter.next()}"
     createProduct(productName)
     val depReqId = requestAndWaitDeployment(productName, version, target)
     (depReqId, getExecutionTracesByDeploymentRequestId(depReqId.toString).elements.map(_.idAsLong))
