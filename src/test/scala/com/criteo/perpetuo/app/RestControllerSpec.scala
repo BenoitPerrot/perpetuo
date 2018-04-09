@@ -184,6 +184,7 @@ class RestControllerSpec extends Test with TestDb {
                               targetStatus: Option[Map[String, JsValue]] = None,
                               executionDetail: Option[String] = None,
                               expectedTargetStatus: Map[String, (String, String)] = Map(),
+                              expectedRequestStatus: Status = NoContent,
                               expectedClosed: Boolean = true): Unit = {
     val previousLogHrefJson = logHrefHistory.getOrElse(execTraceId, JsNull)
     val expectedLogHrefJson = logHref.map(_.toJson).getOrElse(previousLogHrefJson)
@@ -196,12 +197,11 @@ class RestControllerSpec extends Test with TestDb {
     ).collect {
       case (k, v) if v.isDefined => k -> v.get
     }
-    val resp = putExecutionTrace(
+    putExecutionTrace(
       execTraceId.toString,
       params.toJson,
-      NoContent
+      expectedRequestStatus
     )
-    resp.contentLength shouldEqual Some(0)
 
     val depReq = deepGetDepReq(deploymentRequestId)
     val operations = depReq.fields("operations").asInstanceOf[JsArray].elements.map(_.asJsObject.fields)
