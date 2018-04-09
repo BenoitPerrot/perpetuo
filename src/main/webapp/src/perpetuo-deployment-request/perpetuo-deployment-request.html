@@ -4,6 +4,7 @@
 
 <link rel="import" href="../perpetuo-deployment-request/perpetuo-conflicting-deployment-requests.html">
 <link rel="import" href="../perpetuo-deployment-request/perpetuo-deployment-operation.html">
+<link rel="import" href="../perpetuo-markdown/perpetuo-markdown-viewer.html">
 
 <dom-module id="perpetuo-deployment-request">
   <template>
@@ -124,8 +125,7 @@
       <paper-card id="general">
         <h1>General</h1>
         <p>Requested by [[data.creator]] on [[timestampToDates(data.creationDate)]]</p>
-        <template is="dom-if" if="[[comment.description]]"><p>[[comment.description]]</p></template>
-        <template is="dom-if" if="[[comment.ticket]]"><p>JIRA: <a href="[[comment.ticket.url]]">[[comment.ticket.reference]]</a></p></template>
+        <template is="dom-if" if="[[data.comment]]"><p><perpetuo-markdown-viewer md="[[data.comment]]"></perpetuo-markdown-viewer></p></template>
       </paper-card>
       <paper-card id="target">
         <h1>Deployment Target</h1>
@@ -193,7 +193,6 @@
           active: {type: Boolean, observer: 'onActiveChanged'},
           data: Object,
           version: {type: Array, computed: 'computeVersion(data)'},
-          comment: {type: Object, computed: 'computeComment(data)'},
           isInAction: Boolean,
           revertPlan: Object,
           defaultVersion: String,
@@ -329,15 +328,6 @@
 
       toCssClasses(actionName) {
         return actionName.replace(/([A-Z])/g, '-$1').toLowerCase();
-      }
-
-      // TODO: factor with perpetuo-deployment-request-entry, or remove it from -entry
-      computeComment(data) {
-        const fields = data.comment.split("ticket: ");
-        let ret = {description: fields[0]};
-        if (fields[1])
-          ret.ticket = {url: fields[1], reference: fields[1].split("/").splice(-1)[0]};
-        return ret;
       }
 
       sumUpArray(arr) {
