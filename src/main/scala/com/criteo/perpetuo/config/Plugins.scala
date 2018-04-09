@@ -83,45 +83,38 @@ trait Plugin {
 
 
 abstract class PluginRunner[P <: Plugin](plugin: P, base: P) {
-  // fixme: only as long as we need to redirect people who are not in the new workflow to Jira
-  protected def wrapTransition[T](toCallOnPlugin: P => T, name: String = null): Future[T] = {
-    val methodName = if (name == null) Thread.currentThread.getStackTrace()(2).getMethodName else name
-    val method = plugin.getClass.getMethods.filter(_.getName == methodName).head
-    Future(
-      try {
-        if (method.getDeclaringClass != base.getClass) {
-          // there is a specific implementation for this plugin method, let's say it and start it, but time-boxed
-          plugin.logger.info(methodName)
-          try {
-            Await.result(Future {
-              blocking {
-                toCallOnPlugin(plugin)
-              }
-            }, plugin.timeout_s.seconds)
-          }
-          catch {
-            case e: ExecutionException => throw e.getCause
-          }
-        }
-        else
-          toCallOnPlugin(plugin)
-      }
-      catch {
-        case e: Throwable =>
-          // to know which method is failing, prefix the trace
-          plugin.logger.severe(s"$methodName - ${e.getMessage}\n${e.getStackTrace.mkString("\n")}")
-          throw e
-      }
-    )
-  }
-
-  protected def wrap(toCallOnPlugin: P => Unit, name: String = null): Future[Unit] = {
-    val methodName = if (name == null) Thread.currentThread.getStackTrace()(2).getMethodName else name
+  protected def wrap(toCallOnPlugin: P => Unit, name: String = null): Future[Unit] =
     try {
-      wrapTransition(toCallOnPlugin, methodName)
+      val methodName = if (name == null) Thread.currentThread.getStackTrace()(2).getMethodName else name
+      val method = plugin.getClass.getMethods.filter(_.getName == methodName).head
+      Future(
+        try {
+          if (method.getDeclaringClass != base.getClass) {
+            // there is a specific implementation for this plugin method, let's say it and start it, but time-boxed
+            plugin.logger.info(methodName)
+            try {
+              Await.result(Future {
+                blocking {
+                  toCallOnPlugin(plugin)
+                }
+              }, plugin.timeout_s.seconds)
+            }
+            catch {
+              case e: ExecutionException => throw e.getCause
+            }
+          }
+          else
+            toCallOnPlugin(plugin)
+        }
+        catch {
+          case e: Throwable =>
+            // to know which method is failing, prefix the trace
+            plugin.logger.severe(s"$methodName - ${e.getMessage}\n${e.getStackTrace.mkString("\n")}")
+            throw e
+        }
+      )
     }
     catch {
       case _: Throwable => Future.successful()
     }
-  }
 }
