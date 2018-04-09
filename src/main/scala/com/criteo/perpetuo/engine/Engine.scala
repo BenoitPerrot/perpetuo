@@ -143,8 +143,12 @@ class Engine @Inject()(val dbBinding: DbBinding,
           Future.traverse(effects) { case (status, execTraceId, executionUpdate) =>
             executionUpdate
               .map { case (state, detail, logHref) =>
-                updateExecutionTrace(execTraceId, state, detail, logHref) // will close the operation if there is no more ongoing execution
-                  .map(_ => status)
+                // will close the operation if there is no more ongoing execution
+                updateExecutionTrace(execTraceId, state, detail, logHref)
+                  .map { id =>
+                    assert(id.isDefined)
+                    status
+                  }
                   .recover { case e =>
                     // only log update errors, which are not critical in that case
                     logger.error(s"Could not update execution trace #$execTraceId${logHref.map(s => s" ($s)").getOrElse("")} as $state: $detail", e)

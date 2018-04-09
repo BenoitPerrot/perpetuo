@@ -60,13 +60,16 @@ trait SimpleScenarioTesting extends Test with TestDb {
         op <- engine.startDeploymentRequest(depReqId, "s.tarter")
         operationTraceId = op.get.id
         executionTraceIds <- engine.dbBinding.findExecutionTraceIdsByOperationTrace(operationTraceId)
-        _ <- Future.traverse(executionTraceIds) { executionTraceId =>
+        updated <- Future.traverse(executionTraceIds) { executionTraceId =>
           engine.updateExecutionTrace(
             executionTraceId, ExecutionState.completed, "", None,
             target.map(_ -> TargetAtomStatus(finalStatus, "")).toMap
           )
         }
-      } yield operationTraceId
+      } yield {
+        updated.foreach(_ shouldBe defined)
+        operationTraceId
+      }
     }
   }
 
@@ -77,7 +80,7 @@ trait SimpleScenarioTesting extends Test with TestDb {
         op <- engine.revert(depReqId, "r.everter", defaultVersion.map(v => Version(v.toJson)))
         operationTraceId = op.get.id
         executionIds <- engine.dbBinding.findExecutionIdsByOperationTrace(operationTraceId)
-        _ <- Future.traverse(executionIds) { executionId =>
+        updated <- Future.traverse(executionIds) { executionId =>
           engine.dbBinding.findTargetsByExecution(executionId).flatMap { atoms =>
             engine.dbBinding.findExecutionTraceIdsByExecution(executionId).flatMap(executionTraceIds =>
               Future.traverse(executionTraceIds) { executionTraceId =>
@@ -89,7 +92,10 @@ trait SimpleScenarioTesting extends Test with TestDb {
             )
           }
         }
-      } yield operationTraceId
+      } yield {
+        updated.foreach(_.foreach(_ shouldBe defined))
+        operationTraceId
+      }
     }
   }
 }

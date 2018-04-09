@@ -67,16 +67,16 @@ class EngineSpec extends SimpleScenarioTesting {
         operationTrace = operationTraces.head
         hasOpenExecutionBefore <- engine.dbBinding.hasOpenExecutionTracesForOperation(operationTrace.id)
         executionTrace <- engine.dbBinding.findExecutionTracesByDeploymentRequest(deploymentRequestId).map(_.head)
-        _ <- engine.updateExecutionTrace(executionTrace.id, ExecutionState.completed, "", None, Map(
+        updated <- engine.updateExecutionTrace(executionTrace.id, ExecutionState.completed, "", None, Map(
           "moon" -> TargetAtomStatus(Status.success, "no surprise"),
           "mars" -> TargetAtomStatus(Status.hostFailure, "no surprise")))
         hasOpenExecutionAfter <- engine.dbBinding.hasOpenExecutionTracesForOperation(operationTrace.id)
         operationReClosingSucceeded <- engine.dbBinding.closeOperationTrace(operationTrace)
       } yield (
-        hasOpenExecutionBefore, hasOpenExecutionAfter, operationReClosingSucceeded.isDefined
+        hasOpenExecutionBefore, updated.isDefined, hasOpenExecutionAfter, operationReClosingSucceeded.isDefined
       ),
       2.seconds
-    ) shouldBe(true, false, false)
+    ) shouldBe(true, true, false, false)
   }
 
   test("Engine keeps the created records in DB and marks an execution trace as failed if the trigger fails") {
@@ -103,18 +103,24 @@ class EngineSpec extends SimpleScenarioTesting {
       operationTraceId <- engine.startDeploymentRequest(deploymentRequestId, "s.tarter").map(_.get.id)
       executionTraceIds <- engine.dbBinding.findExecutionTraceIdsByOperationTrace(operationTraceId)
       executionSpecIds <- engine.dbBinding.findExecutionSpecIdsByOperationTrace(operationTraceId)
-      _ <- engine.updateExecutionTrace(executionTraceIds.head, initFailure.map(_ => ExecutionState.initFailed).getOrElse(ExecutionState.completed), initFailure.getOrElse(""), None, targetAtomToStatus.mapValues(c => TargetAtomStatus(c, "")))
-    } yield (deploymentRequestId, executionSpecIds.head)
+      updated <- engine.updateExecutionTrace(executionTraceIds.head, initFailure.map(_ => ExecutionState.initFailed).getOrElse(ExecutionState.completed), initFailure.getOrElse(""), None, targetAtomToStatus.mapValues(c => TargetAtomStatus(c, "")))
+    } yield {
+      updated shouldBe defined
+      (deploymentRequestId, executionSpecIds.head)
+    }
   }
 
   def mockRevertExecution(deploymentRequestId: Long, targetAtomToStatus: Map[String, Status.Code], defaultVersion: Option[Version] = None): Future[Long] = {
     for {
       operationTraceId <- engine.revert(deploymentRequestId, "r.everter", defaultVersion).map(_.get.id)
       executionTraceIds <- engine.dbBinding.findExecutionTraceIdsByOperationTrace(operationTraceId)
-      _ <- Future.traverse(executionTraceIds)(
+      updated <- Future.traverse(executionTraceIds)(
         engine.updateExecutionTrace(_, ExecutionState.completed, "", None, targetAtomToStatus.mapValues(c => TargetAtomStatus(c, "")))
       )
-    } yield operationTraceId
+    } yield {
+      updated.foreach(_ shouldBe defined)
+      operationTraceId
+    }
   }
 
   test("Engine checks that an operation can be started only if previous transactions on the same product have been completed") {
@@ -323,26 +329,30 @@ class EngineSpec extends SimpleScenarioTesting {
         operationTraces <- engine.findOperationTracesByDeploymentRequest(deploymentRequestId).map(_.get)
         operationTraceId = operationTraces.head.id
         executionTrace <- engine.dbBinding.findExecutionTracesByDeploymentRequest(deploymentRequestId)
-        _ <- engine.updateExecutionTrace(executionTrace.head.id, ExecutionState.completed, "", None, Map(
+        updated <- engine.updateExecutionTrace(executionTrace.head.id, ExecutionState.completed, "", None, Map(
           "moon" -> TargetAtomStatus(Status.success, "no surprise"),
           "mars" -> TargetAtomStatus(Status.hostFailure, "no surprise")))
         retriedOperation <- engine.deployAgain(deploymentRequestId, "b.lightning").map(_.get)
         executionTracesAfterRetry <- engine.dbBinding.findExecutionTracesByDeploymentRequest(deploymentRequestId)
-        _ <- engine.updateExecutionTrace(executionTracesAfterRetry.tail.head.id, ExecutionState.completed, "", None, Map(
+        updatedAfterRetry <- engine.updateExecutionTrace(executionTracesAfterRetry.tail.head.id, ExecutionState.completed, "", None, Map(
           "moon" -> TargetAtomStatus(Status.success, "no surprise"),
           "mars" -> TargetAtomStatus(Status.success, "no surprise")))
         hasOpenExecutionAfter <- engine.dbBinding.hasOpenExecutionTracesForOperation(retriedOperation.id)
         operationReClosingSucceeded <- engine.dbBinding.closeOperationTrace(retriedOperation)
         initialExecutionSpecIds <- engine.dbBinding.findExecutionSpecIdsByOperationTrace(operationTraceId)
         retriedExecutionSpecIds <- engine.dbBinding.findExecutionSpecIdsByOperationTrace(retriedOperation.id)
-      } yield (
-        executionTrace.length,
-        executionTracesAfterRetry.length,
-        retriedOperation.id == operationTraceId,
-        hasOpenExecutionAfter, operationReClosingSucceeded.isDefined,
-        initialExecutionSpecIds.length == retriedExecutionSpecIds.length,
-        initialExecutionSpecIds == retriedExecutionSpecIds
-      ),
+      } yield {
+        updated shouldBe defined
+        updatedAfterRetry shouldBe defined
+        (
+          executionTrace.length,
+          executionTracesAfterRetry.length,
+          retriedOperation.id == operationTraceId,
+          hasOpenExecutionAfter, operationReClosingSucceeded.isDefined,
+          initialExecutionSpecIds.length == retriedExecutionSpecIds.length,
+          initialExecutionSpecIds == retriedExecutionSpecIds
+        )
+      },
       2.seconds
     ) shouldBe(1, 2, false, false, false, true, true)
   }
