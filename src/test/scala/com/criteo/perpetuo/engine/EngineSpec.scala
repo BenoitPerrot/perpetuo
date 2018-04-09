@@ -31,6 +31,7 @@ object DummyExecutionTriggerWithLogHref extends DummyExecutionTrigger("DummyWith
 
 
 class EngineSpec extends SimpleScenarioTesting {
+  private val engineWithLogHref = new Engine(dbBinding, plugins.resolver, new SingleTargetDispatcher(DummyExecutionTriggerWithLogHref), plugins.permissions, plugins.listeners, executionFinder)
 
   test("A trivial execution triggers a job with no log href when there is no log href provided") {
     Await.result(
@@ -45,13 +46,12 @@ class EngineSpec extends SimpleScenarioTesting {
   }
 
   test("A trivial execution triggers a job with a log href when a log href is provided as a Future") {
-    val eng = new Engine(dbBinding, plugins.resolver, new SingleTargetDispatcher(DummyExecutionTriggerWithLogHref), plugins.permissions, plugins.listeners, executionFinder)
     Await.result(
       for {
         product <- engine.insertProduct("product #2")
-        depReq <- eng.dbBinding.insertDeploymentRequest(new DeploymentRequestAttrs(product.name, Version("\"1000\""), """"*"""", "", "s.omeone", new Timestamp(123456789)))
-        _ <- eng.startDeploymentRequest(depReq.id, "s.tarter")
-        traces <- eng.findExecutionTracesByDeploymentRequest(depReq.id)
+        depReq <- engineWithLogHref.dbBinding.insertDeploymentRequest(new DeploymentRequestAttrs(product.name, Version("\"1000\""), """"*"""", "", "s.omeone", new Timestamp(123456789)))
+        _ <- engineWithLogHref.startDeploymentRequest(depReq.id, "s.tarter")
+        traces <- engineWithLogHref.findExecutionTracesByDeploymentRequest(depReq.id)
       } yield traces.get.map(trace => (trace.id, trace.logHref)),
       1.second
     ) shouldEqual Seq((2, Some("now you can track me down")))
