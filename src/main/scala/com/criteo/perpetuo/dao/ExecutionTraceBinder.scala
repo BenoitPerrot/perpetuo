@@ -3,6 +3,7 @@ package com.criteo.perpetuo.dao
 import com.criteo.perpetuo.engine.UnavailableAction
 import com.criteo.perpetuo.model.ExecutionState.ExecutionState
 import com.criteo.perpetuo.model._
+import com.google.common.annotations.VisibleForTesting
 import slick.profile.FixedSqlAction
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -120,14 +121,15 @@ trait ExecutionTraceBinder extends TableBinder {
         .result
     )
 
-  // for tests only
-  def findExecutionTraceIdsByOperationTrace(operationTraceId: Long): Future[Seq[Long]] =
+  @VisibleForTesting
+  def findExecutionTracesByOperationTrace(operationTraceId: Long): Future[Seq[ShallowExecutionTrace]] =
     dbContext.db.run(
       executionTraceQuery.join(executionQuery)
         .filter { case (trace, execution) =>
           trace.executionId === execution.id && execution.operationTraceId === operationTraceId
         }
-        .map { case (trace, _) => trace.id }
+        .map { case (trace, _) => trace }
         .result
+        .map(_.map(_.toExecutionTrace))
     )
 }

@@ -45,7 +45,7 @@ trait SimpleScenarioTesting extends Test with TestDb {
 
   def await[T](a: Awaitable[T]): T = Await.result(a, 1.second)
 
-  def deploy(productName: String, version: String, target: Seq[String], finalStatus: Status.Code = Status.success): Unit = {
+  def deploy(productName: String, version: String, target: Seq[String], finalStatus: Status.Code = Status.success): ShallowOperationTrace = {
     if (!lastDeploymentRequests.contains(productName))
       await(engine.insertProduct(productName))
 
@@ -58,28 +58,28 @@ trait SimpleScenarioTesting extends Test with TestDb {
           id
         }
         op <- engine.startDeploymentRequest(depReqId, "s.tarter")
-        operationTraceId = op.get.id
-        executionTraceIds <- engine.dbBinding.findExecutionTraceIdsByOperationTrace(operationTraceId)
-        updated <- Future.traverse(executionTraceIds) { executionTraceId =>
+        operationTrace = op.get
+        executionTraces <- engine.dbBinding.findExecutionTracesByOperationTrace(operationTrace.id)
+        updated <- Future.traverse(executionTraces) { executionTrace =>
           engine.updateExecutionTrace(
-            executionTraceId, ExecutionState.completed, "", None,
+            executionTrace.id, ExecutionState.completed, "", None,
             target.map(_ -> TargetAtomStatus(finalStatus, "")).toMap
           )
         }
       } yield {
         updated.foreach(_ shouldBe defined)
-        operationTraceId
+        operationTrace
       }
     }
   }
 
-  def revert(productName: String, defaultVersion: Option[String] = None): Unit = {
+  def revert(productName: String, defaultVersion: Option[String] = None): ShallowOperationTrace = {
     val depReqId = lastDeploymentRequests(productName)
     await {
       for {
         op <- engine.revert(depReqId, "r.everter", defaultVersion.map(v => Version(v.toJson)))
-        operationTraceId = op.get.id
-        executionIds <- engine.dbBinding.findExecutionIdsByOperationTrace(operationTraceId)
+        operationTrace = op.get
+        executionIds <- engine.dbBinding.findExecutionIdsByOperationTrace(operationTrace.id)
         updated <- Future.traverse(executionIds) { executionId =>
           engine.dbBinding.findTargetsByExecution(executionId).flatMap { atoms =>
             engine.dbBinding.findExecutionTraceIdsByExecution(executionId).flatMap(executionTraceIds =>
@@ -94,7 +94,7 @@ trait SimpleScenarioTesting extends Test with TestDb {
         }
       } yield {
         updated.foreach(_.foreach(_ shouldBe defined))
-        operationTraceId
+        operationTrace
       }
     }
   }

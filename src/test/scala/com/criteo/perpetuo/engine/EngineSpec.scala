@@ -101,9 +101,9 @@ class EngineSpec extends SimpleScenarioTesting {
     for {
       deploymentRequestId <- engine.createDeploymentRequest(new DeploymentRequestAttrs(productName, Version(JsString(v).compactPrint), targetAtomToStatus.keys.toJson.compactPrint, "", "r.equestor", new Timestamp(System.currentTimeMillis))).map(_ ("id").toString.toLong)
       operationTraceId <- engine.startDeploymentRequest(deploymentRequestId, "s.tarter").map(_.get.id)
-      executionTraceIds <- engine.dbBinding.findExecutionTraceIdsByOperationTrace(operationTraceId)
+      executionTraces <- engine.dbBinding.findExecutionTracesByOperationTrace(operationTraceId)
       executionSpecIds <- engine.dbBinding.findExecutionSpecIdsByOperationTrace(operationTraceId)
-      updated <- engine.updateExecutionTrace(executionTraceIds.head, initFailure.map(_ => ExecutionState.initFailed).getOrElse(ExecutionState.completed), initFailure.getOrElse(""), None, targetAtomToStatus.mapValues(c => TargetAtomStatus(c, "")))
+      updated <- engine.updateExecutionTrace(executionTraces.head.id, initFailure.map(_ => ExecutionState.initFailed).getOrElse(ExecutionState.completed), initFailure.getOrElse(""), None, targetAtomToStatus.mapValues(c => TargetAtomStatus(c, "")))
     } yield {
       updated shouldBe defined
       (deploymentRequestId, executionSpecIds.head)
@@ -113,9 +113,9 @@ class EngineSpec extends SimpleScenarioTesting {
   def mockRevertExecution(deploymentRequestId: Long, targetAtomToStatus: Map[String, Status.Code], defaultVersion: Option[Version] = None): Future[Long] = {
     for {
       operationTraceId <- engine.revert(deploymentRequestId, "r.everter", defaultVersion).map(_.get.id)
-      executionTraceIds <- engine.dbBinding.findExecutionTraceIdsByOperationTrace(operationTraceId)
-      updated <- Future.traverse(executionTraceIds)(
-        engine.updateExecutionTrace(_, ExecutionState.completed, "", None, targetAtomToStatus.mapValues(c => TargetAtomStatus(c, "")))
+      executionTraces <- engine.dbBinding.findExecutionTracesByOperationTrace(operationTraceId)
+      updated <- Future.traverse(executionTraces)(executionTrace =>
+        engine.updateExecutionTrace(executionTrace.id, ExecutionState.completed, "", None, targetAtomToStatus.mapValues(c => TargetAtomStatus(c, "")))
       )
     } yield {
       updated.foreach(_ shouldBe defined)
