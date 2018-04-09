@@ -14,4 +14,18 @@ object ExecutionState extends Enumeration {
   val completed = Value(7, "completed") // the completion status has been received, either succeeded or failed (per target)
   val unreachable = Value(8, "unreachable") // it's impossible to get information about the execution state (assumed permanently lost)
   val stopped = Value(9, "stopped") // the job has been successfully stopped from Perpetuo
+
+  private val allOpenStates = List(pending, unreachable, running)
+  val getPredecessors: Map[ExecutionState, List[ExecutionState]] = Map(
+    pending -> List(),
+    unreachable -> List(pending, running),
+    running -> List(pending, unreachable),
+    initFailed -> allOpenStates, // todo: remove
+    conflicting -> allOpenStates,
+    aborted -> allOpenStates,
+    unresolved -> allOpenStates,
+    stopped -> allOpenStates,
+    completed -> List(pending, running) // todo: remove pending once DREDD-836 is implemented
+  )
+  assert(values.equals(getPredecessors.keySet))
 }

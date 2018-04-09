@@ -211,6 +211,12 @@ class RestController @Inject()(val engine: Engine)
     )
   )
 
+  /**
+    * Respond a:
+    * - HTTP 204 if the update is a success
+    * - HTTP 404 if the execution trace doesn't exist
+    * - HTTP 422 if the execution state's transition is unsupported
+    */
   put(RestApi.executionCallbackPath(":id")) {
     // todo: give the permissions to actual executors
     withIdAndRequest(

@@ -1,5 +1,6 @@
 package com.criteo.perpetuo.dao
 
+import com.criteo.perpetuo.engine.UnavailableAction
 import com.criteo.perpetuo.model.ExecutionState.ExecutionState
 import com.criteo.perpetuo.model._
 import slick.profile.FixedSqlAction
@@ -86,14 +87,30 @@ trait ExecutionTraceBinder extends TableBinder {
         .result
     )
 
-  // todo: reject forbidden transitions, e.g. from failed to running
+  /**
+    * @return Some(id) if it has been successfully updated, None if it doesn't exist
+    * @throws UnavailableAction if the transition is not allowed
+    */
   def updateExecutionTrace(id: Long, state: ExecutionState, detail: String, logHref: Option[String] = None): Future[Option[Long]] =
     logHref
-      .map(_ => runUpdate(id, _.map(r => (r.state, r.detail, r.logHref)).update((state, detail, logHref))))
-      .getOrElse(runUpdate(id, _.map(r => (r.state, r.detail)).update((state, detail))))
+      .map(_ => runUpdate(id, state, _.map(r => (r.state, r.detail, r.logHref)).update((state, detail, logHref))))
+      .getOrElse(runUpdate(id, state, _.map(r => (r.state, r.detail)).update((state, detail))))
 
-  private def runUpdate(id: Long, query: Query[ExecutionTraceTable, ExecutionTraceRecord, Seq] => DBIOAction[Int, NoStream, Effect.Write]): Future[Option[Long]] =
-    dbContext.db.run(query(executionTraceQuery.filter(_.id === id))).map(count => if (count == 0) None else Some(id))
+  private def runUpdate(id: Long, state: ExecutionState, updateQuery: Query[ExecutionTraceTable, ExecutionTraceRecord, Seq] => DBIOAction[Int, NoStream, Effect.Write]): Future[Option[Long]] = {
+    val filterQuery = executionTraceQuery.filter(executionTrace =>
+      executionTrace.id === id && executionTrace.state.inSet(state :: ExecutionState.getPredecessors(state))
+    )
+    val q = updateQuery(filterQuery).flatMap { updatedCount =>
+      // only in the case no record matched the filter (which is an error from the user, so exceptional...), we check whether the execution trace exists
+      if (updatedCount == 0)
+        executionTraceQuery.filter(_.id === id).result.map(_.headOption.map(executionTrace =>
+          throw UnavailableAction(s"Cannot transition an execution from `${executionTrace.state}` to `$state`")
+        ))
+      else
+        DBIO.successful(Some(id))
+    }
+    dbContext.db.run(q)
+  }
 
   def findExecutionTraceIdsByExecution(executionId: Long): Future[Seq[Long]] =
     dbContext.db.run(

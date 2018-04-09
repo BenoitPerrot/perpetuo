@@ -469,6 +469,23 @@ class RestControllerSpec extends Test with TestDb {
     )
   }
 
+  test("The ExecutionTrace's entry-point rejects impossible transitions") {
+    createProduct("calm-camel")
+    val depReqId = requestDeployment("calm-camel", "123456", Seq("paris", "amsterdam").toJson, None)
+    startDeploymentRequest(depReqId)
+    val execTraceId = getExecutionTracesByDeploymentRequestId(depReqId.toString).elements(0).idAsLong
+    checkExecutionTraceUpdate(
+      depReqId, execTraceId, "conflicting", None,
+      Some(Map("amsterdam" -> Map("code" -> "notDone", "detail" -> "").toJson)),
+      None, Map("amsterdam" -> ("notDone", ""))
+    )
+    updateExecutionTrace(
+      execTraceId, "completed", Some("http://final"),
+      Some(Map("paris" -> Map("code" -> "hostFailure", "detail" -> "crashed").toJson)), None,
+      UnprocessableEntity
+    )
+  }
+
   test("The ExecutionTrace's entry-point returns 404 on non-integral ID") {
     putExecutionTrace(
       "abc",
