@@ -1,5 +1,7 @@
 <link rel="import" href="../../bower_components/polymer/polymer.html">
 
+<link rel="import" href="../perpetuo-markdown/perpetuo-markdown-viewer.html">
+
 <dom-module id="perpetuo-deployment-execution-list">
   <template>
     <style>
@@ -54,7 +56,7 @@
               </template>
             </td>
             <td>
-              [[item.detail]]
+              <perpetuo-markdown-viewer md="[[item.detail]]"></perpetuo-markdown-viewer>
             </td>
           </tr>
         </template>

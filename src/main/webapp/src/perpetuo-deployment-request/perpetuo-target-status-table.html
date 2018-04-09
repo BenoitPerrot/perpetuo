@@ -1,5 +1,7 @@
 <link rel="import" href="../../bower_components/polymer/polymer.html">
 
+<link rel="import" href="../perpetuo-markdown/perpetuo-markdown-viewer.html">
+
 <dom-module id="perpetuo-target-status-table">
   <template>
     <style>
@@ -39,7 +41,7 @@
         </thead>
         <tbody>
         <template is="dom-repeat" items="[[data]]">
-          <tr><td>[[item.targetAtom]]</td><td>[[item.code]]</td><td>[[item.detail]]</td></tr>
+          <tr><td>[[item.targetAtom]]</td><td>[[item.code]]</td><td><perpetuo-markdown-viewer md="[[item.detail]]"></perpetuo-markdown-viewer></td></tr>
         </template>
         </tbody>
       </table>

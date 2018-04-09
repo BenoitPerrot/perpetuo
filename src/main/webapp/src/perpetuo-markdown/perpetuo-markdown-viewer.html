@@ -1,0 +1,49 @@
+<link rel="import" href="../../bower_components/polymer/polymer.html">
+
+<dom-module id="perpetuo-markdown-viewer">
+  <template>
+  </template>
+  <script>
+  (function () {
+    function toHTML(s) {
+      if (s.length === 0)
+        return '';
+      const rules = [
+        {
+          re: /\[([^\]]*)\]\(([^)]*)\)/,
+          f(text, href) {
+            return `<a href="${href}">${text}</a>`;
+          }
+        }
+      ];
+      for (const r of rules) {
+        const m = s.match(r.re);
+        if (m) {
+          const left = s.substring(0, m.index);
+          const right = s.substring(m.index + m[0].length)
+          m.shift();
+          return `${toHTML(left)}${r.f.apply(null, m)}${toHTML(right)}`;
+        }
+      }
+      return `<span>${s}</span>`;
+    }
+
+    class PerpetuoMarkdownViewer extends Polymer.Element {
+      static get is() { return 'perpetuo-markdown-viewer'; }
+
+      static get properties() {
+        return {
+          md: {
+            type: String,
+            observer(value) {
+              this.shadowRoot.innerHTML = toHTML(value);
+            }
+          }
+        }
+      }
+    }
+
+    customElements.define(PerpetuoMarkdownViewer.is, PerpetuoMarkdownViewer);
+  } ());
+  </script>
+</dom-module>
