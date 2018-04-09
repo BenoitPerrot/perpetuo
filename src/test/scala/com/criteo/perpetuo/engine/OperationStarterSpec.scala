@@ -3,7 +3,6 @@ package com.criteo.perpetuo.engine
 import java.sql.Timestamp
 
 import com.criteo.perpetuo.TestDb
-import com.criteo.perpetuo.dao._
 import com.criteo.perpetuo.engine.dispatchers.{SingleTargetDispatcher, TargetDispatcher}
 import com.criteo.perpetuo.engine.executors.{DummyExecutionTrigger, ExecutionTrigger}
 import com.criteo.perpetuo.engine.resolvers.TargetResolver
@@ -46,7 +45,7 @@ class OperationStarterSpec extends Test with TestDb {
 
   import TestTargetDispatcher._
 
-  private val operationStarter = new OperationStarter(new DbBinding(dbContext))
+  private val operationStarter = new OperationStarter(dbBinding)
   private val testResolver = new TargetResolver {
     override def toAtoms(productName: String, productVersion: Version, targetWords: Select): Option[Map[String, Select]] = {
       // the atomic targets are the input word split on dashes

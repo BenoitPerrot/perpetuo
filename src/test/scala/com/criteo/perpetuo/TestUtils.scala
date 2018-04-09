@@ -30,6 +30,7 @@ object TestUtils {
 trait TestDb extends DbContextProvider {
   lazy val dbTestModule = new TestingDbContextModule(AppConfigProvider.config.getConfig("db"))
   lazy val dbContext: DbContext = dbTestModule.providesDbContext
+  lazy val dbBinding = new DbBinding(dbContext)
 }
 
 
@@ -38,7 +39,7 @@ trait SimpleScenarioTesting extends Test with TestDb {
   private val loader = new PluginLoader(null)
   val plugins = new Plugins(loader)
   val executionFinder = new TriggeredExecutionFinder(loader)
-  val engine = new Engine(new DbBinding(dbContext), plugins.resolver, plugins.dispatcher, plugins.permissions, plugins.listeners, executionFinder)
+  val engine = new Engine(dbBinding, plugins.resolver, plugins.dispatcher, plugins.permissions, plugins.listeners, executionFinder)
 
   def become[T](value: T): Matcher[Future[T]] = be(value).compose(Await.result(_, 1.second))
 

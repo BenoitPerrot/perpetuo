@@ -3,7 +3,6 @@ package com.criteo.perpetuo.engine
 import java.sql.Timestamp
 
 import com.criteo.perpetuo.SimpleScenarioTesting
-import com.criteo.perpetuo.dao.DbBinding
 import com.criteo.perpetuo.engine.dispatchers.SingleTargetDispatcher
 import com.criteo.perpetuo.engine.executors.DummyExecutionTrigger
 import com.criteo.perpetuo.model._
@@ -46,7 +45,7 @@ class EngineSpec extends SimpleScenarioTesting {
   }
 
   test("A trivial execution triggers a job with a log href when a log href is provided as a Future") {
-    val eng = new Engine(new DbBinding(dbContext), plugins.resolver, new SingleTargetDispatcher(DummyExecutionTriggerWithLogHref), plugins.permissions, plugins.listeners, executionFinder)
+    val eng = new Engine(dbBinding, plugins.resolver, new SingleTargetDispatcher(DummyExecutionTriggerWithLogHref), plugins.permissions, plugins.listeners, executionFinder)
     Await.result(
       for {
         product <- engine.insertProduct("product #2")
@@ -81,7 +80,7 @@ class EngineSpec extends SimpleScenarioTesting {
   }
 
   test("Engine keeps the created records in DB and marks an execution trace as failed if the trigger fails") {
-    val engineWithFailingTrigger = new Engine(new DbBinding(dbContext), plugins.resolver, new SingleTargetDispatcher(FailingExecutionTrigger), plugins.permissions, plugins.listeners, executionFinder)
+    val engineWithFailingTrigger = new Engine(dbBinding, plugins.resolver, new SingleTargetDispatcher(FailingExecutionTrigger), plugins.permissions, plugins.listeners, executionFinder)
     Await.result(
       for {
         product <- engineWithFailingTrigger.insertProduct("airplane")
