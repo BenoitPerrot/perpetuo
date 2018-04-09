@@ -115,10 +115,6 @@ abstract class PluginRunner[P <: Plugin](plugin: P, base: P) {
     )
   }
 
-  protected def wrapWithoutCatching(toCallOnPlugin: P => Unit, name: String = null): Future[Unit] = {
-    wrapTransition(toCallOnPlugin, if (name == null) Thread.currentThread.getStackTrace()(2).getMethodName else name)
-  }
-
   protected def wrap(toCallOnPlugin: P => Unit, name: String = null): Future[Unit] = {
     val methodName = if (name == null) Thread.currentThread.getStackTrace()(2).getMethodName else name
     try {

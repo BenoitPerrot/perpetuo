@@ -29,7 +29,7 @@ class DefaultListenerPlugin extends SyncListener with Plugin {
 
 private[config] class ListenerPluginWrapper(implementation: DefaultListenerPlugin) extends PluginRunner(implementation, new DefaultListenerPlugin) with AsyncListener {
   def onCreatingDeploymentRequest(deploymentRequestAttrs: DeploymentRequestAttrs): Future[Unit] =
-    wrapWithoutCatching(_.onCreatingDeploymentRequest(deploymentRequestAttrs))
+    wrap(_.onCreatingDeploymentRequest(deploymentRequestAttrs))
 
   def onDeploymentRequestCreated(deploymentRequest: DeepDeploymentRequest): Future[Unit] =
     wrap(_.onDeploymentRequestCreated(deploymentRequest))
