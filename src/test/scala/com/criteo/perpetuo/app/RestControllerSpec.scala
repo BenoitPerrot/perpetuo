@@ -413,8 +413,11 @@ class RestControllerSpec extends Test with TestDb {
   }
 
   test("The ExecutionTrace's entry-point updates one record's execution state and target status on a PUT") {
-    val (depReqId, executionTraces) = createProductAndStartDeployment("653", Seq("paris", "ams").toJson)
-    executionTraces.foreach(
+    val productName = s"random product ${randomProductCounter.next()}"
+    createProduct(productName)
+    val depReqId = requestDeployment(productName, "653", Seq("paris", "ams").toJson)
+    startDeploymentRequest(depReqId)
+    getExecutionTracesByDeploymentRequestId(depReqId.toString).elements.map(_.idAsLong).foreach(
       updateExecTrace(
         depReqId, _, "initFailed", None,
         Some(Map("paris" -> Map("code" -> "success", "detail" -> "").toJson)),
