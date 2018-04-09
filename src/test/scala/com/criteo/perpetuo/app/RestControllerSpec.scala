@@ -182,7 +182,11 @@ class RestControllerSpec extends Test with TestDb {
   private def updateExecTrace(deploymentRequestId: Long, execTraceId: Long, state: String,
                               logHref: Option[String] = None,
                               targetStatus: Option[Map[String, JsValue]] = None,
-                              executionDetail: Option[String] = None): Response = {
+                              executionDetail: Option[String] = None,
+                              expectedTargetStatus: Map[String, (String, String)] = Map()): Unit = {
+    val previousLogHrefJson = logHrefHistory.getOrElse(execTraceId, JsNull)
+    val expectedLogHrefJson = logHref.map(_.toJson).getOrElse(previousLogHrefJson)
+    logHrefHistory(execTraceId) = expectedLogHrefJson
     val params = Map(
       "state" -> Some(state.toJson),
       "logHref" -> logHref.map(_.toJson),
@@ -191,26 +195,14 @@ class RestControllerSpec extends Test with TestDb {
     ).collect {
       case (k, v) if v.isDefined => k -> v.get
     }
-    putExecutionTrace(
+    val resp = putExecutionTrace(
       execTraceId.toString,
       params.toJson,
       NoContent
     )
-  }
-
-  private def updateExecTrace(deploymentRequestId: Long, execTraceId: Long, state: String, logHref: Option[String],
-                              targetStatus: Option[Map[String, JsValue]],
-                              executionDetail: Option[String],
-                              expectedTargetStatus: Map[String, (String, String)]): Unit = {
-    val previousLogHrefJson = logHrefHistory.getOrElse(execTraceId, JsNull)
-    val expectedLogHrefJson = logHref.map(_.toJson).getOrElse(previousLogHrefJson)
-    logHrefHistory(execTraceId) = expectedLogHrefJson
-
-    val ret = updateExecTrace(deploymentRequestId, execTraceId, state, logHref, targetStatus, executionDetail)
-    ret.contentLength shouldEqual Some(0)
+    resp.contentLength shouldEqual Some(0)
 
     val depReq = deepGetDepReq(deploymentRequestId)
-
     val operations = depReq.fields("operations").asInstanceOf[JsArray].elements.map(_.asJsObject.fields)
     operations.size shouldEqual 1
     Map(
@@ -413,25 +405,22 @@ class RestControllerSpec extends Test with TestDb {
 
   test("The ExecutionTrace's entry-point updates one record's execution state on a PUT") {
     val (depReqId, executionTraces) = createProductAndStartDeployment("1112", "paris".toJson)
-    updateExecTrace(
-      depReqId, executionTraces.head, "completed", None, None, Some("execution detail"),
-      expectedTargetStatus = Map()
-    )
+    updateExecTrace(depReqId, executionTraces.head, "completed", executionDetail = Some("execution detail"))
   }
 
   test("The ExecutionTrace's entry-point updates one record's execution state and log href on a PUT") {
     val (depReqId, executionTraces) = createProductAndStartDeployment("1112", "paris".toJson)
-    updateExecTrace(
-      depReqId, executionTraces.head, "completed", Some("http://somewhe.re"), None, None, Map()
-    )
+    updateExecTrace(depReqId, executionTraces.head, "completed", Some("http://somewhe.re"))
   }
 
   test("The ExecutionTrace's entry-point updates one record's execution state and target status on a PUT") {
     val (depReqId, executionTraces) = createProductAndStartDeployment("653", Seq("paris", "ams").toJson)
-    updateExecTrace(
-      depReqId, executionTraces.head, "initFailed", None,
-      Some(Map("paris" -> Map("code" -> "success", "detail" -> "").toJson)),
-      None, Map("paris" -> ("success", ""))
+    executionTraces.foreach(
+      updateExecTrace(
+        depReqId, _, "initFailed", None,
+        Some(Map("paris" -> Map("code" -> "success", "detail" -> "").toJson)),
+        None, Map("paris" -> ("success", ""))
+      )
     )
   }
 
@@ -493,7 +482,7 @@ class RestControllerSpec extends Test with TestDb {
       BadRequest
     ).contentString should include("targetStatus: Can not deserialize")
 
-    updateExecTrace(depReqId, execTraceId, "completed", None, None, None, Map())
+    updateExecTrace(depReqId, execTraceId, "completed")
   }
 
   test("The ExecutionTrace's entry-point returns 400 if no state is provided") {
@@ -524,7 +513,7 @@ class RestControllerSpec extends Test with TestDb {
       BadRequest
     ).contentString should include("Bad target status for `par`: code='foobar', detail=''")
 
-    updateExecTrace(depReqId, execTraceId, "completed", None, None, None, Map())
+    updateExecTrace(depReqId, execTraceId, "completed")
   }
 
   test("Deep query selects single one") {
