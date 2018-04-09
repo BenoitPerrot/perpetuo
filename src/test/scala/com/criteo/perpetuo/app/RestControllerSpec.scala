@@ -183,7 +183,8 @@ class RestControllerSpec extends Test with TestDb {
                               logHref: Option[String] = None,
                               targetStatus: Option[Map[String, JsValue]] = None,
                               executionDetail: Option[String] = None,
-                              expectedTargetStatus: Map[String, (String, String)] = Map()): Unit = {
+                              expectedTargetStatus: Map[String, (String, String)] = Map(),
+                              expectedClosed: Boolean = true): Unit = {
     val previousLogHrefJson = logHrefHistory.getOrElse(execTraceId, JsNull)
     val expectedLogHrefJson = logHref.map(_.toJson).getOrElse(previousLogHrefJson)
     logHrefHistory(execTraceId) = expectedLogHrefJson
@@ -210,7 +211,6 @@ class RestControllerSpec extends Test with TestDb {
       "kind" -> "deploy".toJson,
       "creator" -> "r.eleaser".toJson,
       "creationDate" -> T,
-      "closingDate" -> T,
       "targetStatus" -> expectedTargetStatus.mapValues { case (s, d) => Map("code" -> s, "detail" -> d) }.toJson,
       "executions" -> JsArray(
         JsObject(
@@ -220,7 +220,7 @@ class RestControllerSpec extends Test with TestDb {
           "detail" -> executionDetail.getOrElse("").toJson
         )
       )
-    ) shouldEqual operations.head
+    ) ++ (if (expectedClosed) Map("closingDate" -> T) else Map()) shouldEqual operations.head
   }
 
   test("The Product's entry-point returns 201 when creating a Product") {
@@ -440,14 +440,16 @@ class RestControllerSpec extends Test with TestDb {
     startDeploymentRequest(depReqId)
     val execTraceId = getExecutionTracesByDeploymentRequestId(depReqId.toString).elements(0).idAsLong
     updateExecTrace(
-      depReqId, execTraceId, "conflicting", None,
+      depReqId, execTraceId, "running", None,
       Some(Map("amsterdam" -> Map("code" -> "notDone", "detail" -> "").toJson)),
-      None, Map("amsterdam" -> ("notDone", ""))
+      None, Map("amsterdam" -> ("notDone", "")),
+      expectedClosed = false
     )
     updateExecTrace(
-      depReqId, execTraceId, "conflicting", None,
+      depReqId, execTraceId, "running", None,
       Some(Map("amsterdam" -> Map("code" -> "running", "detail" -> "").toJson, "paris" -> Map("code" -> "notDone", "detail" -> "waiting...").toJson)),
-      None, Map("amsterdam" -> ("running", ""), "paris" -> ("notDone", "waiting..."))
+      None, Map("amsterdam" -> ("running", ""), "paris" -> ("notDone", "waiting...")),
+      expectedClosed = false
     )
     updateExecTrace(
       depReqId, execTraceId, "completed", Some("http://final"),
