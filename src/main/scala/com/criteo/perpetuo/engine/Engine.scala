@@ -280,27 +280,25 @@ class Engine @Inject()(val dbBinding: DbBinding,
         Future.successful(Some(traces))
     }
 
-  def updateExecutionTrace(id: Long, executionState: ExecutionState, detail: String, logHref: Option[String], statusMap: Map[String, TargetAtomStatus] = Map()): Future[Option[Unit]] = {
+  def updateExecutionTrace(id: Long, executionState: ExecutionState, detail: String, logHref: Option[String], statusMap: Map[String, TargetAtomStatus] = Map()): Future[Option[Long]] =
     dbBinding.updateExecutionTrace(id, executionState, detail, logHref).flatMap(_
       .map(_ => // the execution trace exists
         dbBinding.findExecutionTraceById(id).map(_.get).flatMap { execTrace =>
           val op = execTrace.operationTrace
-
           dbBinding.dbContext.db.run(dbBinding.updateTargetStatuses(execTrace.executionId, statusMap))
             .flatMap(_ => dbBinding.hasOpenExecutionTracesForOperation(op.id))
             .flatMap { hasOpenExecutions =>
               if (hasOpenExecutions)
-                Future.successful(Some())
+                Future.successful(Some(id))
               else
                 dbBinding.findDeepDeploymentRequestById(op.deploymentRequestId).flatMap { depReq =>
-                  closeOperation(op, depReq.get).map(_ => Some())
+                  closeOperation(op, depReq.get).map(_ => Some(id))
                 }
             }
         }
       )
       .getOrElse(Future.successful(None))
     )
-  }
 
   def findDeepDeploymentRequestAndEffects(deploymentRequestId: Long): Future[Option[(DeepDeploymentRequest, Iterable[OperationEffect])]] =
     dbBinding.findDeepDeploymentRequestAndEffects(deploymentRequestId)
