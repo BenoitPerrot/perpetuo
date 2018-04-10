@@ -1,7 +1,5 @@
 package com.criteo.perpetuo.app
 
-import java.sql.Timestamp
-
 import com.criteo.perpetuo.TestDb
 import com.criteo.perpetuo.auth.{User, UserFilter}
 import com.criteo.perpetuo.config.AppConfigProvider
@@ -394,7 +392,7 @@ class RestControllerSpec extends Test with TestDb {
   }
 
   test("The ExecutionTrace's entry-point doesn't fail when the existing DeploymentRequest doesn't have execution traces yet") {
-    val attrs = new DeploymentRequestAttrs("my product", Version("\"v\""), "\"t\"", "c", "c", new Timestamp(System.currentTimeMillis))
+    val attrs = new DeploymentRequestAttrs("my product", Version("\"v\""), "\"t\"", "c", "c")
     val depReq = Await.result(controller.engine.createDeploymentRequest(attrs), 1.second)
     val traces = getExecutionTracesByDeploymentRequestId(depReq("id").toString).elements
     traces shouldBe empty

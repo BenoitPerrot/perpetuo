@@ -1,7 +1,5 @@
 package com.criteo.perpetuo
 
-import java.sql.Timestamp
-
 import com.criteo.perpetuo.config.{AppConfigProvider, PluginLoader, Plugins}
 import com.criteo.perpetuo.dao.{DbBinding, DbContext, DbContextProvider, TestingDbContextModule}
 import com.criteo.perpetuo.engine.dispatchers.SingleTargetDispatcher
@@ -89,7 +87,7 @@ trait SimpleScenarioTesting extends Test with TestDb with MockitoSugar {
     if (!lastDeploymentRequests.contains(productName))
       await(engine.insertProduct(productName))
 
-    val attrs = new DeploymentRequestAttrs(productName, Version(version.toJson), target.toJson.compactPrint, "", "de.ployer", new Timestamp(System.currentTimeMillis))
+    val attrs = new DeploymentRequestAttrs(productName, Version(version.toJson), target.toJson.compactPrint, "", "de.ployer")
     await {
       for {
         depReqId <- engine.createDeploymentRequest(attrs).map {

@@ -1,7 +1,5 @@
 package com.criteo.perpetuo.engine
 
-import java.sql.Timestamp
-
 import com.criteo.perpetuo.SimpleScenarioTesting
 import com.criteo.perpetuo.model._
 import spray.json.DefaultJsonProtocol._
@@ -17,7 +15,7 @@ class EngineSpec extends SimpleScenarioTesting {
     Await.result(
       for {
         product <- engine.insertProduct("product #1")
-        depReq <- engine.dbBinding.insertDeploymentRequest(new DeploymentRequestAttrs(product.name, Version("\"1000\""), """"*"""", "", "s.omeone", new Timestamp(123456789)))
+        depReq <- engine.dbBinding.insertDeploymentRequest(new DeploymentRequestAttrs(product.name, Version("\"1000\""), """"*"""", "", "s.omeone"))
         _ <- engine.startDeploymentRequest(depReq.id, "s.tarter")
         traces <- engine.findExecutionTracesByDeploymentRequest(depReq.id)
       } yield traces.get.map(trace => (trace.id, trace.logHref)),
@@ -29,7 +27,7 @@ class EngineSpec extends SimpleScenarioTesting {
     Await.result(
       for {
         product <- engine.insertProduct("human")
-        deploymentRequestId <- engine.createDeploymentRequest(new DeploymentRequestAttrs(product.name, Version(JsString("42").compactPrint), """["moon","mars"]}""", "", "robert", new Timestamp(System.currentTimeMillis))).map(_ ("id").toString.toLong)
+        deploymentRequestId <- engine.createDeploymentRequest(new DeploymentRequestAttrs(product.name, Version(JsString("42").compactPrint), """["moon","mars"]}""", "", "robert")).map(_ ("id").toString.toLong)
         _ <- engine.startDeploymentRequest(deploymentRequestId, "ignace")
         operationTraces <- engine.findOperationTracesByDeploymentRequest(deploymentRequestId).map(_.get)
         operationTrace = operationTraces.head
@@ -44,7 +42,7 @@ class EngineSpec extends SimpleScenarioTesting {
 
   def mockDeployExecution(productName: String, v: String, targetAtomToStatus: Map[String, Status.Code], initFailed: Boolean = false): Future[(Long, Long)] = {
     for {
-      deploymentRequestId <- engine.createDeploymentRequest(new DeploymentRequestAttrs(productName, Version(JsString(v).compactPrint), targetAtomToStatus.keys.toJson.compactPrint, "", "r.equestor", new Timestamp(System.currentTimeMillis))).map(_ ("id").toString.toLong)
+      deploymentRequestId <- engine.createDeploymentRequest(new DeploymentRequestAttrs(productName, Version(JsString(v).compactPrint), targetAtomToStatus.keys.toJson.compactPrint, "", "r.equestor")).map(_ ("id").toString.toLong)
       operationTrace <- engine.startDeploymentRequest(deploymentRequestId, "s.tarter").map(_.get)
       executionSpecIds <- engine.dbBinding.findExecutionSpecIdsByOperationTrace(operationTrace.id)
       _ <- closeOperation(operationTrace, targetAtomToStatus, initFailed)
@@ -143,7 +141,7 @@ class EngineSpec extends SimpleScenarioTesting {
         (undeterminedSpecsThird, determinedSpecsThird) <- engine.dbBinding.findExecutionSpecificationsForRevert(thirdDeploymentRequest)
 
       } yield {
-        val specsThird = determinedSpecsThird.map { case (spec, targets) => spec.id -> (spec.version.toString, targets) }.toMap
+        val specsThird = determinedSpecsThird.map { case (spec, targets) => spec.id -> (spec.version.value, targets) }.toMap
         (
           undeterminedSpecsFirst,
           determinedSpecsFirst.isEmpty,
@@ -259,7 +257,7 @@ class EngineSpec extends SimpleScenarioTesting {
     Await.result(
       for {
         product <- engine.insertProduct("martian")
-        deploymentRequestId <- engine.createDeploymentRequest(new DeploymentRequestAttrs(product.name, Version(JsString("42").compactPrint), """["moon","mars"]}""", "", "robert", new Timestamp(System.currentTimeMillis))).map(_ ("id").toString.toLong)
+        deploymentRequestId <- engine.createDeploymentRequest(new DeploymentRequestAttrs(product.name, Version(JsString("42").compactPrint), """["moon","mars"]}""", "", "robert")).map(_ ("id").toString.toLong)
         _ <- engine.startDeploymentRequest(deploymentRequestId, "ignace")
         operationTraces <- engine.findOperationTracesByDeploymentRequest(deploymentRequestId).map(_.get)
         operationTrace = operationTraces.head
@@ -358,7 +356,7 @@ class EngineWithFailingExecutorSpec extends SimpleScenarioTesting {
   test("Engine keeps the created records in DB and marks an execution trace as failed if the trigger fails") {
     val res = for {
       product <- engine.insertProduct("airplane")
-      deploymentRequestId <- engine.createDeploymentRequest(new DeploymentRequestAttrs(product.name, Version(JsString("42").compactPrint), """["moon","mars"]}""", "", "bob", new Timestamp(System.currentTimeMillis))).map(_ ("id").toString.toLong)
+      deploymentRequestId <- engine.createDeploymentRequest(new DeploymentRequestAttrs(product.name, Version(JsString("42").compactPrint), """["moon","mars"]}""", "", "bob")).map(_ ("id").toString.toLong)
       _ <- engine.startDeploymentRequest(deploymentRequestId, "ignace")
       operationTraces <- engine.findOperationTracesByDeploymentRequest(deploymentRequestId).map(_.get)
       operationTrace = operationTraces.head

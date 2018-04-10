@@ -1,7 +1,5 @@
 package com.criteo.perpetuo.dao
 
-import java.sql.Timestamp
-
 import com.criteo.perpetuo.TestDb
 import com.criteo.perpetuo.model.{DeploymentRequestAttrs, ExecutionState, Operation, Version}
 import org.junit.runner.RunWith
@@ -30,7 +28,7 @@ class ExecutionTraceSpec extends FunSuite with ScalaFutures
     Await.result(
       for {
         product <- insertProduct("perpetuo-app")
-        request <- insertDeploymentRequest(new DeploymentRequestAttrs(product.name, Version("\"v42\""), "*", "No fear", "c.norris", new Timestamp(123456789)))
+        request <- insertDeploymentRequest(new DeploymentRequestAttrs(product.name, Version("\"v42\""), "*", "No fear", "c.norris"))
         deployOperationTrace <- dbContext.db.run(insertOperationTrace(request, Operation.deploy, "c.norris"))
         execSpec <- insertExecutionSpecification("{}", Version("\"456\""))
         execId <- dbContext.db.run(insertExecution(deployOperationTrace.id, execSpec.id))

@@ -63,7 +63,7 @@ class OperationStarterSpec extends Test with TestDb {
 
   implicit class ComplexDispatchTest(private val target: TargetExpr) {
     private val rawTarget = target.toJson.compactPrint
-    private val request = new DeploymentRequestAttrs(product.name, Version("\"v42\""), rawTarget, "No fear", "c.norris", new Timestamp(123456789))
+    private val request = new DeploymentRequestAttrs(product.name, Version("\"v42\""), rawTarget, "No fear", "c.norris")
     private val depReq = operationStarter.dbBinding.insertDeploymentRequest(request)
 
     def dispatchedAs(that: Map[ExecutionTrigger, TargetExpr]): Unit = {

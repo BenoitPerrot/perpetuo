@@ -44,7 +44,7 @@ class DeploymentRequestAttrs(val productName: String,
                              val target: String, // fixme: at least a JsValue, or a TargetExpr
                              val comment: String,
                              val creator: String,
-                             val creationDate: java.sql.Timestamp) extends ParsedTarget
+                             val creationDate: java.sql.Timestamp = new java.sql.Timestamp(System.currentTimeMillis)) extends ParsedTarget
 
 
 case class ShallowDeploymentRequest(id: Long,

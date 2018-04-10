@@ -1,7 +1,5 @@
 package com.criteo.perpetuo.dao
 
-import java.sql.Timestamp
-
 import com.criteo.perpetuo.TestDb
 import com.criteo.perpetuo.model.{DeploymentRequestAttrs, Version}
 import org.junit.runner.RunWith
@@ -25,7 +23,7 @@ class DeploymentRequestSpec extends FunSuite with ScalaFutures
     Await.result(
       for {
         product <- insertProduct("perpetuo-app")
-        request <- insertDeploymentRequest(new DeploymentRequestAttrs(product.name, Version("\"v42\""), "*", "No fear", "c.norris", new Timestamp(123456789)))
+        request <- insertDeploymentRequest(new DeploymentRequestAttrs(product.name, Version("\"v42\""), "*", "No fear", "c.norris"))
         requests <- dbContext.db.run(deploymentRequestQuery.result)
         lookup <- findDeepDeploymentRequestById(request.id)
       } yield {

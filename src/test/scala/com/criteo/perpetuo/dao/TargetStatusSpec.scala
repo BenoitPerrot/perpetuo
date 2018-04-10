@@ -1,7 +1,5 @@
 package com.criteo.perpetuo.dao
 
-import java.sql.Timestamp
-
 import com.criteo.perpetuo.TestDb
 import com.criteo.perpetuo.model._
 import org.junit.runner.RunWith
@@ -32,7 +30,7 @@ class TargetStatusSpec extends FunSuite with ScalaFutures
       for {
         _ <- dbContext.db.run(targetStatusQuery.delete)
         product <- insertProduct("perpetuo-app")
-        request <- insertDeploymentRequest(new DeploymentRequestAttrs(product.name, Version("\"v42\""), "Moon", "That's one small step for man, one giant leap for mankind", "n.armstrong", new Timestamp(123456789)))
+        request <- insertDeploymentRequest(new DeploymentRequestAttrs(product.name, Version("\"v42\""), "Moon", "That's one small step for man, one giant leap for mankind", "n.armstrong"))
         deployOperationTrace <- dbContext.db.run(insertOperationTrace(request, Operation.deploy, "n.armstrong"))
         execSpec <- insertExecutionSpecification("{}", Version("\"456\""))
         execId <- dbContext.db.run(insertExecution(deployOperationTrace.id, execSpec.id))
@@ -53,7 +51,7 @@ class TargetStatusSpec extends FunSuite with ScalaFutures
       for {
         _ <- dbContext.db.run(targetStatusQuery.delete)
         product <- insertProduct("sleepy-owl")
-        request <- insertDeploymentRequest(new DeploymentRequestAttrs(product.name, Version("\"0\""), "Earth", "", "creator", new Timestamp(123456789)))
+        request <- insertDeploymentRequest(new DeploymentRequestAttrs(product.name, Version("\"0\""), "Earth", "", "creator"))
         deployOperationTrace <- dbContext.db.run(insertOperationTrace(request, Operation.deploy, "runner"))
         execSpec <- insertExecutionSpecification("{}", Version("\"0\""))
         execId <- dbContext.db.run(insertExecution(deployOperationTrace.id, execSpec.id))

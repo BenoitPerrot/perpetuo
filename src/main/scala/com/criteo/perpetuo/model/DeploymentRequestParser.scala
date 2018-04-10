@@ -1,7 +1,5 @@
 package com.criteo.perpetuo.model
 
-import java.sql.Timestamp
-
 import com.criteo.perpetuo.engine.{Tactics, TargetExpr, TargetTerm}
 import spray.json.JsonParser.ParsingException
 import spray.json._
@@ -29,8 +27,7 @@ object DeploymentRequestParser {
           version,
           targetExpr.compactPrint,
           readStr("comment", Some("")),
-          userName,
-          new Timestamp(System.currentTimeMillis)
+          userName
         )
         attrs.parsedTarget // validate the target
 
