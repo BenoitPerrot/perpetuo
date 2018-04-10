@@ -544,6 +544,29 @@ class RestControllerSpec extends Test with TestDb {
     checkExecutionTraceUpdate(depReqId, execTraceId, "completed")
   }
 
+  test("The stop entry-point tries to stop running executions for a given deployment request") {
+    val productName = s"product-${randomProductCounter.next()}"
+    createProduct(productName)
+    val depReqId = requestDeployment(productName, "653", Seq("paris", "ams").toJson)
+    startDeploymentRequest(depReqId)
+
+    actOnDeploymentRequest(depReqId, "stop", JsObject(), Status.Ok).contentString.parseJson.asJsObject shouldEqual
+      JsObject(
+        "id" -> JsNumber(depReqId),
+        "stopped" -> JsNumber(0),
+        "failures" -> JsArray(JsString(s"No log href for execution trace #$depReqId, thus cannot interact with the actual execution"))
+      )
+
+    getExecutionTracesByDeploymentRequestId(depReqId.toString).elements.map(_.idAsLong).foreach { execTraceId =>
+      updateExecutionTrace(
+        execTraceId, "completed", Some("http://final"),
+        Some(Map("paris" -> Map("code" -> "hostFailure", "detail" -> "crashed").toJson))
+      )
+    }
+    actOnDeploymentRequest(depReqId, "stop", JsObject(), Status.Ok).contentString.parseJson.asJsObject shouldEqual
+      JsObject("id" -> JsNumber(depReqId), "stopped" -> JsNumber(0), "failures" -> JsArray())
+  }
+
   test("Deep query selects single one") {
     val allDepReqs = deepGetDepReq()
     allDepReqs.length should be > 2

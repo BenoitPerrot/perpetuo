@@ -204,6 +204,40 @@ class RestController @Inject()(val engine: Engine)
     }
   }
 
+  /**
+    * Warning: this route may return HTTP 200 OK with a list of error messages in the body!
+    * These errors are about individual executions that could not be stopped, while another
+    * key in the body gives the number of executions that have been successfully stopped.
+    * No information is returned about the executions that were already stopped.
+    */
+  post("/api/deployment-requests/:id/actions/stop") { r: RequestWithId =>
+    authenticate(r.request) { case user =>
+      withIdAndRequest(
+        (id, _: RequestWithId) => {
+          engine.findDeepDeploymentRequestById(id)
+            .flatMap(_
+              .map { deploymentRequest =>
+                if (!permissions.isAuthorized(user, DeploymentAction.applyOperation, Operation.revert, deploymentRequest.product.name, deploymentRequest.parsedTarget.select))
+                  throw ForbiddenException()
+
+                engine
+                  .tryStopDeploymentRequest(deploymentRequest, user.name)
+                  .map { case (nbStopped, errorMessages) =>
+                    Some(Map(
+                      "id" -> id,
+                      "stopped" -> nbStopped,
+                      "failures" -> errorMessages
+                    ))
+                  }
+              }
+              .getOrElse(Future.successful(None))
+            )
+        },
+        5.seconds
+      )(r)
+    }
+  }
+
   get("/api/deployment-requests/:id/execution-traces")(
     withLongId(
       engine.findExecutionTracesByDeploymentRequest,

@@ -18,6 +18,11 @@ object DeploymentAction extends Enumeration {
 trait Permissions {
   def isAuthorized(user: User, action: GeneralAction.Value): Boolean
 
+  /**
+    * Is the user authorized to request or apply the given operation for the given product
+    * on the given targets? Note that the right to stop a deployment is the same as the
+    * right to revert a deployment.
+    */
   def isAuthorized(user: User, action: DeploymentAction.Value, operation: Operation.Kind, productName: String, target: Iterable[String]): Boolean
 }
 
