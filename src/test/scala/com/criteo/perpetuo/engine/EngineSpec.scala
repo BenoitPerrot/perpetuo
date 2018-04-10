@@ -3,8 +3,6 @@ package com.criteo.perpetuo.engine
 import java.sql.Timestamp
 
 import com.criteo.perpetuo.SimpleScenarioTesting
-import com.criteo.perpetuo.engine.dispatchers.SingleTargetDispatcher
-import com.criteo.perpetuo.engine.executors.DummyExecutionTrigger
 import com.criteo.perpetuo.model._
 import spray.json.DefaultJsonProtocol._
 import spray.json._
@@ -14,25 +12,7 @@ import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}
 
 
-object FailingExecutionTrigger extends DummyExecutionTrigger("DummyWithLogHref") {
-  override def trigger(execTraceId: Long, productName: String, version: Version, target: TargetExpr, initiator: String): Future[Option[String]] = {
-    throw new RuntimeException("too bad, dude")
-  }
-}
-
-object DummyExecutionTriggerWithLogHref extends DummyExecutionTrigger("DummyWithLogHref") {
-  override def trigger(execTraceId: Long, productName: String, version: Version, target: TargetExpr, initiator: String): Future[Option[String]] = {
-    super.trigger(execTraceId, productName, version, target, initiator).map { logHref =>
-      assert(logHref.isEmpty)
-      Some("now you can track me down")
-    }
-  }
-}
-
-
 class EngineSpec extends SimpleScenarioTesting {
-  private val engineWithLogHref = new Engine(dbBinding, plugins.resolver, new SingleTargetDispatcher(DummyExecutionTriggerWithLogHref), plugins.permissions, plugins.listeners, executionFinder)
-
   test("A trivial execution triggers a job with no log href when there is no log href provided") {
     Await.result(
       for {
@@ -43,18 +23,6 @@ class EngineSpec extends SimpleScenarioTesting {
       } yield traces.get.map(trace => (trace.id, trace.logHref)),
       1.second
     ) shouldEqual Seq((1, None))
-  }
-
-  test("A trivial execution triggers a job with a log href when a log href is provided as a Future") {
-    Await.result(
-      for {
-        product <- engine.insertProduct("product #2")
-        depReq <- engineWithLogHref.dbBinding.insertDeploymentRequest(new DeploymentRequestAttrs(product.name, Version("\"1000\""), """"*"""", "", "s.omeone", new Timestamp(123456789)))
-        _ <- engineWithLogHref.startDeploymentRequest(depReq.id, "s.tarter")
-        traces <- engineWithLogHref.findExecutionTracesByDeploymentRequest(depReq.id)
-      } yield traces.get.map(trace => (trace.id, trace.logHref)),
-      1.second
-    ) shouldEqual Seq((2, Some("now you can track me down")))
   }
 
   test("Engine keeps track of open executions for an operation") {
@@ -77,24 +45,6 @@ class EngineSpec extends SimpleScenarioTesting {
       ),
       2.seconds
     ) shouldBe(true, true, false, false)
-  }
-
-  test("Engine keeps the created records in DB and marks an execution trace as failed if the trigger fails") {
-    val engineWithFailingTrigger = new Engine(dbBinding, plugins.resolver, new SingleTargetDispatcher(FailingExecutionTrigger), plugins.permissions, plugins.listeners, executionFinder)
-    Await.result(
-      for {
-        product <- engineWithFailingTrigger.insertProduct("airplane")
-        deploymentRequestId <- engineWithFailingTrigger.createDeploymentRequest(new DeploymentRequestAttrs(product.name, Version(JsString("42").compactPrint), """["moon","mars"]}""", "", "bob", new Timestamp(System.currentTimeMillis))).map(_ ("id").toString.toLong)
-        _ <- engineWithFailingTrigger.startDeploymentRequest(deploymentRequestId, "ignace")
-        operationTraces <- engine.findOperationTracesByDeploymentRequest(deploymentRequestId).map(_.get)
-        operationTrace = operationTraces.head
-        hasOpenExecution <- engine.dbBinding.hasOpenExecutionTracesForOperation(operationTrace.id)
-        executionTrace <- engine.dbBinding.findExecutionTracesByDeploymentRequest(deploymentRequestId).map(_.head)
-      } yield (
-        hasOpenExecution, executionTrace.state
-      ),
-      2.seconds
-    ) shouldBe(false, ExecutionState.initFailed)
   }
 
   def mockDeployExecution(productName: String, v: String, targetAtomToStatus: Map[String, Status.Code], initFailure: Option[String] = None): Future[(Long, Long)] = {
@@ -423,5 +373,37 @@ class EngineSpec extends SimpleScenarioTesting {
       Seq("jupiter", "saturn", "neptune") // cold, cold, cold
     )) should become(v("sunny"))
   }
+}
 
+
+class EngineWithFailingExecutorSpec extends SimpleScenarioTesting {
+  override protected def triggerMock = throw new RuntimeException("too bad, dude")
+
+  test("Engine keeps the created records in DB and marks an execution trace as failed if the trigger fails") {
+    val res = for {
+      product <- engine.insertProduct("airplane")
+      deploymentRequestId <- engine.createDeploymentRequest(new DeploymentRequestAttrs(product.name, Version(JsString("42").compactPrint), """["moon","mars"]}""", "", "bob", new Timestamp(System.currentTimeMillis))).map(_ ("id").toString.toLong)
+      _ <- engine.startDeploymentRequest(deploymentRequestId, "ignace")
+      operationTraces <- engine.findOperationTracesByDeploymentRequest(deploymentRequestId).map(_.get)
+      operationTrace = operationTraces.head
+      hasOpenExecution <- engine.dbBinding.hasOpenExecutionTracesForOperation(operationTrace.id)
+      executionTrace <- engine.dbBinding.findExecutionTracesByDeploymentRequest(deploymentRequestId).map(_.head)
+    } yield (
+      hasOpenExecution, executionTrace.state
+    )
+    res should become(false, ExecutionState.initFailed)
+  }
+}
+
+
+class EngineWithUnknownLogHrefSpec extends SimpleScenarioTesting {
+  private val logHref = "now you can track me down"
+
+  override protected def triggerMock = Some(logHref)
+
+  test("A trivial execution triggers a job with a log href when a log href is provided") {
+    val op = deploy("product #2", "1000", Seq("*"))
+    engine.dbBinding.findExecutionTracesByOperationTrace(op.id)
+      .map(_.flatMap(_.logHref).toSet) should eventually(be(Set(logHref)))
+  }
 }
