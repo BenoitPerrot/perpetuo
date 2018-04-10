@@ -20,16 +20,7 @@ import scala.collection.mutable
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Awaitable, Future}
-import scala.io.Source
 import scala.reflect.ClassTag
-
-
-object TestUtils {
-  def getResourceAsString(resourceFileName: String): String = {
-    val cls = Class.forName(Thread.currentThread.getStackTrace.apply(2).getClassName)
-    Source.fromURL(cls.getResource(resourceFileName)).mkString
-  }
-}
 
 
 trait TestDb extends DbContextProvider {

@@ -1,13 +1,19 @@
 package com.criteo.perpetuo.dao
 
-import com.criteo.perpetuo.TestUtils._
 import com.twitter.inject.Test
 import freeslick.MSSQLServerProfile
+
+import scala.io.Source
 
 
 class SchemaSpec extends Test {
 
   val schema = new Schema(new DbContext(MSSQLServerProfile, null))
+
+  def getResourceAsString(resourceFileName: String): String = {
+    val cls = Class.forName(Thread.currentThread.getStackTrace.apply(2).getClassName)
+    Source.fromURL(cls.getResource(resourceFileName)).mkString
+  }
 
   def toWords(string: String): List[String] = {
     """"[^"]*"|\w+|[^"\w]+""".r.findAllIn(string.trim).toList.map {
@@ -20,7 +26,6 @@ class SchemaSpec extends Test {
   def asSql(text: String): String = toWords(text).mkString
 
   def asSql(statements: Iterator[String]): String = asSql(statements.mkString(" "))
-
 
   test("Self-test splits in upper case words and remove extra white spaces") {
     toWords(" Abc de_f   \nghi  \t ") shouldEqual List("ABC", " ", "DE_F", " ", "GHI")
