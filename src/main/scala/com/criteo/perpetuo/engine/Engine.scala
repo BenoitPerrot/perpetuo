@@ -8,6 +8,7 @@ import com.criteo.perpetuo.engine.executors.TriggeredExecutionFinder
 import com.criteo.perpetuo.engine.resolvers.TargetResolver
 import com.criteo.perpetuo.model.ExecutionState.ExecutionState
 import com.criteo.perpetuo.model._
+import com.google.common.annotations.VisibleForTesting
 import com.twitter.inject.Logging
 import javax.inject.{Inject, Singleton}
 
@@ -216,6 +217,44 @@ class Engine @Inject()(val dbBinding: DbBinding,
       // by using dbBinding.findTargetAtomNotActionableBy instead of `outdated` here
       rejectIfOutdatedOrLocked(deploymentRequest)
     }
+
+  /**
+    * Try to stop an execution from its trace
+    *
+    * @return true if it has been stopped, false if it was already terminated
+    * @throws RuntimeException if it wasn't possible to stop the non-ended execution, for any reason
+    */
+  @VisibleForTesting
+  def stopExecution(executionTrace: ShallowExecutionTrace, initiatorName: String): Future[Boolean] = {
+    val triggeredExecution = findTriggeredExecution(executionTrace)
+    val stop = triggeredExecution.stopper.getOrElse(
+      throw new RuntimeException(s"This kind of execution cannot be stopped: ${triggeredExecution.logHref}")
+    )
+    stop()
+      .map { incompleteState =>
+        val ret = Future.failed(new RuntimeException(s"Could not stop the execution ${triggeredExecution.logHref} (current state: $incompleteState)"))
+        if (incompleteState != executionTrace.state) // override anyway the detail if the state is outdated
+          updateExecutionTrace(executionTrace.id, incompleteState, "", None).flatMap { id =>
+            assert(id.isDefined)
+            ret
+          }
+        else
+          ret
+      }
+      .getOrElse(
+        updateExecutionTrace(executionTrace.id, ExecutionState.stopped, s"by $initiatorName", None)
+          .map { id =>
+            assert(id.isDefined)
+            logger.info(s"Execution successfully stopped: ${triggeredExecution.logHref}")
+            true
+          }
+          .recover {
+            case _: UnavailableAction =>
+              logger.warn(s"Execution already terminated: ${triggeredExecution.logHref}")
+              false
+          }
+      )
+  }
 
   def startDeploymentRequest(deploymentRequestId: Long, initiatorName: String): Future[Option[ShallowOperationTrace]] = {
     dbBinding.findDeepDeploymentRequestById(deploymentRequestId).flatMap(_

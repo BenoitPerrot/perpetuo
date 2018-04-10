@@ -21,6 +21,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Awaitable, Future}
 import scala.io.Source
+import scala.reflect.ClassTag
 
 
 object TestUtils {
@@ -51,6 +52,11 @@ trait SimpleScenarioTesting extends Test with TestDb with MockitoSugar {
   }
 
   protected def triggerMock: Option[String] = None
+
+  def asynchronouslyThrow[T <: Throwable : ClassTag](pattern: String): Matcher[Future[_]] =
+    be(a[T])
+      .and(fullyMatch.regex(pattern).compose((_: Throwable).getMessage))
+      .compose(f => await(f.failed))
 
   def become[T](value: T): Matcher[Future[T]] = eventually(be(value))
 

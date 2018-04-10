@@ -396,6 +396,17 @@ class EngineWithFailingExecutorSpec extends SimpleScenarioTesting {
 }
 
 
+class EngineWithNoLogHrefSpec extends SimpleScenarioTesting {
+  test("Cannot stop an execution that has no log href") {
+    val op = deploy("dusty-duck", "12345", Seq("thailand"))
+    engine.dbBinding.findExecutionTracesByOperationTrace(op.id)
+      .map(_.head)
+      .flatMap(execTrace => engine.stopExecution(execTrace, "joe")) should
+      asynchronouslyThrow[RuntimeException]("No log href for execution trace .+")
+  }
+}
+
+
 class EngineWithUnknownLogHrefSpec extends SimpleScenarioTesting {
   private val logHref = "now you can track me down"
 
@@ -405,5 +416,28 @@ class EngineWithUnknownLogHrefSpec extends SimpleScenarioTesting {
     val op = deploy("product #2", "1000", Seq("*"))
     engine.dbBinding.findExecutionTracesByOperationTrace(op.id)
       .map(_.flatMap(_.logHref).toSet) should eventually(be(Set(logHref)))
+  }
+
+  test("Cannot stop an execution of an unknown type") {
+    val op = deploy("dusty-duck", "123456", Seq("thailand"))
+    engine.dbBinding.findExecutionTracesByOperationTrace(op.id)
+      .map(_.head)
+      .flatMap(engine.stopExecution(_, "joe")) should
+      asynchronouslyThrow[RuntimeException]("Could not find an execution configuration for the type `unknown`")
+  }
+}
+
+
+class EngineWithRundeckLogHrefSpec extends SimpleScenarioTesting {
+  private val logHref = "https://executor.tld/execution/show/42"
+
+  override protected def triggerMock = Some(logHref)
+
+  test("Cannot stop an execution of an explicitly unstoppable type") {
+    val op = deploy("dusty-duck", "1234567", Seq("thailand"))
+    engine.dbBinding.findExecutionTracesByOperationTrace(op.id)
+      .map(_.head)
+      .flatMap(engine.stopExecution(_, "joe")) should
+      asynchronouslyThrow[RuntimeException](s"This kind of execution cannot be stopped: $logHref")
   }
 }
