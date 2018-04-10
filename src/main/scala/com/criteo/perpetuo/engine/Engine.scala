@@ -161,6 +161,9 @@ class Engine @Inject()(val dbBinding: DbBinding,
         )
       }
 
+  // idempotent: on several attempts the listeners would be invoked at most once, but the DB updates
+  // would be reapplied in an idempotent way (in the case something failed in the previous attempt)
+  // because they are not done in a single transaction here
   private def closeOperation(operationTrace: ShallowOperationTrace, deploymentRequest: DeepDeploymentRequest): Future[ShallowOperationTrace] =
     dbBinding.closeOperationTrace(operationTrace)
       .map(_.map((_, true)).getOrElse((operationTrace, false)))
@@ -345,9 +348,11 @@ class Engine @Inject()(val dbBinding: DbBinding,
         Future.successful(Some(traces))
     }
 
+  // idempotent
   def updateExecutionTrace(id: Long, executionState: ExecutionState, detail: String, logHref: Option[String], statusMap: Map[String, TargetAtomStatus] = Map()): Future[Long] =
     tryUpdateExecutionTrace(id, executionState, detail, logHref, statusMap).map(_.getOrElse(throw new AssertionError(s"Trying to update an execution trace ($id) that doesn't exist")))
 
+  // idempotent
   def tryUpdateExecutionTrace(id: Long, executionState: ExecutionState, detail: String, logHref: Option[String], statusMap: Map[String, TargetAtomStatus] = Map()): Future[Option[Long]] =
     dbBinding.updateExecutionTrace(id, executionState, detail, logHref).flatMap(_
       .map(_ => // the execution trace exists
