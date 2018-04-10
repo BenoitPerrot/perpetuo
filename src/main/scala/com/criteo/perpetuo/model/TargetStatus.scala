@@ -22,4 +22,5 @@ object Status extends Enumeration {
   val productFailure = Value(2, "productFailure")
   val hostFailure = Value(3, "hostFailure")
   val notDone = Value(4, "notDone")
+  val undetermined = Value(5, "undetermined")
 }

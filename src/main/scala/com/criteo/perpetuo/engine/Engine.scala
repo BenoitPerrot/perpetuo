@@ -170,7 +170,6 @@ class Engine @Inject()(val dbBinding: DbBinding,
       .flatMap { case (trace, updated) =>
         dbBinding.getOperationEffect(trace)
           .flatMap { effect =>
-            // todo: if there still are unfinished target statuses, update them here
             val (kind, status) = computeState(effect)
             val transactionOngoing = kind == Operation.deploy && status == OperationStatus.failed
             if (updated) {
@@ -180,7 +179,10 @@ class Engine @Inject()(val dbBinding: DbBinding,
                 (_: AsyncListener).onOperationFailed _
               listeners.foreach(listener => handler(listener)(trace, deploymentRequest))
             }
-            releaseLocks(deploymentRequest, transactionOngoing)
+            Future.sequence(Seq(
+              dbBinding.closeTargetStatuses(trace.id),
+              releaseLocks(deploymentRequest, transactionOngoing)
+            ))
           }
           .map(_ => trace)
       }

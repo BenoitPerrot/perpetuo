@@ -461,9 +461,18 @@ class RestControllerSpec extends Test with TestDb {
       expectedClosed = false
     )
     checkExecutionTraceUpdate(
-      depReqId, execTraceId, "completed", Some("http://final"),
-      Some(Map("paris" -> Map("code" -> "hostFailure", "detail" -> "crashed").toJson)),
-      None, Map("paris" -> ("hostFailure", "crashed"), "amsterdam" -> ("running", ""))
+      depReqId, execTraceId, "stopped", Some("http://final"),
+      Some(Map(
+        "tokyo" -> Map("code" -> "notDone", "detail" -> "crashed").toJson,
+        "london" -> Map("code" -> "running", "detail" -> "am I too late?").toJson
+      )),
+      None,
+      Map(
+        "paris" -> ("notDone", "waiting..."), // untouched; example of a case where the detail doesn't make sense anymore (while it still might)
+        "amsterdam" -> ("undetermined", "No feedback from the executor"), // auto-updated on close
+        "tokyo" -> ("notDone", "crashed"), // "manually" updated on close
+        "london" -> ("undetermined", "No feedback from the executor") // "manually" but then automatically updated on close
+      )
     )
   }
 
