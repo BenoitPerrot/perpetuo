@@ -249,6 +249,35 @@ class Engine @Inject()(val dbBinding: DbBinding,
       )
   }
 
+  /**
+    * Try to stop all underlying executions in parallel: each one can failed for various predictable reasons.
+    *
+    * @return the number of successfully (newly) stopped executions and the list of failures (i.e. one error message
+    *         for each execution that could not be stopped and is presumably still running).
+    *         Executions that were already stopped are not included in the response.
+    */
+  def tryStopDeploymentRequest(deploymentRequest: DeepDeploymentRequest, initiatorName: String): Future[(Int, Seq[String])] =
+    dbBinding
+      .findOpenExecutionTracesByDeploymentRequest(deploymentRequest.id)
+      .flatMap { openExecutionTraces =>
+        Future.traverse(openExecutionTraces) { openExecutionTrace =>
+          try {
+            stopExecution(openExecutionTrace, initiatorName).map(Left(_)).recover { case e => Right(e.getMessage) }
+          }
+          catch {
+            case e: Throwable =>
+              logger.error(s"While trying to stop execution #${openExecutionTrace.id} (${openExecutionTrace.logHref})", e)
+              Future.successful(Right(e.getMessage))
+          }
+        }
+      }
+      .map { results =>
+        val nbStopped = results.collect { case Left(updated) if updated => 1 }.length
+        val errors = results.collect { case Right(message) => message }
+        listeners.foreach(_.onDeploymentRequestStopped(deploymentRequest, nbStopped, errors.length))
+        (nbStopped, errors)
+      }
+
   def startDeploymentRequest(deploymentRequestId: Long, initiatorName: String): Future[Option[DeepOperationTrace]] = {
     dbBinding.findDeepDeploymentRequestById(deploymentRequestId).flatMap(_
       .map(req =>

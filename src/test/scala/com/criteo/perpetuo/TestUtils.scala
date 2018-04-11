@@ -6,7 +6,7 @@ import com.criteo.perpetuo.config.{AppConfigProvider, PluginLoader, Plugins}
 import com.criteo.perpetuo.dao.{DbBinding, DbContext, DbContextProvider, TestingDbContextModule}
 import com.criteo.perpetuo.engine.dispatchers.SingleTargetDispatcher
 import com.criteo.perpetuo.engine.executors.{DummyExecutionTrigger, TriggeredExecutionFinder}
-import com.criteo.perpetuo.engine.{Engine, TargetExpr}
+import com.criteo.perpetuo.engine.{Engine, TargetExpr, UnavailableAction}
 import com.criteo.perpetuo.model._
 import com.twitter.inject.Test
 import org.mockito.Matchers._
@@ -58,6 +58,13 @@ trait SimpleScenarioTesting extends Test with TestDb with MockitoSugar {
   def closeOperation(operationTrace: OperationTrace,
                      targetFinalStatus: Map[String, Status.Code] = Map(),
                      initFailed: Boolean = false): Future[Seq[Long]] =
+    tryCloseOperation(operationTrace, targetFinalStatus, initFailed).map(
+      _.map(_.getOrElse(throw new AssertionError("An execution could not be updated: impossible transition")))
+    )
+
+  def tryCloseOperation(operationTrace: OperationTrace,
+                        targetFinalStatus: Map[String, Status.Code] = Map(),
+                        initFailed: Boolean = false): Future[Seq[Option[Long]]] =
     engine.dbBinding.findExecutionIdsByOperationTrace(operationTrace.id)
       .flatMap(executionIds =>
         Future.traverse(executionIds)(executionId =>
@@ -68,7 +75,11 @@ trait SimpleScenarioTesting extends Test with TestDb with MockitoSugar {
             .flatMap { case (statusMap, executionTraceIds) =>
               val finalStatusMap = statusMap.mapValues(TargetAtomStatus(_, ""))
               val executionState = if (initFailed) ExecutionState.initFailed else ExecutionState.completed
-              Future.traverse(executionTraceIds)(engine.updateExecutionTrace(_, executionState, "", None, finalStatusMap))
+              Future.traverse(executionTraceIds)(
+                engine.updateExecutionTrace(_, executionState, "", None, finalStatusMap)
+                  .map(Some(_))
+                  .recover { case _: UnavailableAction => None }
+              )
             }
         )
       )

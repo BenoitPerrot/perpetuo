@@ -416,4 +416,46 @@ class EngineWithRundeckLogHrefSpec extends SimpleScenarioTesting {
       .flatMap(engine.stopExecution(_, "joe")) should
       asynchronouslyThrow[RuntimeException](s"This kind of execution cannot be stopped: $logHref")
   }
+
+  test("Engine tries to stop executions, which might terminate normally at the same time") {
+    deploy("dusty-duck", "1", Seq("here"))
+    val lastOp = deploy("dusty-duck", "2", Seq("here", "there"))
+    val req = lastOp.deploymentRequest
+
+    // try to stop when everything is already terminated
+    engine.tryStopDeploymentRequest(req, "killer-guy") should
+      eventually(be((0, Seq())))
+
+    // try to stop when nothing has been terminated but it's impossible to stop
+    engine.revert(req.id, "r.everter", Some(Version("0".toJson))).map(_.get).flatMap(op =>
+      engine.tryStopDeploymentRequest(req, "killer-guy")
+        .flatMap { case (successes, failures) =>
+          tryCloseOperation(op).map(updates =>
+            (updates.length, updates.flatten.length, successes, failures.length)
+          )
+        }
+    ) should eventually(be((2, 2, 0, 2))) // i.e. 2 execution traces, 2 closed, 0 stopped, 2 failures
+
+    // try to stop when one execution is already terminated and the other one could not be stopped (so 0 success)
+    engine.revert(req.id, "r.everter", Some(Version("0".toJson))).map(_.get).flatMap(op =>
+      engine.dbBinding.findExecutionIdsByOperationTrace(op.id)
+        .flatMap { executionIds =>
+          val executionId = executionIds.head // only update the first execution (out of the 2 triggered by the revert)
+          engine.dbBinding.findTargetsByExecution(executionId).flatMap(atoms =>
+            engine.dbBinding.findExecutionTraceIdsByExecution(executionId).flatMap(executionTraceIds =>
+              Future.traverse(executionTraceIds)(executionTraceId =>
+                engine.updateExecutionTrace(
+                  executionTraceId, ExecutionState.aborted, "from the executor", None,
+                  atoms.map(_ -> TargetAtomStatus(Status.success, "")).toMap
+                ))
+            ))
+        }
+        .flatMap(_ => engine.tryStopDeploymentRequest(req, "killer-guy"))
+        .flatMap { case (successes, failures) =>
+          tryCloseOperation(op).map(updates =>
+            (updates.length, updates.flatten.length, successes, failures.map(_.split(":").head))
+          )
+        }
+    ) should eventually(be((2, 1, 0, Seq("This kind of execution cannot be stopped")))) // i.e. 2 execution traces, 1 closed, 0 stopped, 1 failure
+  }
 }
