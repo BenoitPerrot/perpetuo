@@ -18,7 +18,12 @@ case class ShallowOperationTrace(id: Long,
                                  kind: Operation.Kind,
                                  creator: String,
                                  creationDate: java.sql.Timestamp,
-                                 closingDate: Option[java.sql.Timestamp]) extends OperationTrace
+                                 closingDate: Option[java.sql.Timestamp]) extends OperationTrace {
+  def toDeepOperationTrace(deploymentRequest: DeepDeploymentRequest): DeepOperationTrace ={
+    assert(deploymentRequest.id == deploymentRequestId)
+    DeepOperationTrace(id, deploymentRequest, kind, creator, creationDate, closingDate)
+  }
+}
 
 
 case class DeepOperationTrace(id: Long,

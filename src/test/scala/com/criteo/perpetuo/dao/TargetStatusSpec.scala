@@ -33,7 +33,7 @@ class TargetStatusSpec extends FunSuite with ScalaFutures
         _ <- dbContext.db.run(targetStatusQuery.delete)
         product <- insertProduct("perpetuo-app")
         request <- insertDeploymentRequest(new DeploymentRequestAttrs(product.name, Version("\"v42\""), "Moon", "That's one small step for man, one giant leap for mankind", "n.armstrong", new Timestamp(123456789)))
-        deployOperationTrace <- dbContext.db.run(insertOperationTrace(request.id, Operation.deploy, "n.armstrong"))
+        deployOperationTrace <- dbContext.db.run(insertOperationTrace(request, Operation.deploy, "n.armstrong"))
         execSpec <- insertExecutionSpecification("{}", Version("\"456\""))
         execId <- dbContext.db.run(insertExecution(deployOperationTrace.id, execSpec.id))
         _ <- dbContext.db.run(updateTargetStatuses(execId, Map(
@@ -54,7 +54,7 @@ class TargetStatusSpec extends FunSuite with ScalaFutures
         _ <- dbContext.db.run(targetStatusQuery.delete)
         product <- insertProduct("sleepy-owl")
         request <- insertDeploymentRequest(new DeploymentRequestAttrs(product.name, Version("\"0\""), "Earth", "", "creator", new Timestamp(123456789)))
-        deployOperationTrace <- dbContext.db.run(insertOperationTrace(request.id, Operation.deploy, "runner"))
+        deployOperationTrace <- dbContext.db.run(insertOperationTrace(request, Operation.deploy, "runner"))
         execSpec <- insertExecutionSpecification("{}", Version("\"0\""))
         execId <- dbContext.db.run(insertExecution(deployOperationTrace.id, execSpec.id))
         statuses1 <- readStatuses

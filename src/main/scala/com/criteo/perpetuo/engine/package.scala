@@ -4,7 +4,7 @@ import java.lang.{Iterable => JavaIterable}
 import java.util.{Map => JavaMap}
 
 import com.criteo.perpetuo.engine.executors.ExecutionTrigger
-import com.criteo.perpetuo.model.{ShallowOperationTrace, Version}
+import com.criteo.perpetuo.model.{DeepOperationTrace, Version}
 import slick.dbio.{DBIOAction, Effect, NoStream}
 import spray.json.DefaultJsonProtocol._
 import spray.json.{JsObject, JsonFormat}
@@ -39,5 +39,5 @@ package object engine {
 
 
   type ExecutionsToTrigger = Iterable[(Long, Version, TargetExpr, ExecutionTrigger)]
-  type OperationStartSpecifics = Future[(DBIOAction[(ShallowOperationTrace, ExecutionsToTrigger), NoStream, Effect.Read with Effect.Write], Option[Set[String]])]
+  type OperationStartSpecifics = Future[(DBIOAction[(DeepOperationTrace, ExecutionsToTrigger), NoStream, Effect.Read with Effect.Write], Option[Set[String]])]
 }

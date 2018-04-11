@@ -52,11 +52,11 @@ trait OperationTraceBinder extends TableBinder {
 
   val operationTraceQuery = TableQuery[OperationTraceTable]
 
-  def insertOperationTrace(requestId: Long, operation: Operation.Kind, creator: String): DBIOAction[ShallowOperationTrace, NoStream, Effect.Write] = {
+  def insertOperationTrace(deploymentRequest: DeepDeploymentRequest, operation: Operation.Kind, creator: String): DBIOAction[DeepOperationTrace, NoStream, Effect.Write] = {
     val date = new java.sql.Timestamp(System.currentTimeMillis)
-    val operationTrace = OperationTraceRecord(None, requestId, operation, creator, date, Some(date))
+    val operationTrace = OperationTraceRecord(None, deploymentRequest.id, operation, creator, date, Some(date))
     ((operationTraceQuery returning operationTraceQuery.map(_.id)) += operationTrace).map { id =>
-      ShallowOperationTrace(id, operationTrace.deploymentRequestId, operationTrace.operation, operationTrace.creator, operationTrace.creationDate, operationTrace.closingDate)
+      DeepOperationTrace(id, deploymentRequest, operation, creator, operationTrace.creationDate, operationTrace.closingDate)
     }
   }
 
@@ -66,7 +66,7 @@ trait OperationTraceBinder extends TableBinder {
     )
   }
 
-  def closeOperationTrace(operationTrace: ShallowOperationTrace): Future[Option[ShallowOperationTrace]] = {
+  def closeOperationTrace(operationTrace: OperationTrace): Future[Option[ShallowOperationTrace]] = {
     val now = Some(new java.sql.Timestamp(System.currentTimeMillis))
     dbContext.db.run(
       operationTraceQuery
@@ -76,7 +76,7 @@ trait OperationTraceBinder extends TableBinder {
     ).map(count => {
       assert(count <= 1)
       if (count == 1)
-        Some(operationTrace.copy(closingDate = now))
+        Some(ShallowOperationTrace(operationTrace.id, operationTrace.deploymentRequestId, operationTrace.kind, operationTrace.creator, operationTrace.creationDate, closingDate = now))
       else
         None
     })

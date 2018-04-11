@@ -55,7 +55,7 @@ trait SimpleScenarioTesting extends Test with TestDb with MockitoSugar {
 
   def await[T](a: Awaitable[T]): T = Await.result(a, 1.second)
 
-  def deploy(productName: String, version: String, target: Seq[String], finalStatus: Status.Code = Status.success): ShallowOperationTrace = {
+  def deploy(productName: String, version: String, target: Seq[String], finalStatus: Status.Code = Status.success): DeepOperationTrace = {
     if (!lastDeploymentRequests.contains(productName))
       await(engine.insertProduct(productName))
 
@@ -83,7 +83,7 @@ trait SimpleScenarioTesting extends Test with TestDb with MockitoSugar {
     }
   }
 
-  def revert(productName: String, defaultVersion: Option[String] = None): ShallowOperationTrace = {
+  def revert(productName: String, defaultVersion: Option[String] = None): DeepOperationTrace = {
     val depReqId = lastDeploymentRequests(productName)
     await {
       for {

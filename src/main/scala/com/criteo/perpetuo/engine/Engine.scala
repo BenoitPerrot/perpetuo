@@ -117,7 +117,7 @@ class Engine @Inject()(val dbBinding: DbBinding,
       dbBinding.releaseLocks(deploymentRequest.id)
 
   private def startOperation(deploymentRequest: DeepDeploymentRequest,
-                             operationStartSpecifics: OperationStartSpecifics): Future[(ShallowOperationTrace, Int, Int)] =
+                             operationStartSpecifics: OperationStartSpecifics): Future[(DeepOperationTrace, Int, Int)] =
     operationStartSpecifics
       .flatMap { case (recordsCreation, atoms) =>
         dbBinding.executeInSerializableTransaction(
@@ -256,7 +256,7 @@ class Engine @Inject()(val dbBinding: DbBinding,
       )
   }
 
-  def startDeploymentRequest(deploymentRequestId: Long, initiatorName: String): Future[Option[ShallowOperationTrace]] = {
+  def startDeploymentRequest(deploymentRequestId: Long, initiatorName: String): Future[Option[DeepOperationTrace]] = {
     dbBinding.findDeepDeploymentRequestById(deploymentRequestId).flatMap(_
       .map(req =>
         pureStartDeploymentRequest(req, initiatorName)
@@ -269,13 +269,13 @@ class Engine @Inject()(val dbBinding: DbBinding,
     )
   }
 
-  def pureStartDeploymentRequest(deploymentRequest: DeepDeploymentRequest, initiatorName: String): Future[(ShallowOperationTrace, Int, Int)] =
+  def pureStartDeploymentRequest(deploymentRequest: DeepDeploymentRequest, initiatorName: String): Future[(DeepOperationTrace, Int, Int)] =
     startOperation(
       deploymentRequest,
       operationStarter.startDeploymentRequest(targetResolver, targetDispatcher, deploymentRequest, initiatorName)
     )
 
-  def deployAgain(deploymentRequestId: Long, initiatorName: String): Future[Option[ShallowOperationTrace]] = {
+  def deployAgain(deploymentRequestId: Long, initiatorName: String): Future[Option[DeepOperationTrace]] = {
     dbBinding.findDeepDeploymentRequestAndSpecs(deploymentRequestId).flatMap(_
       .map { case (deploymentRequest, executionSpecs) =>
         startOperation(deploymentRequest, operationStarter.deployAgain(targetResolver, targetDispatcher, deploymentRequest, executionSpecs, initiatorName))
@@ -288,7 +288,7 @@ class Engine @Inject()(val dbBinding: DbBinding,
     )
   }
 
-  def revert(deploymentRequestId: Long, initiatorName: String, defaultVersion: Option[Version]): Future[Option[ShallowOperationTrace]] =
+  def revert(deploymentRequestId: Long, initiatorName: String, defaultVersion: Option[Version]): Future[Option[DeepOperationTrace]] =
     dbBinding.findDeepDeploymentRequestById(deploymentRequestId).flatMap(_
       .map { depReq =>
         startOperation(depReq, operationStarter.revert(targetDispatcher, depReq, initiatorName, defaultVersion))
