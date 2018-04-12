@@ -34,43 +34,28 @@ class EngineSpec extends SimpleScenarioTesting {
         operationTraces <- engine.findOperationTracesByDeploymentRequest(deploymentRequestId).map(_.get)
         operationTrace = operationTraces.head
         hasOpenExecutionBefore <- engine.dbBinding.hasOpenExecutionTracesForOperation(operationTrace.id)
-        executionTrace <- engine.dbBinding.findExecutionTracesByDeploymentRequest(deploymentRequestId).map(_.head)
-        updated <- engine.updateExecutionTrace(executionTrace.id, ExecutionState.completed, "", None, Map(
-          "moon" -> TargetAtomStatus(Status.success, "no surprise"),
-          "mars" -> TargetAtomStatus(Status.hostFailure, "no surprise")))
+        _ <- closeOperation(operationTrace, Map("moon" -> Status.success, "mars" -> Status.hostFailure))
         hasOpenExecutionAfter <- engine.dbBinding.hasOpenExecutionTracesForOperation(operationTrace.id)
         operationReClosingSucceeded <- engine.dbBinding.closeOperationTrace(operationTrace)
-      } yield (
-        hasOpenExecutionBefore, updated.isDefined, hasOpenExecutionAfter, operationReClosingSucceeded.isDefined
-      ),
+      } yield (hasOpenExecutionBefore, hasOpenExecutionAfter, operationReClosingSucceeded.isDefined),
       2.seconds
-    ) shouldBe(true, true, false, false)
+    ) shouldBe(true, false, false)
   }
 
-  def mockDeployExecution(productName: String, v: String, targetAtomToStatus: Map[String, Status.Code], initFailure: Option[String] = None): Future[(Long, Long)] = {
+  def mockDeployExecution(productName: String, v: String, targetAtomToStatus: Map[String, Status.Code], initFailed: Boolean = false): Future[(Long, Long)] = {
     for {
       deploymentRequestId <- engine.createDeploymentRequest(new DeploymentRequestAttrs(productName, Version(JsString(v).compactPrint), targetAtomToStatus.keys.toJson.compactPrint, "", "r.equestor", new Timestamp(System.currentTimeMillis))).map(_ ("id").toString.toLong)
-      operationTraceId <- engine.startDeploymentRequest(deploymentRequestId, "s.tarter").map(_.get.id)
-      executionTraces <- engine.dbBinding.findExecutionTracesByOperationTrace(operationTraceId)
-      executionSpecIds <- engine.dbBinding.findExecutionSpecIdsByOperationTrace(operationTraceId)
-      updated <- engine.updateExecutionTrace(executionTraces.head.id, initFailure.map(_ => ExecutionState.initFailed).getOrElse(ExecutionState.completed), initFailure.getOrElse(""), None, targetAtomToStatus.mapValues(c => TargetAtomStatus(c, "")))
-    } yield {
-      updated shouldBe defined
-      (deploymentRequestId, executionSpecIds.head)
-    }
+      operationTrace <- engine.startDeploymentRequest(deploymentRequestId, "s.tarter").map(_.get)
+      executionSpecIds <- engine.dbBinding.findExecutionSpecIdsByOperationTrace(operationTrace.id)
+      _ <- closeOperation(operationTrace, targetAtomToStatus, initFailed)
+    } yield (deploymentRequestId, executionSpecIds.head)
   }
 
   def mockRevertExecution(deploymentRequestId: Long, targetAtomToStatus: Map[String, Status.Code], defaultVersion: Option[Version] = None): Future[Long] = {
     for {
-      operationTraceId <- engine.revert(deploymentRequestId, "r.everter", defaultVersion).map(_.get.id)
-      executionTraces <- engine.dbBinding.findExecutionTracesByOperationTrace(operationTraceId)
-      updated <- Future.traverse(executionTraces)(executionTrace =>
-        engine.updateExecutionTrace(executionTrace.id, ExecutionState.completed, "", None, targetAtomToStatus.mapValues(c => TargetAtomStatus(c, "")))
-      )
-    } yield {
-      updated.foreach(_ shouldBe defined)
-      operationTraceId
-    }
+      operationTrace <- engine.revert(deploymentRequestId, "r.everter", defaultVersion).map(_.get)
+      _ <- closeOperation(operationTrace, targetAtomToStatus)
+    } yield operationTrace.id
   }
 
   test("Engine checks that an operation can be started only if previous transactions on the same product have been completed") {
@@ -98,7 +83,7 @@ class EngineSpec extends SimpleScenarioTesting {
         _ <- mockRevertExecution(thirdId, Map("racing" -> Status.success))
 
         // OK after a revert of a successful operation
-        _ <- mockDeployExecution(product.name, "102", Map("corn-field" -> Status.notDone), Some("crashed at start"))
+        _ <- mockDeployExecution(product.name, "102", Map("corn-field" -> Status.notDone), initFailed = true)
 
         // OK after a init failure
         _ <- mockDeployExecution(product.name, "103", Map("racing" -> Status.success))
@@ -277,34 +262,25 @@ class EngineSpec extends SimpleScenarioTesting {
         deploymentRequestId <- engine.createDeploymentRequest(new DeploymentRequestAttrs(product.name, Version(JsString("42").compactPrint), """["moon","mars"]}""", "", "robert", new Timestamp(System.currentTimeMillis))).map(_ ("id").toString.toLong)
         _ <- engine.startDeploymentRequest(deploymentRequestId, "ignace")
         operationTraces <- engine.findOperationTracesByDeploymentRequest(deploymentRequestId).map(_.get)
-        operationTraceId = operationTraces.head.id
-        executionTrace <- engine.dbBinding.findExecutionTracesByDeploymentRequest(deploymentRequestId)
-        updated <- engine.updateExecutionTrace(executionTrace.head.id, ExecutionState.completed, "", None, Map(
-          "moon" -> TargetAtomStatus(Status.success, "no surprise"),
-          "mars" -> TargetAtomStatus(Status.hostFailure, "no surprise")))
+        operationTrace = operationTraces.head
+        firstExecutionTraces <- closeOperation(operationTrace, Map("moon" -> Status.success, "mars" -> Status.hostFailure))
         retriedOperation <- engine.deployAgain(deploymentRequestId, "b.lightning").map(_.get)
-        executionTracesAfterRetry <- engine.dbBinding.findExecutionTracesByDeploymentRequest(deploymentRequestId)
-        updatedAfterRetry <- engine.updateExecutionTrace(executionTracesAfterRetry.tail.head.id, ExecutionState.completed, "", None, Map(
-          "moon" -> TargetAtomStatus(Status.success, "no surprise"),
-          "mars" -> TargetAtomStatus(Status.success, "no surprise")))
+        secondExecutionTraces <- closeOperation(retriedOperation, Map("moon" -> Status.success, "mars" -> Status.success))
         hasOpenExecutionAfter <- engine.dbBinding.hasOpenExecutionTracesForOperation(retriedOperation.id)
         operationReClosingSucceeded <- engine.dbBinding.closeOperationTrace(retriedOperation)
-        initialExecutionSpecIds <- engine.dbBinding.findExecutionSpecIdsByOperationTrace(operationTraceId)
+        initialExecutionSpecIds <- engine.dbBinding.findExecutionSpecIdsByOperationTrace(operationTrace.id)
         retriedExecutionSpecIds <- engine.dbBinding.findExecutionSpecIdsByOperationTrace(retriedOperation.id)
-      } yield {
-        updated shouldBe defined
-        updatedAfterRetry shouldBe defined
-        (
-          executionTrace.length,
-          executionTracesAfterRetry.length,
-          retriedOperation.id == operationTraceId,
-          hasOpenExecutionAfter, operationReClosingSucceeded.isDefined,
-          initialExecutionSpecIds.length == retriedExecutionSpecIds.length,
-          initialExecutionSpecIds == retriedExecutionSpecIds
-        )
-      },
+      } yield (
+        firstExecutionTraces.length,
+        secondExecutionTraces.length,
+        firstExecutionTraces.intersect(secondExecutionTraces).length,
+        retriedOperation.id == operationTrace.id,
+        hasOpenExecutionAfter, operationReClosingSucceeded.isDefined,
+        initialExecutionSpecIds.length == retriedExecutionSpecIds.length,
+        initialExecutionSpecIds == retriedExecutionSpecIds
+      ),
       2.seconds
-    ) shouldBe(1, 2, false, false, false, true, true)
+    ) shouldBe(1, 1, 0, false, false, false, true, true)
   }
 
   test("Engine's binding provides the last version deployed on a given target") {

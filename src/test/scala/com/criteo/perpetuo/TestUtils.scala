@@ -55,6 +55,25 @@ trait SimpleScenarioTesting extends Test with TestDb with MockitoSugar {
 
   def await[T](a: Awaitable[T]): T = Await.result(a, 1.second)
 
+  def closeOperation(operationTrace: OperationTrace,
+                     targetFinalStatus: Map[String, Status.Code] = Map(),
+                     initFailed: Boolean = false): Future[Seq[Long]] =
+    engine.dbBinding.findExecutionIdsByOperationTrace(operationTrace.id)
+      .flatMap(executionIds =>
+        Future.traverse(executionIds)(executionId =>
+          targetFinalStatus.headOption
+            .map(_ => Future.successful(targetFinalStatus))
+            .getOrElse(engine.dbBinding.findTargetsByExecution(executionId).map(_.map(_ -> Status.success).toMap))
+            .zip(engine.dbBinding.findExecutionTraceIdsByExecution(executionId))
+            .flatMap { case (statusMap, executionTraceIds) =>
+              val finalStatusMap = statusMap.mapValues(TargetAtomStatus(_, ""))
+              val executionState = if (initFailed) ExecutionState.initFailed else ExecutionState.completed
+              Future.traverse(executionTraceIds)(engine.updateExecutionTrace(_, executionState, "", None, finalStatusMap))
+            }
+        )
+      )
+      .map(_.flatten.map(_.getOrElse(throw new AssertionError("An execution trace has not been updated"))))
+
   def deploy(productName: String, version: String, target: Seq[String], finalStatus: Status.Code = Status.success): DeepOperationTrace = {
     if (!lastDeploymentRequests.contains(productName))
       await(engine.insertProduct(productName))
@@ -62,24 +81,16 @@ trait SimpleScenarioTesting extends Test with TestDb with MockitoSugar {
     val attrs = new DeploymentRequestAttrs(productName, Version(version.toJson), target.toJson.compactPrint, "", "de.ployer", new Timestamp(System.currentTimeMillis))
     await {
       for {
-        depReqId <- engine.createDeploymentRequest(attrs).map { output =>
-          val id = output("id").asInstanceOf[Long]
-          lastDeploymentRequests(productName) = id
-          id
+        depReqId <- engine.createDeploymentRequest(attrs).map {
+          output =>
+            val id = output("id").asInstanceOf[Long]
+            lastDeploymentRequests(productName) = id
+            id
         }
         op <- engine.startDeploymentRequest(depReqId, "s.tarter")
         operationTrace = op.get
-        executionTraces <- engine.dbBinding.findExecutionTracesByOperationTrace(operationTrace.id)
-        updated <- Future.traverse(executionTraces) { executionTrace =>
-          engine.updateExecutionTrace(
-            executionTrace.id, ExecutionState.completed, "", None,
-            target.map(_ -> TargetAtomStatus(finalStatus, "")).toMap
-          )
-        }
-      } yield {
-        updated.foreach(_ shouldBe defined)
-        operationTrace
-      }
+        _ <- closeOperation(operationTrace, target.map(_ -> finalStatus).toMap)
+      } yield operationTrace
     }
   }
 
@@ -89,23 +100,8 @@ trait SimpleScenarioTesting extends Test with TestDb with MockitoSugar {
       for {
         op <- engine.revert(depReqId, "r.everter", defaultVersion.map(v => Version(v.toJson)))
         operationTrace = op.get
-        executionIds <- engine.dbBinding.findExecutionIdsByOperationTrace(operationTrace.id)
-        updated <- Future.traverse(executionIds) { executionId =>
-          engine.dbBinding.findTargetsByExecution(executionId).flatMap { atoms =>
-            engine.dbBinding.findExecutionTraceIdsByExecution(executionId).flatMap(executionTraceIds =>
-              Future.traverse(executionTraceIds) { executionTraceId =>
-                engine.updateExecutionTrace(
-                  executionTraceId, ExecutionState.completed, "", None,
-                  atoms.map(_ -> TargetAtomStatus(Status.success, "")).toMap
-                )
-              }
-            )
-          }
-        }
-      } yield {
-        updated.foreach(_.foreach(_ shouldBe defined))
-        operationTrace
-      }
+        _ <- closeOperation(operationTrace)
+      } yield operationTrace
     }
   }
 }
