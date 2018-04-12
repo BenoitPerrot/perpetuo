@@ -146,10 +146,7 @@ class Engine @Inject()(val dbBinding: DbBinding,
               .map { case (state, detail, logHref) =>
                 // will close the operation if there is no more ongoing execution
                 updateExecutionTrace(execTraceId, state, detail, logHref)
-                  .map { id =>
-                    assert(id.isDefined)
-                    status
-                  }
+                  .map(_ => status)
                   .recover { case e =>
                     // only log update errors, which are not critical in that case
                     logger.error(s"Could not update execution trace #$execTraceId${logHref.map(s => s" ($s)").getOrElse("")} as $state: $detail", e)
@@ -234,17 +231,13 @@ class Engine @Inject()(val dbBinding: DbBinding,
       .map { incompleteState =>
         val ret = Future.failed(new RuntimeException(s"Could not stop the execution ${triggeredExecution.logHref} (current state: $incompleteState)"))
         if (incompleteState != executionTrace.state) // override anyway the detail if the state is outdated
-          updateExecutionTrace(executionTrace.id, incompleteState, "", None).flatMap { id =>
-            assert(id.isDefined)
-            ret
-          }
+          updateExecutionTrace(executionTrace.id, incompleteState, "", None).flatMap(_ => ret)
         else
           ret
       }
       .getOrElse(
         updateExecutionTrace(executionTrace.id, ExecutionState.stopped, s"by $initiatorName", None)
-          .map { id =>
-            assert(id.isDefined)
+          .map { _ =>
             logger.info(s"Execution successfully stopped: ${triggeredExecution.logHref}")
             true
           }
@@ -323,22 +316,28 @@ class Engine @Inject()(val dbBinding: DbBinding,
         Future.successful(Some(traces))
     }
 
-  def updateExecutionTrace(id: Long, executionState: ExecutionState, detail: String, logHref: Option[String], statusMap: Map[String, TargetAtomStatus] = Map()): Future[Option[Long]] =
+  def updateExecutionTrace(id: Long, executionState: ExecutionState, detail: String, logHref: Option[String], statusMap: Map[String, TargetAtomStatus] = Map()): Future[Long] =
+    tryUpdateExecutionTrace(id, executionState, detail, logHref, statusMap).map(_.getOrElse(throw new AssertionError(s"Trying to update an execution trace ($id) that doesn't exist")))
+
+  def tryUpdateExecutionTrace(id: Long, executionState: ExecutionState, detail: String, logHref: Option[String], statusMap: Map[String, TargetAtomStatus] = Map()): Future[Option[Long]] =
     dbBinding.updateExecutionTrace(id, executionState, detail, logHref).flatMap(_
       .map(_ => // the execution trace exists
-        dbBinding.findExecutionTraceById(id).map(_.get).flatMap { execTrace =>
-          val op = execTrace.operationTrace
-          dbBinding.dbContext.db.run(dbBinding.updateTargetStatuses(execTrace.executionId, statusMap))
-            .flatMap(_ => dbBinding.hasOpenExecutionTracesForOperation(op.id))
-            .flatMap { hasOpenExecutions =>
-              if (hasOpenExecutions)
-                Future.successful(Some(id))
-              else
-                dbBinding.findDeepDeploymentRequestById(op.deploymentRequestId).flatMap { depReq =>
-                  closeOperation(op, depReq.get).map(_ => Some(id))
-                }
-            }
-        }
+        dbBinding.findExecutionTraceById(id)
+          .map(_.get)
+          .flatMap { execTrace =>
+            val op = execTrace.operationTrace
+            dbBinding.dbContext.db.run(dbBinding.updateTargetStatuses(execTrace.executionId, statusMap))
+              .flatMap(_ => dbBinding.hasOpenExecutionTracesForOperation(op.id))
+              .flatMap(hasOpenExecutions =>
+                if (hasOpenExecutions)
+                  Future.successful()
+                else
+                  dbBinding.findDeepDeploymentRequestById(op.deploymentRequestId).flatMap(depReq =>
+                    closeOperation(op, depReq.get)
+                  )
+              )
+          }
+          .map(_ => Some(id))
       )
       .getOrElse(Future.successful(None))
     )

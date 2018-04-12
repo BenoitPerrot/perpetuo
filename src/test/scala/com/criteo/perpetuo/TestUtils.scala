@@ -72,7 +72,7 @@ trait SimpleScenarioTesting extends Test with TestDb with MockitoSugar {
             }
         )
       )
-      .map(_.flatten.map(_.getOrElse(throw new AssertionError("An execution trace has not been updated"))))
+      .map(_.flatten)
 
   def deploy(productName: String, version: String, target: Seq[String], finalStatus: Status.Code = Status.success): DeepOperationTrace = {
     if (!lastDeploymentRequests.contains(productName))
