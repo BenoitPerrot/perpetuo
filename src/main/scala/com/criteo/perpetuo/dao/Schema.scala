@@ -206,6 +206,9 @@ class DbBinding @Inject()(val dbContext: DbContext)
     ).map(_.headOption.map { case ((depReq, product), started) => (depReq.toDeepDeploymentRequest(product), started) })
   }
 
+  // if that is removed one day (with multi-step, out-dating a deployment request makes less sense),
+  // a few functions must be changed to not rely on current request application order, for instance
+  // findExecutionSpecificationsForRevert
   def isOutdated(deploymentRequest: DeploymentRequest): Future[Boolean] = {
     val outdatedByOperation =
       deploymentRequestQuery
