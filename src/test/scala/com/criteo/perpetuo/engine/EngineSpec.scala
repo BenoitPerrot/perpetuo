@@ -29,7 +29,7 @@ class EngineSpec extends SimpleScenarioTesting {
         product <- engine.insertProduct("human")
         deploymentRequestId <- engine.createDeploymentRequest(new DeploymentRequestAttrs(product.name, Version(JsString("42").compactPrint), """["moon","mars"]}""", "", "robert")).map(_ ("id").toString.toLong)
         _ <- engine.startDeploymentRequest(deploymentRequestId, "ignace")
-        operationTraces <- engine.findOperationTracesByDeploymentRequest(deploymentRequestId).map(_.get)
+        operationTraces <- dbBinding.findOperationTracesByDeploymentRequest(deploymentRequestId)
         operationTrace = operationTraces.head
         hasOpenExecutionBefore <- engine.dbBinding.hasOpenExecutionTracesForOperation(operationTrace.id)
         _ <- closeOperation(operationTrace, Map("moon" -> Status.success, "mars" -> Status.hostFailure))
@@ -259,7 +259,7 @@ class EngineSpec extends SimpleScenarioTesting {
         product <- engine.insertProduct("martian")
         deploymentRequestId <- engine.createDeploymentRequest(new DeploymentRequestAttrs(product.name, Version(JsString("42").compactPrint), """["moon","mars"]}""", "", "robert")).map(_ ("id").toString.toLong)
         _ <- engine.startDeploymentRequest(deploymentRequestId, "ignace")
-        operationTraces <- engine.findOperationTracesByDeploymentRequest(deploymentRequestId).map(_.get)
+        operationTraces <- dbBinding.findOperationTracesByDeploymentRequest(deploymentRequestId)
         operationTrace = operationTraces.head
         firstExecutionTraces <- closeOperation(operationTrace, Map("moon" -> Status.success, "mars" -> Status.hostFailure))
         retriedOperation <- engine.deployAgain(deploymentRequestId, "b.lightning").map(_.get)
@@ -358,7 +358,7 @@ class EngineWithFailingExecutorSpec extends SimpleScenarioTesting {
       product <- engine.insertProduct("airplane")
       deploymentRequestId <- engine.createDeploymentRequest(new DeploymentRequestAttrs(product.name, Version(JsString("42").compactPrint), """["moon","mars"]}""", "", "bob")).map(_ ("id").toString.toLong)
       _ <- engine.startDeploymentRequest(deploymentRequestId, "ignace")
-      operationTraces <- engine.findOperationTracesByDeploymentRequest(deploymentRequestId).map(_.get)
+      operationTraces <- dbBinding.findOperationTracesByDeploymentRequest(deploymentRequestId)
       operationTrace = operationTraces.head
       hasOpenExecution <- engine.dbBinding.hasOpenExecutionTracesForOperation(operationTrace.id)
       executionTrace <- engine.dbBinding.findExecutionTracesByDeploymentRequest(deploymentRequestId).map(_.head)

@@ -330,16 +330,6 @@ class Engine @Inject()(val dbBinding: DbBinding,
   def findExecutionSpecificationsForRevert(deploymentRequest: DeploymentRequest): Future[(Select, Iterable[(ExecutionSpecification, Select)])] =
     dbBinding.findExecutionSpecificationsForRevert(deploymentRequest)
 
-  def findOperationTracesByDeploymentRequest(deploymentRequestId: Long): Future[Option[Seq[ShallowOperationTrace]]] =
-    dbBinding.findOperationTracesByDeploymentRequest(deploymentRequestId).flatMap { traces =>
-      if (traces.isEmpty) {
-        // if there is a deployment request with that ID, return the empty list, otherwise a 404
-        dbBinding.deploymentRequestExists(deploymentRequestId).map(if (_) Some(traces) else None)
-      }
-      else
-        Future.successful(Some(traces))
-    }
-
   def findExecutionTracesByDeploymentRequest(deploymentRequestId: Long): Future[Option[Seq[ShallowExecutionTrace]]] =
     dbBinding.findExecutionTracesByDeploymentRequest(deploymentRequestId).flatMap { traces =>
       if (traces.isEmpty) {
