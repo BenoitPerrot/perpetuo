@@ -1,0 +1,142 @@
+description = "Perpetuo"
+
+apply plugin: 'com.criteo.moab-module'
+apply plugin: 'scala'
+
+configurations {
+    all {
+        if (it.name != 'zinc') {
+            resolutionStrategy {
+                force "ch.qos.logback:logback-classic:1.1.8" //ch.qos.logback:logback-classic:1.1.7
+                force "ch.qos.logback:logback-core:1.1.8" //ch.qos.logback:logback-core:1.1.7
+                force "com.fasterxml.jackson.core:jackson-annotations:2.8.0" //com.fasterxml.jackson.core:jackson-annotations:2.8.4
+                force "com.google.code.findbugs:jsr305:2.0.1" //com.google.code.findbugs:jsr305:3.0.1
+                force "com.google.inject.extensions:guice-multibindings:4.0" //com.google.inject.extensions:guice-multibindings:4.1.0
+                force "com.google.inject:guice:4.0" //com.google.inject:guice:4.1.0
+                force "io.spray:spray-json_2.11:1.3.0" //io.spray:spray-json_2.11:1.3.1
+                force "org.scalatest:scalatest_2.11:3.0.0" //org.scalatest:scalatest_2.11:2.2.4
+            }
+        }
+    }
+}
+
+apply from: new File(rootDir, 'parent-poms/parent-poms/java-parent/parent.gradle')
+
+apply plugin: com.github.jengelman.gradle.plugins.shadow.ShadowPlugin
+
+ext {
+    artifactId = "perpetuo-app"
+    groupId = "com.criteo.perpetuo"
+    build_aux_directory = "build-aux"
+    h2db_version = "1.4.197"
+    main_class = "com.criteo.perpetuo.app.main"
+    minimizeJar = "false"
+    perpetuo_version = project.version
+    scala_version = scala211_version
+    scala_version_short = "2.11"
+    slick_version = "3.2.3"
+    twitter_version = "17.12.0"
+    webapp_directory = "src/main/webapp"
+    finagle_version = twitter_version
+    finatra_version = twitter_version
+    twitter_server_version = twitter_version
+    twitter_util_version = twitter_version
+    webapp_build_directory = "${webapp_directory}/build/default"
+}
+
+sourceSets.main.resources {
+    srcDirs "src/main/resources", "src/main/webapp/build/default"
+}
+
+processResources {
+    // Ad-hoc support for Maven-like resource filtering (should be replaced)
+    filesMatching("*.conf") {
+        filter {
+            it.replace('${perpetuo.version}', project.perpetuo_version)
+        }
+    }
+}
+
+apply from: new File(rootDir, 'parent-poms/parent-poms/java-parent/scalatest.gradle')
+
+dependencies {
+    compile "org.apache.httpcomponents:httpmime:4.5.3"
+    compile "org.scala-lang:scala-library:${scala_version}"
+    compile libraries["com.typesafe:config"]
+    compile "com.typesafe.slick:slick_${scala_version_short}:${slick_version}"
+    compile "com.h2database:h2:${h2db_version}"
+    compile "com.zaxxer:HikariCP:2.7.6"
+    compile "com.twitter:util-app_${scala_version_short}:${twitter_util_version}"
+    compile "com.twitter:util-stats_${scala_version_short}:${twitter_util_version}"
+    compile "com.twitter:util-core_${scala_version_short}:${twitter_util_version}"
+    compile "com.twitter:finagle-http_${scala_version_short}:${finagle_version}"
+    compile "com.twitter:finagle-core_${scala_version_short}:${finagle_version}"
+    compile "com.twitter:finagle-stats_${scala_version_short}:${finagle_version}"
+    compile "com.twitter:twitter-server_${scala_version_short}:${twitter_server_version}"
+    compile "com.twitter:finatra-http_${scala_version_short}:${finatra_version}"
+    compile "com.twitter:inject-utils_${scala_version_short}:${twitter_util_version}"
+    compile "com.twitter:inject-app_${scala_version_short}:${twitter_version}"
+    compile "com.twitter:inject-server_${scala_version_short}:${twitter_server_version}"
+    compile "com.twitter:inject-core_${scala_version_short}:${twitter_version}"
+    compile "ch.qos.logback:logback-classic:1.1.8"
+    compile "com.google.inject:guice:4.0"
+    compile "io.spray:spray-json_${scala_version_short}:1.3.0"
+    compile "org.codehaus.groovy:groovy-all:2.4.10"
+    compile "org.codehaus.groovy:groovy-jsr223:2.4.6"
+    compile "org.codehaus.groovy.modules.http-builder:http-builder:0.7.2"
+    testCompile "org.scalatest:scalatest_${scala_version_short}:3.0.0"
+    testCompile libraries["org.mockito:mockito-all"]
+    testCompile group: "com.twitter", name: "finatra-http_${scala_version_short}", version: "${finatra_version}", classifier: "tests"
+    testCompile libraries["junit:junit"]
+    testCompile group: "com.twitter", name: "inject-app_${scala_version_short}", version: "${twitter_version}", classifier: "tests"
+    testCompile group: "com.twitter", name: "inject-core_${scala_version_short}", version: "${twitter_version}", classifier: "tests"
+    testCompile group: "com.twitter", name: "inject-modules_${scala_version_short}", version: "${twitter_version}", classifier: "tests"
+    testCompile group: "com.twitter", name: "inject-server_${scala_version_short}", version: "${twitter_server_version}", classifier: "tests"
+}
+
+def win = System.getProperty("os.name").toLowerCase().contains("windows")
+task npm_installExec(type: Exec) {
+    executable win ? "cmd" : "npm"
+    args win ? "/C npm install" : "install"
+    workingDir "${build_aux_directory}"
+}
+tasks.compileJava.dependsOn(npm_installExec)
+
+task bower_installExec(type: Exec, dependsOn: 'npm_installExec') {
+    executable win ? "cmd" : "bower"
+    args win ? "/C bower install" : "install"
+    workingDir "${webapp_directory}"
+}
+tasks.processResources.dependsOn(bower_installExec)
+
+task polymer_buildExec(type: Exec, dependsOn: 'bower_installExec') {
+    executable "node"
+    args "${projectDir}/${build_aux_directory}/node_modules/polymer-cli/bin/polymer.js", "build"
+    workingDir "${webapp_directory}"
+}
+tasks.processResources.dependsOn(polymer_buildExec)
+
+test {
+    // deactivate tests of the java plugin because they are launched by the scala plugin
+    enabled = false
+}
+
+configurations {
+    uberjar.extendsFrom(runtime)
+}
+
+shadowJar {
+    configurations = [project.configurations.uberjar]
+    zip64 true
+    dependencies {
+        include(dependency(".*:.*"))
+    }
+    exclude("META-INF/*.SF")
+    exclude("META-INF/*.DSA")
+    exclude("META-INF/*.RSA")
+    classifier = "${shaded_name}"
+    append("reference.conf")
+    manifest {
+        attributes("Main-Class": "${main_class}")
+    }
+}
