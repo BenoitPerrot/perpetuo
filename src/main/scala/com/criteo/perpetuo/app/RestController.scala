@@ -3,7 +3,7 @@ package com.criteo.perpetuo.app
 import com.criteo.perpetuo.auth.UserFilter._
 import com.criteo.perpetuo.auth.{DeploymentAction, GeneralAction, User}
 import com.criteo.perpetuo.config.AppConfigProvider
-import com.criteo.perpetuo.engine.{Crankshaft, OperationStatus, RejectingError}
+import com.criteo.perpetuo.engine.{Crankshaft, Engine, OperationStatus, RejectingError}
 import com.criteo.perpetuo.model._
 import com.twitter.finagle.http.{Request, Status => HttpStatus}
 import com.twitter.finatra.http.exceptions._
@@ -54,12 +54,14 @@ private case class SortingFilteringPost(orderBy: Seq[Map[String, Any]] = Seq(),
 /**
   * Controller that handles deployment requests as a REST API.
   */
-class RestController @Inject()(val crankshaft: Crankshaft)
+class RestController @Inject()(val engine: Engine)
   extends BaseController with ExceptionsToHttpStatusTranslation {
 
   private val futurePool = FuturePools.unboundedPool("RequestFuturePool")
 
-  private def permissions = crankshaft.permissions
+  private val crankshaft = engine.crankshaft
+
+  private def permissions = engine.permissions
 
   private def timeBoxed[T](view: => Future[T], maxDuration: Duration): TwitterFuture[T] =
     futurePool {

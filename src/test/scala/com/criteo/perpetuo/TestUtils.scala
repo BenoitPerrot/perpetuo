@@ -37,7 +37,7 @@ trait SimpleScenarioTesting extends Test with TestDb with MockitoSugar {
   lazy val crankshaft: Crankshaft = {
     when(executionTrigger.trigger(anyInt, anyString, any[Version], any[TargetExpr], anyString))
       .thenReturn(Future(triggerMock))
-    new Crankshaft(dbBinding, plugins.resolver, new SingleTargetDispatcher(executionTrigger), plugins.permissions, plugins.listeners, executionFinder)
+    new Crankshaft(dbBinding, plugins.resolver, new SingleTargetDispatcher(executionTrigger), plugins.listeners, executionFinder)
   }
 
   protected def triggerMock: Option[String] = None

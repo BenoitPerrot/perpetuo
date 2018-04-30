@@ -1,6 +1,5 @@
 package com.criteo.perpetuo.engine
 
-import com.criteo.perpetuo.auth.Permissions
 import com.criteo.perpetuo.config.AppConfigProvider
 import com.criteo.perpetuo.dao.DbBinding
 import com.criteo.perpetuo.engine.dispatchers.TargetDispatcher
@@ -62,7 +61,6 @@ case class Veto(msg: String, reason: String) extends RejectingError {
 class Crankshaft @Inject()(val dbBinding: DbBinding,
                            val targetResolver: TargetResolver,
                            val targetDispatcher: TargetDispatcher,
-                           val permissions: Permissions,
                            val listeners: Seq[AsyncListener],
                            val findTriggeredExecution: TriggeredExecutionFinder) extends Logging {
 

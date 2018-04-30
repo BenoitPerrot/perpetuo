@@ -393,7 +393,7 @@ class RestControllerSpec extends Test with TestDb {
 
   test("The ExecutionTrace's entry-point doesn't fail when the existing DeploymentRequest doesn't have execution traces yet") {
     val attrs = new DeploymentRequestAttrs("my product", Version("\"v\""), "\"t\"", "c", "c")
-    val depReq = Await.result(controller.crankshaft.createDeploymentRequest(attrs), 1.second)
+    val depReq = Await.result(controller.engine.crankshaft.createDeploymentRequest(attrs), 1.second)
     val traces = getExecutionTracesByDeploymentRequestId(depReq("id").toString).elements
     traces shouldBe empty
   }
