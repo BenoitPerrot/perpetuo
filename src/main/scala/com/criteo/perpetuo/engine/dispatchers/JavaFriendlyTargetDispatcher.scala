@@ -6,11 +6,12 @@ import java.util.{Map => JavaMap, Set => JavaSet}
 import com.criteo.perpetuo.engine._
 import com.criteo.perpetuo.engine.executors.ExecutionTrigger
 import com.criteo.perpetuo.model.Version
+import com.twitter.inject.Logging
 
 import scala.collection.JavaConverters._
 
 
-abstract class JavaFriendlyTargetDispatcher extends Provider[TargetDispatcher] with ParameterFreezer {
+abstract class JavaFriendlyTargetDispatcher extends Provider[TargetDispatcher] with ParameterFreezer with Logging {
   def get: TargetDispatcher = {
     val delegate = this
 

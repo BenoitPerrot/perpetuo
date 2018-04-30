@@ -5,11 +5,12 @@ import java.util.{Map => JavaMap, Set => JavaSet}
 
 import com.criteo.perpetuo.engine._
 import com.criteo.perpetuo.model.Version
+import com.twitter.inject.Logging
 
 import scala.collection.JavaConverters._
 
 
-abstract class JavaFriendlyTargetResolver extends Provider[TargetResolver] {
+abstract class JavaFriendlyTargetResolver extends Provider[TargetResolver] with Logging {
   def get: TargetResolver = {
     val delegate = this
 
