@@ -2,10 +2,10 @@ package com.criteo.perpetuo.app
 
 import com.criteo.perpetuo.dao.UnknownProduct
 import com.criteo.perpetuo.engine.dispatchers.{NoAvailableExecutor, UnprocessableIntent}
-import com.criteo.perpetuo.engine.{Conflict, MissingInfo, RejectingError, UnavailableAction, Veto}
+import com.criteo.perpetuo.engine.{Conflict, MissingInfo, PermissionDenied, RejectingError, UnavailableAction, Veto}
 import com.twitter.finagle.http.Status
 import com.twitter.finagle.{TimeoutException => FinagleTimeout}
-import com.twitter.finatra.http.exceptions.{BadRequestException, HttpException, HttpResponseException, ServiceUnavailableException}
+import com.twitter.finatra.http.exceptions._
 import com.twitter.finatra.http.response.ResponseBuilder
 import com.twitter.util.{TimeoutException => TwitterTimeout}
 
@@ -29,6 +29,7 @@ trait ExceptionsToHttpStatusTranslation {
       action
     }
     catch {
+      case _: PermissionDenied => throw ForbiddenException()
       case e: Conflict => throw toHttpResponseException(e, Status.Conflict)
       case e: MissingInfo => throw toHttpResponseException(e, Status.UnprocessableEntity)
       case _: NoAvailableExecutor => throw ServiceUnavailableException(s"No executor available to do the actual deployment work")

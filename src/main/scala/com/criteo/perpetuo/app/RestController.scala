@@ -128,11 +128,9 @@ class RestController @Inject()(val engine: Engine)
         case e: ParsingException => throw BadRequestException(e.getMessage)
       }
 
-      if (!permissions.isAuthorized(user, DeploymentAction.requestOperation, Operation.deploy, allAttrs.productName, targets))
-        throw ForbiddenException()
-
       timeBoxed(
-        crankshaft.createDeploymentRequest(allAttrs).map(x => Some(response.created.json(Map("id" -> x)))),
+        engine.requestDeployment(user, allAttrs, targets)
+          .map(x => Some(response.created.json(Map("id" -> x)))),
         5.seconds
       )
     }
