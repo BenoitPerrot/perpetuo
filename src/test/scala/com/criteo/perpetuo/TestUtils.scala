@@ -4,7 +4,7 @@ import com.criteo.perpetuo.config.{AppConfigProvider, PluginLoader, Plugins}
 import com.criteo.perpetuo.dao.{DbBinding, DbContext, DbContextProvider, TestingDbContextModule}
 import com.criteo.perpetuo.engine.dispatchers.SingleTargetDispatcher
 import com.criteo.perpetuo.engine.executors.{DummyExecutionTrigger, TriggeredExecutionFinder}
-import com.criteo.perpetuo.engine.{Engine, TargetExpr, UnavailableAction}
+import com.criteo.perpetuo.engine.{Crankshaft, TargetExpr, UnavailableAction}
 import com.criteo.perpetuo.model._
 import com.twitter.inject.Test
 import org.mockito.Matchers._
@@ -34,10 +34,10 @@ trait SimpleScenarioTesting extends Test with TestDb with MockitoSugar {
   private val executionTrigger: DummyExecutionTrigger = mock[DummyExecutionTrigger]
   val plugins = new Plugins(loader)
   val executionFinder = new TriggeredExecutionFinder(loader)
-  lazy val engine: Engine = {
+  lazy val crankshaft: Crankshaft = {
     when(executionTrigger.trigger(anyInt, anyString, any[Version], any[TargetExpr], anyString))
       .thenReturn(Future(triggerMock))
-    new Engine(dbBinding, plugins.resolver, new SingleTargetDispatcher(executionTrigger), plugins.permissions, plugins.listeners, executionFinder)
+    new Crankshaft(dbBinding, plugins.resolver, new SingleTargetDispatcher(executionTrigger), plugins.permissions, plugins.listeners, executionFinder)
   }
 
   protected def triggerMock: Option[String] = None
@@ -63,18 +63,18 @@ trait SimpleScenarioTesting extends Test with TestDb with MockitoSugar {
   def tryCloseOperation(operationTrace: OperationTrace,
                         targetFinalStatus: Map[String, Status.Code] = Map(),
                         initFailed: Boolean = false): Future[Seq[Option[Long]]] =
-    engine.dbBinding.findExecutionIdsByOperationTrace(operationTrace.id)
+    crankshaft.dbBinding.findExecutionIdsByOperationTrace(operationTrace.id)
       .flatMap(executionIds =>
         Future.traverse(executionIds)(executionId =>
           targetFinalStatus.headOption
             .map(_ => Future.successful(targetFinalStatus))
-            .getOrElse(engine.dbBinding.findTargetsByExecution(executionId).map(_.map(_ -> Status.success).toMap))
-            .zip(engine.dbBinding.findExecutionTraceIdsByExecution(executionId))
+            .getOrElse(crankshaft.dbBinding.findTargetsByExecution(executionId).map(_.map(_ -> Status.success).toMap))
+            .zip(crankshaft.dbBinding.findExecutionTraceIdsByExecution(executionId))
             .flatMap { case (statusMap, executionTraceIds) =>
               val finalStatusMap = statusMap.mapValues(TargetAtomStatus(_, ""))
               val executionState = if (initFailed) ExecutionState.initFailed else ExecutionState.completed
               Future.traverse(executionTraceIds)(
-                engine.updateExecutionTrace(_, executionState, "", None, finalStatusMap)
+                crankshaft.updateExecutionTrace(_, executionState, "", None, finalStatusMap)
                   .map(Some(_))
                   .recover { case _: UnavailableAction => None }
               )
@@ -85,18 +85,18 @@ trait SimpleScenarioTesting extends Test with TestDb with MockitoSugar {
 
   def deploy(productName: String, version: String, target: Seq[String], finalStatus: Status.Code = Status.success): DeepOperationTrace = {
     if (!lastDeploymentRequests.contains(productName))
-      await(engine.insertProduct(productName))
+      await(crankshaft.insertProduct(productName))
 
     val attrs = new DeploymentRequestAttrs(productName, Version(version.toJson), target.toJson.compactPrint, "", "de.ployer")
     await {
       for {
-        depReqId <- engine.createDeploymentRequest(attrs).map {
+        depReqId <- crankshaft.createDeploymentRequest(attrs).map {
           output =>
             val id = output("id").asInstanceOf[Long]
             lastDeploymentRequests(productName) = id
             id
         }
-        op <- engine.startDeploymentRequest(depReqId, "s.tarter")
+        op <- crankshaft.startDeploymentRequest(depReqId, "s.tarter")
         operationTrace = op.get
         _ <- closeOperation(operationTrace, target.map(_ -> finalStatus).toMap)
       } yield operationTrace
@@ -107,7 +107,7 @@ trait SimpleScenarioTesting extends Test with TestDb with MockitoSugar {
     val depReqId = lastDeploymentRequests(productName)
     await {
       for {
-        op <- engine.revert(depReqId, "r.everter", defaultVersion.map(v => Version(v.toJson)))
+        op <- crankshaft.revert(depReqId, "r.everter", defaultVersion.map(v => Version(v.toJson)))
         operationTrace = op.get
         _ <- closeOperation(operationTrace)
       } yield operationTrace

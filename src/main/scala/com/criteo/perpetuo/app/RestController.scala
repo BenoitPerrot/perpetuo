@@ -3,7 +3,7 @@ package com.criteo.perpetuo.app
 import com.criteo.perpetuo.auth.UserFilter._
 import com.criteo.perpetuo.auth.{DeploymentAction, GeneralAction, User}
 import com.criteo.perpetuo.config.AppConfigProvider
-import com.criteo.perpetuo.engine.{Engine, OperationStatus, RejectingError}
+import com.criteo.perpetuo.engine.{Crankshaft, OperationStatus, RejectingError}
 import com.criteo.perpetuo.model._
 import com.twitter.finagle.http.{Request, Status => HttpStatus}
 import com.twitter.finatra.http.exceptions._
@@ -54,12 +54,12 @@ private case class SortingFilteringPost(orderBy: Seq[Map[String, Any]] = Seq(),
 /**
   * Controller that handles deployment requests as a REST API.
   */
-class RestController @Inject()(val engine: Engine)
+class RestController @Inject()(val crankshaft: Crankshaft)
   extends BaseController with ExceptionsToHttpStatusTranslation {
 
   private val futurePool = FuturePools.unboundedPool("RequestFuturePool")
 
-  private def permissions = engine.permissions
+  private def permissions = crankshaft.permissions
 
   private def timeBoxed[T](view: => Future[T], maxDuration: Duration): TwitterFuture[T] =
     futurePool {
@@ -82,7 +82,7 @@ class RestController @Inject()(val engine: Engine)
 
   get("/api/products") { _: Request =>
     timeBoxed(
-      engine.getProductNames,
+      crankshaft.getProductNames,
       5.seconds
     )
   }
@@ -91,7 +91,7 @@ class RestController @Inject()(val engine: Engine)
   post("/api/products") { r: RequestWithName =>
     authenticate(r.request) { case user if permissions.isAuthorized(user, GeneralAction.addProduct) =>
       timeBoxed(
-        engine
+        crankshaft
           .insertProduct(r.name)
           .map(_ => Some(response.created.nothing)),
         5.seconds
@@ -102,7 +102,7 @@ class RestController @Inject()(val engine: Engine)
   put("/api/products") { r: RequestWithName =>
     authenticate(r.request) { case user if permissions.isAuthorized(user, GeneralAction.addProduct) =>
       timeBoxed(
-        engine
+        crankshaft
           .insertProductIfNotExists(r.name)
           .map(_ => Some(response.created.nothing)),
         5.seconds
@@ -112,7 +112,7 @@ class RestController @Inject()(val engine: Engine)
 
   get("/api/deployment-requests/:id")(
     withLongId(
-      engine.findDeepDeploymentRequestById(_).map(_.map(_.toJsonReadyMap)),
+      crankshaft.findDeepDeploymentRequestById(_).map(_.map(_.toJsonReadyMap)),
       5.seconds
     )
   )
@@ -130,7 +130,7 @@ class RestController @Inject()(val engine: Engine)
         throw ForbiddenException()
 
       timeBoxed(
-        engine.createDeploymentRequest(allAttrs).map(x => Some(response.created.json(x))),
+        crankshaft.createDeploymentRequest(allAttrs).map(x => Some(response.created.json(x))),
         5.seconds
       )
     }
@@ -139,12 +139,12 @@ class RestController @Inject()(val engine: Engine)
   post("/api/deployment-requests/:id/actions/devise-revert-plan") { r: RequestWithId =>
     withIdAndRequest(
       (id, _: RequestWithId) => {
-        engine.isDeploymentRequestStarted(id).flatMap(
+        crankshaft.isDeploymentRequestStarted(id).flatMap(
           _.map { case (deploymentRequest, isStarted) =>
-            engine.canRevertDeploymentRequest(deploymentRequest, isStarted)
+            crankshaft.canRevertDeploymentRequest(deploymentRequest, isStarted)
               .recover { case e: RejectingError => throw e.copy(s"Cannot revert the request #${deploymentRequest.id}: ${e.msg}") }
               .flatMap { _ =>
-                engine.findExecutionSpecificationsForRevert(deploymentRequest).map { case (undetermined, determined) =>
+                crankshaft.findExecutionSpecificationsForRevert(deploymentRequest).map { case (undetermined, determined) =>
                   Some(Map(
                     "undetermined" -> undetermined,
                     "determined" -> determined.toStream.map { case (execSpec, targets) =>
@@ -164,15 +164,15 @@ class RestController @Inject()(val engine: Engine)
     authenticate(r.request) { case user =>
       withIdAndRequest(
         (id, _: RequestWithId) => {
-          engine.isDeploymentRequestStarted(id)
+          crankshaft.isDeploymentRequestStarted(id)
             .flatMap(
               _.map { case (deploymentRequest, isStarted) =>
                 if (!permissions.isAuthorized(user, DeploymentAction.applyOperation, Operation.deploy, deploymentRequest.product.name, deploymentRequest.parsedTarget.select))
                   throw ForbiddenException()
 
-                engine
+                crankshaft
                   .canDeployDeploymentRequest(deploymentRequest)
-                  .flatMap(_ => if (isStarted) engine.deployAgain(id, user.name) else engine.startDeploymentRequest(id, user.name))
+                  .flatMap(_ => if (isStarted) crankshaft.deployAgain(id, user.name) else crankshaft.startDeploymentRequest(id, user.name))
                   .map(_.map(_ => Map("id" -> id)))
               }.getOrElse(Future.successful(None))
             )
@@ -186,15 +186,15 @@ class RestController @Inject()(val engine: Engine)
     authenticate(r.request) { case user =>
       withIdAndRequest(
         (id, _: RequestWithIdAndDefaultVersion) => {
-          engine.isDeploymentRequestStarted(id)
+          crankshaft.isDeploymentRequestStarted(id)
             .flatMap(
               _.map { case (deploymentRequest, isStarted) =>
                 if (!permissions.isAuthorized(user, DeploymentAction.applyOperation, Operation.revert, deploymentRequest.product.name, deploymentRequest.parsedTarget.select))
                   throw ForbiddenException()
 
-                engine
+                crankshaft
                   .canRevertDeploymentRequest(deploymentRequest, isStarted)
-                  .flatMap(_ => engine.revert(id, user.name, r.defaultVersion.map(Version.apply)))
+                  .flatMap(_ => crankshaft.revert(id, user.name, r.defaultVersion.map(Version.apply)))
                   .map(_.map(_ => Map("id" -> id)))
               }.getOrElse(Future.successful(None))
             )
@@ -214,13 +214,13 @@ class RestController @Inject()(val engine: Engine)
     authenticate(r.request) { case user =>
       withIdAndRequest(
         (id, _: RequestWithId) => {
-          engine.findDeepDeploymentRequestById(id)
+          crankshaft.findDeepDeploymentRequestById(id)
             .flatMap(_
               .map { deploymentRequest =>
                 if (!permissions.isAuthorized(user, DeploymentAction.applyOperation, Operation.revert, deploymentRequest.product.name, deploymentRequest.parsedTarget.select))
                   throw ForbiddenException()
 
-                engine
+                crankshaft
                   .tryStopDeploymentRequest(deploymentRequest, user.name)
                   .map { case (nbStopped, errorMessages) =>
                     Some(Map(
@@ -240,7 +240,7 @@ class RestController @Inject()(val engine: Engine)
 
   get("/api/deployment-requests/:id/execution-traces")(
     withLongId(
-      engine.findExecutionTracesByDeploymentRequest,
+      crankshaft.findExecutionTracesByDeploymentRequest,
       5.seconds
     )
   )
@@ -270,7 +270,7 @@ class RestController @Inject()(val engine: Engine)
                 throw BadRequestException(s"Bad target status for `$atom`: ${status.map { case (k, v) => s"$k='$v'" }.mkString(", ")}")
             }
           }
-        engine.tryUpdateExecutionTrace(id, executionState, r.detail, r.logHref.headOption.map(_ => r.logHref), statusMap)
+        crankshaft.tryUpdateExecutionTrace(id, executionState, r.detail, r.logHref.headOption.map(_ => r.logHref), statusMap)
           .map(_.map(_ => response.noContent))
       },
       3.seconds
@@ -287,7 +287,7 @@ class RestController @Inject()(val engine: Engine)
       "target" -> RawJson(depReq.target),
       "productName" -> depReq.product.name,
       "state" -> lastOperationEffect // for the UI: below is what will be displayed (and it must match css classes)
-        .map(engine.computeState)
+        .map(crankshaft.computeState)
         .map {
           case (Operation.deploy, OperationStatus.succeeded) => "deployed"
           case (Operation.revert, OperationStatus.succeeded) => "reverted"
@@ -314,7 +314,7 @@ class RestController @Inject()(val engine: Engine)
 
   get("/api/unstable/deployment-requests/:id") { r: RequestWithId =>
     withLongId(
-      engine
+      crankshaft
         .findDeepDeploymentRequestAndEffects(_)
         .flatMap(_.map { case (deploymentRequest, sortedEffects) =>
           val targets = deploymentRequest.parsedTarget.select
@@ -331,8 +331,8 @@ class RestController @Inject()(val engine: Engine)
             .sequence(
               Operation.values.map(action =>
                 (action match {
-                  case Operation.deploy => engine.canDeployDeploymentRequest(deploymentRequest)
-                  case Operation.revert => engine.canRevertDeploymentRequest(deploymentRequest, sortedEffects.nonEmpty)
+                  case Operation.deploy => crankshaft.canDeployDeploymentRequest(deploymentRequest)
+                  case Operation.revert => crankshaft.canRevertDeploymentRequest(deploymentRequest, sortedEffects.nonEmpty)
                 })
                   .map(_ => Some(Map("type" -> action.toString, "authorized" -> authorized(action))))
                   .recover { case _ => None }
@@ -355,7 +355,7 @@ class RestController @Inject()(val engine: Engine)
           throw BadRequestException("`limit` shall be lower than 1000")
         }
         try {
-          engine.queryDeepDeploymentRequests(r.where, r.orderBy, r.limit, r.offset)
+          crankshaft.queryDeepDeploymentRequests(r.where, r.orderBy, r.limit, r.offset)
             .map(_.map { case (deploymentRequest, lastOperationEffect) =>
               serialize(deploymentRequest, lastOperationEffect)
             })
@@ -378,7 +378,7 @@ class RestController @Inject()(val engine: Engine)
   get("/api/unstable/db/locks/drop-em-all") { r: Request =>
     authenticate(r) { case user if permissions.isAuthorized(user, GeneralAction.administrate) =>
       timeBoxed(
-        engine.dbBinding.releaseAllLocks().map(count => Some(Map("deleted" -> count))),
+        crankshaft.dbBinding.releaseAllLocks().map(count => Some(Map("deleted" -> count))),
         5.seconds
       )
     }
@@ -386,13 +386,13 @@ class RestController @Inject()(val engine: Engine)
 
   // TODO: remove <<
   get("/api/unstable/products/actions/count-unreferenced") { r: Request =>
-    timeBoxed(engine.dbBinding.countUnreferencedProducts(), 5.seconds)
+    timeBoxed(crankshaft.dbBinding.countUnreferencedProducts(), 5.seconds)
   }
 
   post("/api/unstable/products/actions/delete-unreferenced") { r: Request =>
     authenticate(r) { case user if permissions.isAuthorized(user, GeneralAction.administrate) =>
       timeBoxed(
-        engine.dbBinding.deleteUnreferencedProducts().map(count => Some(Map("deleted" -> count))),
+        crankshaft.dbBinding.deleteUnreferencedProducts().map(count => Some(Map("deleted" -> count))),
         5.seconds
       )
     }

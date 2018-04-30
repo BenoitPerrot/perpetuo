@@ -1,6 +1,6 @@
 package com.criteo.perpetuo.config
 
-import com.criteo.perpetuo.engine.Engine
+import com.criteo.perpetuo.engine.Crankshaft
 import com.criteo.perpetuo.model.DeploymentRequest
 import com.google.inject.{Inject, Provider, Singleton}
 
@@ -12,7 +12,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
   * Provides a simplified, limited view of the Engine
   */
 @Singleton
-class EngineProxy @Inject()(engineProvider: Provider[Engine]) {
+class EngineProxy @Inject()(engineProvider: Provider[Crankshaft]) {
 
   private lazy val engine = engineProvider.get // To break the dependency cycle between Plugins and Engine
 

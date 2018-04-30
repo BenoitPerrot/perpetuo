@@ -59,12 +59,12 @@ case class Veto(msg: String, reason: String) extends RejectingError {
 }
 
 @Singleton
-class Engine @Inject()(val dbBinding: DbBinding,
-                       val targetResolver: TargetResolver,
-                       val targetDispatcher: TargetDispatcher,
-                       val permissions: Permissions,
-                       val listeners: Seq[AsyncListener],
-                       val findTriggeredExecution: TriggeredExecutionFinder) extends Logging {
+class Crankshaft @Inject()(val dbBinding: DbBinding,
+                           val targetResolver: TargetResolver,
+                           val targetDispatcher: TargetDispatcher,
+                           val permissions: Permissions,
+                           val listeners: Seq[AsyncListener],
+                           val findTriggeredExecution: TriggeredExecutionFinder) extends Logging {
 
   // todo: cosmetics in attributes
   val config = AppConfigProvider.config
