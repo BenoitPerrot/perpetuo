@@ -175,20 +175,10 @@ class RestController @Inject()(val engine: Engine)
   post("/api/deployment-requests/:id/actions/revert") { r: RequestWithIdAndDefaultVersion =>
     authenticate(r.request) { case user =>
       withIdAndRequest(
-        (id, _: RequestWithIdAndDefaultVersion) => {
-          crankshaft.isDeploymentRequestStarted(id)
-            .flatMap(
-              _.map { case (deploymentRequest, isStarted) =>
-                if (!permissions.isAuthorized(user, DeploymentAction.applyOperation, Operation.revert, deploymentRequest.product.name, deploymentRequest.parsedTarget.select))
-                  throw ForbiddenException()
-
-                crankshaft
-                  .canRevertDeploymentRequest(deploymentRequest, isStarted)
-                  .flatMap(_ => crankshaft.revert(id, user.name, r.defaultVersion.map(Version.apply)))
-                  .map(_.map(_ => Map("id" -> id)))
-              }.getOrElse(Future.successful(None))
-            )
-        },
+        (id, _: RequestWithIdAndDefaultVersion) =>
+          engine
+            .revert(user, id, r.defaultVersion.map(Version.apply))
+            .map(_.map(_ => Map("id" -> id))),
         5.seconds
       )(r)
     }

@@ -1,7 +1,7 @@
 package com.criteo.perpetuo.engine
 
 import com.criteo.perpetuo.auth.{DeploymentAction, Permissions, User}
-import com.criteo.perpetuo.model.{DeepOperationTrace, DeploymentRequestAttrs, Operation}
+import com.criteo.perpetuo.model.{DeepOperationTrace, DeploymentRequestAttrs, Operation, Version}
 import javax.inject.{Inject, Singleton}
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -34,6 +34,19 @@ class Engine @Inject()(val crankshaft: Crankshaft,
               else
                 crankshaft.startDeploymentRequest(id, user.name)
             )
+        }.getOrElse(Future.successful(None))
+      )
+
+  def revert(user: User, id: Long, defaultVersion: Option[Version]): Future[Option[DeepOperationTrace]] =
+    crankshaft.isDeploymentRequestStarted(id)
+      .flatMap(
+        _.map { case (deploymentRequest, isStarted) =>
+          if (!permissions.isAuthorized(user, DeploymentAction.applyOperation, Operation.revert, deploymentRequest.product.name, deploymentRequest.parsedTarget.select))
+            throw PermissionDenied()
+
+          crankshaft
+            .canRevertDeploymentRequest(deploymentRequest, isStarted)
+            .flatMap(_ => crankshaft.revert(id, user.name, defaultVersion))
         }.getOrElse(Future.successful(None))
       )
 }
