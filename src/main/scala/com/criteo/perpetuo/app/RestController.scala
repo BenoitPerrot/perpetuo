@@ -91,10 +91,10 @@ class RestController @Inject()(val engine: Engine)
 
   // todo: remove
   post("/api/products") { r: RequestWithName =>
-    authenticate(r.request) { case user if permissions.isAuthorized(user, GeneralAction.addProduct) =>
+    authenticate(r.request) { case user =>
       timeBoxed(
-        crankshaft
-          .insertProduct(r.name)
+        engine
+          .insertProduct(user, r.name)
           .map(_ => Some(response.created.nothing)),
         5.seconds
       )
@@ -102,10 +102,10 @@ class RestController @Inject()(val engine: Engine)
   }
 
   put("/api/products") { r: RequestWithName =>
-    authenticate(r.request) { case user if permissions.isAuthorized(user, GeneralAction.addProduct) =>
+    authenticate(r.request) { case user =>
       timeBoxed(
-        crankshaft
-          .insertProductIfNotExists(r.name)
+        engine
+          .insertProductIfNotExists(user, r.name)
           .map(_ => Some(response.created.nothing)),
         5.seconds
       )

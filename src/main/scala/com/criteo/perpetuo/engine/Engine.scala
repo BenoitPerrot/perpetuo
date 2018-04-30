@@ -1,6 +1,6 @@
 package com.criteo.perpetuo.engine
 
-import com.criteo.perpetuo.auth.{DeploymentAction, Permissions, User}
+import com.criteo.perpetuo.auth.{DeploymentAction, GeneralAction, Permissions, User}
 import com.criteo.perpetuo.model._
 import javax.inject.{Inject, Singleton}
 
@@ -78,4 +78,18 @@ class Engine @Inject()(val crankshaft: Crankshaft,
         }
         .getOrElse(Future.successful(None))
       )
+
+  def insertProduct(user: User, name: String): Future[Product] = {
+    if (!permissions.isAuthorized(user, GeneralAction.addProduct))
+      throw PermissionDenied()
+
+    crankshaft.insertProduct(name)
+  }
+
+  def insertProductIfNotExists(user: User, name: String): Future[Product] = {
+    if (!permissions.isAuthorized(user, GeneralAction.addProduct))
+      throw PermissionDenied()
+
+    crankshaft.insertProductIfNotExists(name)
+  }
 }
