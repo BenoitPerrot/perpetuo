@@ -99,4 +99,11 @@ class Engine @Inject()(val crankshaft: Crankshaft,
 
     crankshaft.insertProductIfNotExists(name)
   }
+
+  def deleteUnreferencedProducts(user: User): Future[Int] = {
+    if (!permissions.isAuthorized(user, GeneralAction.administrate))
+      throw PermissionDenied()
+
+    crankshaft.dbBinding.deleteUnreferencedProducts()
+  }
 }

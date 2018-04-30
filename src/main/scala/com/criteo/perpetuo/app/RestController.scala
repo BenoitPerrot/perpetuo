@@ -355,9 +355,9 @@ class RestController @Inject()(val engine: Engine)
   }
 
   post("/api/unstable/products/actions/delete-unreferenced") { r: Request =>
-    authenticate(r) { case user if permissions.isAuthorized(user, GeneralAction.administrate) =>
+    authenticate(r) { case user =>
       timeBoxed(
-        crankshaft.dbBinding.deleteUnreferencedProducts().map(count => Some(Map("deleted" -> count))),
+        engine.deleteUnreferencedProducts(user).map(count => Some(Map("deleted" -> count))),
         5.seconds
       )
     }
