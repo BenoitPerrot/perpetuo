@@ -24,6 +24,11 @@ trait WithId {
   val id: String
 }
 
+case class DeploymentRequestStatus(deploymentRequest: DeepDeploymentRequest,
+                                   operationEffects: Iterable[OperationEffect],
+                                   authorizedActions: Seq[(Operation.Kind, Boolean)],
+                                   canAccessLogs: Boolean)
+
 @JsonIgnoreBody
 private case class RequestWithId(@RouteParam @NotEmpty id: String,
                                  @Inject request: Request) extends WithId
@@ -261,55 +266,66 @@ class RestController @Inject()(val engine: Engine)
         .getOrElse("notStarted")
     )
 
-  private def serialize(sortedEffects: Iterable[OperationEffect]): Iterable[Map[String, Any]] =
-    sortedEffects.map { case OperationEffect(op, executionTraces, targetStatus) =>
-      Map(
-        "id" -> op.id,
-        "kind" -> op.kind.toString,
-        "creator" -> op.creator,
-        "creationDate" -> op.creationDate,
-        "targetStatus" -> {
-          targetStatus
-            .map(ts => ts.targetAtom -> Map("code" -> ts.code.toString, "detail" -> ts.detail))
-            .toMap
-        },
-        "executions" -> executionTraces
-      ) ++ op.closingDate.map("closingDate" -> _)
-    }
+  private def serialize(status: DeploymentRequestStatus): Map[String, Any] =
+    serialize(status.deploymentRequest, status.operationEffects.lastOption) ++
+      Map("operations" ->
+        status.operationEffects.map { case OperationEffect(op, executionTraces, targetStatus) =>
+          Map(
+            "id" -> op.id,
+            "kind" -> op.kind.toString,
+            "creator" -> op.creator,
+            "creationDate" -> op.creationDate,
+            "targetStatus" -> {
+              targetStatus
+                .map(ts => ts.targetAtom -> Map("code" -> ts.code.toString, "detail" -> ts.detail))
+                .toMap
+            },
+            "executions" -> executionTraces
+          ) ++ op.closingDate.map("closingDate" -> _)
+        }
+      ) ++
+      Map("actions" -> status.authorizedActions.map { case (action, isAuthorized) =>
+        Map("type" -> action.toString, "authorized" -> isAuthorized)
+      }) ++
+      Map("showExecutionLogs" -> status.canAccessLogs) // fixme: only as long as we can't show the logs to anyone
 
-  get("/api/unstable/deployment-requests/:id") { r: RequestWithId =>
-    withLongId(
-      crankshaft
-        .findDeepDeploymentRequestAndEffects(_)
-        .flatMap(_.map { case (deploymentRequest, sortedEffects) =>
+  def queryDeploymentRequestStatus(user: Option[User], id: Long): Future[Option[DeploymentRequestStatus]] =
+    crankshaft
+      .findDeepDeploymentRequestAndEffects(id)
+      .flatMap(
+        _.map { case (deploymentRequest, sortedEffects) =>
           val targets = deploymentRequest.parsedTarget.select
-          val isAdmin = r.request.user.exists(user =>
+
+          val isAdmin = user.exists(user =>
             permissions.isAuthorized(user, GeneralAction.administrate)
           )
 
           // todo: a future workflow will differentiate requests and applies
-          def authorized(op: Operation.Kind) = r.request.user.exists(user =>
+          def authorized(op: Operation.Kind) = user.exists(user =>
             permissions.isAuthorized(user, DeploymentAction.applyOperation, op, deploymentRequest.product.name, targets)
           )
 
           Future
             .sequence(
-              Operation.values.map(action =>
+              Operation.values.toSeq.map(action =>
                 (action match {
                   case Operation.deploy => crankshaft.canDeployDeploymentRequest(deploymentRequest)
                   case Operation.revert => crankshaft.canRevertDeploymentRequest(deploymentRequest, sortedEffects.nonEmpty)
                 })
-                  .map(_ => Some(Map("type" -> action.toString, "authorized" -> authorized(action))))
+                  .map(_ => Some((action, authorized(action))))
                   .recover { case _ => None }
               )
             )
-            .map(actions =>
-              Some(serialize(deploymentRequest, sortedEffects.lastOption) ++
-                Map("operations" -> serialize(sortedEffects)) ++
-                Map("actions" -> actions.flatten) ++
-                Map("showExecutionLogs" -> (isAdmin || authorized(Operation.deploy)))) // fixme: only as long as we can't show the logs to anyone
+            .map(authorizedActions =>
+              Some(DeploymentRequestStatus(deploymentRequest, sortedEffects, authorizedActions.flatten, isAdmin || authorized(Operation.deploy)))
             )
-        }.getOrElse(Future.successful(None))),
+
+        }.getOrElse(Future.successful(None))
+      )
+
+  get("/api/unstable/deployment-requests/:id") { r: RequestWithId =>
+    withLongId(
+      id => queryDeploymentRequestStatus(r.request.user, id).map(_.map(serialize)),
       5.seconds
     )(r)
   }
