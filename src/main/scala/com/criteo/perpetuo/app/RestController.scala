@@ -163,20 +163,10 @@ class RestController @Inject()(val engine: Engine)
   post("/api/deployment-requests/:id/actions/deploy") { r: RequestWithId =>
     authenticate(r.request) { case user =>
       withIdAndRequest(
-        (id, _: RequestWithId) => {
-          crankshaft.isDeploymentRequestStarted(id)
-            .flatMap(
-              _.map { case (deploymentRequest, isStarted) =>
-                if (!permissions.isAuthorized(user, DeploymentAction.applyOperation, Operation.deploy, deploymentRequest.product.name, deploymentRequest.parsedTarget.select))
-                  throw ForbiddenException()
-
-                crankshaft
-                  .canDeployDeploymentRequest(deploymentRequest)
-                  .flatMap(_ => if (isStarted) crankshaft.deployAgain(id, user.name) else crankshaft.startDeploymentRequest(id, user.name))
-                  .map(_.map(_ => Map("id" -> id)))
-              }.getOrElse(Future.successful(None))
-            )
-        },
+        (id, _: RequestWithId) =>
+          engine
+            .deploy(user, id)
+            .map(_.map(_ => Map("id" -> id))),
         5.seconds
       )(r)
     }
