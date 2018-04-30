@@ -49,4 +49,18 @@ class Engine @Inject()(val crankshaft: Crankshaft,
             .flatMap(_ => crankshaft.revert(id, user.name, defaultVersion))
         }.getOrElse(Future.successful(None))
       )
+
+  def stop(user: User, id: Long): Future[Option[(Int, Seq[String])]] =
+    crankshaft.findDeepDeploymentRequestById(id)
+      .flatMap(_
+        .map { deploymentRequest =>
+          if (!permissions.isAuthorized(user, DeploymentAction.applyOperation, Operation.revert, deploymentRequest.product.name, deploymentRequest.parsedTarget.select))
+            throw PermissionDenied()
+
+          crankshaft
+            .tryStopDeploymentRequest(deploymentRequest, user.name)
+            .map(Some.apply)
+        }
+        .getOrElse(Future.successful(None))
+      )
 }

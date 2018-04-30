@@ -194,24 +194,15 @@ class RestController @Inject()(val engine: Engine)
     authenticate(r.request) { case user =>
       withIdAndRequest(
         (id, _: RequestWithId) => {
-          crankshaft.findDeepDeploymentRequestById(id)
-            .flatMap(_
-              .map { deploymentRequest =>
-                if (!permissions.isAuthorized(user, DeploymentAction.applyOperation, Operation.revert, deploymentRequest.product.name, deploymentRequest.parsedTarget.select))
-                  throw ForbiddenException()
-
-                crankshaft
-                  .tryStopDeploymentRequest(deploymentRequest, user.name)
-                  .map { case (nbStopped, errorMessages) =>
-                    Some(Map(
-                      "id" -> id,
-                      "stopped" -> nbStopped,
-                      "failures" -> errorMessages
-                    ))
-                  }
-              }
-              .getOrElse(Future.successful(None))
-            )
+          engine
+            .stop(user, id)
+            .map(_.map { case (nbStopped, errorMessages) =>
+              Map(
+                "id" -> id,
+                "stopped" -> nbStopped,
+                "failures" -> errorMessages
+              )
+            })
         },
         5.seconds
       )(r)
