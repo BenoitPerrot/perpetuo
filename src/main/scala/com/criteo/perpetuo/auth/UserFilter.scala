@@ -1,11 +1,10 @@
 package com.criteo.perpetuo.auth
 
-import javax.inject.Singleton
-
 import com.google.inject.Inject
 import com.twitter.finagle.http.{Request, Response}
 import com.twitter.finagle.{Service, SimpleFilter}
 import com.twitter.util.Future
+import javax.inject.Singleton
 
 object UserFilter {
   val UserField = Request.Schema.newField[Option[User]]()

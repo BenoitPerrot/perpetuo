@@ -1,7 +1,5 @@
 package com.criteo.perpetuo.app
 
-import javax.inject.{Inject, Singleton}
-
 import com.twitter.finagle.filter.LogFormatter
 import com.twitter.finagle.http.{Request, Response}
 import com.twitter.finagle.{Service, SimpleFilter}
@@ -9,6 +7,7 @@ import com.twitter.finatra.filters.MergedFilter
 import com.twitter.finatra.http.filters.{ExceptionMappingFilter, HttpResponseFilter, StatsFilter}
 import com.twitter.inject.Logging
 import com.twitter.util.{Future, Stopwatch}
+import javax.inject.{Inject, Singleton}
 
 
 @Singleton

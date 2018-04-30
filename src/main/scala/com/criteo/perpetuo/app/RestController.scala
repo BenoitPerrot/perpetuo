@@ -3,7 +3,7 @@ package com.criteo.perpetuo.app
 import com.criteo.perpetuo.auth.UserFilter._
 import com.criteo.perpetuo.auth.{DeploymentAction, GeneralAction, User}
 import com.criteo.perpetuo.config.AppConfigProvider
-import com.criteo.perpetuo.engine.{Crankshaft, Engine, OperationStatus, RejectingError}
+import com.criteo.perpetuo.engine.{Engine, OperationStatus, RejectingError}
 import com.criteo.perpetuo.model._
 import com.twitter.finagle.http.{Request, Status => HttpStatus}
 import com.twitter.finatra.http.exceptions._

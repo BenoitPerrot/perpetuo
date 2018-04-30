@@ -2,6 +2,7 @@ package com.criteo.perpetuo.config
 
 import java.io.{File, InputStreamReader}
 import java.net.URL
+
 import javax.script.{ScriptEngine, ScriptEngineManager}
 
 

@@ -1,9 +1,8 @@
 package com.criteo.perpetuo.dao
 
-import javax.inject.{Inject, Singleton}
-
 import com.criteo.perpetuo.engine.Select
 import com.criteo.perpetuo.model._
+import javax.inject.{Inject, Singleton}
 import slick.jdbc.TransactionIsolation
 
 import scala.collection.mutable.ArrayBuffer

@@ -1,9 +1,9 @@
 package com.criteo.perpetuo.auth
 
 import java.nio.charset.StandardCharsets
-import javax.crypto.{Mac, spec}
 
 import com.twitter.util.Base64UrlSafeStringEncoder
+import javax.crypto.{Mac, spec}
 
 /**
   * Provides encoding & decoding of JSON Web Token, using the HS256 scheme

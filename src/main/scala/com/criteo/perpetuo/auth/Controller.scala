@@ -1,12 +1,11 @@
 package com.criteo.perpetuo.auth
 
-import javax.inject.Inject
-
 import com.criteo.perpetuo.auth.UserFilter._
 import com.twitter.finagle.http.Request
 import com.twitter.finatra.http.{Controller => BaseController}
 import com.twitter.finatra.request.RouteParam
 import com.twitter.util.Future
+import javax.inject.Inject
 import spray.json.{JsObject, JsString}
 
 case class TokenRequest(token: String)

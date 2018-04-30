@@ -1,10 +1,10 @@
 package com.criteo.perpetuo.app
 
 import java.io.{BufferedInputStream, File, FileInputStream, InputStream}
-import javax.activation.MimetypesFileTypeMap
 
 import com.twitter.finagle.http.{Request, Response}
 import com.twitter.finatra.http.Controller
+import javax.activation.MimetypesFileTypeMap
 import org.apache.commons.io.FilenameUtils
 
 /**

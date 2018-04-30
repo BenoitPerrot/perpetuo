@@ -1,7 +1,5 @@
 package com.criteo.perpetuo.engine
 
-import java.sql.Timestamp
-
 import com.criteo.perpetuo.TestDb
 import com.criteo.perpetuo.engine.dispatchers.{SingleTargetDispatcher, TargetDispatcher}
 import com.criteo.perpetuo.engine.executors.{DummyExecutionTrigger, ExecutionTrigger}

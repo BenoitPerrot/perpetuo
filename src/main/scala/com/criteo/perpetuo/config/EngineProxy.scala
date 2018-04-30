@@ -4,9 +4,9 @@ import com.criteo.perpetuo.engine.Crankshaft
 import com.criteo.perpetuo.model.DeploymentRequest
 import com.google.inject.{Inject, Provider, Singleton}
 
-import scala.concurrent.duration._
 import scala.concurrent.Await
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.duration._
 
 /**
   * Provides a simplified, limited view of the Engine
