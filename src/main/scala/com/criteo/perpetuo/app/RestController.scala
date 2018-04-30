@@ -341,9 +341,9 @@ class RestController @Inject()(val engine: Engine)
   }
 
   get("/api/unstable/db/locks/drop-em-all") { r: Request =>
-    authenticate(r) { case user if permissions.isAuthorized(user, GeneralAction.administrate) =>
+    authenticate(r) { case user =>
       timeBoxed(
-        crankshaft.dbBinding.releaseAllLocks().map(count => Some(Map("deleted" -> count))),
+        engine.releaseAllLocks(user).map(count => Some(Map("deleted" -> count))),
         5.seconds
       )
     }
