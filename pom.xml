@@ -29,7 +29,7 @@
 
     <slick.version>3.1.1</slick.version>
     <freeslick.version>3.1.1.1</freeslick.version>
-    <h2db.version>1.4.191</h2db.version>
+    <h2db.version>1.4.197</h2db.version>
 
     <twitter.version>17.12.0</twitter.version>
     <twitter.server.version>${twitter.version}</twitter.server.version>
