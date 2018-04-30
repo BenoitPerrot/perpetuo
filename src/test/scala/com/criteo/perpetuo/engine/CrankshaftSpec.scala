@@ -27,7 +27,7 @@ class CrankshaftSpec extends SimpleScenarioTesting {
     Await.result(
       for {
         product <- crankshaft.insertProduct("human")
-        deploymentRequestId <- crankshaft.createDeploymentRequest(new DeploymentRequestAttrs(product.name, Version(JsString("42").compactPrint), """["moon","mars"]}""", "", "robert")).map(_ ("id").toString.toLong)
+        deploymentRequestId <- crankshaft.createDeploymentRequest(new DeploymentRequestAttrs(product.name, Version(JsString("42").compactPrint), """["moon","mars"]}""", "", "robert"))
         _ <- crankshaft.startDeploymentRequest(deploymentRequestId, "ignace")
         operationTraces <- dbBinding.findOperationTracesByDeploymentRequest(deploymentRequestId)
         operationTrace = operationTraces.head
@@ -42,7 +42,7 @@ class CrankshaftSpec extends SimpleScenarioTesting {
 
   def mockDeployExecution(productName: String, v: String, targetAtomToStatus: Map[String, Status.Code], initFailed: Boolean = false): Future[(Long, Long)] = {
     for {
-      deploymentRequestId <- crankshaft.createDeploymentRequest(new DeploymentRequestAttrs(productName, Version(JsString(v).compactPrint), targetAtomToStatus.keys.toJson.compactPrint, "", "r.equestor")).map(_ ("id").toString.toLong)
+      deploymentRequestId <- crankshaft.createDeploymentRequest(new DeploymentRequestAttrs(productName, Version(JsString(v).compactPrint), targetAtomToStatus.keys.toJson.compactPrint, "", "r.equestor"))
       operationTrace <- crankshaft.startDeploymentRequest(deploymentRequestId, "s.tarter").map(_.get)
       executionSpecIds <- crankshaft.dbBinding.findExecutionSpecIdsByOperationTrace(operationTrace.id)
       _ <- closeOperation(operationTrace, targetAtomToStatus, initFailed)
@@ -257,7 +257,7 @@ class CrankshaftSpec extends SimpleScenarioTesting {
     Await.result(
       for {
         product <- crankshaft.insertProduct("martian")
-        deploymentRequestId <- crankshaft.createDeploymentRequest(new DeploymentRequestAttrs(product.name, Version(JsString("42").compactPrint), """["moon","mars"]}""", "", "robert")).map(_ ("id").toString.toLong)
+        deploymentRequestId <- crankshaft.createDeploymentRequest(new DeploymentRequestAttrs(product.name, Version(JsString("42").compactPrint), """["moon","mars"]}""", "", "robert"))
         _ <- crankshaft.startDeploymentRequest(deploymentRequestId, "ignace")
         operationTraces <- dbBinding.findOperationTracesByDeploymentRequest(deploymentRequestId)
         operationTrace = operationTraces.head
@@ -356,7 +356,7 @@ class CrankshaftWithFailingExecutorSpec extends SimpleScenarioTesting {
   test("Crankshaft keeps the created records in DB and marks an execution trace as failed if the trigger fails") {
     val res = for {
       product <- crankshaft.insertProduct("airplane")
-      deploymentRequestId <- crankshaft.createDeploymentRequest(new DeploymentRequestAttrs(product.name, Version(JsString("42").compactPrint), """["moon","mars"]}""", "", "bob")).map(_ ("id").toString.toLong)
+      deploymentRequestId <- crankshaft.createDeploymentRequest(new DeploymentRequestAttrs(product.name, Version(JsString("42").compactPrint), """["moon","mars"]}""", "", "bob"))
       _ <- crankshaft.startDeploymentRequest(deploymentRequestId, "ignace")
       operationTraces <- dbBinding.findOperationTracesByDeploymentRequest(deploymentRequestId)
       operationTrace = operationTraces.head

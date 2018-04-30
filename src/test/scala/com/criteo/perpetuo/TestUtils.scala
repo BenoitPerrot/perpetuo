@@ -91,8 +91,7 @@ trait SimpleScenarioTesting extends Test with TestDb with MockitoSugar {
     await {
       for {
         depReqId <- crankshaft.createDeploymentRequest(attrs).map {
-          output =>
-            val id = output("id").asInstanceOf[Long]
+          id =>
             lastDeploymentRequests(productName) = id
             id
         }

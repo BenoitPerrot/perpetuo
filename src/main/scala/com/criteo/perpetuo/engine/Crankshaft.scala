@@ -83,7 +83,7 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
   def findDeepDeploymentRequestById(deploymentRequestId: Long): Future[Option[DeepDeploymentRequest]] =
     dbBinding.findDeepDeploymentRequestById(deploymentRequestId)
 
-  def createDeploymentRequest(attrs: DeploymentRequestAttrs): Future[Map[String, Any]] =
+  def createDeploymentRequest(attrs: DeploymentRequestAttrs): Future[Long] =
     Future
       .sequence(listeners.map(_.onCreatingDeploymentRequest(attrs)))
       .flatMap { _ =>
@@ -95,8 +95,7 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
           .insertDeploymentRequest(attrs)
           .map { deploymentRequest =>
             Future.sequence(listeners.map(_.onDeploymentRequestCreated(deploymentRequest)))
-
-            Map("id" -> deploymentRequest.id)
+            deploymentRequest.id
           }
       }
 

@@ -132,7 +132,7 @@ class RestController @Inject()(val engine: Engine)
         throw ForbiddenException()
 
       timeBoxed(
-        crankshaft.createDeploymentRequest(allAttrs).map(x => Some(response.created.json(x))),
+        crankshaft.createDeploymentRequest(allAttrs).map(x => Some(response.created.json(Map("id" -> x)))),
         5.seconds
       )
     }
