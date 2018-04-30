@@ -1,7 +1,7 @@
 package com.criteo.perpetuo.engine
 
 import com.criteo.perpetuo.auth.{DeploymentAction, Permissions, User}
-import com.criteo.perpetuo.model.{DeepOperationTrace, DeploymentRequestAttrs, Operation, Version}
+import com.criteo.perpetuo.model._
 import javax.inject.{Inject, Singleton}
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -36,6 +36,21 @@ class Engine @Inject()(val crankshaft: Crankshaft,
             )
         }.getOrElse(Future.successful(None))
       )
+
+  def deviseRevertPlan(id: Long): Future[Option[(Select, Iterable[(ExecutionSpecification, Select)])]] =
+    crankshaft.isDeploymentRequestStarted(id)
+      .flatMap(
+        _.map { case (deploymentRequest, isStarted) =>
+          crankshaft
+            .canRevertDeploymentRequest(deploymentRequest, isStarted)
+            .recover { case e: RejectingError => throw e.copy(s"Cannot revert the request #${deploymentRequest.id}: ${e.msg}") } // TODO: remove the copy
+            .flatMap { _ =>
+              crankshaft
+                .findExecutionSpecificationsForRevert(deploymentRequest)
+                .map(Some.apply)
+            }
+        }.getOrElse(Future.successful(None))
+    )
 
   def revert(user: User, id: Long, defaultVersion: Option[Version]): Future[Option[DeepOperationTrace]] =
     crankshaft.isDeploymentRequestStarted(id)

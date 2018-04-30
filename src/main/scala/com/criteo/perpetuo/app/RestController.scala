@@ -139,22 +139,16 @@ class RestController @Inject()(val engine: Engine)
   post("/api/deployment-requests/:id/actions/devise-revert-plan") { r: RequestWithId =>
     withIdAndRequest(
       (id, _: RequestWithId) => {
-        crankshaft.isDeploymentRequestStarted(id).flatMap(
-          _.map { case (deploymentRequest, isStarted) =>
-            crankshaft.canRevertDeploymentRequest(deploymentRequest, isStarted)
-              .recover { case e: RejectingError => throw e.copy(s"Cannot revert the request #${deploymentRequest.id}: ${e.msg}") }
-              .flatMap { _ =>
-                crankshaft.findExecutionSpecificationsForRevert(deploymentRequest).map { case (undetermined, determined) =>
-                  Some(Map(
-                    "undetermined" -> undetermined,
-                    "determined" -> determined.toStream.map { case (execSpec, targets) =>
-                      Map("version" -> execSpec.version, "targetAtoms" -> targets)
-                    }
-                  ))
-                }
+        engine
+          .deviseRevertPlan(id)
+          .map(_.map { case (undetermined, determined) =>
+            Some(Map(
+              "undetermined" -> undetermined,
+              "determined" -> determined.toStream.map { case (execSpec, targets) =>
+                Map("version" -> execSpec.version, "targetAtoms" -> targets)
               }
-          }.getOrElse(Future.successful(None))
-        )
+            ))
+          })
       },
       5.seconds
     )(r)
