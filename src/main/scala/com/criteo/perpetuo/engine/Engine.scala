@@ -1,5 +1,6 @@
 package com.criteo.perpetuo.engine
 
+import com.criteo.perpetuo.app.DeploymentRequestStatus
 import com.criteo.perpetuo.auth.{DeploymentAction, GeneralAction, Permissions, User}
 import com.criteo.perpetuo.model._
 import javax.inject.{Inject, Singleton}
@@ -77,6 +78,40 @@ class Engine @Inject()(val crankshaft: Crankshaft,
             .map(Some.apply)
         }
         .getOrElse(Future.successful(None))
+      )
+
+  def queryDeploymentRequestStatus(user: Option[User], id: Long): Future[Option[DeploymentRequestStatus]] =
+    crankshaft
+      .findDeepDeploymentRequestAndEffects(id)
+      .flatMap(
+        _.map { case (deploymentRequest, sortedEffects) =>
+          val targets = deploymentRequest.parsedTarget.select
+
+          val isAdmin = user.exists(user =>
+            permissions.isAuthorized(user, GeneralAction.administrate)
+          )
+
+          // todo: a future workflow will differentiate requests and applies
+          def authorized(op: Operation.Kind) = user.exists(user =>
+            permissions.isAuthorized(user, DeploymentAction.applyOperation, op, deploymentRequest.product.name, targets)
+          )
+
+          Future
+            .sequence(
+              Operation.values.toSeq.map(action =>
+                (action match {
+                  case Operation.deploy => crankshaft.canDeployDeploymentRequest(deploymentRequest)
+                  case Operation.revert => crankshaft.canRevertDeploymentRequest(deploymentRequest, sortedEffects.nonEmpty)
+                })
+                  .map(_ => Some((action, authorized(action))))
+                  .recover { case _ => None }
+              )
+            )
+            .map(authorizedActions =>
+              Some(DeploymentRequestStatus(deploymentRequest, sortedEffects, authorizedActions.flatten, isAdmin || authorized(Operation.deploy)))
+            )
+
+        }.getOrElse(Future.successful(None))
       )
 
   def releaseAllLocks(user: User): Future[Int] = {
