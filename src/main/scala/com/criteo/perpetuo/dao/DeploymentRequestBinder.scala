@@ -37,7 +37,7 @@ trait DeploymentRequestBinder extends TableBinder {
     def productId = column[Int]("product_id")
     protected def fk = foreignKey(productId, productQuery)(_.id)
     def version = column[Version]("version", O.SqlType(s"nvarchar(${Version.maxSize})"))
-    def target = column[String]("target", O.SqlType("nvarchar(8000)"))
+    def target = column[String]("target", O.SqlType("nvarchar(8000)")) // TODO: remove after migrating to deployment-plan-step
 
     // The details
     def comment = column[String]("comment", O.SqlType("nvarchar(4000)"))

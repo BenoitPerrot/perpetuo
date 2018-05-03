@@ -15,6 +15,7 @@ class Schema(val dbContext: DbContext)
   extends DbContextProvider
     with ProductBinder
     with DeploymentRequestBinder
+    with DeploymentPlanStepBinder
     with OperationTraceBinder
     with ExecutionBinder
     with ExecutionSpecificationBinder
@@ -27,6 +28,7 @@ class Schema(val dbContext: DbContext)
   val all: dbContext.driver.DDL =
     productQuery.schema ++
       deploymentRequestQuery.schema ++
+      deploymentPlanStepQuery.schema ++
       operationTraceQuery.schema ++
       executionSpecificationQuery.schema ++
       executionQuery.schema ++
@@ -45,6 +47,7 @@ class DbBinding @Inject()(val dbContext: DbContext)
   extends DbContextProvider
     with ProductBinder
     with DeploymentRequestBinder
+    with DeploymentPlanStepBinder
     with OperationTraceBinder
     with ExecutionBinder
     with ExecutionSpecificationBinder

@@ -10,6 +10,8 @@ ALTER TABLE "execution"
   DROP CONSTRAINT "fk_execution_operation_trace_id"
 ALTER TABLE "operation_trace"
   DROP CONSTRAINT "fk_operation_trace_deployment_request_id"
+ALTER TABLE "deployment_plan_step"
+  DROP CONSTRAINT "fk_deployment_plan_step_deployment_request_id"
 ALTER TABLE "deployment_request"
   DROP CONSTRAINT "fk_deployment_request_product_id"
 
@@ -42,6 +44,11 @@ DROP TABLE "execution_specification"
 ALTER TABLE "operation_trace"
   DROP CONSTRAINT "pk_operation_trace"
 DROP TABLE "operation_trace"
+
+
+ALTER TABLE "deployment_plan_step"
+  DROP CONSTRAINT "pk_deployment_plan_step"
+DROP TABLE "deployment_plan_step"
 
 
 ALTER TABLE "deployment_request"

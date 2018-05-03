@@ -22,6 +22,15 @@ ALTER TABLE "deployment_request"
 CREATE INDEX "ix_deployment_request_creation_date"
   ON "deployment_request" ("creation_date")
 
+CREATE TABLE "deployment_plan_step" (
+  "id"                    BIGINT         NOT NULL IDENTITY,
+  "deployment_request_id" BIGINT         NOT NULL,
+  "name"                  NVARCHAR(1024) NOT NULL,
+  "target_expression"     NVARCHAR(8000) NOT NULL,
+  "comment"               NVARCHAR(4000) NOT NULL
+)
+ALTER TABLE "deployment_plan_step"
+  ADD CONSTRAINT "pk_deployment_plan_step" PRIMARY KEY ("id")
 
 CREATE TABLE "operation_trace" (
   "id"                    BIGINT        NOT NULL IDENTITY,
@@ -93,6 +102,10 @@ ALTER TABLE "lock"
 
 ALTER TABLE "deployment_request"
   ADD CONSTRAINT "fk_deployment_request_product_id" FOREIGN KEY ("product_id") REFERENCES "product" ("id")
+  ON UPDATE NO ACTION
+  ON DELETE NO ACTION
+ALTER TABLE "deployment_plan_step"
+  ADD CONSTRAINT "fk_deployment_plan_step_deployment_request_id" FOREIGN KEY ("deployment_request_id") REFERENCES "deployment_request" ("id")
   ON UPDATE NO ACTION
   ON DELETE NO ACTION
 ALTER TABLE "operation_trace"
