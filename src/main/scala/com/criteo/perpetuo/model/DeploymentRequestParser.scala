@@ -71,7 +71,7 @@ object DeploymentRequestParser {
         }.toSet
         case jsObj: JsObject => Set(jsObj)
         case unknown => throw new ParsingException(s"Expected `$tacticsKey` to be a non-empty JSON object or array, got: $unknown")
-      }.map(Some(_)).getOrElse(None),
+      },
 
       target.get(selectKey).map {
         case jsString: JsString => Set(jsString)

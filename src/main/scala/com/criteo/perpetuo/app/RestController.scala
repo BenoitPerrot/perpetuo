@@ -314,7 +314,7 @@ class RestController @Inject()(val engine: Engine)
   }
 
   // TODO: remove <<
-  get("/api/unstable/products/actions/count-unreferenced") { r: Request =>
+  get("/api/unstable/products/actions/count-unreferenced") { _: Request =>
     timeBoxed(crankshaft.dbBinding.countUnreferencedProducts(), 5.seconds)
   }
 

@@ -24,7 +24,7 @@ trait ParsedTarget {
 object Target {
   def getSimpleSelect(target: TargetExpr): Iterable[String] = target.flatMap(_.select)
 
-  def getSimpleSelectForGroovy(target: TargetExpr): java.lang.Iterable[String] = target.flatMap(_.select).toIterable.asJava
+  def getSimpleSelectForGroovy(target: TargetExpr): java.util.Set[String] = target.flatMap(_.select).asJava
 }
 
 
