@@ -13,10 +13,17 @@ import scala.concurrent.{Await, Future}
 
 
 @RunWith(classOf[JUnitRunner])
-class TargetStatusSpec extends FunSuite with ScalaFutures
-  with TargetStatusBinder
-  with ExecutionTraceBinder with ExecutionBinder with ExecutionSpecificationBinder with OperationTraceBinder with DeploymentRequestBinder with ProductBinder
-  with TestDb {
+class TargetStatusSpec
+  extends FunSuite
+    with ScalaFutures
+    with TargetStatusBinder
+    with ExecutionTraceBinder
+    with ExecutionBinder
+    with ExecutionSpecificationBinder
+    with OperationTraceBinder
+    with DeploymentRequestBinder
+    with ProductBinder
+    with TestDb {
 
   import dbContext.driver.api._
 

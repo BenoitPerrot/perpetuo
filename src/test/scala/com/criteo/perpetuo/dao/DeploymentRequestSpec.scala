@@ -13,9 +13,12 @@ import scala.concurrent.duration._
 
 
 @RunWith(classOf[JUnitRunner])
-class DeploymentRequestSpec extends FunSuite with ScalaFutures
-  with DeploymentRequestBinder with ProductBinder
-  with TestDb {
+class DeploymentRequestSpec
+  extends FunSuite
+    with ScalaFutures
+    with DeploymentRequestBinder
+    with ProductBinder
+    with TestDb {
 
   import dbContext.driver.api._
 
