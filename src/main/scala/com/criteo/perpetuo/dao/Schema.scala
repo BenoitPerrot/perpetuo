@@ -43,6 +43,26 @@ class Schema(val dbContext: DbContext)
   }
 }
 
+trait DeploymentRequestInserter
+  extends DbContextProvider
+    with ProductBinder
+    with DeploymentRequestBinder {
+
+  import dbContext.driver.api._
+
+  def insertDeploymentRequest(d: DeploymentRequestAttrs): Future[DeepDeploymentRequest] = {
+    findProductByName(d.productName).map(_.getOrElse {
+      throw new UnknownProduct(d.productName)
+    }).flatMap { product =>
+      val record = DeploymentRequestRecord(None, product.id, d.version, d.target, d.comment, d.creator, d.creationDate)
+      dbContext.db.run(deploymentRequestQuery.returning(deploymentRequestQuery.map(_.id)) += record).map { id =>
+        val ret = DeepDeploymentRequest(id, product, d.version, d.target, d.comment, d.creator, d.creationDate)
+        ret.copyParsedTargetCacheFrom(d)
+        ret
+      }
+    }
+  }
+}
 
 @Singleton
 class DbBinding @Inject()(val dbContext: DbContext)
@@ -56,7 +76,8 @@ class DbBinding @Inject()(val dbContext: DbContext)
     with ExecutionSpecificationBinder
     with TargetStatusBinder
     with ExecutionTraceBinder
-    with LockBinder {
+    with LockBinder
+    with DeploymentRequestInserter {
 
   import dbContext.driver.api._
 

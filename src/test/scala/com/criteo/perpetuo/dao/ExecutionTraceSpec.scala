@@ -22,6 +22,7 @@ class ExecutionTraceSpec
     with OperationTraceBinder
     with DeploymentRequestBinder
     with ProductBinder
+    with DeploymentRequestInserter
     with TestDb {
 
   import dbContext.driver.api._

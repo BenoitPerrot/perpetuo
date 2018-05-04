@@ -19,6 +19,7 @@ class DeploymentPlanStepSpec
     with ProductBinder
     with DeploymentRequestBinder
     with DeploymentPlanStepBinder
+    with DeploymentRequestInserter
     with TestDb {
 
   test("Deployment requests can be inserted and retrieved") {

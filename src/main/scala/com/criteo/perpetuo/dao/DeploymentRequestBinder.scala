@@ -50,20 +50,6 @@ trait DeploymentRequestBinder extends TableBinder {
 
   val deploymentRequestQuery = TableQuery[DeploymentRequestTable]
 
-  def insertDeploymentRequest(d: DeploymentRequestAttrs): Future[DeepDeploymentRequest] = {
-    // find the product to which the corresponding foreign key is pointing to
-    findProductByName(d.productName).map(_.getOrElse {
-      throw new UnknownProduct(d.productName)
-    }).flatMap { product =>
-      val record = DeploymentRequestRecord(None, product.id, d.version, d.target, d.comment, d.creator, d.creationDate)
-      dbContext.db.run((deploymentRequestQuery returning deploymentRequestQuery.map(_.id)) += record).map { id =>
-        val ret = DeepDeploymentRequest(id, product, d.version, d.target, d.comment, d.creator, d.creationDate)
-        ret.copyParsedTargetCacheFrom(d)
-        ret
-      }
-    }
-  }
-
   def deploymentRequestExists(id: Long): Future[Boolean] = {
     dbContext.db.run(deploymentRequestQuery.filter(_.id === id).exists.result)
   }
