@@ -302,30 +302,6 @@ class RestController @Inject()(val engine: Engine)
   get("/api/:*") { _: Request =>
     throw NotFoundException()
   }
-
-  get("/api/unstable/db/locks/drop-em-all") { r: Request =>
-    authenticate(r) { case user =>
-      timeBoxed(
-        engine.releaseAllLocks(user).map(count => Some(Map("deleted" -> count))),
-        5.seconds
-      )
-    }
-  }
-
-  // TODO: remove <<
-  get("/api/unstable/products/actions/count-unreferenced") { _: Request =>
-    timeBoxed(crankshaft.dbBinding.countUnreferencedProducts(), 5.seconds)
-  }
-
-  post("/api/unstable/products/actions/delete-unreferenced") { r: Request =>
-    authenticate(r) { case user =>
-      timeBoxed(
-        engine.deleteUnreferencedProducts(user).map(count => Some(Map("deleted" -> count))),
-        5.seconds
-      )
-    }
-  }
-  // >>
 }
 
 object RestApi {

@@ -114,24 +114,10 @@ class Engine @Inject()(val crankshaft: Crankshaft,
         }.getOrElse(Future.successful(None))
       )
 
-  def releaseAllLocks(user: User): Future[Int] = {
-    if (!permissions.isAuthorized(user, GeneralAction.administrate))
-      throw PermissionDenied()
-
-    crankshaft.dbBinding.releaseAllLocks()
-  }
-
   def insertProductIfNotExists(user: User, name: String): Future[Product] = {
     if (!permissions.isAuthorized(user, GeneralAction.addProduct))
       throw PermissionDenied()
 
     crankshaft.insertProductIfNotExists(name)
-  }
-
-  def deleteUnreferencedProducts(user: User): Future[Int] = {
-    if (!permissions.isAuthorized(user, GeneralAction.administrate))
-      throw PermissionDenied()
-
-    crankshaft.dbBinding.deleteUnreferencedProducts()
   }
 }
