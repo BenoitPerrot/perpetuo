@@ -85,7 +85,7 @@ trait SimpleScenarioTesting extends Test with TestDb with MockitoSugar {
 
   def deploy(productName: String, version: String, target: Seq[String], finalStatus: Status.Code = Status.success): DeepOperationTrace = {
     if (!lastDeploymentRequests.contains(productName))
-      await(crankshaft.insertProduct(productName))
+      await(crankshaft.insertProductIfNotExists(productName))
 
     val attrs = new DeploymentRequestAttrs(productName, Version(version.toJson), Seq(ProtoDeploymentPlanStep("1", target.toJson, "")), "", "de.ployer")
     await {

@@ -74,9 +74,6 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
   def getProductNames: Future[Seq[String]] =
     dbBinding.getProductNames
 
-  def insertProduct(productName: String): Future[Product] =
-    dbBinding.insertProduct(productName)
-
   def insertProductIfNotExists(productName: String): Future[Product] =
     dbBinding.insertProductIfNotExists(productName)
 

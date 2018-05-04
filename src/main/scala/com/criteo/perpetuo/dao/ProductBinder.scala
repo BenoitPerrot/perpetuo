@@ -1,8 +1,5 @@
 package com.criteo.perpetuo.dao
 
-import java.sql.SQLException
-
-import com.criteo.perpetuo.engine.Conflict
 import com.criteo.perpetuo.model.Product
 import slick.jdbc.TransactionIsolation
 
@@ -34,18 +31,6 @@ trait ProductBinder extends TableBinder {
   }
 
   val productQuery = TableQuery[ProductTable]
-
-  def insertProduct(productName: String): Future[Product] = {
-    dbContext.db.run((productQuery returning productQuery.map(_.id)) += ProductRecord(None, productName)).map(
-      Product(_, productName)
-    ).recover {
-      case e: SQLException if e.getMessage.contains("nique index") =>
-        // there is no specific exception type if the name is already used but the error message starts with
-        // - if H2: Unique index or primary key violation: "ix_product_name ON PUBLIC.""product""(""name"") VALUES ('my product', 1)"
-        // - if SQLServer: Cannot insert duplicate key row in object 'dbo.product' with unique index 'ix_product_name'
-        throw Conflict(s"Name `$productName` is already used")
-    }
-  }
 
   def insertProductIfNotExists(productName: String): Future[Product] = {
     val q = productQuery.filter(_.name === productName).result.flatMap(existing =>

@@ -14,7 +14,7 @@ class CrankshaftSpec extends SimpleScenarioTesting {
   test("A trivial execution triggers a job with no log href when there is no log href provided") {
     Await.result(
       for {
-        product <- crankshaft.insertProduct("product #1")
+        product <- crankshaft.insertProductIfNotExists("product #1")
         depReq <- crankshaft.dbBinding.insertDeploymentRequest(new DeploymentRequestAttrs(product.name, Version("\"1000\""), Seq(ProtoDeploymentPlanStep("", JsString("*"), "")), "", "s.omeone"))
         _ <- crankshaft.startDeploymentRequest(depReq.id, "s.tarter")
         traces <- crankshaft.findExecutionTracesByDeploymentRequest(depReq.id)
@@ -26,7 +26,7 @@ class CrankshaftSpec extends SimpleScenarioTesting {
   test("Crankshaft keeps track of open executions for an operation") {
     Await.result(
       for {
-        product <- crankshaft.insertProduct("human")
+        product <- crankshaft.insertProductIfNotExists("human")
         deploymentRequestId <- crankshaft.createDeploymentRequest(new DeploymentRequestAttrs(product.name, Version(JsString("42").compactPrint), Seq(ProtoDeploymentPlanStep("", JsArray(JsString("moon"), JsString("mars")), "")), "", "robert"))
         _ <- crankshaft.startDeploymentRequest(deploymentRequestId, "ignace")
         operationTraces <- dbBinding.findOperationTracesByDeploymentRequest(deploymentRequestId)
@@ -59,7 +59,7 @@ class CrankshaftSpec extends SimpleScenarioTesting {
   test("Crankshaft checks that an operation can be started only if previous transactions on the same product have been completed") {
     Await.result(
       for {
-        product <- crankshaft.insertProduct("pig")
+        product <- crankshaft.insertProductIfNotExists("pig")
 
         // OK if it's the first
         _ <- mockDeployExecution(product.name, "99", Map("racing" -> Status.success))
@@ -95,7 +95,7 @@ class CrankshaftSpec extends SimpleScenarioTesting {
   test("Crankshaft checks if an operation can be retried") {
     Await.result(
       for {
-        product <- crankshaft.insertProduct("horse")
+        product <- crankshaft.insertProductIfNotExists("horse")
 
         (firstDeploymentRequestId, _) <- mockDeployExecution(product.name, "100", Map("corn-field" -> Status.success))
         // Status = corn-field: horse@100
@@ -121,7 +121,7 @@ class CrankshaftSpec extends SimpleScenarioTesting {
   test("Crankshaft finds executions for reverting") {
     Await.result(
       for {
-        product <- crankshaft.insertProduct("mouse")
+        product <- crankshaft.insertProductIfNotExists("mouse")
 
         (firstDeploymentRequestId, firstExecSpecId) <- mockDeployExecution(product.name, "27", Map("moon" -> Status.success, "mars" -> Status.success))
         // Status = moon: mouse@27, mars: mouse@27
@@ -157,8 +157,8 @@ class CrankshaftSpec extends SimpleScenarioTesting {
   test("Crankshaft checks if an operation can be reverted") {
     Await.result(
       for {
-        product <- crankshaft.insertProduct("monkey")
-        otherProduct <- crankshaft.insertProduct("donkey")
+        product <- crankshaft.insertProductIfNotExists("monkey")
+        otherProduct <- crankshaft.insertProductIfNotExists("donkey")
 
         _ <- mockDeployExecution(product.name, "12", Map("orbit" -> Status.success))
         // Status = orbit: monkey@12
@@ -190,7 +190,7 @@ class CrankshaftSpec extends SimpleScenarioTesting {
     val defaultRevertVersion = Version(""""00"""")
     Await.result(
       for {
-        product <- crankshaft.insertProduct("pony")
+        product <- crankshaft.insertProductIfNotExists("pony")
 
         (firstDeploymentRequestId, firstExecSpecId) <- mockDeployExecution(product.name, "11", Map("tic" -> Status.success, "tac" -> Status.success))
         // Status = tic: pony@11, tac: pony@11
@@ -256,7 +256,7 @@ class CrankshaftSpec extends SimpleScenarioTesting {
   test("Crankshaft keeps track of retried operation") {
     Await.result(
       for {
-        product <- crankshaft.insertProduct("martian")
+        product <- crankshaft.insertProductIfNotExists("martian")
         deploymentRequestId <- crankshaft.createDeploymentRequest(new DeploymentRequestAttrs(product.name, Version(JsString("42").compactPrint), Seq(ProtoDeploymentPlanStep("", JsArray(JsString("moon"), JsString("mars")), "")), "", "robert"))
         _ <- crankshaft.startDeploymentRequest(deploymentRequestId, "ignace")
         operationTraces <- dbBinding.findOperationTracesByDeploymentRequest(deploymentRequestId)
@@ -355,7 +355,7 @@ class CrankshaftWithFailingExecutorSpec extends SimpleScenarioTesting {
 
   test("Crankshaft keeps the created records in DB and marks an execution trace as failed if the trigger fails") {
     val res = for {
-      product <- crankshaft.insertProduct("airplane")
+      product <- crankshaft.insertProductIfNotExists("airplane")
       deploymentRequestId <- crankshaft.createDeploymentRequest(new DeploymentRequestAttrs(product.name, Version(JsString("42").compactPrint), Seq(ProtoDeploymentPlanStep("", JsArray(JsString("moon"), JsString("mars")), "")), "", "bob"))
       _ <- crankshaft.startDeploymentRequest(deploymentRequestId, "ignace")
       operationTraces <- dbBinding.findOperationTracesByDeploymentRequest(deploymentRequestId)

@@ -92,18 +92,6 @@ class RestController @Inject()(val engine: Engine)
     )
   }
 
-  // todo: remove
-  post("/api/products") { r: RequestWithName =>
-    authenticate(r.request) { case user =>
-      timeBoxed(
-        engine
-          .insertProduct(user, r.name)
-          .map(_ => Some(response.created.nothing)),
-        5.seconds
-      )
-    }
-  }
-
   put("/api/products") { r: RequestWithName =>
     authenticate(r.request) { case user =>
       timeBoxed(

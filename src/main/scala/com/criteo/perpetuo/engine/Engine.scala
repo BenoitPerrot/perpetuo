@@ -121,13 +121,6 @@ class Engine @Inject()(val crankshaft: Crankshaft,
     crankshaft.dbBinding.releaseAllLocks()
   }
 
-  def insertProduct(user: User, name: String): Future[Product] = {
-    if (!permissions.isAuthorized(user, GeneralAction.addProduct))
-      throw PermissionDenied()
-
-    crankshaft.insertProduct(name)
-  }
-
   def insertProductIfNotExists(user: User, name: String): Future[Product] = {
     if (!permissions.isAuthorized(user, GeneralAction.addProduct))
       throw PermissionDenied()

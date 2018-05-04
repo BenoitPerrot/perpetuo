@@ -25,7 +25,7 @@ class DeploymentPlanStepSpec
   test("Deployment plan steps can be inserted and retrieved") {
     Await.result(
       for {
-        product <- insertProduct("humanity")
+        product <- insertProductIfNotExists("humanity")
         deploymentRequest <- insertDeploymentRequest(new DeploymentRequestAttrs(product.name, Version("\"v1\""), Seq(ProtoDeploymentPlanStep("Africa", JsArray(JsString("af")), "")), "", "f.sm"))
         step2 <- insertDeploymentPlanStep(deploymentRequest.id, ProtoDeploymentPlanStep("Eurasia", JsArray(JsString("eu"), JsString("as")), ""))
         step3 <- insertDeploymentPlanStep(deploymentRequest.id, ProtoDeploymentPlanStep("America", JsArray(JsString("am")), ""))

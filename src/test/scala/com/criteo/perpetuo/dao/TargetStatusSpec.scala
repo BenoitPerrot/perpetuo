@@ -38,7 +38,7 @@ class TargetStatusSpec
     Await.result(
       for {
         _ <- dbContext.db.run(targetStatusQuery.delete)
-        product <- insertProduct("perpetuo-app")
+        product <- insertProductIfNotExists("perpetuo-app")
         request <- insertDeploymentRequest(new DeploymentRequestAttrs(product.name, Version("\"v42\""), Seq(ProtoDeploymentPlanStep("", JsString("Moon"), "")), "That's one small step for man, one giant leap for mankind", "n.armstrong"))
         deployOperationTrace <- dbContext.db.run(insertOperationTrace(request, Operation.deploy, "n.armstrong"))
         execSpec <- insertExecutionSpecification("{}", Version("\"456\""))
@@ -59,7 +59,7 @@ class TargetStatusSpec
     Await.result(
       for {
         _ <- dbContext.db.run(targetStatusQuery.delete)
-        product <- insertProduct("sleepy-owl")
+        product <- insertProductIfNotExists("sleepy-owl")
         request <- insertDeploymentRequest(new DeploymentRequestAttrs(product.name, Version("\"0\""), Seq(ProtoDeploymentPlanStep("", JsString("Earth"), "")), "", "creator"))
         deployOperationTrace <- dbContext.db.run(insertOperationTrace(request, Operation.deploy, "runner"))
         execSpec <- insertExecutionSpecification("{}", Version("\"0\""))

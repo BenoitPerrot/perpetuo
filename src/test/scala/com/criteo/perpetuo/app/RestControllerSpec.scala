@@ -72,11 +72,11 @@ class RestControllerSpec extends Test with TestDb {
   private val logHrefHistory: mutable.Map[Long, JsValue] = mutable.Map()
 
   private def createProduct(name: String, expectedError: Option[(String, Status)] = None): Unit = {
-    val ans = server.httpPost(
+    val ans = server.httpPut(
       path = s"/api/products",
       headers = Map("Cookie" -> s"jwt=$productUserJWT"),
       andExpect = expectedError.map(_._2).getOrElse(Created),
-      postBody = JsObject("name" -> JsString(name)).compactPrint
+      putBody = JsObject("name" -> JsString(name)).compactPrint
     ).contentString
     expectedError.foreach(err => ans shouldEqual JsObject("errors" -> JsArray(JsString(err._1))).compactPrint)
   }
@@ -232,10 +232,6 @@ class RestControllerSpec extends Test with TestDb {
   test("The Product's entry-point returns 201 when creating a Product") {
     createProduct("my product")
     createProduct("my other product")
-  }
-
-  test("The Product's entry-point properly rejects already used names") {
-    createProduct("my product", Some("Name `my product` is already used", Conflict))
   }
 
   test("The Product's entry-point returns the list of all known product names") {
@@ -786,19 +782,19 @@ class RestControllerSpec extends Test with TestDb {
 
 
   test("Any protected route responds 401 if the user is not logged in") {
-    server.httpPost(
+    server.httpPut(
       path = s"/api/products",
       andExpect = Unauthorized,
-      postBody = JsObject("name" -> JsString("this project will never be created")).compactPrint
+      putBody = JsObject("name" -> JsString("this project will never be created")).compactPrint
     )
   }
 
   test("Any protected route responds 403 if the user is not allowed to do the operation") {
-    server.httpPost(
+    server.httpPut(
       path = s"/api/products",
       headers = Map("Cookie" -> s"jwt=$stdUserJWT"),
       andExpect = Forbidden,
-      postBody = JsObject("name" -> JsString("this project will never be created")).compactPrint
+      putBody = JsObject("name" -> JsString("this project will never be created")).compactPrint
     )
 
     val depReqId = requestDeployment("my product", "version", "target".toJson)
