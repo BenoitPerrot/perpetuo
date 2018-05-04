@@ -22,7 +22,7 @@ class DeploymentRequestSpec
     with DeploymentRequestInserter
     with TestDb {
 
-  import dbContext.driver.api._
+  import dbContext.profile.api._
 
   test("Deployment requests can be inserted and retrieved") {
     Await.result(

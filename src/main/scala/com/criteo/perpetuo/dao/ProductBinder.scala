@@ -18,7 +18,7 @@ private[dao] case class ProductRecord(id: Option[Int], name: String) {
 trait ProductBinder extends TableBinder {
   this: DbContextProvider =>
 
-  import dbContext.driver.api._
+  import dbContext.profile.api._
 
   class ProductTable(tag: Tag) extends Table[ProductRecord](tag, "product") {
     def id = column[Int]("id", O.AutoInc)

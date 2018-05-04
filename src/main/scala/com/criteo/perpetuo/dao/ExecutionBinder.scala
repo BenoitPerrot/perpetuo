@@ -13,7 +13,7 @@ private[dao] case class ExecutionRecord(id: Option[Long],
 trait ExecutionBinder extends TableBinder {
   this: OperationTraceBinder with ExecutionSpecificationBinder with DbContextProvider =>
 
-  import dbContext.driver.api._
+  import dbContext.profile.api._
 
   class ExecutionTable(tag: Tag) extends Table[ExecutionRecord](tag, "execution") {
     def id = column[Long]("id", O.AutoInc)

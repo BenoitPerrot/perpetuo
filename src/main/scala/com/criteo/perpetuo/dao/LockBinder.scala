@@ -13,7 +13,7 @@ private[dao] case class LockRecord(name: String,
 trait LockBinder extends TableBinder with Logging {
   this: DeploymentRequestBinder with DbContextProvider =>
 
-  import dbContext.driver.api._
+  import dbContext.profile.api._
 
   class LockTable(tag: Tag) extends Table[LockRecord](tag, "lock") {
     def name = column[String]("name", O.SqlType("nvarchar(128)"))

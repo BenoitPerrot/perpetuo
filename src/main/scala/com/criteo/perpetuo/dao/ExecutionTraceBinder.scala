@@ -26,7 +26,7 @@ private[dao] case class ExecutionTraceRecord(id: Option[Long],
 trait ExecutionTraceBinder extends TableBinder {
   this: ExecutionBinder with OperationTraceBinder with DbContextProvider =>
 
-  import dbContext.driver.api._
+  import dbContext.profile.api._
 
   protected implicit lazy val stateMapper = MappedColumnType.base[ExecutionState, Short](
     es => es.id.toShort,

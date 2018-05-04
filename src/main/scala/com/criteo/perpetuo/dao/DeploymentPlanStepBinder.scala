@@ -16,7 +16,7 @@ private[dao] case class DeploymentPlanStepRecord(id: Option[Long],
 trait DeploymentPlanStepBinder extends TableBinder {
   this: DeploymentRequestBinder with DbContextProvider =>
 
-  import dbContext.driver.api._
+  import dbContext.profile.api._
 
   class DeploymentPlanStepTable(tag: Tag) extends Table[DeploymentPlanStepRecord](tag, "deployment_plan_step") {
     def id = column[Long]("id", O.AutoInc)

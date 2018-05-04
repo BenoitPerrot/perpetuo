@@ -27,7 +27,7 @@ private[dao] case class DeploymentRequestRecord(id: Option[Long],
 trait DeploymentRequestBinder extends TableBinder {
   this: ProductBinder with DbContextProvider =>
 
-  import dbContext.driver.api._
+  import dbContext.profile.api._
 
   class DeploymentRequestTable(tag: Tag) extends Table[DeploymentRequestRecord](tag, "deployment_request") {
     def id = column[Long]("id", O.AutoInc)

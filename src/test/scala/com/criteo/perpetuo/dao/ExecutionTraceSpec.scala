@@ -26,7 +26,7 @@ class ExecutionTraceSpec
     with DeploymentRequestInserter
     with TestDb {
 
-  import dbContext.driver.api._
+  import dbContext.profile.api._
 
   test("ExecutionState values are all different") {
     ExecutionState.values

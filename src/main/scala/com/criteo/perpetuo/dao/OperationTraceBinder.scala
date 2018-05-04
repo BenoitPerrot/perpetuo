@@ -23,7 +23,7 @@ private[dao] case class OperationTraceRecord(id: Option[Long],
 trait OperationTraceBinder extends TableBinder {
   this: DeploymentRequestBinder with ProductBinder with DbContextProvider =>
 
-  import dbContext.driver.api._
+  import dbContext.profile.api._
 
   protected implicit lazy val operationMapper = MappedColumnType.base[Operation.Kind, Short](
     op => op.id.toShort,

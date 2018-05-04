@@ -19,7 +19,7 @@ private[dao] case class TargetStatusRecord(executionId: Long,
 trait TargetStatusBinder extends TableBinder {
   this: ExecutionBinder with DbContextProvider =>
 
-  import dbContext.driver.api._
+  import dbContext.profile.api._
 
   protected implicit lazy val statusMapper = MappedColumnType.base[Status.Code, Short](
     op => op.id.toShort,

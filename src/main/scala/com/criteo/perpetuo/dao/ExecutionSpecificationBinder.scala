@@ -17,7 +17,7 @@ private[dao] case class ExecutionSpecificationRecord(id: Option[Long],
 trait ExecutionSpecificationBinder extends TableBinder {
   this: DbContextProvider =>
 
-  import dbContext.driver.api._
+  import dbContext.profile.api._
 
   class ExecutionSpecificationTable(tag: Tag) extends Table[ExecutionSpecificationRecord](tag, "execution_specification") {
     def id = column[Long]("id", O.AutoInc)

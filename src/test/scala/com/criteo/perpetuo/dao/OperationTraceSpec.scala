@@ -23,7 +23,7 @@ class OperationTraceSpec
     with DeploymentRequestInserter
     with TestDb {
 
-  import dbContext.driver.api._
+  import dbContext.profile.api._
 
   test("Operation types are bound to different integral values") {
     Operation.values

@@ -14,7 +14,7 @@ class DbContextModule(val config: Config) extends TwitterModule {
   val threadPrefix = "DB"
 
   val driverName: String = config.getString("driver.name")
-  val driver: JdbcProfile = config.getString("driver.profile") match {
+  val profile: JdbcProfile = config.getString("driver.profile") match {
     case "h2" => H2Profile
     case "mssql" => SQLServerProfile
   }
@@ -66,7 +66,7 @@ class DbContextModule(val config: Config) extends TwitterModule {
   @Singleton
   @Provides
   def providesDbContext: DbContext = {
-    val dbContext = new DbContext(driver, databaseProvider)
+    val dbContext = new DbContext(profile, databaseProvider)
     if (config.getBoolean("ephemeral"))
       new Schema(dbContext).createTables()
     dbContext

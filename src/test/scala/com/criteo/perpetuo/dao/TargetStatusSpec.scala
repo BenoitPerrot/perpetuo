@@ -27,7 +27,7 @@ class TargetStatusSpec
     with DeploymentRequestInserter
     with TestDb {
 
-  import dbContext.driver.api._
+  import dbContext.profile.api._
 
   private def readStatuses: Future[String] =
     dbContext.db.run(targetStatusQuery.result).map(

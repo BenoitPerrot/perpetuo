@@ -4,4 +4,4 @@ import slick.jdbc.JdbcBackend.Database
 import slick.jdbc.JdbcProfile
 
 
-class DbContext(val driver: JdbcProfile, val db: Database)
+class DbContext(val profile: JdbcProfile, val db: Database)

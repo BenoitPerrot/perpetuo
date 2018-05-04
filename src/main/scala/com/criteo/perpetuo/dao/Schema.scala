@@ -24,9 +24,9 @@ class Schema(val dbContext: DbContext)
     with ExecutionTraceBinder
     with LockBinder {
 
-  import dbContext.driver.api._
+  import dbContext.profile.api._
 
-  val all: dbContext.driver.DDL =
+  val all: dbContext.profile.DDL =
     productQuery.schema ++
       deploymentRequestQuery.schema ++
       deploymentPlanStepQuery.schema ++
@@ -49,7 +49,7 @@ trait DeploymentRequestInserter
     with DeploymentRequestBinder
     with DeploymentPlanStepBinder {
 
-  import dbContext.driver.api._
+  import dbContext.profile.api._
 
   def insertDeploymentRequest(d: DeploymentRequestAttrs): Future[DeepDeploymentRequest] = {
     findProductByName(d.productName).map(_.getOrElse {
@@ -90,7 +90,7 @@ class DbBinding @Inject()(val dbContext: DbContext)
     with LockBinder
     with DeploymentRequestInserter {
 
-  import dbContext.driver.api._
+  import dbContext.profile.api._
 
   def executeInSerializableTransaction[T](q: DBIOAction[T, NoStream, _]): Future[T] =
     dbContext.db.run(q.transactionally.withTransactionIsolation(TransactionIsolation.Serializable))

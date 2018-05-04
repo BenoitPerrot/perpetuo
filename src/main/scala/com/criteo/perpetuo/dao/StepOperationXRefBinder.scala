@@ -8,7 +8,7 @@ private[dao] case class StepOperationXRefRecord(deploymentPlanStepId: Long,
 trait StepOperationXRefBinder extends TableBinder {
   this: DeploymentPlanStepBinder with OperationTraceBinder with DbContextProvider =>
 
-  import dbContext.driver.api._
+  import dbContext.profile.api._
 
   class StepOperationXRefTable(tag: Tag) extends Table[StepOperationXRefRecord](tag, "step_operation_xref") {
     def deploymentPlanStepId = column[Long]("deployment_plan_step_id")
