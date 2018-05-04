@@ -1,11 +1,11 @@
 package com.criteo.perpetuo.app
 
 import com.criteo.perpetuo.auth.UserFilter._
-import com.criteo.perpetuo.auth.{DeploymentAction, GeneralAction, User}
+import com.criteo.perpetuo.auth.Authenticator
 import com.criteo.perpetuo.config.AppConfigProvider
-import com.criteo.perpetuo.engine.{Engine, OperationStatus, RejectingError}
+import com.criteo.perpetuo.engine.{Engine, OperationStatus}
 import com.criteo.perpetuo.model._
-import com.twitter.finagle.http.{Request, Status => HttpStatus}
+import com.twitter.finagle.http.Request
 import com.twitter.finatra.http.exceptions._
 import com.twitter.finatra.http.{Controller => BaseController}
 import com.twitter.finatra.request._
@@ -60,7 +60,9 @@ private case class SortingFilteringPost(orderBy: Seq[Map[String, Any]] = Seq(),
   * Controller that handles deployment requests as a REST API.
   */
 class RestController @Inject()(val engine: Engine)
-  extends BaseController with ExceptionsToHttpStatusTranslation {
+  extends BaseController
+    with Authenticator
+    with ExceptionsToHttpStatusTranslation {
 
   private val futurePool = FuturePools.unboundedPool("RequestFuturePool")
 
@@ -78,12 +80,6 @@ class RestController @Inject()(val engine: Engine)
     request => futurePool {
       Try(request.id.toLong).toOption.map(view(_, request)).flatMap(await(_, maxDuration))
     }
-
-  private def authenticate[T](r: Request)(callback: PartialFunction[User, TwitterFuture[Option[T]]]): TwitterFuture[Option[T]] = {
-    r.user
-      .map(callback.orElse { case _ => throw ForbiddenException() })
-      .getOrElse(throw HttpException(HttpStatus.Unauthorized))
-  }
 
   get("/api/products") { _: Request =>
     timeBoxed(
