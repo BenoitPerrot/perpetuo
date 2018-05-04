@@ -1,6 +1,6 @@
 package com.criteo.perpetuo.dao
 
-import com.criteo.perpetuo.model.DeploymentPlanStep
+import com.criteo.perpetuo.model.{DeploymentPlanStep, ProtoDeploymentPlanStep}
 import spray.json._
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -36,11 +36,11 @@ trait DeploymentPlanStepBinder extends TableBinder {
 
   val deploymentPlanStepQuery = TableQuery[DeploymentPlanStepTable]
 
-  def insertDeploymentPlanStep(deploymentRequestId: Long, name: String, targetExpression: JsValue, comment: String): Future[DeploymentPlanStep] = {
-    val record = DeploymentPlanStepRecord(None, deploymentRequestId, name, targetExpression.compactPrint, comment)
+  def insertDeploymentPlanStep(deploymentRequestId: Long, step: ProtoDeploymentPlanStep): Future[DeploymentPlanStep] = {
+    val record = DeploymentPlanStepRecord(None, deploymentRequestId, step.name, step.targetExpression.compactPrint, step.comment)
     dbContext.db
       .run((deploymentPlanStepQuery returning deploymentPlanStepQuery.map(_.id)) += record)
-      .map(id => DeploymentPlanStep(id, deploymentRequestId, name, targetExpression, comment))
+      .map(id => DeploymentPlanStep(id, deploymentRequestId, step.name, step.targetExpression, step.comment))
   }
 
   def findDeploymentPlanStepsByRequestId(deploymentRequestId: Long): Future[Seq[DeploymentPlanStep]] =

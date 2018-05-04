@@ -1,7 +1,7 @@
 package com.criteo.perpetuo.dao
 
 import com.criteo.perpetuo.TestDb
-import com.criteo.perpetuo.model.{DeploymentRequestAttrs, Version}
+import com.criteo.perpetuo.model.{DeploymentRequestAttrs, ProtoDeploymentPlanStep, Version}
 import com.twitter.inject.Test
 import org.junit.runner.RunWith
 import org.scalatest.concurrent._
@@ -27,9 +27,9 @@ class DeploymentPlanStepSpec
       for {
         product <- insertProduct("humanity")
         deploymentRequest <- insertDeploymentRequest(new DeploymentRequestAttrs(product.name, Version("\"v1\""), "", "", "f.sm"))
-        step1 <- insertDeploymentPlanStep(deploymentRequest.id, "Africa", JsArray(JsString("af")), "")
-        step2 <- insertDeploymentPlanStep(deploymentRequest.id, "Eurasia", JsArray(JsString("eu"), JsString("as")), "")
-        step3 <- insertDeploymentPlanStep(deploymentRequest.id, "America", JsArray(JsString("am")), "")
+        step1 <- insertDeploymentPlanStep(deploymentRequest.id, ProtoDeploymentPlanStep("Africa", JsArray(JsString("af")), ""))
+        step2 <- insertDeploymentPlanStep(deploymentRequest.id, ProtoDeploymentPlanStep("Eurasia", JsArray(JsString("eu"), JsString("as")), ""))
+        step3 <- insertDeploymentPlanStep(deploymentRequest.id, ProtoDeploymentPlanStep("America", JsArray(JsString("am")), ""))
         steps <- findDeploymentPlanStepsByRequestId(deploymentRequest.id)
       } yield {
         steps.size
