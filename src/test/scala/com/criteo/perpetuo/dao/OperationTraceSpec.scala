@@ -1,11 +1,12 @@
 package com.criteo.perpetuo.dao
 
 import com.criteo.perpetuo.TestDb
-import com.criteo.perpetuo.model.{DeploymentRequestAttrs, Operation, Status, Version}
+import com.criteo.perpetuo.model._
 import org.junit.runner.RunWith
 import org.scalatest.FunSuite
 import org.scalatest.concurrent._
 import org.scalatest.junit.JUnitRunner
+import spray.json.JsString
 
 import scala.concurrent.Await
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -36,7 +37,7 @@ class OperationTraceSpec
     Await.result(
       for {
         product <- insertProduct("perpetuo-app")
-        request <- insertDeploymentRequest(new DeploymentRequestAttrs(product.name, Version("\"v42\""), "*", "No fear", "c.norris"))
+        request <- insertDeploymentRequest(new DeploymentRequestAttrs(product.name, Version("\"v42\""), Seq(ProtoDeploymentPlanStep("", JsString("*"), "")), "No fear", "c.norris"))
         deployOperationTrace <- dbContext.db.run(insertOperationTrace(request, Operation.deploy, "c.norris"))
         revertOperationTrace <- dbContext.db.run(insertOperationTrace(request, Operation.revert, "c.norris"))
         traces <- dbContext.db.run(operationTraceQuery.result)

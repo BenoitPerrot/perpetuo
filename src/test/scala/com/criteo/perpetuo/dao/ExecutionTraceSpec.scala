@@ -1,11 +1,12 @@
 package com.criteo.perpetuo.dao
 
 import com.criteo.perpetuo.TestDb
-import com.criteo.perpetuo.model.{DeploymentRequestAttrs, ExecutionState, Operation, Version}
+import com.criteo.perpetuo.model._
 import org.junit.runner.RunWith
 import org.scalatest.FunSuite
 import org.scalatest.concurrent._
 import org.scalatest.junit.JUnitRunner
+import spray.json.JsString
 
 import scala.concurrent.Await
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -35,7 +36,7 @@ class ExecutionTraceSpec
     Await.result(
       for {
         product <- insertProduct("perpetuo-app")
-        request <- insertDeploymentRequest(new DeploymentRequestAttrs(product.name, Version("\"v42\""), "*", "No fear", "c.norris"))
+        request <- insertDeploymentRequest(new DeploymentRequestAttrs(product.name, Version("\"v42\""), Seq(ProtoDeploymentPlanStep("", JsString("*"), "")), "No fear", "c.norris"))
         deployOperationTrace <- dbContext.db.run(insertOperationTrace(request, Operation.deploy, "c.norris"))
         execSpec <- insertExecutionSpecification("{}", Version("\"456\""))
         execId <- dbContext.db.run(insertExecution(deployOperationTrace.id, execSpec.id))

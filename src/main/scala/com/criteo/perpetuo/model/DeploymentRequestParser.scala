@@ -25,7 +25,7 @@ object DeploymentRequestParser {
         val attrs = new DeploymentRequestAttrs(
           productName,
           version,
-          targetExpr.compactPrint,
+          Seq(ProtoDeploymentPlanStep("", targetExpr, "")),
           readStr("comment", Some("")),
           userName
         )

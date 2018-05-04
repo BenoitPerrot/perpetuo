@@ -6,6 +6,7 @@ import org.junit.runner.RunWith
 import org.scalatest.FunSuite
 import org.scalatest.concurrent._
 import org.scalatest.junit.JUnitRunner
+import spray.json.JsString
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
@@ -38,7 +39,7 @@ class TargetStatusSpec
       for {
         _ <- dbContext.db.run(targetStatusQuery.delete)
         product <- insertProduct("perpetuo-app")
-        request <- insertDeploymentRequest(new DeploymentRequestAttrs(product.name, Version("\"v42\""), "Moon", "That's one small step for man, one giant leap for mankind", "n.armstrong"))
+        request <- insertDeploymentRequest(new DeploymentRequestAttrs(product.name, Version("\"v42\""), Seq(ProtoDeploymentPlanStep("", JsString("Moon"), "")), "That's one small step for man, one giant leap for mankind", "n.armstrong"))
         deployOperationTrace <- dbContext.db.run(insertOperationTrace(request, Operation.deploy, "n.armstrong"))
         execSpec <- insertExecutionSpecification("{}", Version("\"456\""))
         execId <- dbContext.db.run(insertExecution(deployOperationTrace.id, execSpec.id))
@@ -59,7 +60,7 @@ class TargetStatusSpec
       for {
         _ <- dbContext.db.run(targetStatusQuery.delete)
         product <- insertProduct("sleepy-owl")
-        request <- insertDeploymentRequest(new DeploymentRequestAttrs(product.name, Version("\"0\""), "Earth", "", "creator"))
+        request <- insertDeploymentRequest(new DeploymentRequestAttrs(product.name, Version("\"0\""), Seq(ProtoDeploymentPlanStep("", JsString("Earth"), "")), "", "creator"))
         deployOperationTrace <- dbContext.db.run(insertOperationTrace(request, Operation.deploy, "runner"))
         execSpec <- insertExecutionSpecification("{}", Version("\"0\""))
         execId <- dbContext.db.run(insertExecution(deployOperationTrace.id, execSpec.id))

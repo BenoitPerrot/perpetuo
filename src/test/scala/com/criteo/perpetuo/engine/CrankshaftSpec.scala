@@ -15,7 +15,7 @@ class CrankshaftSpec extends SimpleScenarioTesting {
     Await.result(
       for {
         product <- crankshaft.insertProduct("product #1")
-        depReq <- crankshaft.dbBinding.insertDeploymentRequest(new DeploymentRequestAttrs(product.name, Version("\"1000\""), """"*"""", "", "s.omeone"))
+        depReq <- crankshaft.dbBinding.insertDeploymentRequest(new DeploymentRequestAttrs(product.name, Version("\"1000\""), Seq(ProtoDeploymentPlanStep("", JsString("*"), "")), "", "s.omeone"))
         _ <- crankshaft.startDeploymentRequest(depReq.id, "s.tarter")
         traces <- crankshaft.findExecutionTracesByDeploymentRequest(depReq.id)
       } yield traces.get.map(trace => (trace.id, trace.logHref)),
@@ -27,7 +27,7 @@ class CrankshaftSpec extends SimpleScenarioTesting {
     Await.result(
       for {
         product <- crankshaft.insertProduct("human")
-        deploymentRequestId <- crankshaft.createDeploymentRequest(new DeploymentRequestAttrs(product.name, Version(JsString("42").compactPrint), """["moon","mars"]}""", "", "robert"))
+        deploymentRequestId <- crankshaft.createDeploymentRequest(new DeploymentRequestAttrs(product.name, Version(JsString("42").compactPrint), Seq(ProtoDeploymentPlanStep("", JsArray(JsString("moon"), JsString("mars")), "")), "", "robert"))
         _ <- crankshaft.startDeploymentRequest(deploymentRequestId, "ignace")
         operationTraces <- dbBinding.findOperationTracesByDeploymentRequest(deploymentRequestId)
         operationTrace = operationTraces.head
@@ -42,7 +42,7 @@ class CrankshaftSpec extends SimpleScenarioTesting {
 
   def mockDeployExecution(productName: String, v: String, targetAtomToStatus: Map[String, Status.Code], initFailed: Boolean = false): Future[(Long, Long)] = {
     for {
-      deploymentRequestId <- crankshaft.createDeploymentRequest(new DeploymentRequestAttrs(productName, Version(JsString(v).compactPrint), targetAtomToStatus.keys.toJson.compactPrint, "", "r.equestor"))
+      deploymentRequestId <- crankshaft.createDeploymentRequest(new DeploymentRequestAttrs(productName, Version(JsString(v).compactPrint), Seq(ProtoDeploymentPlanStep("", targetAtomToStatus.keys.toJson, "")), "", "r.equestor"))
       operationTrace <- crankshaft.startDeploymentRequest(deploymentRequestId, "s.tarter").map(_.get)
       executionSpecIds <- crankshaft.dbBinding.findExecutionSpecIdsByOperationTrace(operationTrace.id)
       _ <- closeOperation(operationTrace, targetAtomToStatus, initFailed)
@@ -257,7 +257,7 @@ class CrankshaftSpec extends SimpleScenarioTesting {
     Await.result(
       for {
         product <- crankshaft.insertProduct("martian")
-        deploymentRequestId <- crankshaft.createDeploymentRequest(new DeploymentRequestAttrs(product.name, Version(JsString("42").compactPrint), """["moon","mars"]}""", "", "robert"))
+        deploymentRequestId <- crankshaft.createDeploymentRequest(new DeploymentRequestAttrs(product.name, Version(JsString("42").compactPrint), Seq(ProtoDeploymentPlanStep("", JsArray(JsString("moon"), JsString("mars")), "")), "", "robert"))
         _ <- crankshaft.startDeploymentRequest(deploymentRequestId, "ignace")
         operationTraces <- dbBinding.findOperationTracesByDeploymentRequest(deploymentRequestId)
         operationTrace = operationTraces.head
@@ -356,7 +356,7 @@ class CrankshaftWithFailingExecutorSpec extends SimpleScenarioTesting {
   test("Crankshaft keeps the created records in DB and marks an execution trace as failed if the trigger fails") {
     val res = for {
       product <- crankshaft.insertProduct("airplane")
-      deploymentRequestId <- crankshaft.createDeploymentRequest(new DeploymentRequestAttrs(product.name, Version(JsString("42").compactPrint), """["moon","mars"]}""", "", "bob"))
+      deploymentRequestId <- crankshaft.createDeploymentRequest(new DeploymentRequestAttrs(product.name, Version(JsString("42").compactPrint), Seq(ProtoDeploymentPlanStep("", JsArray(JsString("moon"), JsString("mars")), "")), "", "bob"))
       _ <- crankshaft.startDeploymentRequest(deploymentRequestId, "ignace")
       operationTraces <- dbBinding.findOperationTracesByDeploymentRequest(deploymentRequestId)
       operationTrace = operationTraces.head

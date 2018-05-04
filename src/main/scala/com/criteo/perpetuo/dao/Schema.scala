@@ -46,7 +46,8 @@ class Schema(val dbContext: DbContext)
 trait DeploymentRequestInserter
   extends DbContextProvider
     with ProductBinder
-    with DeploymentRequestBinder {
+    with DeploymentRequestBinder
+    with DeploymentPlanStepBinder {
 
   import dbContext.driver.api._
 
@@ -54,8 +55,18 @@ trait DeploymentRequestInserter
     findProductByName(d.productName).map(_.getOrElse {
       throw new UnknownProduct(d.productName)
     }).flatMap { product =>
-      val record = DeploymentRequestRecord(None, product.id, d.version, d.target, d.comment, d.creator, d.creationDate)
-      dbContext.db.run(deploymentRequestQuery.returning(deploymentRequestQuery.map(_.id)) += record).map { id =>
+      val q = (for {
+        deploymentRequestId <-
+          deploymentRequestQuery.returning(deploymentRequestQuery.map(_.id)) +=
+            DeploymentRequestRecord(None, product.id, d.version, d.target, d.comment, d.creator, d.creationDate)
+        _ <-
+          deploymentPlanStepQuery ++=
+            d.plan.map(step =>
+              DeploymentPlanStepRecord(None, deploymentRequestId, step.name, step.targetExpression.compactPrint, step.comment)
+            )
+      } yield deploymentRequestId).transactionally
+
+      dbContext.db.run(q).map { id =>
         val ret = DeepDeploymentRequest(id, product, d.version, d.target, d.comment, d.creator, d.creationDate)
         ret.copyParsedTargetCacheFrom(d)
         ret
