@@ -6,12 +6,11 @@ import com.fasterxml.jackson.databind.module.SimpleModule
 import com.fasterxml.jackson.databind.ser.std.StdSerializer
 import com.fasterxml.jackson.databind.{PropertyNamingStrategy, SerializerProvider}
 import com.twitter.finatra.json.modules.FinatraJacksonModule
-import com.twitter.finatra.json.utils.CamelCasePropertyNamingStrategy
 
 
 object CustomJacksonModule extends FinatraJacksonModule {
   override protected val propertyNamingStrategy: PropertyNamingStrategy =
-    CamelCasePropertyNamingStrategy
+    PropertyNamingStrategy.LOWER_CAMEL_CASE
 
   override val additionalJacksonModules = Seq(
     new SimpleModule {

@@ -450,7 +450,7 @@ class DbBinding @Inject()(val dbContext: DbContext)
       .map { case (product, _) => product.id }
 
   def countUnreferencedProducts(): Future[Int] =
-    dbContext.db.run(queryUnreferencedProductIds.countDistinct.result)
+    dbContext.db.run(queryUnreferencedProductIds.distinct.length.result)
 
   def deleteUnreferencedProducts(): Future[Int] =
     dbContext.db.run(
