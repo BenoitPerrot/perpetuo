@@ -16,6 +16,7 @@ class Schema(val dbContext: DbContext)
     with ProductBinder
     with DeploymentRequestBinder
     with DeploymentPlanStepBinder
+    with StepOperationXRefBinder
     with OperationTraceBinder
     with ExecutionBinder
     with ExecutionSpecificationBinder
@@ -29,6 +30,7 @@ class Schema(val dbContext: DbContext)
     productQuery.schema ++
       deploymentRequestQuery.schema ++
       deploymentPlanStepQuery.schema ++
+      stepOperationXRefQuery.schema ++
       operationTraceQuery.schema ++
       executionSpecificationQuery.schema ++
       executionQuery.schema ++
@@ -48,6 +50,7 @@ class DbBinding @Inject()(val dbContext: DbContext)
     with ProductBinder
     with DeploymentRequestBinder
     with DeploymentPlanStepBinder
+    with StepOperationXRefBinder
     with OperationTraceBinder
     with ExecutionBinder
     with ExecutionSpecificationBinder

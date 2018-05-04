@@ -32,6 +32,13 @@ CREATE TABLE "deployment_plan_step" (
 ALTER TABLE "deployment_plan_step"
   ADD CONSTRAINT "pk_deployment_plan_step" PRIMARY KEY ("id")
 
+CREATE TABLE "step_operation_xref" (
+  "deployment_plan_step_id" BIGINT NOT NULL,
+  "operation_trace_id"      BIGINT NOT NULL
+)
+ALTER TABLE "step_operation_xref"
+  ADD CONSTRAINT "pk_step_operation_xref" PRIMARY KEY ("deployment_plan_step_id", "operation_trace_id")
+
 CREATE TABLE "operation_trace" (
   "id"                    BIGINT        NOT NULL IDENTITY,
   "deployment_request_id" BIGINT        NOT NULL,
@@ -106,6 +113,14 @@ ALTER TABLE "deployment_request"
   ON DELETE NO ACTION
 ALTER TABLE "deployment_plan_step"
   ADD CONSTRAINT "fk_deployment_plan_step_deployment_request_id" FOREIGN KEY ("deployment_request_id") REFERENCES "deployment_request" ("id")
+  ON UPDATE NO ACTION
+  ON DELETE NO ACTION
+ALTER TABLE "step_operation_xref"
+  ADD CONSTRAINT "fk_step_operation_xref_deployment_plan_step_id" FOREIGN KEY ("deployment_plan_step_id") REFERENCES "deployment_plan_step" ("id")
+  ON UPDATE NO ACTION
+  ON DELETE NO ACTION
+ALTER TABLE "step_operation_xref"
+  ADD CONSTRAINT "fk_step_operation_xref_operation_trace_id" FOREIGN KEY ("operation_trace_id") REFERENCES "operation_trace" ("id")
   ON UPDATE NO ACTION
   ON DELETE NO ACTION
 ALTER TABLE "operation_trace"
