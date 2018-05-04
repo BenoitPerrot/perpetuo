@@ -1,6 +1,6 @@
 package com.criteo.perpetuo.dao
 
-import slick.profile.FixedSqlAction
+import slick.sql.FixedSqlAction
 
 import scala.concurrent.Future
 

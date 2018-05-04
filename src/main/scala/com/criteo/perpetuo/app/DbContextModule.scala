@@ -7,8 +7,8 @@ import com.google.inject.{Provides, Singleton}
 import com.twitter.inject.TwitterModule
 import com.typesafe.config.{Config, ConfigException, ConfigFactory}
 import com.zaxxer.hikari.{HikariConfig, HikariDataSource}
-import slick.driver.JdbcDriver
 import slick.jdbc.JdbcBackend.Database
+import slick.jdbc.JdbcProfile
 import slick.util.AsyncExecutor
 
 class DbContextModule(val config: Config) extends TwitterModule {
@@ -16,7 +16,7 @@ class DbContextModule(val config: Config) extends TwitterModule {
 
   val driverName: String = config.getString("driver.name")
   val driverProfile: String = config.getString("driver.profile")
-  val driver: JdbcDriver = DriverByName.get(driverProfile)
+  val driver: JdbcProfile = DriverByName.get(driverProfile)
   val numThreadsAndQueueSize: Option[(Int, Int)] = {
     val numThreads = config.tryGet[Int]("numThreads")
     val queueSize = config.tryGet[Int]("queueSize")
@@ -51,7 +51,8 @@ class DbContextModule(val config: Config) extends TwitterModule {
       new HikariDataSource(
         toHikariConfig(config.getString("jdbcUrl"), config.tryGetConfig("hikari").getOrElse(ConfigFactory.empty()))
       ),
-      executor = numThreadsAndQueueSize.map { case (numThreads, queueSize) =>
+      None,
+      numThreadsAndQueueSize.map { case (numThreads, queueSize) =>
         AsyncExecutor(threadPrefix, numThreads, queueSize)
       }.getOrElse(
         AsyncExecutor.default(threadPrefix)

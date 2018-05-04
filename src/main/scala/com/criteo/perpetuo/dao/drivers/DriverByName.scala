@@ -1,12 +1,12 @@
 package com.criteo.perpetuo.dao.drivers
 
-import freeslick.MSSQLServerProfile
-import slick.driver.JdbcDriver
+import slick.jdbc.SQLServerProfile
+import slick.jdbc.JdbcProfile
 
 
 object DriverByName {
-  def get(name: String): JdbcDriver = name match {
+  def get(name: String): JdbcProfile = name match {
     case "h2" => FixedH2Driver
-    case "mssql" => MSSQLServerProfile
+    case "mssql" => SQLServerProfile
   }
 }

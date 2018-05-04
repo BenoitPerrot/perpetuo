@@ -4,7 +4,7 @@ import com.criteo.perpetuo.engine.UnavailableAction
 import com.criteo.perpetuo.model.ExecutionState.ExecutionState
 import com.criteo.perpetuo.model._
 import com.google.common.annotations.VisibleForTesting
-import slick.profile.FixedSqlAction
+import slick.sql.FixedSqlAction
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future

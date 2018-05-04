@@ -1,14 +1,14 @@
 package com.criteo.perpetuo.dao
 
 import com.twitter.inject.Test
-import freeslick.MSSQLServerProfile
+import slick.jdbc.SQLServerProfile
 
 import scala.io.Source
 
 
 class SchemaSpec extends Test {
 
-  val schema = new Schema(new DbContext(MSSQLServerProfile, null))
+  val schema = new Schema(new DbContext(SQLServerProfile, null))
 
   def getResourceAsString(resourceFileName: String): String = {
     val cls = Class.forName(Thread.currentThread.getStackTrace.apply(2).getClassName)

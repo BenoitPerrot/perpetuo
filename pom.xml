@@ -27,8 +27,7 @@
     <minimizeJar>false</minimizeJar>
     <main.class>com.criteo.perpetuo.app.main</main.class>
 
-    <slick.version>3.1.1</slick.version>
-    <freeslick.version>3.1.1.1</freeslick.version>
+    <slick.version>3.2.3</slick.version>
     <h2db.version>1.4.197</h2db.version>
 
     <twitter.version>17.12.0</twitter.version>
@@ -62,12 +61,6 @@
       <groupId>com.typesafe.slick</groupId>
       <artifactId>slick_${scala.version.short}</artifactId>
       <version>${slick.version}</version>
-    </dependency>
-
-    <dependency>
-      <groupId>org.suecarter</groupId>
-      <artifactId>freeslick_${scala.version.short}</artifactId>
-      <version>${freeslick.version}</version>
     </dependency>
 
     <dependency>
