@@ -1,22 +1,23 @@
 package com.criteo.perpetuo.app
 
 import com.criteo.perpetuo.config.ConfigSyntacticSugar._
-import com.criteo.perpetuo.dao.drivers.DriverByName
 import com.criteo.perpetuo.dao.{DbContext, Schema}
 import com.google.inject.{Provides, Singleton}
 import com.twitter.inject.TwitterModule
 import com.typesafe.config.{Config, ConfigException, ConfigFactory}
 import com.zaxxer.hikari.{HikariConfig, HikariDataSource}
 import slick.jdbc.JdbcBackend.Database
-import slick.jdbc.JdbcProfile
+import slick.jdbc.{H2Profile, JdbcProfile, SQLServerProfile}
 import slick.util.AsyncExecutor
 
 class DbContextModule(val config: Config) extends TwitterModule {
   val threadPrefix = "DB"
 
   val driverName: String = config.getString("driver.name")
-  val driverProfile: String = config.getString("driver.profile")
-  val driver: JdbcProfile = DriverByName.get(driverProfile)
+  val driver: JdbcProfile = config.getString("driver.profile") match {
+    case "h2" => H2Profile
+    case "mssql" => SQLServerProfile
+  }
   val numThreadsAndQueueSize: Option[(Int, Int)] = {
     val numThreads = config.tryGet[Int]("numThreads")
     val queueSize = config.tryGet[Int]("queueSize")
