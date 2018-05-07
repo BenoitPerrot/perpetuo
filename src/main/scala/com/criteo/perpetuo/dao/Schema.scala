@@ -172,7 +172,6 @@ class DbBinding @Inject()(val dbContext: DbContext)
     )
   }
 
-  // todo: when the target status will be pre-registered, we won't need to get execution traces in this query anymore (and we will only need the last operation)
   def deepQueryDeploymentRequests(where: Seq[Map[String, Any]], limit: Int, offset: Int): Future[Iterable[(DeepDeploymentRequest, Option[OperationEffect])]] = {
     val filtered = where.foldLeft(this.deploymentRequestQuery join this.productQuery on (_.productId === _.id)) { (queries, spec) =>
       val value = spec.getOrElse("equals", throw new IllegalArgumentException(s"Filters tests must be `equals`"))
@@ -214,7 +213,7 @@ class DbBinding @Inject()(val dbContext: DbContext)
     )
   }
 
-  // todo: should rely on a nullable field `startDate` in OperationTrace
+  // todo: will likely be deprecated by the introduction of the deployment_plan_step and step_operation_xref tables
   def isDeploymentRequestStarted(deploymentRequestId: Long): Future[Option[(DeepDeploymentRequest, Boolean)]] = {
     dbContext.db.run(
       deploymentRequestQuery
@@ -234,7 +233,7 @@ class DbBinding @Inject()(val dbContext: DbContext)
       deploymentRequestQuery
         .filter(depReq => depReq.id > deploymentRequest.id && depReq.productId === deploymentRequest.productId)
         .join(operationTraceQuery).on(_.id === _.deploymentRequestId)
-        .exists // fixme: look at the starting date when it will make sense
+        .exists
     dbContext.db.run(outdatedByOperation.result)
   }
 
