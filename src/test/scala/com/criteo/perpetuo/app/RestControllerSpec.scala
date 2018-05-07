@@ -130,12 +130,9 @@ class RestControllerSpec extends Test with TestDb {
     ).contentString.parseJson.asInstanceOf[JsObject]
   }
 
-  private def deepGetDepReq(where: Seq[Map[String, JsValue]] = Seq(), orderBy: Seq[Map[String, JsValue]] = Seq(), limit: Option[Int] = None, offset: Option[Int] = None): Seq[Map[String, JsValue]] = {
+  private def deepGetDepReq(where: Seq[Map[String, JsValue]] = Seq(), limit: Option[Int] = None, offset: Option[Int] = None): Seq[Map[String, JsValue]] = {
     val q = JsObject(
-      Map(
-        "where" -> where.toJson,
-        "orderBy" -> orderBy.toJson
-      )
+      Map("where" -> where.toJson)
         ++ limit.map { i => Map("limit" -> i.toJson) }.getOrElse(Map())
         ++ offset.map { i => Map("offset" -> i.toJson) }.getOrElse(Map())
     )
@@ -700,58 +697,6 @@ class RestControllerSpec extends Test with TestDb {
       postBody = JsObject("where" -> JsArray(Vector(JsObject("field" -> JsString("productName"), "like" -> JsString("foo"))))).compactPrint,
       andExpect = BadRequest
     ).contentString should include("Filters tests must be `equals`")
-  }
-
-  test("Deep query sorts by individual fields") {
-    deepGetDepReq().length should be > 2
-
-    def isSorted[ValueType, T <: {val value : ValueType}](deploymentRequests: Seq[Map[String, JsValue]], key: String, absoluteMin: ValueType, isOrdered: (ValueType, ValueType) => Boolean): Boolean = {
-      deploymentRequests
-        .foldLeft((absoluteMin, true)) { (lastResult, deploymentRequest) =>
-          val value = deploymentRequest(key).asInstanceOf[T].value
-          (value, isOrdered(lastResult._1, value))
-        }
-        ._2
-    }
-
-    Seq(false, true).foreach { descending =>
-
-      val sortNumbers = isSorted[BigDecimal, JsNumber](_: Seq[Map[String, JsValue]], _: String, BigDecimal.valueOf(-1), _ <= _)
-      val sortStrings = isSorted[String, JsString](_: Seq[Map[String, JsValue]], _: String, "", _ <= _)
-      Map(
-        "creationDate" -> sortNumbers,
-        "productName" -> sortStrings,
-        "creator" -> sortStrings
-      ).foreach { case (fieldName, isSorted) =>
-        val sortedDepReqs = deepGetDepReq(orderBy = Seq(Map("field" -> fieldName.toJson, "desc" -> descending.toJson)))
-        sortedDepReqs.isEmpty shouldBe false
-        isSorted(if (descending) sortedDepReqs.reverse else sortedDepReqs, fieldName) shouldBe true
-      }
-    }
-  }
-
-  test("Deep query sorts by several fields") {
-    deepGetDepReq().length should be > 2
-
-    val sortedDepReqs = deepGetDepReq(orderBy = Seq(Map("field" -> "productName".toJson), Map("field" -> "creationDate".toJson)))
-    sortedDepReqs.isEmpty shouldBe false
-    sortedDepReqs
-      .foldLeft(("", BigDecimal(-1), true)) { (lastResult, deploymentRequest) =>
-        val (lastProductName, lastCreationDate, lastP) = lastResult
-        val productName = deploymentRequest("productName").asInstanceOf[JsString].value
-        val creationDate = deploymentRequest("creationDate").asInstanceOf[JsNumber].value
-        // For the right branch of the ||: productName == lastProductName is paranoid, as productName < lastProductName should not be true
-        (productName, creationDate, lastP && (lastProductName < productName || (productName == lastProductName && lastCreationDate <= creationDate)))
-      }
-      ._3 shouldBe true
-  }
-
-  test("Deep query rejects unknown field names for sort") {
-    server.httpPost(
-      path = s"/api/unstable/deployment-requests",
-      postBody = JsObject("orderBy" -> JsArray(JsObject("field" -> "pouet".toJson))).compactPrint,
-      andExpect = BadRequest
-    ).contentString should include("Cannot sort by `pouet`")
   }
 
   test("Any other *API* entry-point throws a 404") {

@@ -50,11 +50,10 @@ private case class ExecutionTracePut(@RouteParam @NotEmpty id: String,
                                      targetStatus: Map[String, Map[String, String]] = Map(),
                                      @Inject request: Request) extends WithId
 
-private case class SortingFilteringPost(orderBy: Seq[Map[String, Any]] = Seq(),
-                                        where: Seq[Map[String, Any]] = Seq(),
-                                        limit: Int = 20,
-                                        offset: Int = 0,
-                                        @Inject request: Request)
+private case class FilteringPost(where: Seq[Map[String, Any]] = Seq(),
+                                 limit: Int = 20,
+                                 offset: Int = 0,
+                                 @Inject request: Request)
 
 /**
   * Controller that handles deployment requests as a REST API.
@@ -277,14 +276,14 @@ class RestController @Inject()(val engine: Engine)
       5.seconds
     )(r)
   }
-  post("/api/unstable/deployment-requests") { r: SortingFilteringPost =>
+  post("/api/unstable/deployment-requests") { r: FilteringPost =>
     timeBoxed(
       {
         if (1000 < r.limit) {
           throw BadRequestException("`limit` shall be lower than 1000")
         }
         try {
-          crankshaft.queryDeepDeploymentRequests(r.where, r.orderBy, r.limit, r.offset)
+          crankshaft.queryDeepDeploymentRequests(r.where, r.limit, r.offset)
             .map(_.map { case (deploymentRequest, lastOperationEffect) =>
               serialize(deploymentRequest, lastOperationEffect)
             })

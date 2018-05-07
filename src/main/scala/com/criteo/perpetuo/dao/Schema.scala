@@ -168,43 +168,8 @@ class DbBinding @Inject()(val dbContext: DbContext)
     )
   }
 
-  // TODO: find a cheap way to factor this - or find a more clever structure for the query
-  // (note that as after type erasure the two methods have the same signature, they must have different names) <<
-  private def sortBy(q: Query[(DeploymentRequestTable, ProductTable), (DeploymentRequestRecord, ProductRecord), Seq], order: Seq[Map[String, Any]]) = {
-    order.foldRight(q.sortBy(_._1.id)) { (spec, queries) =>
-      val descending = try spec.getOrElse("desc", false).asInstanceOf[Boolean].value catch {
-        case _: ClassCastException => throw new IllegalArgumentException("Orders `desc` must be true or false")
-      }
-      val fieldName = spec.getOrElse("field", throw new IllegalArgumentException(s"Orders must specify ̀`field`"))
-      fieldName match {
-        case "creationDate" => queries.sortBy(if (descending) _._1.creationDate.desc else _._1.creationDate.asc)
-        case "creator" => queries.sortBy(if (descending) _._1.creator.desc else _._1.creator.asc)
-        case "productName" => queries.sortBy(if (descending) _._2.name.desc else _._2.name.asc)
-        case _ => throw new IllegalArgumentException(s"Cannot sort by `$fieldName`")
-      }
-    }
-  }
-
-  private def sortAllBy(x: Stream[(DeepDeploymentRequest, Stream[OperationEffect])], order: Seq[Map[String, Any]]) = {
-    order.foldRight(x.sortBy(_._1.id)) { (spec, queries) =>
-      val descending = try spec.getOrElse("desc", false).asInstanceOf[Boolean].value catch {
-        case _: ClassCastException => throw new IllegalArgumentException("Orders `desc` must be true or false")
-      }
-      val fieldName = spec.getOrElse("field", throw new IllegalArgumentException(s"Orders must specify ̀`field`"))
-      val y = fieldName match {
-        case "creationDate" => queries.sortBy(_._1.id) // ID is auto-incremented and creationDate is automatically set...
-        case "creator" => queries.sortBy(_._1.creator)
-        case "productName" => queries.sortBy(_._1.product.name)
-        case _ => throw new IllegalArgumentException(s"Cannot sort by `$fieldName`")
-      }
-      if (descending) y.reverse else y
-    }
-  }
-
-  // >>
-
   // todo: when the target status will be pre-registered, we won't need to get execution traces in this query anymore (and we will only need the last operation)
-  def deepQueryDeploymentRequests(where: Seq[Map[String, Any]], orderBy: Seq[Map[String, Any]], limit: Int, offset: Int): Future[Iterable[(DeepDeploymentRequest, Option[OperationEffect])]] = {
+  def deepQueryDeploymentRequests(where: Seq[Map[String, Any]], limit: Int, offset: Int): Future[Iterable[(DeepDeploymentRequest, Option[OperationEffect])]] = {
     val filtered = where.foldLeft(this.deploymentRequestQuery join this.productQuery on (_.productId === _.id)) { (queries, spec) =>
       val value = spec.getOrElse("equals", throw new IllegalArgumentException(s"Filters tests must be `equals`"))
       val fieldName = spec.getOrElse("field", throw new IllegalArgumentException(s"Filters must specify ̀`field`"))
@@ -219,21 +184,16 @@ class DbBinding @Inject()(val dbContext: DbContext)
       }
     }
 
-    deepQueryDeploymentRequests(
-      sortBy(filtered, orderBy)
-        drop offset
-        take limit,
-      orderBy
-    )
+    deepQueryDeploymentRequests(filtered.sortBy { case (depReq, _) => depReq.id.desc }.drop(offset).take(limit))
   }
 
-  private def deepQueryDeploymentRequests(q: Query[(DeploymentRequestTable, ProductTable), (DeploymentRequestRecord, ProductRecord), Seq],
-                                          order: Seq[Map[String, Any]]): Future[Iterable[(DeepDeploymentRequest, Option[OperationEffect])]] = {
+  private def deepQueryDeploymentRequests(q: Query[(DeploymentRequestTable, ProductTable), (DeploymentRequestRecord, ProductRecord), Seq]): Future[Iterable[(DeepDeploymentRequest, Option[OperationEffect])]] = {
     val base = q
       // get the last operation for each deployment request in the provided query
       .joinLeft(operationTraceQuery).on(_._1.id === _.deploymentRequestId)
       .groupBy { case ((request, _), _) => request.id }
       .map { case (requestId, operations) => (requestId, operations.map { case (_, operation) => operation.map(_.id) }.max) }
+      .sortBy { case (requestId, _) => requestId.desc } // todo: check if it's necessary after the groupBy (it may have lost the order)
 
       // since we lost everything but the selected operation trace ID (because of Slick and SQL backend limitations), let's get everything back
       .join(productQuery)
@@ -243,7 +203,7 @@ class DbBinding @Inject()(val dbContext: DbContext)
       .map { case (((_, product), deploymentRequest), operationTrace) => ((deploymentRequest, product), operationTrace) }
 
     dbContext.db.run(fromDeepOperationToFullTree(base))
-      .map(result => sortAllBy(result, order).map { case (deploymentRequest, effects) => (deploymentRequest, effects.headOption) }) // there is at most one operation, because of the query
+      .map(result => result.map { case (deploymentRequest, effects) => (deploymentRequest, effects.headOption) }) // there is at most one operation, because of the query
   }
 
   // todo: should rely on a nullable field `startDate` in OperationTrace
