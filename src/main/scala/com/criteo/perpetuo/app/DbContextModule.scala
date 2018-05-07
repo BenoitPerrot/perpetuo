@@ -4,7 +4,7 @@ import com.criteo.perpetuo.config.ConfigSyntacticSugar._
 import com.criteo.perpetuo.dao.{DbContext, Schema}
 import com.google.inject.{Provides, Singleton}
 import com.twitter.inject.TwitterModule
-import com.typesafe.config.{Config, ConfigException, ConfigFactory}
+import com.typesafe.config.{Config, ConfigFactory}
 import com.zaxxer.hikari.{HikariConfig, HikariDataSource}
 import slick.jdbc.JdbcBackend.Database
 import slick.jdbc.{H2Profile, JdbcProfile, SQLServerProfile}
@@ -18,13 +18,9 @@ class DbContextModule(val config: Config) extends TwitterModule {
     case "h2" => H2Profile
     case "mssql" => SQLServerProfile
   }
-  val numThreadsAndQueueSize: Option[(Int, Int)] = {
-    val numThreads = config.tryGet[Int]("numThreads")
-    val queueSize = config.tryGet[Int]("queueSize")
-    if (numThreads.isDefined ^ queueSize.isDefined)
-      throw new ConfigException.Generic("db.numThreads and db.queueSize: either both or none must be provided")
-    numThreads.map((_, queueSize.get))
-  }
+
+  val numThreads: Int = config.getOrElse("numThreads", 20)
+  val queueSize: Int = config.getOrElse("queueSize", 1000)
 
   private def toHikariConfig(jdbcUrl: String, config: Config) = {
     val maxPoolSize = config.getOrElse("poolMaxSize", 10)
@@ -47,18 +43,15 @@ class DbContextModule(val config: Config) extends TwitterModule {
     hikariConfig
   }
 
-  private lazy val database =
+  private lazy val database = {
     Database.forDataSource(
       new HikariDataSource(
         toHikariConfig(config.getString("jdbcUrl"), config.tryGetConfig("hikari").getOrElse(ConfigFactory.empty()))
       ),
-      None,
-      numThreadsAndQueueSize.map { case (numThreads, queueSize) =>
-        AsyncExecutor(threadPrefix, numThreads, queueSize)
-      }.getOrElse(
-        AsyncExecutor.default(threadPrefix)
-      )
+      Some(numThreads),
+      AsyncExecutor(threadPrefix, numThreads, numThreads, queueSize, numThreads)
     )
+  }
 
   // For being overridden, eg for testing
   def databaseProvider: Database = database
