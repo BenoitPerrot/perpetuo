@@ -34,8 +34,7 @@ trait ExecutionHttpTrigger extends ExecutionTrigger {
   protected val backoffDurations: Stream[Duration] = Backoff.exponentialJittered(1.seconds, 5.seconds)
   protected val backoffPolicy: RetryPolicy[TwitterTry[Nothing]] = RetryPolicy.backoff(backoffDurations)(RetryPolicy.TimeoutAndWriteExceptionsOnly)
 
-  // todo: replace this by a protected [lazy] val and mock it in the utests
-  var client: (Request) => TwitterFuture[Response] = (if (ssl) ClientBuilder().tlsWithoutValidation else ClientBuilder())
+  protected lazy val client: Request => TwitterFuture[Response] = (if (ssl) ClientBuilder().tlsWithoutValidation else ClientBuilder())
     .stack(Client())
     .timeout(requestTimeout)
     .hostConnectionLimit(maxConnectionsPerHost)

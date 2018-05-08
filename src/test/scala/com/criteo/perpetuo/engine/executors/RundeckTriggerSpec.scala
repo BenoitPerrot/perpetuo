@@ -1,9 +1,8 @@
 package com.criteo.perpetuo.engine.executors
 
-import com.criteo.perpetuo.TestDb
 import com.criteo.perpetuo.engine.TargetTerm
 import com.criteo.perpetuo.model.Version
-import com.twitter.finagle.http.{Response, Status}
+import com.twitter.finagle.http.{Request, Response, Status}
 import com.twitter.inject.Test
 import com.twitter.util.Future
 import spray.json._
@@ -12,41 +11,41 @@ import scala.concurrent.Await
 import scala.concurrent.duration._
 
 
-class RundeckTriggerSpec extends Test with TestDb {
-  private def testWhenResponseIs(statusCode: Int, content: String) = {
-    val rundeckTrigger = new RundeckTrigger("rundeck", "localhost", 4440, "my-super-secret-token", "perpetuo-deployment")
-    rundeckTrigger.getClass.getSimpleName shouldEqual "RundeckTrigger"
-    rundeckTrigger.client = request => {
+class RundeckTriggerSpec extends Test {
+
+  private class TriggerMock(statusMock: Int, contentMock: String) extends RundeckTrigger("rundeck", "localhost", 4440, "my-super-secret-token", "perpetuo-deployment") {
+    override protected lazy val client: Request => Future[Response] = (request: Request) => {
       request.uri shouldEqual s"/api/16/job/perpetuo-deployment/executions?authtoken=my-super-secret-token"
       request.contentString shouldEqual """{"argString":"-callback-url 'http://somewhere/api/execution-traces/42' -product-name 'My\"Beautiful\"Project' -target 'a,b' -product-version \"the 042nd version\""}"""
-      val resp = Response(Status(statusCode))
-      resp.write(content)
+      val resp = Response(Status(statusMock))
+      resp.write(contentMock)
       Future.value(resp)
     }
-    val productName = "My\"Beautiful\"Project"
-    val version = Version("\"the 042nd version\"")
-    val target = Set(TargetTerm(Set(JsObject("abc" -> JsString("def"), "ghi" -> JsNumber(51.3))), Set("a", "b")))
-    val logHref = Await.result(rundeckTrigger.trigger(42, productName, version, target, "guy next door"), 1.second)
-    logHref shouldBe defined
-    logHref.get
+
+    def testTrigger: Option[String] = {
+      val productName = "My\"Beautiful\"Project"
+      val version = Version("\"the 042nd version\"")
+      val target = Set(TargetTerm(Set(JsObject("abc" -> JsString("def"), "ghi" -> JsNumber(51.3))), Set("a", "b")))
+      Await.result(trigger(42, productName, version, target, "guy next door"), 1.second)
+    }
   }
 
   test("Rundeck's API is followed when everything goes well") {
-    testWhenResponseIs(200, """{"id": 123, "permalink": "http://rundeck/job/123/show"}""") shouldEqual "http://rundeck/job/123/show"
+    new TriggerMock(200, """{"id": 123, "permalink": "http://rundeck/job/123/show"}""").testTrigger shouldEqual Some("http://rundeck/job/123/show")
   }
 
   test("Rundeck's API is followed when a connection problem occurs") {
-    val exc = the[Exception] thrownBy testWhenResponseIs(403, "<html>gibberish</html>")
+    val exc = the[Exception] thrownBy new TriggerMock(403, "<html>gibberish</html>").testTrigger
     exc.getMessage shouldEqual "Bad response from rundeck (job: perpetuo-deployment): Forbidden"
   }
 
   test("Rundeck's API is followed when an internal server error occurs") {
-    val exc = the[Exception] thrownBy testWhenResponseIs(500, "<html><p>Intelligible error</p></html>")
+    val exc = the[Exception] thrownBy new TriggerMock(500, "<html><p>Intelligible error</p></html>").testTrigger
     exc.getMessage should endWith("Internal Server Error: Intelligible error")
   }
 
   test("Rundeck's API is followed when the request cannot be satisfied") {
-    val exc = the[Exception] thrownBy testWhenResponseIs(400, """{"error": true, "message": "Intelligible error"}""")
+    val exc = the[Exception] thrownBy new TriggerMock(400, """{"error": true, "message": "Intelligible error"}""").testTrigger
     exc.getMessage should endWith("""Bad Request: Intelligible error""")
   }
 }
