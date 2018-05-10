@@ -1,8 +1,8 @@
 package com.criteo.perpetuo.app
 
 import com.criteo.perpetuo.dao.UnknownProduct
-import com.criteo.perpetuo.engine.dispatchers.{NoAvailableExecutor, UnprocessableIntent}
-import com.criteo.perpetuo.engine.{Conflict, MissingInfo, PermissionDenied, RejectingError, UnavailableAction, Veto}
+import com.criteo.perpetuo.engine.dispatchers.NoAvailableExecutor
+import com.criteo.perpetuo.engine.{Conflict, MissingInfo, PermissionDenied, RejectingError, UnavailableAction, UnprocessableIntent, Veto}
 import com.twitter.finagle.http.Status
 import com.twitter.finagle.{TimeoutException => FinagleTimeout}
 import com.twitter.finatra.http.exceptions._

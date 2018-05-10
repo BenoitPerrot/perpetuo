@@ -29,6 +29,4 @@ trait TargetDispatcher extends Provider[TargetDispatcher] with ParameterFreezer 
 }
 
 
-case class UnprocessableIntent(message: String) extends IllegalArgumentException(message)
-
 class NoAvailableExecutor extends RuntimeException

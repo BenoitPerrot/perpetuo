@@ -23,6 +23,8 @@ object OperationStatus extends Enumeration {
   val succeeded = Value("succeeded")
 }
 
+case class UnprocessableIntent(message: String) extends IllegalArgumentException(message)
+
 abstract class RejectingError extends RuntimeException {
   val msg: String
   val detail: Map[String, _]

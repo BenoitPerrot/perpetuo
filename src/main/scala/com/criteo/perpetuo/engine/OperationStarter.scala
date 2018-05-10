@@ -1,7 +1,7 @@
 package com.criteo.perpetuo.engine
 
 import com.criteo.perpetuo.dao._
-import com.criteo.perpetuo.engine.dispatchers.{TargetDispatcher, UnprocessableIntent}
+import com.criteo.perpetuo.engine.dispatchers.TargetDispatcher
 import com.criteo.perpetuo.engine.executors.ExecutionTrigger
 import com.criteo.perpetuo.engine.resolvers.TargetResolver
 import com.criteo.perpetuo.model.ExecutionState.ExecutionState
