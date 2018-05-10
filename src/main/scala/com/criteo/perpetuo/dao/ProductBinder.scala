@@ -32,12 +32,12 @@ trait ProductBinder extends TableBinder {
 
   val productQuery = TableQuery[ProductTable]
 
-  def insertProductIfNotExists(productName: String): Future[Product] = {
-    val q = productQuery.filter(_.name === productName).result.flatMap(existing =>
+  def insertProductIfNotExists(name: String): Future[Product] = {
+    val q = productQuery.filter(_.name === name).result.flatMap(existing =>
       existing.headOption.map(product =>
         DBIO.successful(product.toProduct)
       ).getOrElse(
-        (productQuery.returning(productQuery.map(_.id)) += ProductRecord(None, productName)).map(Product(_, productName))
+        (productQuery.returning(productQuery.map(_.id)) += ProductRecord(None, name)).map(Product(_, name))
       )
     )
     dbContext.db.run(q.transactionally.withTransactionIsolation(TransactionIsolation.Serializable))
