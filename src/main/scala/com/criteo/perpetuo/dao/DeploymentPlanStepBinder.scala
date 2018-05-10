@@ -36,6 +36,7 @@ trait DeploymentPlanStepBinder extends TableBinder {
 
   val deploymentPlanStepQuery = TableQuery[DeploymentPlanStepTable]
 
+  // todo: add tests to cover the retrieval of plan steps from the insertion of full deployment requests, then remove this dummy insertion method
   def insertDeploymentPlanStep(deploymentRequestId: Long, step: ProtoDeploymentPlanStep): Future[DeploymentPlanStep] = {
     val record = DeploymentPlanStepRecord(None, deploymentRequestId, step.name, step.targetExpression.compactPrint, step.comment)
     dbContext.db
