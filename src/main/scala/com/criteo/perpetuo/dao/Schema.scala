@@ -1,6 +1,6 @@
 package com.criteo.perpetuo.dao
 
-import com.criteo.perpetuo.engine.Select
+import com.criteo.perpetuo.engine.{Select, UnprocessableIntent}
 import com.criteo.perpetuo.model._
 import javax.inject.{Inject, Singleton}
 import slick.jdbc.TransactionIsolation
@@ -53,7 +53,7 @@ trait DeploymentRequestInserter
 
   def insertDeploymentRequest(d: DeploymentRequestAttrs): Future[DeepDeploymentRequest] = {
     findProductByName(d.productName).map(_.getOrElse {
-      throw new UnknownProduct(d.productName)
+      throw UnprocessableIntent(s"Unknown product `${d.productName}`")
     }).flatMap { product =>
       val q = (for {
         deploymentRequestId <-

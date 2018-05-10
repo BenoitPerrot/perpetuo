@@ -248,7 +248,7 @@ class RestControllerSpec extends Test with TestDb {
     requestDeployment("{", Some("Unexpected end-of-input at input"))
     requestDeployment("""{"productName": "abc"}""", Some("Expected to find `version`"))
     requestDeployment("""{"productName": "abc", "version": "42"}""", Some("Expected to find `target`"))
-    requestDeployment("""{"productName": "abc", "target": "*", "version": "2"}""", Some("Product `abc` could not be found"))
+    requestDeployment("""{"productName": "abc", "target": "*", "version": "2"}""", Some("Unknown product `abc`"))
   }
 
   test("The DeploymentRequest's POST entry-point handles a complex target expression") {

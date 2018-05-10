@@ -1,6 +1,5 @@
 package com.criteo.perpetuo.app
 
-import com.criteo.perpetuo.dao.UnknownProduct
 import com.criteo.perpetuo.engine.dispatchers.NoAvailableExecutor
 import com.criteo.perpetuo.engine.{Conflict, MissingInfo, PermissionDenied, RejectingError, UnavailableAction, UnprocessableIntent, Veto}
 import com.twitter.finagle.http.Status
@@ -35,7 +34,6 @@ trait ExceptionsToHttpStatusTranslation {
       case _: NoAvailableExecutor => throw ServiceUnavailableException(s"No executor available to do the actual deployment work")
       case e@(_: TimeoutException | _: TwitterTimeout | _: FinagleTimeout) => throw HttpException(Status.GatewayTimeout, e.getMessage)
       case e: UnavailableAction => throw toHttpResponseException(e, Status.UnprocessableEntity)
-      case e: UnknownProduct => throw BadRequestException(s"Product `${e.productName}` could not be found")
       case e: UnprocessableIntent => throw BadRequestException(e.getMessage)
       case e: Veto => throw toHttpResponseException(e, Status.UnprocessableEntity)
       case e: RejectingError => throw BadRequestException(e.msg) // should not happen: every subclass of RejectingError should be covered above

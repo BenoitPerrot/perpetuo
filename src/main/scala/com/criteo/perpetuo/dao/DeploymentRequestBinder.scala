@@ -70,6 +70,3 @@ trait DeploymentRequestBinder extends TableBinder {
       }
   }
 }
-
-
-class UnknownProduct(val productName: String) extends RuntimeException(s"Unknown product `$productName`")
