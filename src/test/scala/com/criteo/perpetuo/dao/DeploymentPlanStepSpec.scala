@@ -1,14 +1,14 @@
 package com.criteo.perpetuo.dao
 
 import com.criteo.perpetuo.TestDb
-import com.criteo.perpetuo.model.{DeploymentPlanStep, DeploymentRequestAttrs, ProtoDeploymentPlanStep, Version}
+import com.criteo.perpetuo.model.{DeploymentRequestAttrs, ProtoDeploymentPlanStep, Version}
 import com.twitter.inject.Test
 import org.junit.runner.RunWith
 import org.scalatest.concurrent._
 import org.scalatest.junit.JUnitRunner
 import spray.json.{JsArray, JsString}
 
-import scala.concurrent.{Await, Future}
+import scala.concurrent.Await
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 
