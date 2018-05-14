@@ -6,13 +6,14 @@ import spray.json.JsonParser.ParsingException
 import spray.json._
 
 
-case class PartialVersion(value: JsValue, ratio: Float = 1f)
+case class PartialVersion(value: String, ratio: Float = 1f)
 
 
 case class Version(serialized: String) extends MappedTo[String] {
   lazy val structured: Iterable[PartialVersion] = serialized.parseJson match {
     case JsArray(arr) => arr.map(Version.parseVersion)
-    case other => Seq(PartialVersion(other))
+    case JsString(v) => Seq(PartialVersion(v))
+    case unknown => throw new ParsingException("Should not be there")
   }
 
   override def toString: String = serialized
@@ -27,7 +28,10 @@ object Version {
 
   private val parseVersion: JsValue => PartialVersion = {
     case JsObject(obj) =>
-      val value = obj.getOrElse(valueField, throw new ParsingException(s"Expected to find a `$valueField` in every `version`"))
+      val value = obj.getOrElse(valueField, throw new ParsingException(s"Expected to find a `$valueField` in every `version`")) match {
+        case JsString(v) => v
+        case unexpected => throw new ParsingException(s"Expected a string `$valueField` in every `version`, got: $unexpected")
+      }
       val ratio = obj.getOrElse(ratioField, JsNumber(1)) match {
         case JsNumber(r) if r >= 0 && r <= 1 => r.floatValue
         case unexpected => throw new ParsingException(s"Expected a number in [0; 1] as `$ratioField` in every `version`, got: $unexpected")
@@ -41,7 +45,7 @@ object Version {
 
   def apply(input: JsValue): Version = {
     val versionArray = input match {
-      case str: JsString => Version.compactPrint(Seq(PartialVersion(str))) // todo: uniform call from UI?
+      case JsString(str) => Version.compactPrint(Seq(PartialVersion(str))) // todo: uniform call from UI?
       case jsArr: JsArray if jsArr.elements.nonEmpty => jsArr.compactPrint
       case unknown => throw new ParsingException(s"Expected `version` to be a non-empty JSON array, got: $unknown")
     }
@@ -58,9 +62,9 @@ object Version {
   def compactPrint(versions: Iterable[PartialVersion]): String = {
     {
       if (versions.size == 1)
-        versions.head.value
+        JsString(versions.head.value)
       else
-        versions.map { v => JsObject(valueField -> v.value, ratioField -> JsNumber(v.ratio - (v.ratio % ratioPrecision))) }.toJson
+        versions.map { v => JsObject(valueField -> JsString(v.value), ratioField -> JsNumber(v.ratio - (v.ratio % ratioPrecision))) }.toJson
     }.compactPrint
   }
 }
