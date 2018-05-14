@@ -35,7 +35,7 @@
     <iron-pages id="pageSelector" selected="[[selectPage(route)]]" attr-for-selected="page-route" selected-attribute="active">
       <perpetuo-deployment-request-table page-route="/deployment-requests"></perpetuo-deployment-request-table>
       <perpetuo-deployment-request page-route="/deployment-requests/:id" deployment-request-id="[[routeData.id]]"></perpetuo-deployment-request>
-      <perpetuo-products-page page-route="/products" deployment-request-id="[[routeData.id]]"></perpetuo-deployment-request>
+      <perpetuo-products-page page-route="/products"></perpetuo-products-page>
     </iron-pages>
 
     <perpetuo-app-drawer id="drawer"></perpetuo-app-drawer>
