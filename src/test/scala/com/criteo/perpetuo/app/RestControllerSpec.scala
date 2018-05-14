@@ -699,6 +699,16 @@ class RestControllerSpec extends Test with TestDb {
     ).contentString should include("Filters tests must be `equals`")
   }
 
+  test("Deep query sorts by deployment request ID (descending)") {
+    val sortedDepReqs = deepGetDepReq()
+    sortedDepReqs.length should be > 2
+    sortedDepReqs.foldLeft(Int.MaxValue) { (lastId, deploymentRequest) =>
+      val id = deploymentRequest("id").asInstanceOf[JsNumber].value.toIntExact
+      lastId should be > id
+      id
+    }
+  }
+
   test("Any other *API* entry-point throws a 404") {
     server.httpGet(
       path = "/api/woot/woot",

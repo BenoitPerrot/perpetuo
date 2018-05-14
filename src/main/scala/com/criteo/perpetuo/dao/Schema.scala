@@ -95,7 +95,7 @@ class DbBinding @Inject()(val dbContext: DbContext)
   def executeInSerializableTransaction[T](q: DBIOAction[T, NoStream, _]): Future[T] =
     dbContext.db.run(q.transactionally.withTransactionIsolation(TransactionIsolation.Serializable))
 
-  // provide the full model tree from the product to the execution traces and the target statuses, where the operation traces are sorted by ID
+  // provide the full model tree from the product to the execution traces and the target statuses
   private def fromDeepOperationToFullTree(q: Query[((DeploymentRequestTable, ProductTable), Rep[Option[OperationTraceTable]]), ((DeploymentRequestRecord, ProductRecord), Option[OperationTraceRecord]), Seq]) = {
     q
       .joinLeft(executionQuery).on { case ((_, operationTrace), execution) => operationTrace.map(_.id) === execution.operationTraceId }
@@ -123,7 +123,6 @@ class DbBinding @Inject()(val dbContext: DbContext)
                   .flatMap { case (_, _, operationTrace, _, executionTrace) => operationTrace.map((_, executionTrace)) }
                   .groupBy { case (operationTrace, _) => operationTrace.id.get }
                   .toStream
-                  .sortBy { case (operationTraceId, _) => operationTraceId }
                   .map { case (_, operationGroup) =>
                     val (operationTrace, _) = operationGroup.head
                     val executionTraces = operationGroup.flatMap { case (_, executionTrace) => executionTrace.map(_.toExecutionTrace) }
@@ -137,12 +136,17 @@ class DbBinding @Inject()(val dbContext: DbContext)
   }
 
   def findDeepDeploymentRequestAndEffects(deploymentRequestId: Long): Future[Option[(DeepDeploymentRequest, Iterable[OperationEffect])]] = {
-    val base = deploymentRequestQuery
+    val deepOperations = deploymentRequestQuery
       .filter(_.id === deploymentRequestId)
       .join(productQuery).on { case (deploymentRequest, product) => deploymentRequest.productId === product.id }
       .joinLeft(operationTraceQuery).on { case ((deploymentRequest, _), operationTrace) => deploymentRequest.id === operationTrace.deploymentRequestId }
 
-    dbContext.db.run(fromDeepOperationToFullTree(base)).map(_.headOption) // there is at most one deployment request, because of the query above
+
+    dbContext.db.run(
+      // there is at most one deployment request, because of the query above; let's sort its operations
+      fromDeepOperationToFullTree(deepOperations)
+        .map(_.headOption.map { case (depReq, effects) => (depReq, effects.sortBy(_.operationTrace.id)) })
+    )
   }
 
   def findDeepDeploymentRequestAndSpecs(deploymentRequestId: Long): Future[Option[(DeepDeploymentRequest, Seq[ExecutionSpecification])]] = {
@@ -184,16 +188,17 @@ class DbBinding @Inject()(val dbContext: DbContext)
       }
     }
 
-    deepQueryDeploymentRequests(filtered.sortBy { case (depReq, _) => depReq.id.desc }.drop(offset).take(limit))
-  }
+    val deepOperations = filtered
+      // we sort here before selecting a subset of the history of deployments, and we sort again at the end of the function
+      // because the order is lost by `fromDeepOperationToFullTree`
+      .sortBy { case (depReq, _) => depReq.id.desc }
+      .drop(offset)
+      .take(limit)
 
-  private def deepQueryDeploymentRequests(q: Query[(DeploymentRequestTable, ProductTable), (DeploymentRequestRecord, ProductRecord), Seq]): Future[Iterable[(DeepDeploymentRequest, Option[OperationEffect])]] = {
-    val base = q
       // get the last operation for each deployment request in the provided query
       .joinLeft(operationTraceQuery).on(_._1.id === _.deploymentRequestId)
       .groupBy { case ((request, _), _) => request.id }
       .map { case (requestId, operations) => (requestId, operations.map { case (_, operation) => operation.map(_.id) }.max) }
-      .sortBy { case (requestId, _) => requestId.desc } // todo: check if it's necessary after the groupBy (it may have lost the order)
 
       // since we lost everything but the selected operation trace ID (because of Slick and SQL backend limitations), let's get everything back
       .join(productQuery)
@@ -202,8 +207,11 @@ class DbBinding @Inject()(val dbContext: DbContext)
       .joinLeft(operationTraceQuery).on { case ((((_, operationId), _), _), operation) => operationId === operation.id }
       .map { case (((_, product), deploymentRequest), operationTrace) => ((deploymentRequest, product), operationTrace) }
 
-    dbContext.db.run(fromDeepOperationToFullTree(base))
-      .map(result => result.map { case (deploymentRequest, effects) => (deploymentRequest, effects.headOption) }) // there is at most one operation, because of the query
+    dbContext.db.run(
+      // there is at most one operation, because of the query above
+      fromDeepOperationToFullTree(deepOperations)
+        .map(_.sortBy { case (depReq, _) => -depReq.id }.map { case (depReq, effects) => (depReq, effects.headOption) })
+    )
   }
 
   // todo: should rely on a nullable field `startDate` in OperationTrace
