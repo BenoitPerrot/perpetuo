@@ -16,7 +16,7 @@ class CrankshaftSpec extends SimpleScenarioTesting {
       for {
         product <- crankshaft.insertProductIfNotExists("product #1")
         depReq <- crankshaft.dbBinding.insertDeploymentRequest(new DeploymentRequestAttrs(product.name, Version("\"1000\""), Seq(ProtoDeploymentPlanStep("", JsString("*"), "")), "", "s.omeone"))
-        _ <- crankshaft.startDeploymentRequest(depReq.id, "s.tarter")
+        _ <- crankshaft.startDeploymentRequest(depReq, "s.tarter")
         traces <- crankshaft.findExecutionTracesByDeploymentRequest(depReq.id)
       } yield traces.get.map(trace => (trace.id, trace.logHref)),
       1.second
@@ -27,9 +27,9 @@ class CrankshaftSpec extends SimpleScenarioTesting {
     Await.result(
       for {
         product <- crankshaft.insertProductIfNotExists("human")
-        deploymentRequestId <- crankshaft.createDeploymentRequest(new DeploymentRequestAttrs(product.name, Version(JsString("42").compactPrint), Seq(ProtoDeploymentPlanStep("", JsArray(JsString("moon"), JsString("mars")), "")), "", "robert"))
-        _ <- crankshaft.startDeploymentRequest(deploymentRequestId, "ignace")
-        operationTraces <- dbBinding.findOperationTracesByDeploymentRequest(deploymentRequestId)
+        deploymentRequest <- crankshaft.createDeploymentRequest(new DeploymentRequestAttrs(product.name, Version(JsString("42").compactPrint), Seq(ProtoDeploymentPlanStep("", JsArray(JsString("moon"), JsString("mars")), "")), "", "robert"))
+        _ <- crankshaft.startDeploymentRequest(deploymentRequest, "ignace")
+        operationTraces <- dbBinding.findOperationTracesByDeploymentRequest(deploymentRequest.id)
         operationTrace = operationTraces.head
         hasOpenExecutionBefore <- crankshaft.dbBinding.hasOpenExecutionTracesForOperation(operationTrace.id)
         _ <- closeOperation(operationTrace, Map("moon" -> Status.success, "mars" -> Status.hostFailure))
@@ -40,18 +40,18 @@ class CrankshaftSpec extends SimpleScenarioTesting {
     ) shouldBe(true, false, false)
   }
 
-  def mockDeployExecution(productName: String, v: String, targetAtomToStatus: Map[String, Status.Code], initFailed: Boolean = false): Future[(Long, Long)] = {
+  def mockDeployExecution(productName: String, v: String, targetAtomToStatus: Map[String, Status.Code], initFailed: Boolean = false): Future[(DeepDeploymentRequest, Long)] = {
     for {
-      deploymentRequestId <- crankshaft.createDeploymentRequest(new DeploymentRequestAttrs(productName, Version(JsString(v).compactPrint), Seq(ProtoDeploymentPlanStep("", targetAtomToStatus.keys.toJson, "")), "", "r.equestor"))
-      operationTrace <- crankshaft.startDeploymentRequest(deploymentRequestId, "s.tarter").map(_.get)
+      deploymentRequest <- crankshaft.createDeploymentRequest(new DeploymentRequestAttrs(productName, Version(JsString(v).compactPrint), Seq(ProtoDeploymentPlanStep("", targetAtomToStatus.keys.toJson, "")), "", "r.equestor"))
+      operationTrace <- crankshaft.startDeploymentRequest(deploymentRequest, "s.tarter").map(_.get)
       executionSpecIds <- crankshaft.dbBinding.findExecutionSpecIdsByOperationTrace(operationTrace.id)
       _ <- closeOperation(operationTrace, targetAtomToStatus, initFailed)
-    } yield (deploymentRequestId, executionSpecIds.head)
+    } yield (deploymentRequest, executionSpecIds.head)
   }
 
-  def mockRevertExecution(deploymentRequestId: Long, targetAtomToStatus: Map[String, Status.Code], defaultVersion: Option[Version] = None): Future[Long] = {
+  def mockRevertExecution(deploymentRequest: DeepDeploymentRequest, targetAtomToStatus: Map[String, Status.Code], defaultVersion: Option[Version] = None): Future[Long] = {
     for {
-      operationTrace <- crankshaft.revert(deploymentRequestId, "r.everter", defaultVersion).map(_.get)
+      operationTrace <- crankshaft.revert(deploymentRequest, "r.everter", defaultVersion).map(_.get)
       _ <- closeOperation(operationTrace, targetAtomToStatus)
     } yield operationTrace.id
   }
@@ -65,20 +65,20 @@ class CrankshaftSpec extends SimpleScenarioTesting {
         _ <- mockDeployExecution(product.name, "99", Map("racing" -> Status.success))
 
         // OK after a success
-        (secondId, _) <- mockDeployExecution(product.name, "100", Map("corn-field" -> Status.hostFailure))
+        (second, _) <- mockDeployExecution(product.name, "100", Map("corn-field" -> Status.hostFailure))
 
         // not OK if it's after a deployment failure
         conflictMsg <- mockDeployExecution(product.name, "101", Map("racing" -> Status.success))
           .map(_ => "unrejected").recover { case Conflict(msg, _) => msg }
 
         // the failing one must be reverted first
-        _ <- mockRevertExecution(secondId, Map("corn-field" -> Status.hostFailure), Some(Version(""""big-bang"""")))
+        _ <- mockRevertExecution(second, Map("corn-field" -> Status.hostFailure), Some(Version(""""big-bang"""")))
 
         // OK after the failing has been reverted (even if the revert failed)
-        (thirdId, _) <- mockDeployExecution(product.name, "101", Map("racing" -> Status.success))
+        (third, _) <- mockDeployExecution(product.name, "101", Map("racing" -> Status.success))
 
         // note that we can revert a successful operation
-        _ <- mockRevertExecution(thirdId, Map("racing" -> Status.success))
+        _ <- mockRevertExecution(third, Map("racing" -> Status.success))
 
         // OK after a revert of a successful operation
         _ <- mockDeployExecution(product.name, "102", Map("corn-field" -> Status.notDone), initFailed = true)
@@ -97,21 +97,21 @@ class CrankshaftSpec extends SimpleScenarioTesting {
       for {
         product <- crankshaft.insertProductIfNotExists("horse")
 
-        (firstDeploymentRequestId, _) <- mockDeployExecution(product.name, "100", Map("corn-field" -> Status.success))
+        (firstDeploymentRequest, _) <- mockDeployExecution(product.name, "100", Map("corn-field" -> Status.success))
         // Status = corn-field: horse@100
 
-        (secondDeploymentRequestId, _) <- mockDeployExecution(product.name, "101", Map("racing" -> Status.success, "pool" -> Status.success))
+        (secondDeploymentRequest, _) <- mockDeployExecution(product.name, "101", Map("racing" -> Status.success, "pool" -> Status.success))
         // Status = corn-field: horse@100, racing: horse@101, pool: horse@101
 
-        (thirdDeploymentRequestId, _) <- mockDeployExecution(product.name, "102", Map("racing" -> Status.productFailure))
+        (thirdDeploymentRequest, _) <- mockDeployExecution(product.name, "102", Map("racing" -> Status.productFailure))
         // Status = corn-field: horse@100, racing: horse@102?, pool: horse@101
 
         // fixme: one day, first deployment will be retryable:
         // But second one can't be, because it impacts `racing`, whose status changed in the meantime
-        secondDeploymentRequest <- crankshaft.dbBinding.findDeepDeploymentRequestById(secondDeploymentRequestId).map(_.get)
+        secondDeploymentRequest <- crankshaft.dbBinding.findDeepDeploymentRequestById(secondDeploymentRequest.id).map(_.get)
         rejectionOfSecond <- crankshaft.canDeployDeploymentRequest(secondDeploymentRequest).failed
         // The last one of course is retryable
-        thirdDeploymentRequest <- crankshaft.dbBinding.findDeepDeploymentRequestById(thirdDeploymentRequestId).map(_.get)
+        thirdDeploymentRequest <- crankshaft.dbBinding.findDeepDeploymentRequestById(thirdDeploymentRequest.id).map(_.get)
         _ <- crankshaft.canDeployDeploymentRequest(thirdDeploymentRequest)
       } yield rejectionOfSecond.getMessage.split(":")(1).trim,
       2.seconds
@@ -123,21 +123,21 @@ class CrankshaftSpec extends SimpleScenarioTesting {
       for {
         product <- crankshaft.insertProductIfNotExists("mouse")
 
-        (firstDeploymentRequestId, firstExecSpecId) <- mockDeployExecution(product.name, "27", Map("moon" -> Status.success, "mars" -> Status.success))
+        (firstDeploymentRequest, firstExecSpecId) <- mockDeployExecution(product.name, "27", Map("moon" -> Status.success, "mars" -> Status.success))
         // Status = moon: mouse@27, mars: mouse@27
 
-        (secondDeploymentRequestId, secondExecSpecId) <- mockDeployExecution(product.name, "54", Map("moon" -> Status.success, "venus" -> Status.success))
+        (secondDeploymentRequest, secondExecSpecId) <- mockDeployExecution(product.name, "54", Map("moon" -> Status.success, "venus" -> Status.success))
         // Status = moon: mouse@54, mars: mouse@27, venus: mouse@54
 
-        (thirdDeploymentRequestId, thirdExecSpecId) <- mockDeployExecution(product.name, "69", Map("moon" -> Status.success, "mars" -> Status.productFailure))
+        (thirdDeploymentRequest, thirdExecSpecId) <- mockDeployExecution(product.name, "69", Map("moon" -> Status.success, "mars" -> Status.productFailure))
         // Status = moon: mouse@69, mars: mouse@69?, venus: mouse@54
 
         // Can't revert as-is the first deployment request: we need to know the default revert version
-        firstDeploymentRequest <- crankshaft.dbBinding.findDeepDeploymentRequestById(firstDeploymentRequestId).map(_.get)
+        firstDeploymentRequest <- crankshaft.dbBinding.findDeepDeploymentRequestById(firstDeploymentRequest.id).map(_.get)
         (undeterminedSpecsFirst, determinedSpecsFirst) <- crankshaft.dbBinding.findExecutionSpecificationsForRevert(firstDeploymentRequest)
 
         // Can revert
-        thirdDeploymentRequest <- crankshaft.dbBinding.findDeepDeploymentRequestById(thirdDeploymentRequestId).map(_.get)
+        thirdDeploymentRequest <- crankshaft.dbBinding.findDeepDeploymentRequestById(thirdDeploymentRequest.id).map(_.get)
         (undeterminedSpecsThird, determinedSpecsThird) <- crankshaft.dbBinding.findExecutionSpecificationsForRevert(thirdDeploymentRequest)
 
       } yield {
@@ -163,23 +163,23 @@ class CrankshaftSpec extends SimpleScenarioTesting {
         _ <- mockDeployExecution(product.name, "12", Map("orbit" -> Status.success))
         // Status = orbit: monkey@12
 
-        (secondDeploymentRequestId, _) <- mockDeployExecution(product.name, "55", Map("orbit" -> Status.success, "venus" -> Status.success))
+        (secondDeploymentRequest, _) <- mockDeployExecution(product.name, "55", Map("orbit" -> Status.success, "venus" -> Status.success))
         // Status = orbit: monkey@55, venus: monkey@55
 
-        (thirdDeploymentRequestId, _) <- mockDeployExecution(product.name, "69", Map("orbit" -> Status.success, "venus" -> Status.success))
+        (thirdDeploymentRequest, _) <- mockDeployExecution(product.name, "69", Map("orbit" -> Status.success, "venus" -> Status.success))
         // Status = orbit: monkey@69, venus: monkey@69
 
-        (otherDeploymentRequestId, _) <- mockDeployExecution(otherProduct.name, "215", Map("orbit" -> Status.success, "venus" -> Status.success))
+        (otherDeploymentRequest, _) <- mockDeployExecution(otherProduct.name, "215", Map("orbit" -> Status.success, "venus" -> Status.success))
         // Status = orbit: monkey@69 + bonobo@215, venus: monkey@69 + bonobo@215
 
         // Second request can't be reverted
-        secondDeploymentRequest <- crankshaft.dbBinding.findDeepDeploymentRequestById(secondDeploymentRequestId).map(_.get)
+        secondDeploymentRequest <- crankshaft.dbBinding.findDeepDeploymentRequestById(secondDeploymentRequest.id).map(_.get)
         rejectionOfSecond <- crankshaft.canRevertDeploymentRequest(secondDeploymentRequest, isStarted = true).failed
         // Third one can be reverted, because it's the last one for its product
-        thirdDeploymentRequest <- crankshaft.dbBinding.findDeepDeploymentRequestById(thirdDeploymentRequestId).map(_.get)
+        thirdDeploymentRequest <- crankshaft.dbBinding.findDeepDeploymentRequestById(thirdDeploymentRequest.id).map(_.get)
         _ <- crankshaft.canRevertDeploymentRequest(thirdDeploymentRequest, isStarted = true)
         // Meanwhile the deployment on another product can be reverted (even when it's the first one for that product: it just requires a default revert version)
-        otherDeploymentRequest <- crankshaft.dbBinding.findDeepDeploymentRequestById(otherDeploymentRequestId).map(_.get)
+        otherDeploymentRequest <- crankshaft.dbBinding.findDeepDeploymentRequestById(otherDeploymentRequest.id).map(_.get)
         _ <- crankshaft.canRevertDeploymentRequest(otherDeploymentRequest, isStarted = true)
       } yield rejectionOfSecond.getMessage.split(":")(1).trim,
       2.seconds
@@ -192,26 +192,26 @@ class CrankshaftSpec extends SimpleScenarioTesting {
       for {
         product <- crankshaft.insertProductIfNotExists("pony")
 
-        (firstDeploymentRequestId, firstExecSpecId) <- mockDeployExecution(product.name, "11", Map("tic" -> Status.success, "tac" -> Status.success))
+        (firstDeploymentRequest, firstExecSpecId) <- mockDeployExecution(product.name, "11", Map("tic" -> Status.success, "tac" -> Status.success))
         // Status = tic: pony@11, tac: pony@11
 
-        (secondDeploymentRequestId, secondExecSpecId) <- mockDeployExecution(product.name, "22", Map("tic" -> Status.success, "tac" -> Status.success))
-        secondDeploymentRequest <- crankshaft.dbBinding.findDeepDeploymentRequestById(secondDeploymentRequestId).map(_.get)
+        (secondDeploymentRequest, secondExecSpecId) <- mockDeployExecution(product.name, "22", Map("tic" -> Status.success, "tac" -> Status.success))
+        secondDeploymentRequest <- crankshaft.dbBinding.findDeepDeploymentRequestById(secondDeploymentRequest.id).map(_.get)
         // Status = tic: pony@22, tac: pony@22
 
         // Revert the last deployment request
-        revertOperationTraceIdA <- mockRevertExecution(secondDeploymentRequestId, Map("tic" -> Status.success, "tac" -> Status.hostFailure), None)
+        revertOperationTraceIdA <- mockRevertExecution(secondDeploymentRequest, Map("tic" -> Status.success, "tac" -> Status.hostFailure), None)
         revertExecutionSpecIdsA <- crankshaft.dbBinding.findExecutionSpecIdsByOperationTrace(revertOperationTraceIdA)
         // Status = tic: pony@11, tac: pony@11
 
-        (thirdDeploymentRequestId, thirdExecSpecId) <- mockDeployExecution(product.name, "33", Map("tic" -> Status.success, "tac" -> Status.success))
+        (thirdDeploymentRequest, thirdExecSpecId) <- mockDeployExecution(product.name, "33", Map("tic" -> Status.success, "tac" -> Status.success))
         // Status = tic: pony@33, tac: pony@33
 
         // Second request can't be reverted anymore
         rejectionOfSecondA <- crankshaft.canRevertDeploymentRequest(secondDeploymentRequest, isStarted = true).failed
 
         // Revert the last deployment request
-        revertOperationTraceIdB <- mockRevertExecution(thirdDeploymentRequestId, Map("tic" -> Status.success, "tac" -> Status.success), None)
+        revertOperationTraceIdB <- mockRevertExecution(thirdDeploymentRequest, Map("tic" -> Status.success, "tac" -> Status.success), None)
         revertExecutionSpecIdsB <- crankshaft.dbBinding.findExecutionSpecIdsByOperationTrace(revertOperationTraceIdB)
         // Status = tic: pony@11, tac: pony@11
 
@@ -219,9 +219,9 @@ class CrankshaftSpec extends SimpleScenarioTesting {
         rejectionOfSecondB <- crankshaft.canRevertDeploymentRequest(secondDeploymentRequest, isStarted = true).failed
 
         // Can revert the first one now that the second one has been reverted, but it requires to specify to which version to revert
-        required <- crankshaft.revert(firstDeploymentRequestId, "r.ollbacker", None).recover { case MissingInfo(_, required) => required }
+        required <- crankshaft.revert(firstDeploymentRequest, "r.ollbacker", None).recover { case MissingInfo(_, required) => required }
 
-        revertOperationTraceC <- crankshaft.revert(firstDeploymentRequestId, "r.ollbacker", Some(defaultRevertVersion)).map(_.get)
+        revertOperationTraceC <- crankshaft.revert(firstDeploymentRequest, "r.ollbacker", Some(defaultRevertVersion)).map(_.get)
         revertExecutionSpecIdsC <- crankshaft.dbBinding.findExecutionSpecIdsByOperationTrace(revertOperationTraceC.id)
         revertExecutionSpecC <- crankshaft.dbBinding.findExecutionSpecificationById(revertExecutionSpecIdsC.head).map(_.get)
 
@@ -238,7 +238,7 @@ class CrankshaftSpec extends SimpleScenarioTesting {
 
         required,
 
-        revertOperationTraceC.deploymentRequestId == firstDeploymentRequestId,
+        revertOperationTraceC.deploymentRequestId == firstDeploymentRequest.id,
         revertExecutionSpecIdsC.length,
         revertExecutionSpecC.version == defaultRevertVersion
       ),
@@ -257,12 +257,12 @@ class CrankshaftSpec extends SimpleScenarioTesting {
     Await.result(
       for {
         product <- crankshaft.insertProductIfNotExists("martian")
-        deploymentRequestId <- crankshaft.createDeploymentRequest(new DeploymentRequestAttrs(product.name, Version(JsString("42").compactPrint), Seq(ProtoDeploymentPlanStep("", JsArray(JsString("moon"), JsString("mars")), "")), "", "robert"))
-        _ <- crankshaft.startDeploymentRequest(deploymentRequestId, "ignace")
-        operationTraces <- dbBinding.findOperationTracesByDeploymentRequest(deploymentRequestId)
+        deploymentRequest <- crankshaft.createDeploymentRequest(new DeploymentRequestAttrs(product.name, Version(JsString("42").compactPrint), Seq(ProtoDeploymentPlanStep("", JsArray(JsString("moon"), JsString("mars")), "")), "", "robert"))
+        _ <- crankshaft.startDeploymentRequest(deploymentRequest, "ignace")
+        operationTraces <- dbBinding.findOperationTracesByDeploymentRequest(deploymentRequest.id)
         operationTrace = operationTraces.head
         firstExecutionTraces <- closeOperation(operationTrace, Map("moon" -> Status.success, "mars" -> Status.hostFailure))
-        retriedOperation <- crankshaft.deployAgain(deploymentRequestId, "b.lightning").map(_.get)
+        retriedOperation <- crankshaft.deployAgain(deploymentRequest.id, "b.lightning").map(_.get)
         secondExecutionTraces <- closeOperation(retriedOperation, Map("moon" -> Status.success, "mars" -> Status.success))
         hasOpenExecutionAfter <- crankshaft.dbBinding.hasOpenExecutionTracesForOperation(retriedOperation.id)
         operationReClosingSucceeded <- crankshaft.dbBinding.closeOperationTrace(retriedOperation)
@@ -356,12 +356,12 @@ class CrankshaftWithFailingExecutorSpec extends SimpleScenarioTesting {
   test("Crankshaft keeps the created records in DB and marks an execution trace as failed if the trigger fails") {
     val res = for {
       product <- crankshaft.insertProductIfNotExists("airplane")
-      deploymentRequestId <- crankshaft.createDeploymentRequest(new DeploymentRequestAttrs(product.name, Version(JsString("42").compactPrint), Seq(ProtoDeploymentPlanStep("", JsArray(JsString("moon"), JsString("mars")), "")), "", "bob"))
-      _ <- crankshaft.startDeploymentRequest(deploymentRequestId, "ignace")
-      operationTraces <- dbBinding.findOperationTracesByDeploymentRequest(deploymentRequestId)
+      deploymentRequest <- crankshaft.createDeploymentRequest(new DeploymentRequestAttrs(product.name, Version(JsString("42").compactPrint), Seq(ProtoDeploymentPlanStep("", JsArray(JsString("moon"), JsString("mars")), "")), "", "bob"))
+      _ <- crankshaft.startDeploymentRequest(deploymentRequest, "ignace")
+      operationTraces <- dbBinding.findOperationTracesByDeploymentRequest(deploymentRequest.id)
       operationTrace = operationTraces.head
       hasOpenExecution <- crankshaft.dbBinding.hasOpenExecutionTracesForOperation(operationTrace.id)
-      executionTrace <- crankshaft.dbBinding.findExecutionTracesByDeploymentRequest(deploymentRequestId).map(_.head)
+      executionTrace <- crankshaft.dbBinding.findExecutionTracesByDeploymentRequest(deploymentRequest.id).map(_.head)
     } yield (
       hasOpenExecution, executionTrace.state
     )
@@ -425,7 +425,7 @@ class CrankshaftWithRundeckLogHrefSpec extends SimpleScenarioTesting {
       eventually(be((0, Seq())))
 
     // try to stop when nothing has been terminated but it's impossible to stop
-    crankshaft.revert(req.id, "r.everter", Some(Version("0".toJson))).map(_.get).flatMap(op =>
+    crankshaft.revert(req, "r.everter", Some(Version("0".toJson))).map(_.get).flatMap(op =>
       crankshaft.tryStopDeploymentRequest(req, "killer-guy")
         .flatMap { case (successes, failures) =>
           tryCloseOperation(op).map(updates =>
@@ -435,7 +435,7 @@ class CrankshaftWithRundeckLogHrefSpec extends SimpleScenarioTesting {
     ) should eventually(be((2, 2, 0, 2))) // i.e. 2 execution traces, 2 closed, 0 stopped, 2 failures
 
     // try to stop when one execution is already terminated and the other one could not be stopped (so 0 success)
-    crankshaft.revert(req.id, "r.everter", Some(Version("0".toJson))).map(_.get).flatMap(op =>
+    crankshaft.revert(req, "r.everter", Some(Version("0".toJson))).map(_.get).flatMap(op =>
       crankshaft.dbBinding.findExecutionIdsByOperationTrace(op.id)
         .flatMap { executionIds =>
           val executionId = executionIds.head // only update the first execution (out of the 2 triggered by the revert)

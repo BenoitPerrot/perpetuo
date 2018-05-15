@@ -29,7 +29,7 @@ trait TestDb extends DbContextProvider {
 
 
 trait SimpleScenarioTesting extends Test with TestDb with MockitoSugar {
-  private val lastDeploymentRequests = mutable.Map[String, Long]()
+  private val lastDeploymentRequests = mutable.Map[String, DeepDeploymentRequest]()
   private val loader = new PluginLoader(null)
   private val executionTrigger: DummyExecutionTrigger = mock[DummyExecutionTrigger]
   val plugins = new Plugins(loader)
@@ -90,12 +90,11 @@ trait SimpleScenarioTesting extends Test with TestDb with MockitoSugar {
     val attrs = new DeploymentRequestAttrs(productName, Version(version.toJson), Seq(ProtoDeploymentPlanStep("1", target.toJson, "")), "", "de.ployer")
     await {
       for {
-        depReqId <- crankshaft.createDeploymentRequest(attrs).map {
-          id =>
-            lastDeploymentRequests(productName) = id
-            id
+        depReq <- crankshaft.createDeploymentRequest(attrs).map { depReq =>
+          lastDeploymentRequests(productName) = depReq
+          depReq
         }
-        op <- crankshaft.startDeploymentRequest(depReqId, "s.tarter")
+        op <- crankshaft.startDeploymentRequest(depReq, "s.tarter")
         operationTrace = op.get
         _ <- closeOperation(operationTrace, target.map(_ -> finalStatus).toMap)
       } yield operationTrace
@@ -103,10 +102,10 @@ trait SimpleScenarioTesting extends Test with TestDb with MockitoSugar {
   }
 
   def revert(productName: String, defaultVersion: Option[String] = None): DeepOperationTrace = {
-    val depReqId = lastDeploymentRequests(productName)
+    val depReq = lastDeploymentRequests(productName)
     await {
       for {
-        op <- crankshaft.revert(depReqId, "r.everter", defaultVersion.map(v => Version(v.toJson)))
+        op <- crankshaft.revert(depReq, "r.everter", defaultVersion.map(v => Version(v.toJson)))
         operationTrace = op.get
         _ <- closeOperation(operationTrace)
       } yield operationTrace

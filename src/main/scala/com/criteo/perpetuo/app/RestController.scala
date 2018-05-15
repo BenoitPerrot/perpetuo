@@ -116,7 +116,7 @@ class RestController @Inject()(val engine: Engine)
 
       timeBoxed(
         engine.requestDeployment(user, allAttrs, targets)
-          .map(x => Some(response.created.json(Map("id" -> x)))),
+          .map(x => Some(response.created.json(Map("id" -> x.id)))),
         5.seconds
       )
     }
