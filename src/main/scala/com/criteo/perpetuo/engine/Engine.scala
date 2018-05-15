@@ -31,7 +31,7 @@ class Engine @Inject()(val crankshaft: Crankshaft,
             .canDeployDeploymentRequest(deploymentRequest)
             .flatMap(_ =>
               if (isStarted)
-                crankshaft.deployAgain(id, user.name)
+                crankshaft.deployAgain(deploymentRequest, user.name)
               else
                 crankshaft.startDeploymentRequest(deploymentRequest, user.name)
             )

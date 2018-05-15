@@ -149,27 +149,19 @@ class DbBinding @Inject()(val dbContext: DbContext)
     )
   }
 
-  def findDeepDeploymentRequestAndSpecs(deploymentRequestId: Long): Future[Option[(DeepDeploymentRequest, Seq[ExecutionSpecification])]] = {
+  def findDeploySpecifications(deploymentRequest: DeepDeploymentRequest): Future[Seq[ExecutionSpecification]] = {
     dbContext.db.run(operationTraceQuery
-      .filter(op => op.deploymentRequestId === deploymentRequestId && op.operation === Operation.deploy)
+      .filter(op => op.deploymentRequestId === deploymentRequest.id && op.operation === Operation.deploy)
       .take(1)
       .join(executionQuery)
-      .join(deploymentRequestQuery)
-      .join(productQuery)
       .join(executionSpecificationQuery)
-      .filter { case ((((operationTrace, execution), deploymentRequest), product), executionSpec) =>
-        deploymentRequest.id === deploymentRequestId &&
-          product.id === deploymentRequest.productId &&
-          execution.operationTraceId === operationTrace.id &&
+      .filter { case ((operationTrace, execution), executionSpec) =>
+        execution.operationTraceId === operationTrace.id &&
           execution.executionSpecificationId === executionSpec.id
       }
-      .map { case (((_, deploymentRequest), product), executionSpec) => (deploymentRequest, product, executionSpec) }
+      .map { case (_, executionSpec) => executionSpec }
       .result
-    ).map(depReqAndExecSpecs =>
-      depReqAndExecSpecs.headOption.map { case (deploymentRequest, product, _) =>
-        (deploymentRequest.toDeepDeploymentRequest(product), depReqAndExecSpecs.map(_._3.toExecutionSpecification))
-      }
-    )
+    ).map(_.map(_.toExecutionSpecification))
   }
 
   def deepQueryDeploymentRequests(where: Seq[Map[String, Any]], limit: Int, offset: Int): Future[Iterable[(DeepDeploymentRequest, Option[OperationEffect])]] = {
