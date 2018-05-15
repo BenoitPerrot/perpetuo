@@ -14,13 +14,11 @@ private[dao] case class DeploymentRequestRecord(id: Option[Long],
                                                 comment: String, // Not an `Option` because it's easier to consider that no comment <=> empty
                                                 creator: String,
                                                 creationDate: java.sql.Timestamp) {
-  def toShallowDeploymentRequest: ShallowDeploymentRequest = {
+  def toShallowDeploymentRequest =
     ShallowDeploymentRequest(id.get, productId, version, target, comment, creator, creationDate)
-  }
 
-  def toDeepDeploymentRequest(product: ProductRecord): DeepDeploymentRequest = {
+  def toDeepDeploymentRequest(product: ProductRecord) =
     DeepDeploymentRequest(id.get, product.toProduct, version, target, comment, creator, creationDate)
-  }
 }
 
 
