@@ -2,6 +2,7 @@
 
 <link rel="import" href="../../bower_components/paper-card/paper-card.html">
 
+<link rel="import" href="../perpetuo-app/perpetuo-app-toolbar.html">
 <link rel="import" href="../perpetuo-deployment-request/perpetuo-conflicting-deployment-requests.html">
 <link rel="import" href="../perpetuo-deployment-request/perpetuo-deployment-operation.html">
 <link rel="import" href="../perpetuo-markdown/perpetuo-markdown-viewer.html">
@@ -106,6 +107,8 @@
       background-color: #eee;
     }
     </style>
+    <perpetuo-app-toolbar page-title="Perpetuo / Deployment Request #[[deploymentRequestId]]"></perpetuo-app-toolbar>
+
     <div class="body">
       <h1>
         <span class="product-name">[[data.productName]]</span>

@@ -48,7 +48,7 @@
     <perpetuo-identity id="identity" login="{{login}}"></perpetuo-identity>
     <app-toolbar>
       <paper-icon-button icon="menu" on-tap="fireDrawerToggleTap"></paper-icon-button>
-      <div main-title><span>Perpetuo</span><span hidden$="[[!pageTitle]]" class="pageTitle"> / [[pageTitle]]</span></div>
+      <div main-title><span>[[pageTitle]]</span></div>
       <div id="identityContainer">
         <paper-button style="min-width: 0;" on-tap="onIdentityTap"><iron-icon icon="social:person"></iron-icon><span>[[login]]</span></paper-button>
         <iron-collapse id="signOutContainer" hidden="[[!login]]">
@@ -95,7 +95,7 @@
       }
 
       fireDrawerToggleTap() {
-        this.dispatchEvent(new CustomEvent('drawer-toggle-tap'));
+        this.dispatchEvent(new CustomEvent('drawer-toggle-tap', {bubbles: true, composed: true}));
       }
 
       onIdentityTap() {
