@@ -12,5 +12,5 @@ class TestingDbContextModule(dbConfig: Config) extends DbContextModule(dbConfig)
     s"jdbc:h2:mem:Deployment_DB_$dbID;DB_CLOSE_DELAY=-1;MULTI_THREADED=1;INIT=CREATE SCHEMA IF NOT EXISTS dbo;IGNORECASE=true;DATABASE_TO_UPPER=false"
   }
 
-  override def databaseProvider: Database = Database.forURL(jdbcUrl, driver="org.h2.Driver", user="sa", password="")
+  override def databaseProvider: Database = Database.forURL(jdbcUrl, driver = "org.h2.Driver", user = "sa", password = "", executor = executor)
 }

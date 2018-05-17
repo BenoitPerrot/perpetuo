@@ -43,18 +43,16 @@ class DbContextModule(val config: Config) extends TwitterModule {
     hikariConfig
   }
 
-  private lazy val database = {
-    Database.forDataSource(
-      new HikariDataSource(
-        toHikariConfig(config.getString("jdbcUrl"), config.tryGetConfig("hikari").getOrElse(ConfigFactory.empty()))
-      ),
-      Some(numThreads),
-      AsyncExecutor(threadPrefix, numThreads, numThreads, queueSize, numThreads)
-    )
-  }
+  protected def executor = AsyncExecutor(threadPrefix, numThreads, numThreads, queueSize, numThreads)
 
   // For being overridden, eg for testing
-  def databaseProvider: Database = database
+  protected def databaseProvider: Database = Database.forDataSource(
+    new HikariDataSource(
+      toHikariConfig(config.getString("jdbcUrl"), config.tryGetConfig("hikari").getOrElse(ConfigFactory.empty()))
+    ),
+    Some(numThreads),
+    executor
+  )
 
   @Singleton
   @Provides
