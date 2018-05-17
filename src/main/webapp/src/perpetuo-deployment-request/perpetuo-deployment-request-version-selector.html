@@ -1,0 +1,30 @@
+<link rel="import" href="../../bower_components/polymer/polymer.html">
+
+<link rel="import" href="../../bower_components/paper-input/paper-input.html">
+
+<dom-module id="perpetuo-deployment-request-version-selector">
+  <template>
+    <paper-input id="main" label="Version" disabled="[[disabled]]" value="{{selectedVersion}}"></paper-input>
+  </template>
+  <script>
+  (function () {
+    class PerpetuoDeploymentRequestVersionSelector extends Polymer.Element {
+      static get is() { return 'perpetuo-deployment-request-version-selector'; }
+
+      static get properties() {
+        return {
+          disabled: Boolean,
+          selectedVersion: {type: String, notify: true},
+        }
+      }
+
+      clear() {
+        if (this.$) {
+          this.$.main.value = '';
+        }
+      }
+    }
+    customElements.define(PerpetuoDeploymentRequestVersionSelector.is, PerpetuoDeploymentRequestVersionSelector);
+  } ());
+  </script>
+</dom-module>

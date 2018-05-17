@@ -1,0 +1,17 @@
+<link rel="import" href="../../bower_components/polymer/polymer.html"/>
+
+<link rel="import" href="../perpetuo-client/perpetuo-client.html">
+
+<script>
+'use strict';
+
+this.Perpetuo = this.Perpetuo || {};
+this.Perpetuo.DeploymentRequestCreator = this.Perpetuo.DeploymentRequestCreator || (function () {
+  'use strict';
+  return class DeploymentRequestCreator {
+    create(productName, version, target, comment) {
+      return new Perpetuo.Client().createDeploymentRequest(productName, version, target, comment);
+    }
+  };
+}());
+</script>

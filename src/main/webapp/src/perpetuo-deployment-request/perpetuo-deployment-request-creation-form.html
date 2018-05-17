@@ -3,14 +3,15 @@
 <link rel="import" href="../../bower_components/paper-button/paper-button.html">
 <link rel="import" href="../../bower_components/paper-dialog/paper-dialog.html">
 <link rel="import" href="../../bower_components/paper-dialog-scrollable/paper-dialog-scrollable.html">
-<link rel="import" href="../../bower_components/paper-dropdown-menu/paper-dropdown-menu.html">
-<link rel="import" href="../../bower_components/paper-input/paper-input.html">
-<link rel="import" href="../../bower_components/paper-input/paper-textarea.html">
-<link rel="import" href="../../bower_components/paper-item/paper-item.html">
-<link rel="import" href="../../bower_components/paper-listbox/paper-listbox.html">
 
-<link rel="import" href="../perpetuo-client/perpetuo-client.html">
+<link rel="import" href="../perpetuo-deployment-request/perpetuo-deployment-request-comment-editor.html">
 <link rel="import" href="../perpetuo-deployment-request/perpetuo-deployment-request-creation-error.html">
+<link rel="import" href="../perpetuo-deployment-request/perpetuo-deployment-request-creator.html">
+<link rel="import" href="../perpetuo-deployment-request/perpetuo-deployment-request-product-selector.html">
+<link rel="import" href="../perpetuo-deployment-request/perpetuo-deployment-request-target-selector.html">
+<link rel="import" href="../perpetuo-deployment-request/perpetuo-deployment-request-version-selector.html">
+<link rel="import" href="../perpetuo-stepper/perpetuo-step.html">
+<link rel="import" href="../perpetuo-stepper/perpetuo-stepper.html">
 
 <dom-module id="perpetuo-deployment-request-creation-form">
   <template>
@@ -18,58 +19,75 @@
     :host {
       display: block;
       top: 0;
-      border-radius: 2px;
-    }
-
-    .product-name-version {
-      display: flex;
-      flex-direction: row;
-      justify-content: space-between;
-    }
-    .product-name-version > * {
-      width: 45%;
-    }
-
-    :host .versionMessage {
-      margin: 0;
-      color: red;
-    }
-    :host([is-version-valid]) .versionMessage {
-      visibility: hidden;
-    }
-
-    .create {
-      background: #26a69a;
-      color: #fff;
-    }
-    .cancel {
-      background-color: #f44336;
-      color: #fff;
     }
 
     #dialog {
       top: 0;
+      display: flex;
+      flex-direction: column;
+      width: 75%;
+      max-width: 1000px;
+    }
+
+    paper-button:not([disabled]).blue {
+      background: #0086b2;
+      color: #fff;
+    }
+    paper-button:not([disabled]).white {
+      background-color: #fff;
+      color: hsl(0,0%,40%);
+    }
+
+    #productSelectionStep, #versionSelectionStep {
+      --perpetuo-step-header: {
+        align-items: flex-end;
+      }
+    }
+
+    h1 {
+      margin: 0;
+      padding-top: 24px;
+      min-height: 40px;
+      background-color: #0086b2;
+      color: #fff;
+      font-size: 22px;
+      font-weight: 100;
     }
     </style>
-    <paper-dialog id="dialog" with-backdrop>
-      <h2>New Deployment Request</h2>
+    <paper-dialog id="dialog" with-backdrop on-opened-changed="clear">
+      <h1>New Deployment Request</h1>
       <paper-dialog-scrollable>
-        <div class="product-name-version">
-          <paper-dropdown-menu label="Product" no-animations>
-            <paper-listbox id="productSelector" slot="dropdown-content" selected-item="{{selectedProductItem}}">
-              <template is="dom-repeat" items="[[products]]">
-                <paper-item name="[[item.name]]">[[item.name]]</paper-item>
-              </template>
-            </paper-listbox>
-          </paper-dropdown-menu>
-          <paper-input id="versionEditor" label="Version"></paper-input>
-        </div>
-        <paper-input id="targetEditor" label="Target"></paper-input>
-        <paper-textarea id="commentEditor" label="Comment"></paper-textarea>
+        <perpetuo-stepper id="stepper" on-stepper-cancelled="onStepperCancelled" on-stepper-completed="onStepperCompleted">
+
+          <perpetuo-step id="productSelectionStep" complete-label="Continue" no-cancel-button
+                         on-step-enter="onProductSelectionStepEnter" on-step-leave="onProductSelectionStepLeave"
+                         complete-disabled="[[!selectedProductName]]">
+            <perpetuo-deployment-request-product-selector slot="header" id="productSelector"
+                                                          products="[[products]]" selected-product-name="{{selectedProductName}}"></perpetuo-deployment-request-product-selector>
+          </perpetuo-step>
+
+          <perpetuo-step id="versionSelectionStep" complete-label="Continue" cancel-label="Back"
+                         on-step-enter="onVersionSelectionStepEnter" on-step-leave="onVersionSelectionStepLeave">
+            <perpetuo-deployment-request-version-selector slot="header" id="versionSelector"
+                                                          product-name="[[selectedProductName]]" selected-version="{{selectedVersion}}"></perpetuo-deployment-request-version-selector>
+          </perpetuo-step>
+
+          <perpetuo-step label="Specify Target" complete-label="Continue" cancel-label="Back">
+            <perpetuo-deployment-request-target-selector slot="content" product-name="[[selectedProductName]]" id="targetSelector"></perpetuo-deployment-request-target-selector>
+          </perpetuo-step>
+
+          <perpetuo-step label="Comment"
+                         cancel-label="Back" active="{{commentStepActive}}"
+                         on-step-enter="onCommentStepEnter" on-step-leave="onCommentStepLeave" no-complete-button>
+            <perpetuo-deployment-request-comment-editor slot="content" id="commentEditor"></perpetuo-deployment-request-comment-editor>
+          </perpetuo-step>
+
+        </perpetuo-stepper>
       </paper-dialog-scrollable>
+
       <div class="buttons">
-        <paper-button dialog-dismiss class="cancel" raised>Cancel</paper-button>
-        <paper-button class="create" raised on-tap="create">Create</paper-button>
+        <paper-button id="create" class="blue" on-tap="create" disabled>Create</paper-button>
+        <paper-button id="cancel" class="white" dialog-dismiss>Cancel</paper-button>
       </div>
     </paper-dialog>
 
@@ -82,26 +100,53 @@
 
       static get properties() {
         return {
-          selectedProductItem: Object,
-          selectedProductName: { type: String, computed: 'computeSelectedProductName(selectedProductItem)' },
           products: { type: Array, value: () => [] },
+          selectedProductName: { type: String, observer: 'onSelectedProductNameChanged'},
+          selectedVersion: String
         };
       }
 
-      computeSelectedProductName(selectedProductItem) {
-        return selectedProductItem ? selectedProductItem.name : null;
+      onProductSelectionStepEnter(e) {
+        this.$.productSelector.disabled = false;
+      }
+
+      onProductSelectionStepLeave(e) {
+        this.$.productSelector.disabled = true;
+      }
+
+      onVersionSelectionStepEnter(e) {
+        this.$.versionSelector.disabled = false;
+      }
+
+      onVersionSelectionStepLeave(e) {
+        this.$.versionSelector.disabled = true;
+      }
+
+      onCommentStepEnter(e) {
+        this.$.create.disabled = false;
+      }
+
+      onCommentStepLeave(e) {
+        this.$.create.disabled = true;
+      }
+
+      onSelectedProductNameChanged(name) {
+        this.$.versionSelector.clear();
+        if (name) {
+          this.$.productSelectionStep.fireStepCompleted();
+        }
       }
 
       constructor() {
         super();
-
-        this.client = new Perpetuo.Client();
       }
 
-      connectedCallback() {
-        super.connectedCallback();
+      onStepperCancelled() {
+        this.$.dialog.close();
+      }
 
-        this.$.dialog.addEventListener('opened-changed', () => { this.clear() });
+      onStepperCompleted() {
+        this.create();
       }
 
       open() {
@@ -113,33 +158,35 @@
       }
 
       create() {
-        const comment = this.$.commentEditor.value || '';
-        this.client.createDeploymentRequest(this.selectedProductName,
-                                            // TODO: remove this hack as soon as the UI allows inputing complex version specifications <<
-                                            (_ => { try { const x = JSON.parse(_); return Array.isArray(x) ? x : _; } catch (e) { return _; } }) (this.$.versionEditor.value),
-                                            // >>
-                                            this.$.targetEditor.value,
-                                            comment)
-            .then(r => {
-              if (r.ok) {
-                r.json().then(o => {
-                  window.location.replace(`/deployment-requests/${o.id}`);
-                });
-                this.close();
-              } else {
-                r.json().then(o => {
-                  this.$.errorDialog.errors = o.errors;
-                  this.$.errorDialog.open();
-                });
-              }
-            })
+        this.$.create.disabled = true;
+        new Perpetuo.DeploymentRequestCreator()
+                    .create(this.selectedProductName,
+                            this.selectedVersion,
+                            this.$.targetSelector.value,
+                            this.$.commentEditor.value)
+                    .then(r => {
+                      if (r.ok) {
+                        r.json().then(o => {
+                          window.location.replace(`/deployment-requests/${o.id}`);
+                        });
+                        this.close();
+                      } else {
+                        r.json().then(o => {
+                          this.$.errorDialog.errors = o.errors;
+                          this.$.errorDialog.open();
+                        });
+                      }
+                    })
       }
 
       clear() {
-        this.$.productSelector.selected = null;
-        this.$.versionEditor.value = '';
-        this.$.targetEditor.value = '';
-        this.$.commentEditor.value = '';
+        this.$.stepper.reset();
+        this.$.productSelector.clear();
+        this.$.versionSelector.disabled = true;
+        this.$.versionSelector.clear();
+        this.$.targetSelector.clear();
+        this.$.commentEditor.clear();
+        this.$.create.disabled = true;
       }
     }
 
