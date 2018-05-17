@@ -400,23 +400,4 @@ class DbBinding @Inject()(val dbContext: DbContext)
         .result
     ).map(_.toMap)
   }
-
-  // TODO: remove <<
-  private val queryUnreferencedProductIds =
-    productQuery
-      .joinLeft(deploymentRequestQuery).on { case (product, deploymentRequest) => product.id === deploymentRequest.productId }
-      .filter { case (_, deploymentRequest) => deploymentRequest.isEmpty }
-      .map { case (product, _) => product.id }
-
-  def countUnreferencedProducts(): Future[Int] =
-    dbContext.db.run(queryUnreferencedProductIds.distinct.length.result)
-
-  def deleteUnreferencedProducts(): Future[Int] =
-    dbContext.db.run(
-      productQuery
-        .filter(_.id.in(queryUnreferencedProductIds))
-        .delete
-    )
-
-  // >>
 }
