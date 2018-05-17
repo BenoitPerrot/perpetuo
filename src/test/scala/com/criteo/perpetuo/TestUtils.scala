@@ -51,7 +51,7 @@ trait SimpleScenarioTesting extends Test with TestDb with MockitoSugar {
 
   def eventually[T](matcher: Matcher[T]): Matcher[Future[T]] = matcher.compose(await)
 
-  def await[T](a: Awaitable[T]): T = Await.result(a, 1.second)
+  def await[T](a: Awaitable[T]): T = Await.result(a, 2.seconds)
 
   def closeOperation(operationTrace: OperationTrace,
                      targetFinalStatus: Map[String, Status.Code] = Map(),
