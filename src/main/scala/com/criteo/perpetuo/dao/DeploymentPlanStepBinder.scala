@@ -1,6 +1,7 @@
 package com.criteo.perpetuo.dao
 
 import com.criteo.perpetuo.model.{DeploymentPlanStep, ProtoDeploymentPlanStep}
+import com.google.common.annotations.VisibleForTesting
 import spray.json._
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -36,15 +37,18 @@ trait DeploymentPlanStepBinder extends TableBinder {
 
   val deploymentPlanStepQuery = TableQuery[DeploymentPlanStepTable]
 
-  // todo: add tests to cover the retrieval of plan steps from the insertion of full deployment requests, then remove this dummy insertion method
-  def insertDeploymentPlanStep(deploymentRequestId: Long, step: ProtoDeploymentPlanStep): Future[DeploymentPlanStep] = {
+  // todo: add tests to cover the retrieval of plan steps from the insertion of full deployment requests, then remove these methods:
+
+  @VisibleForTesting
+  protected def insertDeploymentPlanStep(deploymentRequestId: Long, step: ProtoDeploymentPlanStep): Future[DeploymentPlanStep] = {
     val record = DeploymentPlanStepRecord(None, deploymentRequestId, step.name, step.targetExpression.compactPrint, step.comment)
     dbContext.db
       .run((deploymentPlanStepQuery returning deploymentPlanStepQuery.map(_.id)) += record)
       .map(id => DeploymentPlanStep(id, deploymentRequestId, step.name, step.targetExpression, step.comment))
   }
 
-  def findDeploymentPlanStepsByRequestId(deploymentRequestId: Long): Future[Seq[DeploymentPlanStep]] =
+  @VisibleForTesting
+  protected def findDeploymentPlanStepsByRequestId(deploymentRequestId: Long): Future[Seq[DeploymentPlanStep]] =
     dbContext.db
       .run(
         deploymentPlanStepQuery
