@@ -193,13 +193,13 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
           if (_)
             Future.failed(Conflict(s"${deploymentRequest.id}: an operation is still running for it"))
           else
-            Future.successful()
+            Future.successful(())
         ),
         dbBinding.isOutdated(deploymentRequest).flatMap(
           if (_)
             Future.failed(Conflict(s"${deploymentRequest.id}: a newer one has already been applied"))
           else
-            Future.successful()
+            Future.successful(())
         )
       ))
       .map(_ => ())
@@ -337,7 +337,7 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
               .flatMap(_ => dbBinding.hasOpenExecutionTracesForOperation(op.id))
               .flatMap(hasOpenExecutions =>
                 if (hasOpenExecutions)
-                  Future.successful()
+                  Future.successful(())
                 else
                   dbBinding.findDeepDeploymentRequestById(op.deploymentRequestId).flatMap(depReq =>
                     closeOperation(op, depReq.get)

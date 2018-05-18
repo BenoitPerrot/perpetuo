@@ -115,6 +115,6 @@ abstract class PluginRunner[P <: Plugin](plugin: P, base: P) {
       )
     }
     catch {
-      case _: Throwable => Future.successful()
+      case _: Throwable => Future.successful(())
     }
 }
