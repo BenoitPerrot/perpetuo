@@ -1,5 +1,11 @@
 package com.criteo.perpetuo.dao
 
+import com.criteo.perpetuo.model.{DeploymentPlan, DeploymentPlanStep, OperationTrace}
+import com.google.common.annotations.VisibleForTesting
+import slick.sql.FixedSqlAction
+
+import scala.concurrent.Future
+
 
 // todo: make it private[dao] again
 case class StepOperationXRefRecord(deploymentPlanStepId: Long,
@@ -24,4 +30,15 @@ trait StepOperationXRefBinder extends TableBinder {
   }
 
   val stepOperationXRefQuery = TableQuery[StepOperationXRefTable]
+
+  def insertStepOperationXRefs(deploymentPlan: DeploymentPlan, operationTrace: OperationTrace): FixedSqlAction[Option[Int], NoStream, Effect.Write] =
+    stepOperationXRefQuery ++= deploymentPlan.steps.map(dps => StepOperationXRefRecord(dps.id, operationTrace.id))
+
+  @VisibleForTesting
+  protected def findStepOperationXRefs(deploymentPlanStep: DeploymentPlanStep): Future[Seq[StepOperationXRefRecord]] =
+    dbContext.db.run(stepOperationXRefQuery.filter(_.deploymentPlanStepId === deploymentPlanStep.id).result)
+
+  @VisibleForTesting
+  protected def findStepOperationXRefs(operationTrace: OperationTrace): Future[Seq[StepOperationXRefRecord]] =
+    dbContext.db.run(stepOperationXRefQuery.filter(_.operationTraceId === operationTrace.id).result)
 }

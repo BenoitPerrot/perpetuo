@@ -1,6 +1,6 @@
 package com.criteo.perpetuo.dao
 
-import com.criteo.perpetuo.model.{DeploymentPlanStep, ProtoDeploymentPlanStep}
+import com.criteo.perpetuo.model.{DeepDeploymentRequest, DeploymentPlan, DeploymentPlanStep, ProtoDeploymentPlanStep}
 import com.google.common.annotations.VisibleForTesting
 import spray.json._
 
@@ -38,7 +38,7 @@ trait DeploymentPlanStepBinder extends TableBinder {
 
   val deploymentPlanStepQuery = TableQuery[DeploymentPlanStepTable]
 
-  // todo: add tests to cover the retrieval of plan steps from the insertion of full deployment requests, then remove these methods:
+  // todo: add tests to cover the retrieval of plan steps from the insertion of full deployment requests, then remove this method:
 
   @VisibleForTesting
   protected def insertDeploymentPlanStep(deploymentRequestId: Long, step: ProtoDeploymentPlanStep): Future[DeploymentPlanStep] = {
@@ -48,12 +48,8 @@ trait DeploymentPlanStepBinder extends TableBinder {
       .map(id => DeploymentPlanStep(id, deploymentRequestId, step.name, step.targetExpression, step.comment))
   }
 
-  @VisibleForTesting
-  protected def findDeploymentPlanStepsByRequestId(deploymentRequestId: Long): Future[Seq[DeploymentPlanStep]] =
+  def findDeploymentPlan(deploymentRequest: DeepDeploymentRequest): Future[DeploymentPlan] =
     dbContext.db
-      .run(
-        deploymentPlanStepQuery
-          .filter(_.deploymentRequestId === deploymentRequestId)
-          .result)
-      .map(_.map(s => DeploymentPlanStep(s.id.get, s.deploymentRequestId, s.name, s.targetExpression.parseJson, s.comment)))
+      .run(deploymentPlanStepQuery.filter(_.deploymentRequestId === deploymentRequest.id).result)
+      .map(steps => DeploymentPlan(deploymentRequest, steps.map(s => DeploymentPlanStep(s.id.get, s.deploymentRequestId, s.name, s.targetExpression.parseJson, s.comment))))
 }

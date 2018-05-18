@@ -29,10 +29,12 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
     // fails afterward and the specification remains unbound.
     // Moreover, this will likely be rewritten eventually for the specifications to be created alongside with the
     // `deploy` operations at the time the deployment request is created.
-    dbBinding.insertExecutionSpecification(specificParameters, deploymentRequest.version).map { spec =>
+    dbBinding.insertExecutionSpecification(specificParameters, deploymentRequest.version).flatMap { spec =>
       val executions = Seq((expandedTarget.getOrElse(deploymentRequest.parsedTarget), spec))
-      val reflectInDb = createRecords(deploymentRequest, Operation.deploy, userName, dispatcher, executions)
-      (reflectInDb, expandedTarget.map(_.flatMap(_.select)))
+      dbBinding.findDeploymentPlan(deploymentRequest).map { plan =>
+        val reflectInDb = createRecords(plan, Operation.deploy, userName, dispatcher, executions)
+        (reflectInDb, expandedTarget.map(_.flatMap(_.select)))
+      }
     }
   }
 
@@ -44,8 +46,10 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
     // todo: map the right target to the right specification
     val expandedTarget = expandTarget(resolver, deploymentRequest.product.name, deploymentRequest.version, deploymentRequest.parsedTarget)
     val executions = executionSpecs.map(spec => (expandedTarget.getOrElse(deploymentRequest.parsedTarget), spec))
-    val reflectInDb = createRecords(deploymentRequest, Operation.deploy, userName, dispatcher, executions)
-    Future.successful((reflectInDb, expandedTarget.map(_.flatMap(_.select))))
+    dbBinding.findDeploymentPlan(deploymentRequest).map { plan =>
+      val reflectInDb = createRecords(plan, Operation.deploy, userName, dispatcher, executions)
+      (reflectInDb, expandedTarget.map(_.flatMap(_.select)))
+    }
   }
 
   def revert(dispatcher: TargetDispatcher,
@@ -70,11 +74,13 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
         else
           Future.successful(determined)
       }
-      .map { groups =>
+      .flatMap { groups =>
         val executions = groups.map { case (spec, targets) => (Set(TargetTerm(select = targets)), spec) }
         val atoms = groups.flatMap { case (_, targets) => targets }
-        val reflectInDb = createRecords(deploymentRequest, Operation.revert, userName, dispatcher, executions, createTargetStatuses = true)
-        (reflectInDb, Some(atoms.toSet))
+        dbBinding.findDeploymentPlan(deploymentRequest).map { plan =>
+          val reflectInDb = createRecords(plan, Operation.revert, userName, dispatcher, executions, createTargetStatuses = true)
+          (reflectInDb, Some(atoms.toSet))
+        }
       }
   }
 
@@ -134,45 +140,47 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
 
   // fixme: type the targets to differentiate atomic from other ones in order to always create atomic targets
   //        instead of taking the boolean as parameter (to be done later, since it's not trivial)
-  private def createRecords(deploymentRequest: DeepDeploymentRequest,
+  private def createRecords(deploymentPlan: DeploymentPlan,
                             operation: Operation.Kind,
                             userName: String,
                             dispatcher: TargetDispatcher,
                             executions: Iterable[(TargetExpr, ExecutionSpecification)],
                             createTargetStatuses: Boolean = false): DBIOAction[(DeepOperationTrace, ExecutionsToTrigger), NoStream, Effect.Read with Effect.Write] =
     dbBinding
-      .insertOperationTrace(deploymentRequest, operation, userName)
+      .insertOperationTrace(deploymentPlan.deploymentRequest, operation, userName)
       .flatMap { newOp =>
         val specAndInvocations = executions.map { case (target, spec) =>
           (spec, dispatch(dispatcher, target, spec.specificParameters).toVector)
         }
-        DBIOAction
-          .sequence( // in sequence to be able to put all these SQL queries in the same transaction
-            specAndInvocations.map { case (spec, invocations) =>
-              dbBinding
-                .insertExecution(newOp.id, spec.id)
-                .flatMap { executionId =>
-                  // create as many traces as needed, all at the same time
-                  val ret = dbBinding.insertExecutionTraces(executionId, invocations.length)
-                  if (createTargetStatuses)
-                    dbBinding
-                      .updateTargetStatuses(
-                        executionId,
-                        invocations
-                          .toStream
-                          .flatMap { case (_, target) => target.toStream.flatMap(_.select) }
-                          .map(_ -> TargetAtomStatus(Status.notDone, "running..."))
-                          // todo: change detail to "pending" when all executors send `running` status codes: DREDD-725
-                          .toMap
-                      )
-                      .flatMap(_ => ret)
-                  else
-                    ret
-                }
-                .map(_.zip(invocations).map { case (execTraceId, (trigger, target)) => (execTraceId, spec.version, target, trigger) })
-            }
-          )
-          .map(effects => (newOp, effects.flatten))
+        dbBinding.insertStepOperationXRefs(deploymentPlan, newOp).flatMap(_ =>
+          DBIOAction
+            .sequence( // in sequence to be able to put all these SQL queries in the same transaction
+              specAndInvocations.map { case (spec, invocations) =>
+                dbBinding
+                  .insertExecution(newOp.id, spec.id)
+                  .flatMap { executionId =>
+                    // create as many traces as needed, all at the same time
+                    val ret = dbBinding.insertExecutionTraces(executionId, invocations.length)
+                    if (createTargetStatuses)
+                      dbBinding
+                        .updateTargetStatuses(
+                          executionId,
+                          invocations
+                            .toStream
+                            .flatMap { case (_, target) => target.toStream.flatMap(_.select) }
+                            .map(_ -> TargetAtomStatus(Status.notDone, "running..."))
+                            // todo: change detail to "pending" when all executors send `running` status codes: DREDD-725
+                            .toMap
+                        )
+                        .flatMap(_ => ret)
+                    else
+                      ret
+                  }
+                  .map(_.zip(invocations).map { case (execTraceId, (trigger, target)) => (execTraceId, spec.version, target, trigger) })
+              }
+            )
+            .map(effects => (newOp, effects.flatten))
+        )
       }
 
   private[engine] def dispatch(dispatcher: TargetDispatcher, expandedTarget: TargetExpr, frozenParameters: String): Iterable[(ExecutionTrigger, TargetExpr)] =
