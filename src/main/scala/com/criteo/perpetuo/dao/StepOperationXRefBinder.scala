@@ -1,8 +1,9 @@
 package com.criteo.perpetuo.dao
 
 
-private[dao] case class StepOperationXRefRecord(deploymentPlanStepId: Long,
-                                                operationTraceId: Long)
+// todo: make it private[dao] again
+case class StepOperationXRefRecord(deploymentPlanStepId: Long,
+                                   operationTraceId: Long)
 
 
 trait StepOperationXRefBinder extends TableBinder {
