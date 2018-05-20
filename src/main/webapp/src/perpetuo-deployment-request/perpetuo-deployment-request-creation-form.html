@@ -38,12 +38,6 @@
       color: hsl(0,0%,40%);
     }
 
-    #productSelectionStep, #versionSelectionStep {
-      --perpetuo-step-header: {
-        align-items: flex-end;
-      }
-    }
-
     h1 {
       margin: 0;
       padding-top: 24px;
@@ -59,16 +53,16 @@
       <paper-dialog-scrollable>
         <perpetuo-stepper id="stepper" on-stepper-cancelled="onStepperCancelled" on-stepper-completed="onStepperCompleted">
 
-          <perpetuo-step id="productSelectionStep" complete-label="Continue" no-cancel-button
+          <perpetuo-step id="productSelectionStep" label="Select Product" complete-label="Continue" no-cancel-button
                          on-step-enter="onProductSelectionStepEnter" on-step-leave="onProductSelectionStepLeave"
                          complete-disabled="[[!selectedProductName]]">
-            <perpetuo-deployment-request-product-selector slot="header" id="productSelector"
+            <perpetuo-deployment-request-product-selector slot="content" id="productSelector"
                                                           products="[[products]]" selected-product-name="{{selectedProductName}}"></perpetuo-deployment-request-product-selector>
           </perpetuo-step>
 
-          <perpetuo-step id="versionSelectionStep" complete-label="Continue" cancel-label="Back"
+          <perpetuo-step id="versionSelectionStep" label="Select Version" complete-label="Continue" cancel-label="Back"
                          on-step-enter="onVersionSelectionStepEnter" on-step-leave="onVersionSelectionStepLeave">
-            <perpetuo-deployment-request-version-selector slot="header" id="versionSelector"
+            <perpetuo-deployment-request-version-selector slot="content" id="versionSelector"
                                                           product-name="[[selectedProductName]]" selected-version="{{selectedVersion}}"></perpetuo-deployment-request-version-selector>
           </perpetuo-step>
 
