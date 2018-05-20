@@ -7,7 +7,6 @@
 
 <link rel="import" href="../perpetuo-app/perpetuo-app-toolbar.html">
 <link rel="import" href="../perpetuo-client/perpetuo-client.html">
-<link rel="import" href="../perpetuo-deployment-request/perpetuo-deployment-request-creation-form.html">
 <link rel="import" href="../perpetuo-deployment-request/perpetuo-deployment-request-entry.html">
 <link rel="import" href="../perpetuo-identity/perpetuo-identity.html">
 <link rel="import" href="../perpetuo-list-editor/perpetuo-list-editor.html">
@@ -85,7 +84,7 @@
         <div class="state"></div>
       </div>
     </div>
-    <paper-fab icon="add" style="position:fixed; left: 20px; top: 105px; background: #ff8f1c;" on-tap="onCreateTap"></paper-fab>
+    <a href="/deployment-requests/new"><paper-fab icon="add" style="position:fixed; left: 20px; top: 105px; background: #ff8f1c;"></paper-fab></a>
     <perpetuo-paging page-sizes="[20,50,100]" page-size="{{deploymentRequestLimit}}"
                      page="{{page}}" is-last-page="[[!hasNextPage]]"
                      offset="{{deploymentRequestOffset}}"
@@ -96,8 +95,6 @@
         <perpetuo-deployment-request-entry data="[[item]]" expanded="[[isEntryExpanded(item.id)]]" on-expanded-changed="onEntryExpandedChanged"></perpetuo-deployment-request-entry>
       </template>
     </perpetuo-paging>
-
-    <perpetuo-deployment-request-creation-form id="creationForm"></perpetuo-deployment-request-creation-form>
 
   </template>
   <script>
@@ -207,16 +204,6 @@
       onPageChanged() {
         this.hasNextPage = false; // Assume no more page
         this.refresh();
-      }
-
-      onCreateTap() {
-        if (this.login) {
-          const creationForm = this.$.creationForm;
-          this.client.fetchProducts().then(products => { creationForm.products = products; });
-          creationForm.open();
-        } else {
-          this.$.identity.request();
-        }
       }
     }
 

@@ -8,6 +8,7 @@
 <link rel="import" href="../perpetuo-client/perpetuo-client.html">
 <link rel="import" href="../perpetuo-identity/perpetuo-identity.html">
 <link rel="import" href="../perpetuo-deployment-request/perpetuo-deployment-request.html">
+<link rel="import" href="../perpetuo-deployment-request/perpetuo-deployment-request-creation-page.html">
 <link rel="import" href="../perpetuo-deployment-request/perpetuo-deployment-request-table.html">
 <link rel="import" href="../perpetuo-product/perpetuo-products-page.html">
 
@@ -25,6 +26,7 @@
 
     <iron-pages id="pageSelector" selected="[[selectPage(route)]]" attr-for-selected="page-route" selected-attribute="active" on-drawer-toggle-tap="toggleDrawer">
       <perpetuo-deployment-request-table page-route="/deployment-requests"></perpetuo-deployment-request-table>
+      <perpetuo-deployment-request-creation-page page-route="/deployment-requests/new" deployment-request-id="[[routeData.id]]"></perpetuo-deployment-request-creation-page>
       <perpetuo-deployment-request page-route="/deployment-requests/:id" deployment-request-id="[[routeData.id]]"></perpetuo-deployment-request>
       <perpetuo-products-page page-route="/products"></perpetuo-products-page>
     </iron-pages>
@@ -76,6 +78,12 @@
               const id = match[1];
               this.routeData = { id: id };
               return '/deployment-requests/:id';
+            }
+          },
+          {
+            re: new RegExp('^/deployment-requests/new$'),
+            f: (match) => {
+              return '/deployment-requests/new';
             }
           },
           {

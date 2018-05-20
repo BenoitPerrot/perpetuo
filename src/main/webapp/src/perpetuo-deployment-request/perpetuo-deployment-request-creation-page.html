@@ -1,9 +1,10 @@
 <link rel="import" href="../../bower_components/polymer/polymer.html">
 
-<link rel="import" href="../../bower_components/paper-button/paper-button.html">
-<link rel="import" href="../../bower_components/paper-dialog/paper-dialog.html">
-<link rel="import" href="../../bower_components/paper-dialog-scrollable/paper-dialog-scrollable.html">
+<link rel="import" href="../../bower_components/iron-icons/iron-icons.html">
+<link rel="import" href="../../bower_components/paper-icon-button/paper-icon-button.html">
 
+<link rel="import" href="../perpetuo-app/perpetuo-app-toolbar.html">
+<link rel="import" href="../perpetuo-client/perpetuo-client.html">
 <link rel="import" href="../perpetuo-deployment-request/perpetuo-deployment-request-comment-editor.html">
 <link rel="import" href="../perpetuo-deployment-request/perpetuo-deployment-request-creation-error.html">
 <link rel="import" href="../perpetuo-deployment-request/perpetuo-deployment-request-creator.html">
@@ -13,45 +14,29 @@
 <link rel="import" href="../perpetuo-stepper/perpetuo-step.html">
 <link rel="import" href="../perpetuo-stepper/perpetuo-stepper.html">
 
-<dom-module id="perpetuo-deployment-request-creation-form">
+<dom-module id="perpetuo-deployment-request-creation-page">
   <template>
     <style>
     :host {
-      display: block;
-      top: 0;
-    }
-
-    #dialog {
-      top: 0;
       display: flex;
       flex-direction: column;
-      width: 75%;
-      max-width: 1000px;
     }
 
-    paper-button:not([disabled]).blue {
-      background: #0086b2;
-      color: #fff;
-    }
-    paper-button:not([disabled]).white {
-      background-color: #fff;
-      color: hsl(0,0%,40%);
-    }
-
-    h1 {
-      margin: 0;
-      padding-top: 24px;
-      min-height: 40px;
-      background-color: #0086b2;
-      color: #fff;
-      font-size: 22px;
-      font-weight: 100;
+    #stepper {
+      flex: 1;
+      width: 50%;
+      margin-left: 64px;
     }
     </style>
-    <paper-dialog id="dialog" with-backdrop on-opened-changed="clear">
-      <h1>New Deployment Request</h1>
-      <paper-dialog-scrollable>
-    <perpetuo-stepper id="stepper" on-stepper-cancelled="onStepperCancelled" on-stepper-completed="onStepperCompleted">
+
+    <perpetuo-app-toolbar>
+      <div slot="title" style="display: flex; align-items: center;">
+        <a href="/deployment-requests"><paper-icon-button icon="arrow-back" style="color:#fff"></paper-icon-button></a>
+        <span style="margin-left: 20px;">New Deployment Request</span>
+      </div>
+    </perpetuo-app-toolbar>
+
+    <perpetuo-stepper id="stepper" on-stepper-completed="onStepperCompleted">
 
       <perpetuo-step id="productSelectionStep" label="Select Product" complete-label="Continue" no-cancel-button
                      on-step-enter="onProductSelectionStepEnter" on-step-leave="onProductSelectionStepLeave"
@@ -72,32 +57,41 @@
 
       <perpetuo-step label="Comment"
                      cancel-label="Back" active="{{commentStepActive}}"
-                     on-step-enter="onCommentStepEnter" on-step-leave="onCommentStepLeave" no-complete-button>
+                     complete-label="Create">
         <perpetuo-deployment-request-comment-editor slot="content" id="commentEditor"></perpetuo-deployment-request-comment-editor>
       </perpetuo-step>
-
     </perpetuo-stepper>
-      </paper-dialog-scrollable>
-
-      <div class="buttons">
-        <paper-button id="create" class="blue" on-tap="create" disabled>Create</paper-button>
-        <paper-button id="cancel" class="white" dialog-dismiss>Cancel</paper-button>
-      </div>
-    </paper-dialog>
 
     <perpetuo-deployment-request-creation-error id="errorDialog"></perpetuo-deployment-request-creation-error>
   </template>
   <script>
   (function () {
-    class PerpetuoDeploymentRequestCreationForm extends Polymer.Element {
-      static get is() { return 'perpetuo-deployment-request-creation-form'; }
+    class PerpetuoDeploymentRequestCreationPage extends Polymer.Element {
+      static get is() { return 'perpetuo-deployment-request-creation-page'; }
 
       static get properties() {
         return {
+          login: String,
+          active: {type: Boolean, observer: 'onActiveChanged'},
           products: { type: Array, value: () => [] },
           selectedProductName: { type: String, observer: 'onSelectedProductNameChanged'},
           selectedVersion: String
         };
+      }
+
+      onActiveChanged() {
+        if (this.active) {
+          this.client.fetchIdentity()
+              .then(login => {
+                if (login) {
+                  this.login = login;
+                } else {
+                  this.client.redirectToAuthorizeURL(window);
+                }
+              })
+          this.client.fetchProducts()
+              .then(products => { this.products = products; });
+        }
       }
 
       onProductSelectionStepEnter(e) {
@@ -116,14 +110,6 @@
         this.$.versionSelector.disabled = true;
       }
 
-      onCommentStepEnter(e) {
-        this.$.create.disabled = false;
-      }
-
-      onCommentStepLeave(e) {
-        this.$.create.disabled = true;
-      }
-
       onSelectedProductNameChanged(name) {
         this.$.versionSelector.clear();
         if (name) {
@@ -133,6 +119,7 @@
 
       constructor() {
         super();
+        this.client = new Perpetuo.Criteo.Client();
       }
 
       onStepperCancelled() {
@@ -143,16 +130,8 @@
         this.create();
       }
 
-      open() {
-        this.$.dialog.open();
-      }
-
-      close() {
-        this.$.dialog.close();
-      }
-
       create() {
-        this.$.create.disabled = true;
+        this.$.commentEditor.disabled = true;
         new Perpetuo.DeploymentRequestCreator()
                     .create(this.selectedProductName,
                             this.selectedVersion,
@@ -184,7 +163,7 @@
       }
     }
 
-    customElements.define(PerpetuoDeploymentRequestCreationForm.is, PerpetuoDeploymentRequestCreationForm);
+    customElements.define(PerpetuoDeploymentRequestCreationPage.is, PerpetuoDeploymentRequestCreationPage);
   } ());
   </script>
 </dom-module>
