@@ -39,4 +39,20 @@ class DeploymentRequestParserSpec extends Test {
     )).compactPrint, "u.ser")
   }
 
+  test("DeploymentRequestParser parses deployment plans") {
+    DeploymentRequestParser.parse(ToJsonAlias.deepToJson(
+      Map(
+        "productName" -> "rejex",
+        "version" -> "1",
+        "plan" -> Seq(
+          Map(
+            "name" -> "Worldwide",
+            "target" -> "*"
+          )
+        )
+      )
+    ).compactPrint, "").plan shouldBe Seq(
+      ProtoDeploymentPlanStep("Worldwide", JsString("*"), "")
+    )
+  }
 }

@@ -1,9 +1,8 @@
 package com.criteo.perpetuo.util.json
 
-import spray.json.JsonParser.ParsingException
-import spray.json.{JsObject, JsString, JsValue}
+import spray.json.{JsArray, JsObject, JsString, JsValue}
 
-case class JsObjectScanner(o: JsObject, path: Seq[String]) {
+case class JsObjectScanner(o: JsObject, path: Seq[String]) extends JsValueScanner {
   def get(key: String): JsValue =
     o.fields.getOrElse(key, reportMissing(key))
 
@@ -14,9 +13,9 @@ case class JsObjectScanner(o: JsObject, path: Seq[String]) {
       case Some(unknown) => reportWrongType(key, "a string", s"$unknown (${unknown.getClass.getSimpleName})")
     }
 
-  private def reportMissing(key: String) =
-    throw new ParsingException(s"${path.mkString(".")}: while required, no field named `$key` could be found")
-
-  private def reportWrongType(key: String, expecting: String, encountered: String) =
-    throw new ParsingException(s"${(path :+ key).mkString(".")}: while expecting $expecting, encountered $encountered")
+  def getArray(key: String): JsArrayScanner =
+    get(key) match {
+      case a: JsArray => JsArrayScanner(a, path :+ key)
+      case unknown => reportWrongType(key, "an array", s"$unknown (${unknown.getClass.getSimpleName})")
+    }
 }

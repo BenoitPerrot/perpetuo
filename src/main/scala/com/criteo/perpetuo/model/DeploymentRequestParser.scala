@@ -15,11 +15,18 @@ object DeploymentRequestParser {
         if (productName.contains("'")) // fixme: as long as we have Rundeck API 16, but maybe we should configure a validator in plugins
           throw new ParsingException("Single quotes are not supported in product names")
         val version = Version(scanner.get("version"))
-        val targetExpr = scanner.get("target")
+        val plan =
+          // TODO: remove once clients have migrated <<
+          body.fields
+            .get("target")
+            .map(targetExpr => Seq(ProtoDeploymentPlanStep("", targetExpr, "")))
+            .getOrElse( // >>
+              scanner.getArray("plan").map(parsePlanStep)
+            )
         val protoDeploymentRequest = ProtoDeploymentRequest(
           productName,
           version,
-          Seq(ProtoDeploymentPlanStep("", targetExpr, "")),
+          plan,
           scanner.getString("comment", Some("")),
           userName
         )
@@ -75,4 +82,11 @@ object DeploymentRequestParser {
         case unknown => throw new ParsingException(s"Expected `$selectKey` to be a non-empty JSON string or array, got: $unknown")
       }.getOrElse(throw new ParsingException(s"`target` must contain a field `$selectKey`"))
     )
+
+  private def parsePlanStep(step: JsObjectScanner): ProtoDeploymentPlanStep = {
+    val name = step.getString("name", Some(""))
+    val targetExpr = step.get("target")
+    val comment = step.getString("comment", Some(""))
+    ProtoDeploymentPlanStep(name, targetExpr, comment)
+  }
 }
