@@ -9,8 +9,8 @@ this.Perpetuo = this.Perpetuo || {};
 this.Perpetuo.DeploymentRequestCreator = this.Perpetuo.DeploymentRequestCreator || (function () {
   'use strict';
   return class DeploymentRequestCreator {
-    create(productName, version, target, comment) {
-      return new Perpetuo.Client().createDeploymentRequest(productName, version, target, comment);
+    create(productName, version, plan, comment) {
+      return new Perpetuo.Client().createDeploymentRequest(productName, version, plan, comment);
     }
   };
 }());

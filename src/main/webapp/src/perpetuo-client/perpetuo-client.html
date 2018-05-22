@@ -76,13 +76,13 @@ this.Perpetuo.Client = this.Perpetuo.Client || (function () {
         });
     }
 
-    createDeploymentRequest(productName, version, target, comment) {
+    createDeploymentRequest(productName, version, plan, comment) {
       return jsonFetch('/api/deployment-requests', {
         method: 'POST',
         body: JSON.stringify({
           productName: productName,
           version: version,
-          target: target,
+          plan: plan,
           comment: comment
         })
       });
