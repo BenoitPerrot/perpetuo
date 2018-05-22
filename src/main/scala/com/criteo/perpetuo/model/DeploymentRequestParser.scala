@@ -1,6 +1,7 @@
 package com.criteo.perpetuo.model
 
 import com.criteo.perpetuo.engine.{Tactics, TargetExpr, TargetTerm}
+import com.criteo.perpetuo.util.json.JsObjectScanner
 import spray.json.JsonParser.ParsingException
 import spray.json._
 
@@ -9,24 +10,17 @@ object DeploymentRequestParser {
   def parse(jsonInput: String, userName: String): ProtoDeploymentRequest =
     jsonInput.parseJson match {
       case body: JsObject =>
-        val fields = body.fields
-        def read(key: String): JsValue = fields.getOrElse(key, missing(key))
-        def readStr(key: String, default: Option[String] = None): String = fields.get(key) match {
-          case Some(JsString(string)) => string
-          case None => default.getOrElse(missing(key))
-          case Some(unknown) => throw new ParsingException(s"Expected a string as $key, got: $unknown (${unknown.getClass.getSimpleName})")
-        }
-
-        val productName = readStr("productName")
+        val scanner = JsObjectScanner(body, Seq("(deployment request)"))
+        val productName = scanner.getString("productName")
         if (productName.contains("'")) // fixme: as long as we have Rundeck API 16, but maybe we should configure a validator in plugins
           throw new ParsingException("Single quotes are not supported in product names")
-        val version = Version(read("version"))
-        val targetExpr = read("target")
+        val version = Version(scanner.get("version"))
+        val targetExpr = scanner.get("target")
         val protoDeploymentRequest = ProtoDeploymentRequest(
           productName,
           version,
           Seq(ProtoDeploymentPlanStep("", targetExpr, "")),
-          readStr("comment", Some("")),
+          scanner.getString("comment", Some("")),
           userName
         )
         protoDeploymentRequest.parsedTarget // validate the target
@@ -38,8 +32,6 @@ object DeploymentRequestParser {
 
   private val tacticsKey = "tactics"
   private val selectKey = "select"
-
-  private def missing(key: String) = throw new ParsingException(s"Expected to find `$key` at request root")
 
   def parseTargetExpression(target: JsValue): TargetExpr = {
     val whereTacticsIsOptional: Set[(Option[Tactics], Set[JsString])] = target match {

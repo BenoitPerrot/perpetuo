@@ -21,7 +21,7 @@ class DeploymentRequestParserSpec extends Test {
       DeploymentRequestParser.parse(ToJsonAlias.deepToJson(Map(
         "foo" -> "bar"
       )).compactPrint, "")
-    }.getMessage shouldBe "Expected to find `productName` at request root"
+    }.getMessage shouldBe "(deployment request): while required, no field named `productName` could be found"
   }
 
   test("DeploymentRequestParser parses deployment requests") {
