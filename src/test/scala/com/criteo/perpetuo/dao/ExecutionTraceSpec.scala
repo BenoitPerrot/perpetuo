@@ -36,7 +36,7 @@ class ExecutionTraceSpec
     Await.result(
       for {
         product <- insertProductIfNotExists("perpetuo-app")
-        request <- insertDeploymentRequest(new DeploymentRequestAttrs(product.name, Version("\"v42\""), Seq(ProtoDeploymentPlanStep("", JsString("*"), "")), "No fear", "c.norris"))
+        request <- insertDeploymentRequest(DeploymentRequestAttrs(product.name, Version("\"v42\""), Seq(ProtoDeploymentPlanStep("", JsString("*"), "")), "No fear", "c.norris"))
         deployOperationTrace <- dbContext.db.run(insertOperationTrace(request, Operation.deploy, "c.norris"))
         execSpec <- insertExecutionSpecification("{}", Version("\"456\""))
         execId <- dbContext.db.run(insertExecution(deployOperationTrace.id, execSpec.id))

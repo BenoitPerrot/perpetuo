@@ -37,7 +37,7 @@ class OperationTraceSpec
     Await.result(
       for {
         product <- insertProductIfNotExists("perpetuo-app")
-        request <- insertDeploymentRequest(new DeploymentRequestAttrs(product.name, Version("\"v42\""), Seq(ProtoDeploymentPlanStep("", JsString("*"), "")), "No fear", "c.norris"))
+        request <- insertDeploymentRequest(DeploymentRequestAttrs(product.name, Version("\"v42\""), Seq(ProtoDeploymentPlanStep("", JsString("*"), "")), "No fear", "c.norris"))
         deployOperationTrace <- dbContext.db.run(insertOperationTrace(request, Operation.deploy, "c.norris"))
         revertOperationTrace <- dbContext.db.run(insertOperationTrace(request, Operation.revert, "c.norris"))
         traces <- dbContext.db.run(operationTraceQuery.result)

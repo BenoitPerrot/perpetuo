@@ -39,12 +39,12 @@ trait DeploymentRequest extends ParsedTarget {
 }
 
 
-class DeploymentRequestAttrs(val productName: String,
-                             val version: Version,
-                             val plan: Seq[ProtoDeploymentPlanStep],
-                             val comment: String,
-                             val creator: String,
-                             val creationDate: java.sql.Timestamp = new java.sql.Timestamp(System.currentTimeMillis)) extends ParsedTarget {
+case class DeploymentRequestAttrs(productName: String,
+                                  version: Version,
+                                  plan: Seq[ProtoDeploymentPlanStep],
+                                  comment: String,
+                                  creator: String,
+                                  creationDate: java.sql.Timestamp = new java.sql.Timestamp(System.currentTimeMillis)) extends ParsedTarget {
   val target: String = {
     assert(plan.size == 1) // TODO: remove once migration complete
     plan.head.targetExpression.compactPrint

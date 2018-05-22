@@ -26,7 +26,7 @@ class DeploymentPlanStepSpec
     Await.result(
       for {
         product <- insertProductIfNotExists("humanity")
-        deploymentRequest <- insertDeploymentRequest(new DeploymentRequestAttrs(product.name, Version("\"v1\""), Seq(ProtoDeploymentPlanStep("Africa", JsArray(JsString("af")), "")), "", "f.sm"))
+        deploymentRequest <- insertDeploymentRequest(DeploymentRequestAttrs(product.name, Version("\"v1\""), Seq(ProtoDeploymentPlanStep("Africa", JsArray(JsString("af")), "")), "", "f.sm"))
         _ <- insertDeploymentPlanStep(deploymentRequest.id, ProtoDeploymentPlanStep("Eurasia", JsArray(JsString("eu"), JsString("as")), ""))
         _ <- insertDeploymentPlanStep(deploymentRequest.id, ProtoDeploymentPlanStep("America", JsArray(JsString("am")), ""))
         plan <- findDeploymentPlan(deploymentRequest)

@@ -28,7 +28,7 @@ class DeploymentRequestSpec
     Await.result(
       for {
         product <- insertProductIfNotExists("perpetuo-app")
-        request <- insertDeploymentRequest(new DeploymentRequestAttrs(product.name, Version("\"v42\""), Seq(ProtoDeploymentPlanStep("", JsString("*"), "")), "No fear", "c.norris"))
+        request <- insertDeploymentRequest(DeploymentRequestAttrs(product.name, Version("\"v42\""), Seq(ProtoDeploymentPlanStep("", JsString("*"), "")), "No fear", "c.norris"))
         requests <- dbContext.db.run(deploymentRequestQuery.result)
         lookup <- findDeepDeploymentRequestById(request.id)
       } yield {

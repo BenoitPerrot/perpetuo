@@ -22,7 +22,7 @@ object DeploymentRequestParser {
           throw new ParsingException("Single quotes are not supported in product names")
         val version = Version(read("version"))
         val targetExpr = read("target")
-        val attrs = new DeploymentRequestAttrs(
+        val attrs = DeploymentRequestAttrs(
           productName,
           version,
           Seq(ProtoDeploymentPlanStep("", targetExpr, "")),
