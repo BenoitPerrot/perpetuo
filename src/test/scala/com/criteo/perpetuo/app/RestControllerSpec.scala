@@ -3,7 +3,7 @@ package com.criteo.perpetuo.app
 import com.criteo.perpetuo.TestDb
 import com.criteo.perpetuo.auth.{User, UserFilter}
 import com.criteo.perpetuo.config.AppConfigProvider
-import com.criteo.perpetuo.model.{DeploymentRequestAttrs, ProtoDeploymentPlanStep, Version}
+import com.criteo.perpetuo.model.{ProtoDeploymentRequest, ProtoDeploymentPlanStep, Version}
 import com.twitter.finagle.http.Status._
 import com.twitter.finagle.http.{Request, Response, Status}
 import com.twitter.finatra.http.filters.{LoggingMDCFilter, TraceIdMDCFilter}
@@ -385,8 +385,8 @@ class RestControllerSpec extends Test with TestDb {
   }
 
   test("The ExecutionTrace's entry-point doesn't fail when the existing DeploymentRequest doesn't have execution traces yet") {
-    val attrs = DeploymentRequestAttrs("my product", Version("\"v\""), Seq(ProtoDeploymentPlanStep("", JsString("t"), "")), "c", "c")
-    val depReq = Await.result(controller.engine.crankshaft.createDeploymentRequest(attrs), 1.second)
+    val protoDeploymentRequest = ProtoDeploymentRequest("my product", Version("\"v\""), Seq(ProtoDeploymentPlanStep("", JsString("t"), "")), "c", "c")
+    val depReq = Await.result(controller.engine.crankshaft.createDeploymentRequest(protoDeploymentRequest), 1.second)
     val traces = getExecutionTracesByDeploymentRequestId(depReq.id.toString).elements
     traces shouldBe empty
   }

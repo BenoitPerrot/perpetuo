@@ -50,24 +50,24 @@ trait DeploymentRequestInserter
 
   import dbContext.profile.api._
 
-  def insertDeploymentRequest(d: DeploymentRequestAttrs): Future[DeepDeploymentRequest] = {
-    findProductByName(d.productName).map(_.getOrElse {
-      throw UnprocessableIntent(s"Unknown product `${d.productName}`")
+  def insertDeploymentRequest(r: ProtoDeploymentRequest): Future[DeepDeploymentRequest] = {
+    findProductByName(r.productName).map(_.getOrElse {
+      throw UnprocessableIntent(s"Unknown product `${r.productName}`")
     }).flatMap { product =>
       val q = (for {
         deploymentRequestId <-
           deploymentRequestQuery.returning(deploymentRequestQuery.map(_.id)) +=
-            DeploymentRequestRecord(None, product.id, d.version, d.target, d.comment, d.creator, d.creationDate)
+            DeploymentRequestRecord(None, product.id, r.version, r.target, r.comment, r.creator, r.creationDate)
         _ <-
           deploymentPlanStepQuery ++=
-            d.plan.map(step =>
+            r.plan.map(step =>
               DeploymentPlanStepRecord(None, deploymentRequestId, step.name, step.targetExpression.compactPrint, step.comment)
             )
       } yield deploymentRequestId).transactionally
 
       dbContext.db.run(q).map { id =>
-        val ret = DeepDeploymentRequest(id, product, d.version, d.target, d.comment, d.creator, d.creationDate)
-        ret.copyParsedTargetCacheFrom(d)
+        val ret = DeepDeploymentRequest(id, product, r.version, r.target, r.comment, r.creator, r.creationDate)
+        ret.copyParsedTargetCacheFrom(r)
         ret
       }
     }

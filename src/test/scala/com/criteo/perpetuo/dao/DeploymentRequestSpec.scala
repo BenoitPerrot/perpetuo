@@ -1,7 +1,7 @@
 package com.criteo.perpetuo.dao
 
 import com.criteo.perpetuo.TestDb
-import com.criteo.perpetuo.model.{DeploymentRequestAttrs, ProtoDeploymentPlanStep, Version}
+import com.criteo.perpetuo.model.{ProtoDeploymentRequest, ProtoDeploymentPlanStep, Version}
 import org.junit.runner.RunWith
 import org.scalatest.FunSuite
 import org.scalatest.concurrent._
@@ -28,7 +28,7 @@ class DeploymentRequestSpec
     Await.result(
       for {
         product <- insertProductIfNotExists("perpetuo-app")
-        request <- insertDeploymentRequest(DeploymentRequestAttrs(product.name, Version("\"v42\""), Seq(ProtoDeploymentPlanStep("", JsString("*"), "")), "No fear", "c.norris"))
+        request <- insertDeploymentRequest(ProtoDeploymentRequest(product.name, Version("\"v42\""), Seq(ProtoDeploymentPlanStep("", JsString("*"), "")), "No fear", "c.norris"))
         requests <- dbContext.db.run(deploymentRequestQuery.result)
         lookup <- findDeepDeploymentRequestById(request.id)
       } yield {

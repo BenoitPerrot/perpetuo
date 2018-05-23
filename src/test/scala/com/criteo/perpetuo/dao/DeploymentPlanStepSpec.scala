@@ -1,7 +1,7 @@
 package com.criteo.perpetuo.dao
 
 import com.criteo.perpetuo.TestDb
-import com.criteo.perpetuo.model.{DeploymentRequestAttrs, ProtoDeploymentPlanStep, Version}
+import com.criteo.perpetuo.model.{ProtoDeploymentRequest, ProtoDeploymentPlanStep, Version}
 import com.twitter.inject.Test
 import org.junit.runner.RunWith
 import org.scalatest.concurrent._
@@ -26,7 +26,7 @@ class DeploymentPlanStepSpec
     Await.result(
       for {
         product <- insertProductIfNotExists("humanity")
-        deploymentRequest <- insertDeploymentRequest(DeploymentRequestAttrs(product.name, Version("\"v1\""), Seq(ProtoDeploymentPlanStep("Africa", JsArray(JsString("af")), "")), "", "f.sm"))
+        deploymentRequest <- insertDeploymentRequest(ProtoDeploymentRequest(product.name, Version("\"v1\""), Seq(ProtoDeploymentPlanStep("Africa", JsArray(JsString("af")), "")), "", "f.sm"))
         _ <- insertDeploymentPlanStep(deploymentRequest.id, ProtoDeploymentPlanStep("Eurasia", JsArray(JsString("eu"), JsString("as")), ""))
         _ <- insertDeploymentPlanStep(deploymentRequest.id, ProtoDeploymentPlanStep("America", JsArray(JsString("am")), ""))
         plan <- findDeploymentPlan(deploymentRequest)

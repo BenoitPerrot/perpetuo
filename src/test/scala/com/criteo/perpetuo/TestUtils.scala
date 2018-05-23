@@ -87,10 +87,10 @@ trait SimpleScenarioTesting extends Test with TestDb with MockitoSugar {
     if (!lastDeploymentRequests.contains(productName))
       await(crankshaft.insertProductIfNotExists(productName))
 
-    val attrs = DeploymentRequestAttrs(productName, Version(version.toJson), Seq(ProtoDeploymentPlanStep("1", target.toJson, "")), "", "de.ployer")
+    val protoDeploymentRequest = ProtoDeploymentRequest(productName, Version(version.toJson), Seq(ProtoDeploymentPlanStep("1", target.toJson, "")), "", "de.ployer")
     await {
       for {
-        depReq <- crankshaft.createDeploymentRequest(attrs).map { depReq =>
+        depReq <- crankshaft.createDeploymentRequest(protoDeploymentRequest).map { depReq =>
           lastDeploymentRequests(productName) = depReq
           depReq
         }

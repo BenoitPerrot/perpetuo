@@ -82,16 +82,16 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
   def findDeepDeploymentRequestById(deploymentRequestId: Long): Future[Option[DeepDeploymentRequest]] =
     dbBinding.findDeepDeploymentRequestById(deploymentRequestId)
 
-  def createDeploymentRequest(attrs: DeploymentRequestAttrs): Future[DeepDeploymentRequest] =
+  def createDeploymentRequest(protoDeploymentRequest: ProtoDeploymentRequest): Future[DeepDeploymentRequest] =
     Future
-      .sequence(listeners.map(_.onCreatingDeploymentRequest(attrs)))
+      .sequence(listeners.map(_.onCreatingDeploymentRequest(protoDeploymentRequest)))
       .flatMap { _ =>
         // todo: replace that by the creation of all the related records when the first deploy operation will be created simultaneously
-        targetDispatcher.freezeParameters(attrs.productName, attrs.version)
-        operationStarter.expandTarget(targetResolver, attrs.productName, attrs.version, attrs.parsedTarget)
+        targetDispatcher.freezeParameters(protoDeploymentRequest.productName, protoDeploymentRequest.version)
+        operationStarter.expandTarget(targetResolver, protoDeploymentRequest.productName, protoDeploymentRequest.version, protoDeploymentRequest.parsedTarget)
 
         dbBinding
-          .insertDeploymentRequest(attrs)
+          .insertDeploymentRequest(protoDeploymentRequest)
           .map { deploymentRequest =>
             Future.sequence(listeners.map(_.onDeploymentRequestCreated(deploymentRequest)))
             deploymentRequest

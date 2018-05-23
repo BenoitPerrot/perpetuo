@@ -39,7 +39,7 @@ trait DeploymentRequest extends ParsedTarget {
 }
 
 
-case class DeploymentRequestAttrs(productName: String,
+case class ProtoDeploymentRequest(productName: String,
                                   version: Version,
                                   plan: Seq[ProtoDeploymentPlanStep],
                                   comment: String,

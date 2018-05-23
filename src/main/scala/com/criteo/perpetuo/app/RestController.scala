@@ -108,8 +108,8 @@ class RestController @Inject()(val engine: Engine)
   post("/api/deployment-requests") { r: Request =>
     authenticate(r) { case user =>
       val (allAttrs, targets) = try {
-        val attrs = DeploymentRequestParser.parse(r.contentString, user.name)
-        (attrs, attrs.parsedTarget.select)
+        val protoDeploymentRequest = DeploymentRequestParser.parse(r.contentString, user.name)
+        (protoDeploymentRequest, protoDeploymentRequest.parsedTarget.select)
       } catch {
         case e: ParsingException => throw BadRequestException(e.getMessage)
       }

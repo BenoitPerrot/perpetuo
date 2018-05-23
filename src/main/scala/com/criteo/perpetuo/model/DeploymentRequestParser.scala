@@ -6,7 +6,7 @@ import spray.json._
 
 
 object DeploymentRequestParser {
-  def parse(jsonInput: String, userName: String): DeploymentRequestAttrs =
+  def parse(jsonInput: String, userName: String): ProtoDeploymentRequest =
     jsonInput.parseJson match {
       case body: JsObject =>
         val fields = body.fields
@@ -22,16 +22,16 @@ object DeploymentRequestParser {
           throw new ParsingException("Single quotes are not supported in product names")
         val version = Version(read("version"))
         val targetExpr = read("target")
-        val attrs = DeploymentRequestAttrs(
+        val protoDeploymentRequest = ProtoDeploymentRequest(
           productName,
           version,
           Seq(ProtoDeploymentPlanStep("", targetExpr, "")),
           readStr("comment", Some("")),
           userName
         )
-        attrs.parsedTarget // validate the target
+        protoDeploymentRequest.parsedTarget // validate the target
 
-        attrs
+        protoDeploymentRequest
 
       case unknown => throw new ParsingException(s"Expected a JSON object as request body, got: $unknown")
     }
