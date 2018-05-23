@@ -18,5 +18,5 @@ case class JsObjectScanner(o: JsObject, path: Seq[String]) {
     throw new ParsingException(s"${path.mkString(".")}: while required, no field named `$key` could be found")
 
   private def reportWrongType(key: String, expecting: String, encountered: String) =
-    throw new ParsingException(s"${path.mkString(".")}: while expecting $expecting, encountered $encountered")
+    throw new ParsingException(s"${(path :+ key).mkString(".")}: while expecting $expecting, encountered $encountered")
 }
