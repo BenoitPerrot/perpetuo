@@ -1,6 +1,5 @@
 package com.criteo.perpetuo.engine
 
-import com.criteo.perpetuo.app.DeploymentRequestStatus
 import com.criteo.perpetuo.auth.{DeploymentAction, GeneralAction, Permissions, User}
 import com.criteo.perpetuo.model._
 import javax.inject.{Inject, Singleton}

@@ -3,7 +3,7 @@ package com.criteo.perpetuo.app
 import com.criteo.perpetuo.auth.UserFilter._
 import com.criteo.perpetuo.auth.Authenticator
 import com.criteo.perpetuo.config.AppConfigProvider
-import com.criteo.perpetuo.engine.{Engine, OperationStatus}
+import com.criteo.perpetuo.engine.{DeploymentRequestStatus, Engine, OperationStatus}
 import com.criteo.perpetuo.model._
 import com.twitter.finagle.http.Request
 import com.twitter.finatra.http.exceptions._
@@ -24,10 +24,6 @@ trait WithId {
   val id: String
 }
 
-case class DeploymentRequestStatus(deploymentRequest: DeepDeploymentRequest,
-                                   operationEffects: Iterable[OperationEffect],
-                                   authorizedActions: Seq[(Operation.Kind, Boolean)],
-                                   canAccessLogs: Boolean)
 
 @JsonIgnoreBody
 private case class RequestWithId(@RouteParam @NotEmpty id: String,
