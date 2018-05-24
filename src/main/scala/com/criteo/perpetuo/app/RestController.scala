@@ -224,7 +224,7 @@ class RestController @Inject()(val engine: Engine)
     )
   }
 
-  private def serialize(depReq: DeepDeploymentRequest, lastOperationEffect: Option[OperationEffect]): Map[String, Any] =
+  private def serialize(depReq: DeepDeploymentRequest, lastOperationStatus: Option[(Operation.Kind, OperationStatus.Value)]): Map[String, Any] =
     Map(
       "id" -> depReq.id,
       "comment" -> depReq.comment,
@@ -233,8 +233,7 @@ class RestController @Inject()(val engine: Engine)
       "version" -> depReq.version,
       "target" -> RawJson(depReq.target),
       "productName" -> depReq.product.name,
-      "state" -> lastOperationEffect // for the UI: below is what will be displayed (and it must match css classes)
-        .map(crankshaft.computeState)
+      "state" -> lastOperationStatus // for the UI: below is what will be displayed (and it must match css classes)
         .map {
           case (Operation.deploy, OperationStatus.succeeded) => "deployed"
           case (Operation.revert, OperationStatus.succeeded) => "reverted"
@@ -244,7 +243,7 @@ class RestController @Inject()(val engine: Engine)
     )
 
   private def serialize(status: DeploymentRequestStatus): Map[String, Any] =
-    serialize(status.deploymentRequest, status.operationEffects.lastOption) ++
+    serialize(status.deploymentRequest, status.lastOperationStatus) ++
       Map("operations" ->
         status.operationEffects.map { case OperationEffect(op, executionTraces, targetStatus) =>
           Map(
@@ -281,7 +280,7 @@ class RestController @Inject()(val engine: Engine)
         try {
           crankshaft.queryDeepDeploymentRequests(r.where, r.limit, r.offset)
             .map(_.map { case (deploymentRequest, lastOperationEffect) =>
-              serialize(deploymentRequest, lastOperationEffect)
+              serialize(deploymentRequest, lastOperationEffect.map(crankshaft.computeState))
             })
         } catch {
           case e: IllegalArgumentException => throw BadRequestException(e.getMessage)

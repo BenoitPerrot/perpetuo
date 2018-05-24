@@ -107,7 +107,7 @@ class Engine @Inject()(val crankshaft: Crankshaft,
               )
             )
             .map(authorizedActions =>
-              Some(DeploymentRequestStatus(deploymentRequest, sortedEffects, authorizedActions.flatten, isAdmin || authorized(Operation.deploy)))
+              Some(DeploymentRequestStatus(deploymentRequest, sortedEffects, sortedEffects.lastOption.map(crankshaft.computeState), authorizedActions.flatten, isAdmin || authorized(Operation.deploy)))
             )
 
         }.getOrElse(Future.successful(None))
