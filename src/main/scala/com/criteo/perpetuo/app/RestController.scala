@@ -278,9 +278,9 @@ class RestController @Inject()(val engine: Engine)
           throw BadRequestException("`limit` shall be lower than 1000")
         }
         try {
-          crankshaft.queryDeepDeploymentRequests(r.where, r.limit, r.offset)
-            .map(_.map { case (deploymentRequest, lastOperationEffect) =>
-              serialize(deploymentRequest, lastOperationEffect.map(crankshaft.computeState))
+          engine.queryShallowDeploymentRequestStatuses(r.where, r.limit, r.offset)
+            .map(_.map { case (deploymentRequest, lastOperationStatus) =>
+              serialize(deploymentRequest, lastOperationStatus)
             })
         } catch {
           case e: IllegalArgumentException => throw BadRequestException(e.getMessage)
