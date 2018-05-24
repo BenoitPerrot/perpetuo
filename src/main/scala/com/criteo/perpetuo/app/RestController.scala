@@ -94,13 +94,6 @@ class RestController @Inject()(val engine: Engine)
     }
   }
 
-  get("/api/deployment-requests/:id")(
-    withLongId(
-      crankshaft.findDeepDeploymentRequestById(_).map(_.map(_.toJsonReadyMap)),
-      5.seconds
-    )
-  )
-
   post("/api/deployment-requests") { r: Request =>
     authenticate(r) { case user =>
       val (allAttrs, targets) = try {

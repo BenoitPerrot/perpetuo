@@ -74,14 +74,4 @@ case class DeepDeploymentRequest(id: Long,
   def copyParsedTargetCacheFrom(obj: ParsedTarget): Unit = {
     parsedTargetCache = obj.parsedTargetCache
   }
-
-  def toJsonReadyMap: Map[String, Any] = {
-    val cls = classOf[DeepDeploymentRequest]
-    cls.getDeclaredFields.map(_.getName).toIterator.zip(productIterator).flatMap({
-      case ("comment", "") => None
-      case (_, product: Product) => Some("productName" -> product.name)
-      case ("target", json: String) => Some("target" -> RawJson(json))
-      case (name, value) => Some(name -> value)
-    }).toMap
-  }
 }

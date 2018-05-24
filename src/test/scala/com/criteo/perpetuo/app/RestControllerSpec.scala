@@ -309,19 +309,13 @@ class RestControllerSpec extends Test with TestDb {
     actOnDeploymentRequest(id, "revert", Map("defaultVersion" -> "42").toJson, Ok)
   }
 
-  private def getDeploymentRequest(id: String, expectedStatus: Status): Option[JsObject] = {
+  private def getDeploymentRequest(id: String): JsObject = {
     val response = server.httpGet(
       path = s"/api/deployment-requests/$id",
-      andExpect = expectedStatus
+      andExpect = Ok
     )
-    if (response.status == Ok)
-      Some(response.contentString.parseJson.asJsObject)
-    else
-      None
+    response.contentString.parseJson.asJsObject
   }
-
-  private def getDeploymentRequest(id: String): JsObject =
-    getDeploymentRequest(id, Ok).get
 
   private def getExecutionTracesByDeploymentRequestId(deploymentRequestId: String, expectedStatus: Status): Option[JsArray] = {
     val response = server.httpGet(
@@ -337,18 +331,10 @@ class RestControllerSpec extends Test with TestDb {
   private def getExecutionTracesByDeploymentRequestId(deploymentRequestId: String): JsArray =
     getExecutionTracesByDeploymentRequestId(deploymentRequestId, Ok).get
 
-  test("The DeploymentRequest's GET entry-point returns 404 when trying to access a non-existing DeploymentRequest") {
-    getDeploymentRequest("4242", NotFound)
-  }
-
-  test("The DeploymentRequest's GET entry-point returns 404 when trying to access a DeploymentRequest with a non-integral ID") {
-    getDeploymentRequest("..", NotFound)
-  }
-
   test("The DeploymentRequest's GET entry-point returns 200 and a JSON with all necessary info when accessing an existing DeploymentRequest") {
     val depReqId = requestAndWaitDeployment("my product", "v2097", "to everywhere".toJson, Some("hello world"))
 
-    val values1 = getDeploymentRequest(depReqId.toString).fields
+    val values1 = deepGetDepReq(depReqId).fields
 
     checkCreationDate(values1)
 
@@ -360,14 +346,12 @@ class RestControllerSpec extends Test with TestDb {
       "comment" -> JsString("hello world"),
       "creator" -> JsString("r.eleaser"),
       "creationDate" -> T
-    ) shouldEqual values1
+    ).map { case (k, v) =>
+      v shouldEqual values1(k)
+    }
   }
 
-  lazy val values3 = getDeploymentRequest("3").fields
-
-  test("The DeploymentRequest's GET entry-point returns 200 and a JSON without `comment` if none or an empty one was provided") {
-    values3 should not contain key("comment")
-  }
+  lazy val values3 = deepGetDepReq(3).fields
 
   test("The DeploymentRequest's GET entry-point returns 200 and a JSON with the same target expression as provided") {
     val target = values3("target")
@@ -731,7 +715,7 @@ class RestControllerSpec extends Test with TestDb {
       ).toJson.compactPrint
     ).contentString.parseJson.idAsLong
 
-    getDeploymentRequest(id.toString).fields("creator").asInstanceOf[JsString].value shouldEqual
+    deepGetDepReq(id).fields("creator").asInstanceOf[JsString].value shouldEqual
       "too-long-user-name/too-long-user-name/too-long-user-name/too-lon"
   }
 
