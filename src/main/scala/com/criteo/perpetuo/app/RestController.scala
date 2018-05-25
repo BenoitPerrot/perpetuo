@@ -1,7 +1,7 @@
 package com.criteo.perpetuo.app
 
 import com.criteo.perpetuo.auth.UserFilter._
-import com.criteo.perpetuo.auth.Authenticator
+import com.criteo.perpetuo.auth.{Authenticator, User}
 import com.criteo.perpetuo.config.AppConfigProvider
 import com.criteo.perpetuo.engine.{DeploymentRequestStatus, Engine, OperationStatus}
 import com.criteo.perpetuo.model._
@@ -24,32 +24,36 @@ trait WithId {
   val id: String
 }
 
+trait WithRequest {
+  val request: Request
+}
+
 
 @JsonIgnoreBody
 private case class RequestWithId(@RouteParam @NotEmpty id: String,
-                                 @Inject request: Request) extends WithId
+                                 @Inject request: Request) extends WithId with WithRequest
 
 private case class RequestWithName(@NotEmpty name: String,
-                                   @Inject request: Request)
+                                   @Inject request: Request) extends WithRequest
 
 private case class ProductPostWithVersion(@NotEmpty name: String,
                                           @NotEmpty version: String)
 
 private case class RequestWithIdAndDefaultVersion(@RouteParam @NotEmpty id: String,
                                                   @NotEmpty defaultVersion: Option[String] = None,
-                                                  @Inject request: Request) extends WithId
+                                                  @Inject request: Request) extends WithId with WithRequest
 
 private case class ExecutionTracePut(@RouteParam @NotEmpty id: String,
                                      @NotEmpty state: String,
                                      detail: String = "",
                                      logHref: String = "",
                                      targetStatus: Map[String, Map[String, String]] = Map(),
-                                     @Inject request: Request) extends WithId
+                                     @Inject request: Request) extends WithId with WithRequest
 
 private case class FilteringPost(where: Seq[Map[String, Any]] = Seq(),
                                  limit: Int = 20,
                                  offset: Int = 0,
-                                 @Inject request: Request)
+                                 @Inject request: Request) extends WithRequest
 
 /**
   * Controller that handles deployment requests as a REST API.
@@ -75,6 +79,14 @@ class RestController @Inject()(val engine: Engine)
     request => futurePool {
       Try(request.id.toLong).toOption.map(view(_, request)).flatMap(await(_, maxDuration))
     }
+
+  private def post[R <: WithId with WithRequest, O: Manifest](route: String, maxDuration: Duration)(callback: (Long, R, User) => Future[Option[O]])(implicit m: Manifest[R]): Unit = {
+    post(route) { r: R =>
+      authenticate(r.request) { case user =>
+        withIdAndRequest((id: Long, r: R) => callback(id, r, user), maxDuration)(r)
+      }
+    }
+  }
 
   get("/api/products") { _: Request =>
     timeBoxed(
@@ -129,28 +141,16 @@ class RestController @Inject()(val engine: Engine)
     )(r)
   }
 
-  post("/api/deployment-requests/:id/actions/deploy") { r: RequestWithId =>
-    authenticate(r.request) { case user =>
-      withIdAndRequest(
-        (id, _: RequestWithId) =>
-          engine
-            .deploy(user, id)
-            .map(_.map(_ => Map("id" -> id))),
-        5.seconds
-      )(r)
-    }
+  post("/api/deployment-requests/:id/actions/deploy", 5.seconds) { (id: Long, _: RequestWithId, user: User) =>
+    engine
+      .deploy(user, id)
+      .map(_.map(_ => Map("id" -> id)))
   }
 
-  post("/api/deployment-requests/:id/actions/revert") { r: RequestWithIdAndDefaultVersion =>
-    authenticate(r.request) { case user =>
-      withIdAndRequest(
-        (id, _: RequestWithIdAndDefaultVersion) =>
-          engine
-            .revert(user, id, r.defaultVersion.map(Version.apply))
-            .map(_.map(_ => Map("id" -> id))),
-        5.seconds
-      )(r)
-    }
+  post("/api/deployment-requests/:id/actions/revert", 5.seconds) { (id: Long, r: RequestWithIdAndDefaultVersion, user: User) =>
+    engine
+      .revert(user, id, r.defaultVersion.map(Version.apply))
+      .map(_.map(_ => Map("id" -> id)))
   }
 
   /**
@@ -159,23 +159,16 @@ class RestController @Inject()(val engine: Engine)
     * key in the body gives the number of executions that have been successfully stopped.
     * No information is returned about the executions that were already stopped.
     */
-  post("/api/deployment-requests/:id/actions/stop") { r: RequestWithId =>
-    authenticate(r.request) { case user =>
-      withIdAndRequest(
-        (id, _: RequestWithId) => {
-          engine
-            .stop(user, id)
-            .map(_.map { case (nbStopped, errorMessages) =>
-              Map(
-                "id" -> id,
-                "stopped" -> nbStopped,
-                "failures" -> errorMessages
-              )
-            })
-        },
-        5.seconds
-      )(r)
-    }
+  post("/api/deployment-requests/:id/actions/stop", 5.seconds) { (id: Long, _: RequestWithId, user: User) =>
+    engine
+      .stop(user, id)
+      .map(_.map { case (nbStopped, errorMessages) =>
+        Map(
+          "id" -> id,
+          "stopped" -> nbStopped,
+          "failures" -> errorMessages
+        )
+      })
   }
 
   get("/api/deployment-requests/:id/execution-traces")(
