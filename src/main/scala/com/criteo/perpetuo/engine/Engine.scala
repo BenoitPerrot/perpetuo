@@ -19,51 +19,49 @@ class Engine @Inject()(val crankshaft: Crankshaft,
     crankshaft.createDeploymentRequest(protoDeploymentRequest)
   }
 
-  def deploy(user: User, id: Long): Future[Option[DeepOperationTrace]] =
+  private def withDeepDeploymentRequest[T](id: Long)(callback: (DeepDeploymentRequest, Boolean) => Future[Option[T]]) =
     crankshaft.isDeploymentRequestStarted(id)
       .flatMap(
-        _.map { case (deploymentRequest, isStarted) =>
-          if (!permissions.isAuthorized(user, DeploymentAction.applyOperation, Operation.deploy, deploymentRequest.product.name, deploymentRequest.parsedTarget.select))
-            throw PermissionDenied()
-
-          crankshaft
-            .canDeployDeploymentRequest(deploymentRequest)
-            .flatMap(_ =>
-              if (isStarted)
-                crankshaft.deployAgain(deploymentRequest, user.name)
-              else
-                crankshaft.startDeploymentRequest(deploymentRequest, user.name)
-            )
-        }.getOrElse(Future.successful(None))
+        _.map(callback.tupled)
+          .getOrElse(Future.successful(None))
       )
+
+  def deploy(user: User, id: Long): Future[Option[DeepOperationTrace]] =
+    withDeepDeploymentRequest(id) { (deploymentRequest, isStarted) =>
+      if (!permissions.isAuthorized(user, DeploymentAction.applyOperation, Operation.deploy, deploymentRequest.product.name, deploymentRequest.parsedTarget.select))
+        throw PermissionDenied()
+
+      crankshaft
+        .canDeployDeploymentRequest(deploymentRequest)
+        .flatMap(_ =>
+          if (isStarted)
+            crankshaft.deployAgain(deploymentRequest, user.name)
+          else
+            crankshaft.startDeploymentRequest(deploymentRequest, user.name)
+        )
+    }
 
   def deviseRevertPlan(id: Long): Future[Option[(Select, Iterable[(ExecutionSpecification, Select)])]] =
-    crankshaft.isDeploymentRequestStarted(id)
-      .flatMap(
-        _.map { case (deploymentRequest, isStarted) =>
-          crankshaft
-            .canRevertDeploymentRequest(deploymentRequest, isStarted)
-            .recover { case e: RejectingError => throw e.copy(s"Cannot revert the request #${deploymentRequest.id}: ${e.msg}") } // TODO: remove the copy
-            .flatMap { _ =>
-              crankshaft
-                .findExecutionSpecificationsForRevert(deploymentRequest)
-                .map(Some.apply)
-            }
-        }.getOrElse(Future.successful(None))
-    )
+    withDeepDeploymentRequest(id) { (deploymentRequest, isStarted) =>
+      crankshaft
+        .canRevertDeploymentRequest(deploymentRequest, isStarted)
+        .recover { case e: RejectingError => throw e.copy(s"Cannot revert the request #${deploymentRequest.id}: ${e.msg}") } // TODO: remove the copy
+        .flatMap { _ =>
+        crankshaft
+          .findExecutionSpecificationsForRevert(deploymentRequest)
+          .map(Some.apply)
+      }
+    }
 
   def revert(user: User, id: Long, defaultVersion: Option[Version]): Future[Option[DeepOperationTrace]] =
-    crankshaft.isDeploymentRequestStarted(id)
-      .flatMap(
-        _.map { case (deploymentRequest, isStarted) =>
-          if (!permissions.isAuthorized(user, DeploymentAction.applyOperation, Operation.revert, deploymentRequest.product.name, deploymentRequest.parsedTarget.select))
-            throw PermissionDenied()
+    withDeepDeploymentRequest(id) { (deploymentRequest, isStarted) =>
+      if (!permissions.isAuthorized(user, DeploymentAction.applyOperation, Operation.revert, deploymentRequest.product.name, deploymentRequest.parsedTarget.select))
+        throw PermissionDenied()
 
-          crankshaft
-            .canRevertDeploymentRequest(deploymentRequest, isStarted)
-            .flatMap(_ => crankshaft.revert(deploymentRequest, user.name, defaultVersion))
-        }.getOrElse(Future.successful(None))
-      )
+      crankshaft
+        .canRevertDeploymentRequest(deploymentRequest, isStarted)
+        .flatMap(_ => crankshaft.revert(deploymentRequest, user.name, defaultVersion))
+    }
 
   def stop(user: User, id: Long): Future[Option[(Int, Seq[String])]] =
     crankshaft.findDeepDeploymentRequestById(id)
