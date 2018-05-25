@@ -14,7 +14,7 @@ class RundeckExecution(val logHref: String) extends TriggeredExecution {
     (matcher.group(1), matcher.group(3).toInt)
   }
 
- override val stopper: Option[() => Option[ExecutionState]] = None
+  override val stopper: Option[() => Option[ExecutionState]] = None
 }
 
 
