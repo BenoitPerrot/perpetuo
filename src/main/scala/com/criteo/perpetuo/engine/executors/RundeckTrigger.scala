@@ -1,6 +1,7 @@
 package com.criteo.perpetuo.engine.executors
 
 import com.criteo.perpetuo.app.RestApi
+import com.criteo.perpetuo.config.ConfigSyntacticSugar._
 import com.criteo.perpetuo.model.Version
 import com.twitter.finagle.http.{Message, Method, Request}
 import com.typesafe.config.Config
@@ -13,15 +14,15 @@ import scala.collection.JavaConverters._
 class RundeckTrigger(name: String,
                      val host: String,
                      val port: Int,
-                     authToken: String,
+                     val authToken: Option[String],
                      jobName: String,
                      specificParameters: Iterable[(String, String)] = Map()) extends ExecutionHttpTrigger {
   def this(config: Config) {
     this(
       config.getString("name"),
       config.getString("host"),
-      config.getInt("port"),
-      config.getString("token"),
+      config.tryGet("port").getOrElse(80),
+      config.tryGet("token"),
       config.getString("jobName")
     )
   }
@@ -30,11 +31,13 @@ class RundeckTrigger(name: String,
 
   override def toString: String = s"$name (job: $jobName)"
 
-  private def authenticated(path: String): String =
-    s"$path?authtoken=$authToken"
+  private def apiPath(apiSubPath: String): String = {
+    val path = s"/api/$API_VERSION/$apiSubPath"
+    authToken.map(t => s"$path?authtoken=$t").getOrElse(path)
+  }
 
   private def runPath(jobName: String): String =
-    authenticated(s"/api/$API_VERSION/job/$jobName/executions")
+    apiPath(s"job/$jobName/executions")
 
   protected def buildRequest(execTraceId: Long, productName: String, version: Version, target: String, initiator: String): Request = {
     def squote(s: String) = s"'$s'"
@@ -92,5 +95,5 @@ class RundeckTrigger(name: String,
 
 object RundeckTrigger {
   def fromJavaTypes(name: String, host: String, port: Int, authToken: String, jobName: String, specificParameters: java.util.Map[String, String]) =
-    new RundeckTrigger(name, host, port, authToken, jobName, specificParameters.asScala)
+    new RundeckTrigger(name, host, port, Option(authToken), jobName, specificParameters.asScala)
 }

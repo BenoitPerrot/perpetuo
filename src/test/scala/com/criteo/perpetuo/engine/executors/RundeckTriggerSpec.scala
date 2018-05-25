@@ -13,7 +13,7 @@ import scala.concurrent.duration._
 
 class RundeckTriggerSpec extends Test {
 
-  private class TriggerMock(statusMock: Int, contentMock: String) extends RundeckTrigger("rundeck", "localhost", 4440, "my-super-secret-token", "perpetuo-deployment") {
+  private class TriggerMock(statusMock: Int, contentMock: String) extends RundeckTrigger("rundeck", "localhost", 4440, Some("my-super-secret-token"), "perpetuo-deployment") {
     override protected lazy val client: Request => Future[Response] = (request: Request) => {
       request.uri shouldEqual s"/api/16/job/perpetuo-deployment/executions?authtoken=my-super-secret-token"
       request.contentString shouldEqual """{"argString":"-callback-url 'http://somewhere/api/execution-traces/42' -product-name 'My\"Beautiful\"Project' -target 'a,b' -product-version \"the 042nd version\""}"""
