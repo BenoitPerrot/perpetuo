@@ -1,6 +1,7 @@
 package com.criteo.perpetuo.engine.executors
 
 import com.criteo.perpetuo.app.RestApi
+import com.criteo.perpetuo.config.AppConfigProvider
 import com.criteo.perpetuo.config.ConfigSyntacticSugar._
 import com.criteo.perpetuo.model.Version
 import com.twitter.finagle.http.{Message, Method, Request}
@@ -13,19 +14,19 @@ import scala.collection.JavaConverters._
 
 class RundeckTrigger(name: String,
                      val host: String,
-                     val port: Int,
-                     val authToken: Option[String],
                      jobName: String,
                      specificParameters: Iterable[(String, String)] = Map()) extends ExecutionHttpTrigger {
   def this(config: Config) {
     this(
       config.getString("name"),
       config.getString("host"),
-      config.getIntOrElse("port", 80),
-      config.tryGetString("token"),
       config.getString("jobName")
     )
   }
+
+  private val config = AppConfigProvider.executorConfig("rundeck")
+  val port: Int = config.getIntOrElse("port", 80)
+  val authToken: Option[String] = config.tryGetString("token")
 
   val API_VERSION = 16
 
@@ -94,6 +95,6 @@ class RundeckTrigger(name: String,
 
 
 object RundeckTrigger {
-  def fromJavaTypes(name: String, host: String, port: Int, authToken: String, jobName: String, specificParameters: java.util.Map[String, String]) =
-    new RundeckTrigger(name, host, port, Option(authToken), jobName, specificParameters.asScala)
+  def fromJavaTypes(name: String, host: String, jobName: String, specificParameters: java.util.Map[String, String]): RundeckTrigger =
+    new RundeckTrigger(name, host, jobName, specificParameters.asScala)
 }
