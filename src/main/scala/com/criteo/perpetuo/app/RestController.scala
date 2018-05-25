@@ -43,6 +43,10 @@ private case class RequestWithIdAndDefaultVersion(@RouteParam @NotEmpty id: Stri
                                                   @NotEmpty defaultVersion: Option[String] = None,
                                                   @Inject request: Request) extends WithId with WithRequest
 
+private case class RequestWithIdAndCurrentStepId(@RouteParam @NotEmpty id: String,
+                                                 currentStepId: Option[Long],
+                                                 @Inject request: Request) extends WithId with WithRequest
+
 private case class ExecutionTracePut(@RouteParam @NotEmpty id: String,
                                      @NotEmpty state: String,
                                      detail: String = "",
@@ -141,6 +145,13 @@ class RestController @Inject()(val engine: Engine)
     )(r)
   }
 
+  post("/api/deployment-requests/:id/actions/step", 5.seconds) { (id: Long, r: RequestWithIdAndCurrentStepId, user: User) =>
+    engine
+      .step(user, id, r.currentStepId)
+      .map(_.map(_ => Map("id" -> id)))
+  }
+
+  // TODO: Remove once clients have migrated to step
   post("/api/deployment-requests/:id/actions/deploy", 5.seconds) { (id: Long, _: RequestWithId, user: User) =>
     engine
       .deploy(user, id)

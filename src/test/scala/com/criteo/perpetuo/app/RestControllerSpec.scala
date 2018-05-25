@@ -159,7 +159,7 @@ class RestControllerSpec extends Test with TestDb {
     )
 
   private def startDeploymentRequest(deploymentRequestId: Long, expect: Status): Response =
-    actOnDeploymentRequest(deploymentRequestId, "deploy", JsObject(), expect)
+    actOnDeploymentRequest(deploymentRequestId, "step", JsObject("currentStepId" -> JsNumber(0)), expect)
 
   private def startDeploymentRequest(deploymentRequestId: Long): JsObject =
     startDeploymentRequest(deploymentRequestId, Ok).contentString.parseJson.asJsObject
@@ -266,6 +266,12 @@ class RestControllerSpec extends Test with TestDb {
     requestAndWaitDeployment("my product", "b", Seq(JsObject()).toJson, None, Some("must contain a field `select`"))
     requestAndWaitDeployment("my product", "b", Seq(Map("select" -> 42)).toJson, None, Some("non-empty JSON string or array"))
     requestAndWaitDeployment("my product", "b", Seq(Map("select" -> Seq(42))).toJson, None, Some("a JSON string in"))
+  }
+
+  test("The DEPRECATED DeploymentRequest's actions entry-point starts a deployment that was not started yet") {
+    createProduct("my deprecated product")
+    val id = requestDeployment("my deprecated product", "6", "worldwide".toJson)
+    actOnDeploymentRequest(id, "deploy", JsObject(), Ok).contentString.parseJson.asJsObject shouldEqual JsObject("id" -> id.toJson)
   }
 
   test("The DeploymentRequest's actions entry-point starts a deployment that was not started yet") {
