@@ -55,7 +55,7 @@ class TriggeredExecutionFinder @Inject()(loader: PluginLoader) {
           throwWithCause(s"Could not find an execution configuration for the type `$executionName`")
 
         try
-          loader.load[TriggeredExecution, String](executionConfig, "execution", logHref)
+          loader.load[TriggeredExecution](executionConfig, "execution", logHref)
         catch // catch any error when dynamically loading the object
           throwWithCause("Could not load the configured executor")
       }

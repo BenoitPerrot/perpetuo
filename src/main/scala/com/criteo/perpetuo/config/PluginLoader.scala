@@ -71,10 +71,13 @@ class PluginLoader @Inject()(engineProxy: EngineProxy) {
     f.applyOrElse(t, defaultLoad[A, Option[Config], A](_: String, config, pluginConfig))
   }
 
-  def load[A <: AnyRef, B <: AnyRef](config: Config, reason: String, arg: B): A = {
+  def load[A <: AnyRef](config: Config, reason: String, args: AnyRef*): A = {
     val t = getTypeName(config, reason)
-    defaultLoad(t, config, Seq(arg)).getOrElse {
-      throw new NoSuchMethodException(s"There is no constructor for the configured $reason that takes a single ${arg.getClass.getSimpleName} as parameter")
+    defaultLoad(t, config, args.toSeq).getOrElse {
+      throw new NoSuchMethodException(
+        s"There is no constructor for the configured $reason that takes parameter(s) of type(s): " +
+          args.map(_.getClass.getSimpleName).mkString(", ")
+      )
     }
   }
 }
