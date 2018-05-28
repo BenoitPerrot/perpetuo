@@ -543,7 +543,7 @@ class RestControllerSpec extends Test with TestDb {
     val depReqId = requestDeployment(productName, "653", Seq("paris", "ams").toJson)
     startDeploymentRequest(depReqId)
 
-    actOnDeploymentRequest(depReqId, "stop", JsObject(), Status.Ok).contentString.parseJson.asJsObject shouldEqual
+    actOnDeploymentRequest(depReqId, "stop", JsObject("currentStepId" -> JsNumber(0)), Status.Ok).contentString.parseJson.asJsObject shouldEqual
       JsObject(
         "id" -> JsNumber(depReqId),
         "stopped" -> JsNumber(0),
@@ -556,7 +556,7 @@ class RestControllerSpec extends Test with TestDb {
         Some(Map("paris" -> Map("code" -> "hostFailure", "detail" -> "crashed").toJson))
       )
     }
-    actOnDeploymentRequest(depReqId, "stop", JsObject(), Status.Ok).contentString.parseJson.asJsObject shouldEqual
+    actOnDeploymentRequest(depReqId, "stop", JsObject("currentStepId" -> JsNumber(0)), Status.Ok).contentString.parseJson.asJsObject shouldEqual
       JsObject("id" -> JsNumber(depReqId), "stopped" -> JsNumber(0), "failures" -> JsArray())
   }
 

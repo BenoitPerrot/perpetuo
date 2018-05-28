@@ -182,9 +182,9 @@ class RestController @Inject()(val engine: Engine)
     * key in the body gives the number of executions that have been successfully stopped.
     * No information is returned about the executions that were already stopped.
     */
-  post("/api/deployment-requests/:id/actions/stop", 5.seconds) { (id: Long, _: RequestWithId, user: User) =>
+  post("/api/deployment-requests/:id/actions/stop", 5.seconds) { (id: Long, r: RequestWithIdAndCurrentStepId, user: User) =>
     engine
-      .stop(user, id, None)
+      .stop(user, id, r.currentStepId)
       .map(_.map { case (nbStopped, errorMessages) =>
         Map(
           "id" -> id,
