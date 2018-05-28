@@ -5,7 +5,7 @@ import java.util.regex.Pattern
 import com.criteo.perpetuo.model.ExecutionState.ExecutionState
 
 
-class RundeckExecution(val logHref: String) extends TriggeredExecution {
+class RundeckExecution(val logHref: String) extends TriggeredExecution with RundeckApi {
   val (host, executionNumber) = {
     val matcher = RundeckExecution.logHrefPattern.matcher(logHref)
     if (!matcher.matches())
