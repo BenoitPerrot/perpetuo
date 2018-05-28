@@ -9,7 +9,6 @@ import com.twitter.inject.Logging
 import com.twitter.util.{Future, Stopwatch}
 import javax.inject.{Inject, Singleton}
 import net.logstash.logback.marker.Markers
-import scala.collection.immutable.{ Map => ScMap }
 import collection.JavaConverters._
 
 
@@ -34,7 +33,7 @@ class AccessLoggingFilter[R <: Request] @Inject()(logFormatter: LogFormatter[R, 
       val elapsed = Stopwatch.start()
       service(request) onSuccess { response =>
         val elapsed_time = elapsed()
-        val map = ScMap(
+        val map = Map(
           "method" -> request.method.toString,
           "remote_port" -> request.remotePort,
           "remote_ip" -> request.remoteAddress,
