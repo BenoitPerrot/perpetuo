@@ -184,7 +184,7 @@ class RestController @Inject()(val engine: Engine)
     */
   post("/api/deployment-requests/:id/actions/stop", 5.seconds) { (id: Long, _: RequestWithId, user: User) =>
     engine
-      .stop(user, id)
+      .stop(user, id, None)
       .map(_.map { case (nbStopped, errorMessages) =>
         Map(
           "id" -> id,
