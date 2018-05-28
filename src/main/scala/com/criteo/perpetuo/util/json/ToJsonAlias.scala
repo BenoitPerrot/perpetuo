@@ -20,6 +20,7 @@ object ToJsonAlias {
     case s: String => s.toJson
     case n: BigDecimal => n.toJson
     case i: Long => i.toJson
+    case i: Int => i.toJson
     case b: Boolean => b.toJson
     case j: JsValue => j
   }

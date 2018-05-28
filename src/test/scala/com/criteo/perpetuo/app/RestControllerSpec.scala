@@ -3,7 +3,8 @@ package com.criteo.perpetuo.app
 import com.criteo.perpetuo.TestDb
 import com.criteo.perpetuo.auth.{User, UserFilter}
 import com.criteo.perpetuo.config.AppConfigProvider
-import com.criteo.perpetuo.model.{ProtoDeploymentRequest, ProtoDeploymentPlanStep, Version}
+import com.criteo.perpetuo.model.{ProtoDeploymentPlanStep, ProtoDeploymentRequest, Version}
+import com.criteo.perpetuo.util.json.ToJsonAlias
 import com.twitter.finagle.http.Status._
 import com.twitter.finagle.http.{Request, Response, Status}
 import com.twitter.finatra.http.filters.{LoggingMDCFilter, TraceIdMDCFilter}
@@ -296,7 +297,7 @@ class RestControllerSpec extends Test with TestDb {
 
     createProduct("my new product")
     val id = requestDeployment("my new product", "789", "par".toJson)
-    val respJson1 = getRespJson(actOnDeploymentRequest(id, "revert", JsObject(), UnprocessableEntity))
+    val respJson1 = getRespJson(actOnDeploymentRequest(id, "step-back", Map("currentStepId" -> 0).toJson, UnprocessableEntity))
     respJson1("error") should include("it has not yet been applied")
     respJson1 shouldNot contain("required")
 
@@ -308,11 +309,11 @@ class RestControllerSpec extends Test with TestDb {
           "targetB" -> Map("code" -> "productFailure", "detail" -> "").toJson)),
       None, Map("targetA" -> ("success", ""), "targetB" -> ("productFailure", ""))
     )
-    val respJson2 = getRespJson(actOnDeploymentRequest(id, "revert", JsObject(), UnprocessableEntity))
+    val respJson2 = getRespJson(actOnDeploymentRequest(id, "step-back", Map("currentStepId" -> 0).toJson, UnprocessableEntity))
     respJson2("error") should include("a default rollback version is required")
     respJson2("required") shouldEqual "defaultVersion"
 
-    actOnDeploymentRequest(id, "revert", Map("defaultVersion" -> "42").toJson, Ok)
+    actOnDeploymentRequest(id, "step-back", ToJsonAlias.deepToJson(Map("defaultVersion" -> "42", "currentStepId" -> 0)), Ok)
   }
 
   private def getDeploymentRequest(id: String): JsObject = {

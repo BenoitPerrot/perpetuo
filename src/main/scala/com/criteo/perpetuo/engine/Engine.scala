@@ -67,7 +67,6 @@ class Engine @Inject()(val crankshaft: Crankshaft,
 
   def stepBack(user: User, deploymentRequestId: Long, currentStepId: Option[Long], defaultVersion: Option[Version]): Future[Option[DeepOperationTrace]] =
     withDeepDeploymentRequest(deploymentRequestId) { (deploymentRequest, isStarted) =>
-      assert(currentStepId.isEmpty)
       if (!permissions.isAuthorized(user, DeploymentAction.applyOperation, Operation.revert, deploymentRequest.product.name, deploymentRequest.parsedTarget.select))
         throw PermissionDenied()
 

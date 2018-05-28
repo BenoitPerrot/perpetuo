@@ -47,6 +47,11 @@ private case class RequestWithIdAndCurrentStepId(@RouteParam @NotEmpty id: Strin
                                                  currentStepId: Option[Long],
                                                  @Inject request: Request) extends WithId with WithRequest
 
+private case class RequestWithIdAndCurrentStepAndDefaultVersion(@RouteParam @NotEmpty id: String,
+                                                                currentStepId: Option[Long],
+                                                                @NotEmpty defaultVersion: Option[String] = None,
+                                                                @Inject request: Request) extends WithId with WithRequest
+
 private case class ExecutionTracePut(@RouteParam @NotEmpty id: String,
                                      @NotEmpty state: String,
                                      detail: String = "",
@@ -151,6 +156,12 @@ class RestController @Inject()(val engine: Engine)
       .map(_.map(_ => Map("id" -> id)))
   }
 
+  post("/api/deployment-requests/:id/actions/step-back", 5.seconds) { (id: Long, r: RequestWithIdAndCurrentStepAndDefaultVersion, user: User) =>
+    engine
+      .stepBack(user, id, r.currentStepId, r.defaultVersion.map(Version.apply))
+      .map(_.map(_ => Map("id" -> id)))
+  }
+
   // TODO: Remove once clients have migrated to step
   post("/api/deployment-requests/:id/actions/deploy", 5.seconds) { (id: Long, _: RequestWithId, user: User) =>
     engine
@@ -163,6 +174,7 @@ class RestController @Inject()(val engine: Engine)
       .revert(user, id, r.defaultVersion.map(Version.apply))
       .map(_.map(_ => Map("id" -> id)))
   }
+  // >>
 
   /**
     * Warning: this route may return HTTP 200 OK with a list of error messages in the body!
