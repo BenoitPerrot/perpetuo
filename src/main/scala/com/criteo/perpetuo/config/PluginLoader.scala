@@ -4,7 +4,7 @@ import java.io.File
 import java.lang.reflect.InvocationTargetException
 
 import com.google.inject.{Inject, Singleton}
-import com.typesafe.config.Config
+import com.typesafe.config.{Config, ConfigException}
 
 @Singleton
 class PluginLoader @Inject()(engineProxy: EngineProxy) {
@@ -46,9 +46,6 @@ class PluginLoader @Inject()(engineProxy: EngineProxy) {
       }
   }
 
-  private def getTypeName(config: Config, reason: String): String =
-    config.tryGetString("type").getOrElse(throw new Exception(s"No $reason is configured, while one is required"))
-
   private def defaultLoad[A <: AnyRef, B, C](typeName: String, config: Config, specificArg: B)(implicit instantiate: (Class[A], B) => C): C = {
     lazy val stringValue = config.getString(typeName)
     typeName match {
@@ -65,19 +62,23 @@ class PluginLoader @Inject()(engineProxy: EngineProxy) {
     }
   }
 
-  def load[A <: AnyRef](config: Config, reason: String)(f: PartialFunction[String, A] = PartialFunction.empty): A = {
-    val t = getTypeName(config, reason)
-    val pluginConfig = config.tryGetConfig("config")
-    f.applyOrElse(t, defaultLoad[A, Option[Config], A](_: String, config, pluginConfig))
-  }
+  private def inConfig[A](config: Config, reason: String)(call: (String) => A) =
+    try {
+      call(config.getString("type"))
+    } catch {
+      case e: ConfigException => throw new RuntimeException(s"Error in the configuration of the $reason (see the cause below)", e)
+    }
 
-  def load[A <: AnyRef](config: Config, reason: String, args: AnyRef*): A = {
-    val t = getTypeName(config, reason)
-    defaultLoad(t, config, args.toSeq).getOrElse {
-      throw new NoSuchMethodException(
-        s"There is no constructor for the configured $reason that takes parameter(s) of type(s): " +
-          args.map(_.getClass.getSimpleName).mkString(", ")
+  def load[A <: AnyRef](config: Config, reason: String)(f: PartialFunction[String, A] = PartialFunction.empty): A =
+    inConfig(config, reason) { typeName =>
+      val pluginConfig = config.tryGetConfig("config")
+      f.applyOrElse(typeName, defaultLoad[A, Option[Config], A](_: String, config, pluginConfig))
+    }
+
+  def load[A <: AnyRef](config: Config, reason: String, args: AnyRef*): A =
+    inConfig(config, reason) { typeName =>
+      defaultLoad[A, Seq[AnyRef], Option[A]](typeName, config, args.toSeq).getOrElse(
+        throw new NoSuchMethodException(s"There is no constructor that takes parameter(s) of type(s): " + args.map(_.getClass.getSimpleName).mkString(", "))
       )
     }
-  }
 }
