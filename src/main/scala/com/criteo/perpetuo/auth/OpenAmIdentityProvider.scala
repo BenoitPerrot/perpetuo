@@ -55,7 +55,7 @@ class OpenAmIdentityProvider(authorize: URL, tokeninfo: URL, localUserNames: Set
 
 object OpenAmIdentityProvider {
   def fromConfig(config: Config): OpenAmIdentityProvider = {
-    val localUserNames = config.getOrElse[Seq[String]]("localUserNames", Seq()).toSet
+    val localUserNames = config.tryGetStringList("localUserNames").getOrElse(Set()).toSet
     new OpenAmIdentityProvider(
       new URL(config.getString("authorize.url")),
       new URL(config.getString("tokeninfo.url")),

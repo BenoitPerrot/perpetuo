@@ -47,7 +47,7 @@ class PluginLoader @Inject()(engineProxy: EngineProxy) {
   }
 
   private def getTypeName(config: Config, reason: String): String =
-    config.getOrElse[String]("type", throw new Exception(s"No $reason is configured, while one is required"))
+    config.tryGetString("type").getOrElse(throw new Exception(s"No $reason is configured, while one is required"))
 
   private def defaultLoad[A <: AnyRef, B, C](typeName: String, config: Config, specificArg: B)(implicit instantiate: (Class[A], B) => C): C = {
     lazy val stringValue = config.getString(typeName)

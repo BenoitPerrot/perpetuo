@@ -19,7 +19,7 @@ object CustomServerModules {
 trait ServerConfigurator {
   val config: Config = AppConfigProvider.config
 
-  config.tryGet[String]("logback.configurationFile").foreach(
+  config.tryGetString("logback.configurationFile").foreach(
     System.setProperty(ContextInitializer.CONFIG_FILE_PROPERTY, _)
   )
 }
@@ -47,7 +47,7 @@ class Server extends ServerConfigurator with HttpServer {
     }
     router.filter[UserFilter]
 
-    config.tryGet[Iterable[String]]("extraControllers")
+    config.tryGetStringList("extraControllers")
       .foreach(_
         .foreach(extraControllerClassName =>
           router.add(injector.instance(Class.forName(extraControllerClassName)).asInstanceOf[BaseController])
@@ -59,7 +59,7 @@ class Server extends ServerConfigurator with HttpServer {
       .add[RestController]
 
       // Add controller for serving static assets as the last one / fallback one
-      .add(new StaticAssetsController(config.getOrElse("staticAssets.roots", Seq())))
+      .add(new StaticAssetsController(config.tryGetStringList("staticAssets.roots").getOrElse(Seq())))
   }
 }
 

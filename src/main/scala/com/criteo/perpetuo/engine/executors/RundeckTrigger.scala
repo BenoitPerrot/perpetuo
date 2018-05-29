@@ -21,8 +21,8 @@ class RundeckTrigger(name: String,
     this(
       config.getString("name"),
       config.getString("host"),
-      config.tryGet("port").getOrElse(80),
-      config.tryGet("token"),
+      config.getIntOrElse("port", 80),
+      config.tryGetString("token"),
       config.getString("jobName")
     )
   }

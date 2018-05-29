@@ -34,13 +34,13 @@ class FineGrainedPermissions(generalActionRules: Map[GeneralAction.Value, Author
 object FineGrainedPermissions extends Logging {
   private def createAuthority(config: Config): Authority =
     Authority(
-      config.getOrElse[Seq[String]]("userNames", Seq()).toSet,
-      config.getOrElse[Seq[String]]("groupNames", Seq()).toSet
+      config.tryGetStringList("userNames").getOrElse(Set()).toSet,
+      config.tryGetStringList("groupNames").getOrElse(Set()).toSet
     )
 
   private def createProductRule(config: Config): ProductRule =
     ProductRule(
-      Pattern.compile(config.get[String]("regex")),
+      Pattern.compile(config.getString("regex")),
       createActionToAuthorityMap(DeploymentAction.values, config.getConfig("perAction"))
     )
 

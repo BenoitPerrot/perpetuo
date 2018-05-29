@@ -19,15 +19,15 @@ class DbContextModule(val config: Config) extends TwitterModule {
     case "mssql" => SQLServerProfile
   }
 
-  val numThreads: Int = config.getOrElse("numThreads", 20)
-  val queueSize: Int = config.getOrElse("queueSize", 1000)
+  val numThreads: Int = config.getIntOrElse("numThreads", 20)
+  val queueSize: Int = config.getIntOrElse("queueSize", 1000)
 
   private def toHikariConfig(jdbcUrl: String, config: Config) = {
-    val maxPoolSize = config.getOrElse("poolMaxSize", 10)
-    val minimumIdle = config.getOrElse("poolMinSize", maxPoolSize)
-    val idleTimeout = config.getOrElse("idleTimeout", 600000)
-    val connectionTimeout = config.getOrElse("connectionTimeout", 30000)
-    val validationTimeout = config.getOrElse("validationTimeout", 5000)
+    val maxPoolSize = config.getIntOrElse("poolMaxSize", 10)
+    val minimumIdle = config.getIntOrElse("poolMinSize", maxPoolSize)
+    val idleTimeout = config.getIntOrElse("idleTimeout", 600000)
+    val connectionTimeout = config.getIntOrElse("connectionTimeout", 30000)
+    val validationTimeout = config.getIntOrElse("validationTimeout", 5000)
 
     val hikariConfig = new HikariConfig
     hikariConfig.setJdbcUrl(jdbcUrl)
