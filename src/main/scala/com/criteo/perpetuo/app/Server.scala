@@ -1,5 +1,6 @@
 package com.criteo.perpetuo.app
 
+import ch.qos.logback.classic.util.ContextInitializer
 import com.criteo.perpetuo.auth.{UserFilter, Controller => AuthenticationController}
 import com.criteo.perpetuo.config.AppConfigProvider
 import com.criteo.perpetuo.config.ConfigSyntacticSugar._
@@ -8,18 +9,25 @@ import com.twitter.finatra.http.filters.{LoggingMDCFilter, TraceIdMDCFilter}
 import com.twitter.finatra.http.routing.HttpRouter
 import com.twitter.finatra.http.{HttpServer, Controller => BaseController}
 import com.twitter.finatra.json.modules.FinatraJacksonModule
+import com.typesafe.config.Config
 
 
 object CustomServerModules {
   val jackson = CustomJacksonModule
 }
 
+trait ServerConfigurator {
+  val config: Config = AppConfigProvider.config
+
+  config.tryGet[String]("logback.configurationFile").foreach(
+    System.setProperty(ContextInitializer.CONFIG_FILE_PROPERTY, _)
+  )
+}
+
 /**
   * Main server.
   */
-class Server extends HttpServer {
-
-  val config = AppConfigProvider.config
+class Server extends ServerConfigurator with HttpServer {
 
   override protected def jacksonModule: FinatraJacksonModule = CustomServerModules.jackson
 
