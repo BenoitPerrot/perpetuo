@@ -194,6 +194,48 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
   def isDeploymentRequestStarted(deploymentRequestId: Long): Future[Option[(DeepDeploymentRequest, Boolean)]] =
     dbBinding.isDeploymentRequestStarted(deploymentRequestId)
 
+  def step(deploymentRequest: DeepDeploymentRequest, planStepIdHint: Option[Long], initiatorName: String, emitEvent: Boolean): Future[DeepOperationTrace] = {
+    def rejectForUnexpectedState() =
+      throw UnprocessableIntent(s"${deploymentRequest.id}: the state of the deployment has just changed; have another look before choosing an action to trigger")
+
+    dbBinding.executeInSerializableTransaction(
+      acquireOperationLock(deploymentRequest).flatMap(_ =>
+        dbBinding.gettingLastDoneAndToDoPlanStep(deploymentRequest).flatMap {
+          case (_, None) =>
+            rejectForUnexpectedState()
+
+          case (lastDone, Some(toDo)) =>
+            planStepIdHint
+              .filter(_ != toDo.id)
+              .foreach(_ => rejectForUnexpectedState())
+            val isRetry = lastDone.map(_.id).contains(toDo.id)
+            val action = if (isRetry) operationStarter.retryingDeploymentStep _ else operationStarter.startingDeploymentStep _
+            action(targetResolver, targetDispatcher, deploymentRequest, toDo, initiatorName)
+              .flatMap { case (creatingRecords, atoms) =>
+                acquireDeploymentTransactionLock(deploymentRequest, atoms)
+                  .flatMap(_ => creatingRecords)
+              }
+              .map((_, (lastDone, toDo)))
+        }
+      )
+    ).flatMap { case ((createdOperation, executionsToTrigger), (lastDone, toDo)) =>
+      triggerExecutions(deploymentRequest, createdOperation, executionsToTrigger).map((_, (lastDone, toDo)))
+    }.map { case ((operationTrace, started, failed), (lastDone, toDo)) =>
+      if (emitEvent) {
+        if (lastDone.contains(toDo)) {
+          // TODO: rename onDeploymentRequestRetried to onDeploymentStepRetried
+          listeners.foreach(_.onDeploymentRequestRetried(deploymentRequest, started, failed))
+        }
+        else {
+          // TODO: if lastDone.isEmpty:
+          listeners.foreach(_.onDeploymentRequestStarted(deploymentRequest, started, failed))
+          // TODO: anyway fire onDeploymentStepStarted
+        }
+      }
+      operationTrace
+    }
+  }
+
   private def rejectIfOutdatedOrLocked(deploymentRequest: DeploymentRequest): Future[Unit] =
     Future
       .sequence(Seq(
@@ -287,20 +329,13 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
         (nbStopped, errors)
       }
 
+  // TODO: remove once callers use step directly <<
   def startDeploymentStep(deploymentRequest: DeepDeploymentRequest, deploymentPlanStep: DeploymentPlanStep, initiatorName: String, emitEvent: Boolean = true): Future[DeepOperationTrace] =
-    startOperation(deploymentRequest, operationStarter.startDeploymentStep(targetResolver, targetDispatcher, deploymentRequest, deploymentPlanStep, initiatorName))
-      .map { case (operationTrace, started, failed) =>
-        if (emitEvent)
-          listeners.foreach(_.onDeploymentRequestStarted(deploymentRequest, started, failed))
-        operationTrace
-      }
+    step(deploymentRequest, Some(deploymentPlanStep.id), initiatorName, emitEvent)
 
   def retryDeploymentStep(deploymentRequest: DeepDeploymentRequest, deploymentPlanStep: DeploymentPlanStep, initiatorName: String): Future[DeepOperationTrace] =
-    startOperation(deploymentRequest, operationStarter.retryDeploymentStep(targetResolver, targetDispatcher, deploymentRequest, deploymentPlanStep, initiatorName))
-      .map { case (operationTrace, started, failed) =>
-        listeners.foreach(_.onDeploymentRequestRetried(deploymentRequest, started, failed))
-        operationTrace
-      }
+    step(deploymentRequest, Some(deploymentPlanStep.id), initiatorName, true)
+  // >>
 
   def revert(deploymentRequest: DeepDeploymentRequest, initiatorName: String, defaultVersion: Option[Version]): Future[DeepOperationTrace] =
     startOperation(deploymentRequest, operationStarter.revert(targetDispatcher, deploymentRequest, initiatorName, defaultVersion))

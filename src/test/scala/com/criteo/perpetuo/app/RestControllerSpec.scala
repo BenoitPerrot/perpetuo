@@ -160,7 +160,7 @@ class RestControllerSpec extends Test with TestDb {
     )
 
   private def startDeploymentRequest(deploymentRequestId: Long, expect: Status): Response =
-    actOnDeploymentRequest(deploymentRequestId, "step", JsObject("currentStepId" -> JsNumber(0)), expect)
+    actOnDeploymentRequest(deploymentRequestId, "step", JsObject(), expect)
 
   private def startDeploymentRequest(deploymentRequestId: Long): JsObject =
     startDeploymentRequest(deploymentRequestId, Ok).contentString.parseJson.asJsObject
