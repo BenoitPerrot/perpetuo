@@ -17,6 +17,7 @@ import scala.util.Try
 
 
 object OperationStatus extends Enumeration {
+  val notStarted = Value("notStarted")
   val inProgress = Value("inProgress")
   val flopped = Value("flopped")
   val failed = Value("failed")

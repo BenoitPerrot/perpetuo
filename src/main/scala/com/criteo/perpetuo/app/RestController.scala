@@ -248,7 +248,7 @@ class RestController @Inject()(val engine: Engine)
           case (Operation.revert, OperationStatus.succeeded) => "reverted"
           case (op, state) => s"$op $state"
         }
-        .getOrElse("notStarted")
+        .getOrElse(OperationStatus.notStarted.toString)
     )
 
   private def serialize(status: DeploymentRequestStatus): Map[String, Any] =
