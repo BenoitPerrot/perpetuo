@@ -9,6 +9,7 @@ import com.twitter.finatra.http.filters.{LoggingMDCFilter, TraceIdMDCFilter}
 import com.twitter.finatra.http.routing.HttpRouter
 import com.twitter.finatra.http.{HttpServer, Controller => BaseController}
 import com.twitter.finatra.json.modules.FinatraJacksonModule
+import com.twitter.server.AdminHttpServer.Route
 import com.typesafe.config.Config
 
 
@@ -28,6 +29,9 @@ trait ServerConfigurator {
   * Main server.
   */
 class Server extends ServerConfigurator with HttpServer {
+
+  // Remove unwanted admin routes
+  override protected def routes: Seq[Route] = super.routes.filter(_ != "/admin/registry.json")
 
   override protected def jacksonModule: FinatraJacksonModule = CustomServerModules.jackson
 
