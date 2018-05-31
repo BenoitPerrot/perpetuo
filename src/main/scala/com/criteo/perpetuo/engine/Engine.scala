@@ -27,7 +27,7 @@ class Engine @Inject()(val crankshaft: Crankshaft,
       )
 
   // TODO: support multi step
-  private def step(user: User, deploymentRequest: DeepDeploymentRequest, isStarted: Boolean, currentStepId: Long): Future[Option[DeepOperationTrace]] = {
+  private def step(user: User, deploymentRequest: DeepDeploymentRequest, isStarted: Boolean, currentStepId: Option[Long]): Future[Option[DeepOperationTrace]] = {
     if (!permissions.isAuthorized(user, DeploymentAction.applyOperation, Operation.deploy, deploymentRequest.product.name, deploymentRequest.parsedTarget.select))
       throw PermissionDenied()
 
@@ -42,7 +42,7 @@ class Engine @Inject()(val crankshaft: Crankshaft,
   }
 
   // TODO: merge with the private step() once deploy() is removed
-  def step(user: User, deploymentRequestId: Long, currentStepId: Long): Future[Option[DeepOperationTrace]] =
+  def step(user: User, deploymentRequestId: Long, currentStepId: Option[Long]): Future[Option[DeepOperationTrace]] =
     withDeepDeploymentRequest(deploymentRequestId) { (deploymentRequest, isStarted) =>
       step(user, deploymentRequest, isStarted, currentStepId)
     }
@@ -50,7 +50,7 @@ class Engine @Inject()(val crankshaft: Crankshaft,
   // TODO: remove once RestController stop invoking it
   def deploy(user: User, id: Long): Future[Option[DeepOperationTrace]] =
     withDeepDeploymentRequest(id) { (deploymentRequest, isStarted) =>
-      step(user, deploymentRequest, isStarted, 0)
+      step(user, deploymentRequest, isStarted, None)
     }
 
   def deviseRevertPlan(id: Long): Future[Option[(Select, Iterable[(ExecutionSpecification, Select)])]] =
