@@ -351,20 +351,8 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
   def queryDeepDeploymentRequests(where: Seq[Map[String, Any]], limit: Int, offset: Int): Future[Iterable[(DeepDeploymentRequest, Option[OperationEffect])]] =
     dbBinding.deepQueryDeploymentRequests(where, limit, offset)
 
-  def computeState(operationEffect: OperationEffect): (Operation.Kind, OperationStatus.Value) = {
-    val OperationEffect(operationTrace, executionTraces, targetStatuses) = operationEffect
-    val lastOperationState = operationTrace.closingDate
-      .map { _ =>
-        if (targetStatuses.forall(_.code == Status.notDone))
-          OperationStatus.flopped
-        else if (targetStatuses.forall(_.code == Status.success) && executionTraces.forall(_.state == ExecutionState.completed))
-          OperationStatus.succeeded
-        else
-          OperationStatus.failed
-      }
-      .getOrElse(OperationStatus.inProgress)
-    (operationTrace.kind, lastOperationState)
-  }
+  def computeState(operationEffect: OperationEffect): (Operation.Kind, OperationStatus.Value) =
+    (operationEffect.operationTrace.kind, operationEffect.state)
 
   /**
     * Compute the version that should be used in order to align the given target
