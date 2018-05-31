@@ -16,6 +16,20 @@ import scala.concurrent.Future
 
 
 class OperationStarter(val dbBinding: DbBinding) extends Logging {
+
+  private def insertExecutionTree(dispatcher: TargetDispatcher,
+                                  deploymentRequest: DeepDeploymentRequest,
+                                  expandedTarget: Option[TargetExpr],
+                                  executionSpecs: Seq[ExecutionSpecification],
+                                  userName: String) = {
+    val executions = executionSpecs.map(spec => (expandedTarget.getOrElse(deploymentRequest.parsedTarget), spec))
+
+    dbBinding.findDeploymentPlan(deploymentRequest).map { plan =>
+      val reflectInDb = createRecords(plan, Operation.deploy, userName, dispatcher, executions)
+      (reflectInDb, expandedTarget.map(_.flatMap(_.select)))
+    }
+  }
+
   def startDeploymentRequest(resolver: TargetResolver,
                              dispatcher: TargetDispatcher,
                              deploymentRequest: DeepDeploymentRequest,
@@ -29,13 +43,9 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
     // fails afterward and the specification remains unbound.
     // Moreover, this will likely be rewritten eventually for the specifications to be created alongside with the
     // `deploy` operations at the time the deployment request is created.
-    dbBinding.insertExecutionSpecification(specificParameters, deploymentRequest.version).flatMap { spec =>
-      val executions = Seq((expandedTarget.getOrElse(deploymentRequest.parsedTarget), spec))
-      dbBinding.findDeploymentPlan(deploymentRequest).map { plan =>
-        val reflectInDb = createRecords(plan, Operation.deploy, userName, dispatcher, executions)
-        (reflectInDb, expandedTarget.map(_.flatMap(_.select)))
-      }
-    }
+    dbBinding.insertExecutionSpecification(specificParameters, deploymentRequest.version).flatMap(executionSpec =>
+      insertExecutionTree(dispatcher, deploymentRequest, expandedTarget, Seq(executionSpec), userName)
+    )
   }
 
   def deployAgain(resolver: TargetResolver,
@@ -45,11 +55,7 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
                   userName: String): OperationStartSpecifics = {
     // todo: map the right target to the right specification
     val expandedTarget = expandTarget(resolver, deploymentRequest.product.name, deploymentRequest.version, deploymentRequest.parsedTarget)
-    val executions = executionSpecs.map(spec => (expandedTarget.getOrElse(deploymentRequest.parsedTarget), spec))
-    dbBinding.findDeploymentPlan(deploymentRequest).map { plan =>
-      val reflectInDb = createRecords(plan, Operation.deploy, userName, dispatcher, executions)
-      (reflectInDb, expandedTarget.map(_.flatMap(_.select)))
-    }
+    insertExecutionTree(dispatcher, deploymentRequest, expandedTarget, executionSpecs, userName)
   }
 
   def revert(dispatcher: TargetDispatcher,
