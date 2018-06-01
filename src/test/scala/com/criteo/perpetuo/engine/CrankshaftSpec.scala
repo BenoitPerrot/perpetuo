@@ -43,7 +43,7 @@ class CrankshaftSpec extends SimpleScenarioTesting {
   def mockDeployExecution(productName: String, v: String, targetAtomToStatus: Map[String, Status.Code], initFailed: Boolean = false): Future[(DeepDeploymentRequest, Long)] = {
     for {
       deploymentRequest <- crankshaft.createDeploymentRequest(ProtoDeploymentRequest(productName, Version(JsString(v).compactPrint), Seq(ProtoDeploymentPlanStep("", targetAtomToStatus.keys.toJson, "")), "", "r.equestor"))
-      operationTrace <- crankshaft.startDeploymentRequest(deploymentRequest, "s.tarter").map(_.get)
+      operationTrace <- crankshaft.startDeploymentRequest(deploymentRequest, "s.tarter")
       executionSpecIds <- crankshaft.dbBinding.findExecutionSpecIdsByOperationTrace(operationTrace.id)
       _ <- closeOperation(operationTrace, targetAtomToStatus, initFailed)
     } yield (deploymentRequest, executionSpecIds.head)

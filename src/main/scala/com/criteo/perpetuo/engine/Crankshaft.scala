@@ -280,11 +280,11 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
         (nbStopped, errors)
       }
 
-  def startDeploymentRequest(deploymentRequest: DeepDeploymentRequest, initiatorName: String): Future[Option[DeepOperationTrace]] =
+  def startDeploymentRequest(deploymentRequest: DeepDeploymentRequest, initiatorName: String): Future[DeepOperationTrace] =
     pureStartDeploymentRequest(deploymentRequest, initiatorName)
       .map { case (operationTrace, started, failed) =>
         listeners.foreach(_.onDeploymentRequestStarted(deploymentRequest, started, failed))
-        Some(operationTrace)
+        operationTrace
       }
 
   def pureStartDeploymentRequest(deploymentRequest: DeepDeploymentRequest, initiatorName: String): Future[(DeepOperationTrace, Int, Int)] =
