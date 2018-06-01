@@ -81,8 +81,8 @@ class Engine @Inject()(val crankshaft: Crankshaft,
         .getOrElse(Future.successful(None))
       )
 
-  def queryShallowDeploymentRequestStatuses(where: Seq[Map[String, Any]], limit: Int, offset: Int): Future[Seq[(DeepDeploymentRequest, DeploymentStatus.Value, Option[Operation.Kind])]] =
-    crankshaft.queryDeepDeploymentRequests(where, limit, offset)
+  def findDeploymentRequestsWithStatuses(where: Seq[Map[String, Any]], limit: Int, offset: Int): Future[Seq[(DeepDeploymentRequest, DeploymentStatus.Value, Option[Operation.Kind])]] =
+    crankshaft.findDeploymentRequestsWithStatuses(where, limit, offset)
 
   def queryDeploymentRequestStatus(user: Option[User], id: Long): Future[Option[DeploymentRequestStatus]] =
     crankshaft

@@ -87,7 +87,7 @@ class DbBinding @Inject()(val dbContext: DbContext)
       .result
       .map(_.map(_.toExecutionSpecification))
 
-  def deepQueryDeploymentRequests(where: Seq[Map[String, Any]], limit: Int, offset: Int): Future[Seq[(DeepDeploymentRequest, DeploymentStatus.Value, Option[Operation.Kind])]] = {
+  def findDeploymentRequestsWithStatuses(where: Seq[Map[String, Any]], limit: Int, offset: Int): Future[Seq[(DeepDeploymentRequest, DeploymentStatus.Value, Option[Operation.Kind])]] = {
     val filtered = where.foldLeft(this.deploymentRequestQuery join this.productQuery on (_.productId === _.id)) { (queries, spec) =>
       val value = spec.getOrElse("equals", throw new IllegalArgumentException(s"Filters tests must be `equals`"))
       val fieldName = spec.getOrElse("field", throw new IllegalArgumentException(s"Filters must specify ̀`field`"))

@@ -353,8 +353,8 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
   def findDeepDeploymentRequestAndEffects(deploymentRequestId: Long): Future[Option[(DeepDeploymentRequest, Iterable[OperationEffect])]] =
     dbBinding.findDeepDeploymentRequestAndEffects(deploymentRequestId)
 
-  def queryDeepDeploymentRequests(where: Seq[Map[String, Any]], limit: Int, offset: Int): Future[Seq[(DeepDeploymentRequest, DeploymentStatus.Value, Option[Operation.Kind])]] =
-    dbBinding.deepQueryDeploymentRequests(where, limit, offset)
+  def findDeploymentRequestsWithStatuses(where: Seq[Map[String, Any]], limit: Int, offset: Int): Future[Seq[(DeepDeploymentRequest, DeploymentStatus.Value, Option[Operation.Kind])]] =
+    dbBinding.findDeploymentRequestsWithStatuses(where, limit, offset)
 
   def computeState(operationEffect: OperationEffect): (Operation.Kind, DeploymentStatus.Value) =
     (operationEffect.operationTrace.kind, operationEffect.state)
