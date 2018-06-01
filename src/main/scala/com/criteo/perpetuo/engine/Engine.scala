@@ -72,7 +72,7 @@ class Engine @Inject()(val crankshaft: Crankshaft,
 
       crankshaft
         .canRevertDeploymentRequest(deploymentRequest, isStarted)
-        .flatMap(_ => crankshaft.revert(deploymentRequest, user.name, defaultVersion))
+        .flatMap(_ => crankshaft.revert(deploymentRequest, user.name, defaultVersion).map(Some.apply))
     }
 
   // TODO: implement revert-all-steps

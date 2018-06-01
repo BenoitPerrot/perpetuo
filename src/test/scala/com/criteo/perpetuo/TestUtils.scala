@@ -105,8 +105,7 @@ trait SimpleScenarioTesting extends Test with TestDb with MockitoSugar {
     val depReq = lastDeploymentRequests(productName)
     await {
       for {
-        op <- crankshaft.revert(depReq, "r.everter", defaultVersion.map(v => Version(v.toJson)))
-        operationTrace = op.get
+        operationTrace <- crankshaft.revert(depReq, "r.everter", defaultVersion.map(v => Version(v.toJson)))
         _ <- closeOperation(operationTrace)
       } yield operationTrace
     }

@@ -51,7 +51,7 @@ class CrankshaftSpec extends SimpleScenarioTesting {
 
   def mockRevertExecution(deploymentRequest: DeepDeploymentRequest, targetAtomToStatus: Map[String, Status.Code], defaultVersion: Option[Version] = None): Future[Long] = {
     for {
-      operationTrace <- crankshaft.revert(deploymentRequest, "r.everter", defaultVersion).map(_.get)
+      operationTrace <- crankshaft.revert(deploymentRequest, "r.everter", defaultVersion)
       _ <- closeOperation(operationTrace, targetAtomToStatus)
     } yield operationTrace.id
   }
@@ -221,7 +221,7 @@ class CrankshaftSpec extends SimpleScenarioTesting {
         // Can revert the first one now that the second one has been reverted, but it requires to specify to which version to revert
         required <- crankshaft.revert(firstDeploymentRequest, "r.ollbacker", None).recover { case MissingInfo(_, required) => required }
 
-        revertOperationTraceC <- crankshaft.revert(firstDeploymentRequest, "r.ollbacker", Some(defaultRevertVersion)).map(_.get)
+        revertOperationTraceC <- crankshaft.revert(firstDeploymentRequest, "r.ollbacker", Some(defaultRevertVersion))
         revertExecutionSpecIdsC <- crankshaft.dbBinding.findExecutionSpecIdsByOperationTrace(revertOperationTraceC.id)
         revertExecutionSpecC <- crankshaft.dbBinding.findExecutionSpecificationById(revertExecutionSpecIdsC.head).map(_.get)
 
@@ -425,7 +425,7 @@ class CrankshaftWithRundeckLogHrefSpec extends SimpleScenarioTesting {
       eventually(be((0, Seq())))
 
     // try to stop when nothing has been terminated but it's impossible to stop
-    crankshaft.revert(req, "r.everter", Some(Version("0".toJson))).map(_.get).flatMap(op =>
+    crankshaft.revert(req, "r.everter", Some(Version("0".toJson))).flatMap(op =>
       crankshaft.tryStopDeploymentRequest(req, "killer-guy")
         .flatMap { case (successes, failures) =>
           tryCloseOperation(op).map(updates =>
@@ -435,7 +435,7 @@ class CrankshaftWithRundeckLogHrefSpec extends SimpleScenarioTesting {
     ) should eventually(be((2, 2, 0, 2))) // i.e. 2 execution traces, 2 closed, 0 stopped, 2 failures
 
     // try to stop when one execution is already terminated and the other one could not be stopped (so 0 success)
-    crankshaft.revert(req, "r.everter", Some(Version("0".toJson))).map(_.get).flatMap(op =>
+    crankshaft.revert(req, "r.everter", Some(Version("0".toJson))).flatMap(op =>
       crankshaft.dbBinding.findExecutionIdsByOperationTrace(op.id)
         .flatMap { executionIds =>
           val executionId = executionIds.head // only update the first execution (out of the 2 triggered by the revert)
