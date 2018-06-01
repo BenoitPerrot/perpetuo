@@ -75,10 +75,6 @@ class Engine @Inject()(val crankshaft: Crankshaft,
         .flatMap(_ => crankshaft.revert(deploymentRequest, user.name, defaultVersion))
     }
 
-  // TODO: implement revert-all-steps
-  def revert(user: User, id: Long, defaultVersion: Option[Version]): Future[Option[DeepOperationTrace]] =
-    stepBack(user, id, None, defaultVersion)
-
   // TODO: implement for multi-step
   def stop(user: User, id: Long, currentStepId: Option[Long]): Future[Option[(Int, Seq[String])]] =
     crankshaft.findDeepDeploymentRequestById(id)

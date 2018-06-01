@@ -171,7 +171,7 @@ class RestController @Inject()(val engine: Engine)
 
   post("/api/deployment-requests/:id/actions/revert", 5.seconds) { (id: Long, r: RequestWithIdAndDefaultVersion, user: User) =>
     engine
-      .revert(user, id, r.defaultVersion.map(Version.apply))
+      .stepBack(user, id, None, r.defaultVersion.map(Version.apply))
       .map(_.map(_ => Map("id" -> id)))
   }
   // >>
