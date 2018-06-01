@@ -165,7 +165,7 @@ class RestController @Inject()(val engine: Engine)
   // TODO: Remove once clients have migrated to step
   post("/api/deployment-requests/:id/actions/deploy", 5.seconds) { (id: Long, _: RequestWithId, user: User) =>
     engine
-      .deploy(user, id)
+      .step(user, id, None)
       .map(_.map(_ => Map("id" -> id)))
   }
 
