@@ -19,15 +19,16 @@ class Engine @Inject()(val crankshaft: Crankshaft,
     crankshaft.createDeploymentRequest(protoDeploymentRequest)
   }
 
-  private def withDeepDeploymentRequest[T](id: Long)(callback: (DeepDeploymentRequest, Boolean) => Future[Option[T]]) =
+  private def withDeepDeploymentRequest[T](id: Long)(callback: (DeepDeploymentRequest, Boolean) => Future[T]): Future[Option[T]] =
     crankshaft.isDeploymentRequestStarted(id)
       .flatMap(
         _.map(callback.tupled)
+          .map(_.map(Some.apply))
           .getOrElse(Future.successful(None))
       )
 
   // TODO: support multi step
-  private def step(user: User, deploymentRequest: DeepDeploymentRequest, isStarted: Boolean, currentStepId: Option[Long]): Future[Option[DeepOperationTrace]] = {
+  private def step(user: User, deploymentRequest: DeepDeploymentRequest, isStarted: Boolean, currentStepId: Option[Long]): Future[DeepOperationTrace] = {
     if (!permissions.isAuthorized(user, DeploymentAction.applyOperation, Operation.deploy, deploymentRequest.product.name, deploymentRequest.parsedTarget.select))
       throw PermissionDenied()
 
@@ -35,9 +36,9 @@ class Engine @Inject()(val crankshaft: Crankshaft,
       .canDeployDeploymentRequest(deploymentRequest)
       .flatMap(_ =>
         if (isStarted)
-          crankshaft.deployAgain(deploymentRequest, user.name).map(Some.apply)
+          crankshaft.deployAgain(deploymentRequest, user.name)
         else
-          crankshaft.startDeploymentRequest(deploymentRequest, user.name).map(Some.apply)
+          crankshaft.startDeploymentRequest(deploymentRequest, user.name)
       )
   }
 
@@ -61,7 +62,6 @@ class Engine @Inject()(val crankshaft: Crankshaft,
         .flatMap { _ =>
         crankshaft
           .findExecutionSpecificationsForRevert(deploymentRequest)
-          .map(Some.apply)
       }
     }
 
@@ -72,7 +72,7 @@ class Engine @Inject()(val crankshaft: Crankshaft,
 
       crankshaft
         .canRevertDeploymentRequest(deploymentRequest, isStarted)
-        .flatMap(_ => crankshaft.revert(deploymentRequest, user.name, defaultVersion).map(Some.apply))
+        .flatMap(_ => crankshaft.revert(deploymentRequest, user.name, defaultVersion))
     }
 
   // TODO: implement revert-all-steps
