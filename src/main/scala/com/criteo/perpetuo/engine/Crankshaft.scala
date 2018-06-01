@@ -280,18 +280,13 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
         (nbStopped, errors)
       }
 
-  def startDeploymentRequest(deploymentRequest: DeepDeploymentRequest, initiatorName: String): Future[DeepOperationTrace] =
-    pureStartDeploymentRequest(deploymentRequest, initiatorName)
+  def startDeploymentRequest(deploymentRequest: DeepDeploymentRequest, initiatorName: String, emitEvent: Boolean = true): Future[DeepOperationTrace] =
+    startOperation(deploymentRequest, operationStarter.startDeploymentRequest(targetResolver, targetDispatcher, deploymentRequest, initiatorName))
       .map { case (operationTrace, started, failed) =>
-        listeners.foreach(_.onDeploymentRequestStarted(deploymentRequest, started, failed))
+        if (emitEvent)
+          listeners.foreach(_.onDeploymentRequestStarted(deploymentRequest, started, failed))
         operationTrace
       }
-
-  def pureStartDeploymentRequest(deploymentRequest: DeepDeploymentRequest, initiatorName: String): Future[(DeepOperationTrace, Int, Int)] =
-    startOperation(
-      deploymentRequest,
-      operationStarter.startDeploymentRequest(targetResolver, targetDispatcher, deploymentRequest, initiatorName)
-    )
 
   def deployAgain(deploymentRequest: DeepDeploymentRequest, initiatorName: String): Future[DeepOperationTrace] =
     dbBinding.findDeploySpecifications(deploymentRequest).flatMap(executionSpecs =>
