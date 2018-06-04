@@ -25,7 +25,7 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
     val executions = executionSpecs.map(spec => (expandedTarget.getOrElse(deploymentRequest.parsedTarget), spec))
 
     dbBinding.findDeploymentPlan(deploymentRequest).map { plan =>
-      val reflectInDb = createRecords(plan, Operation.deploy, userName, dispatcher, executions)
+      val reflectInDb = createRecords(plan.deploymentRequest, plan.steps, Operation.deploy, userName, dispatcher, executions)
       (reflectInDb, expandedTarget.map(_.flatMap(_.select)))
     }
   }
@@ -84,7 +84,7 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
         val executions = groups.map { case (spec, targets) => (Set(TargetTerm(select = targets)), spec) }
         val atoms = groups.flatMap { case (_, targets) => targets }
         dbBinding.findDeploymentPlan(deploymentRequest).map { plan =>
-          val reflectInDb = createRecords(plan, Operation.revert, userName, dispatcher, executions, createTargetStatuses = true)
+          val reflectInDb = createRecords(plan.deploymentRequest, plan.steps, Operation.revert, userName, dispatcher, executions, createTargetStatuses = true)
           (reflectInDb, Some(atoms.toSet))
         }
       }
@@ -146,19 +146,20 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
 
   // fixme: type the targets to differentiate atomic from other ones in order to always create atomic targets
   //        instead of taking the boolean as parameter (to be done later, since it's not trivial)
-  private def createRecords(deploymentPlan: DeploymentPlan,
+  private def createRecords(deploymentRequest: DeepDeploymentRequest,
+                            deploymentPlanSteps: Iterable[DeploymentPlanStep],
                             operation: Operation.Kind,
                             userName: String,
                             dispatcher: TargetDispatcher,
                             executions: Iterable[(TargetExpr, ExecutionSpecification)],
                             createTargetStatuses: Boolean = false): DBIOAction[(DeepOperationTrace, ExecutionsToTrigger), NoStream, Effect.Read with Effect.Write] =
     dbBinding
-      .insertOperationTrace(deploymentPlan.deploymentRequest, operation, userName)
+      .insertOperationTrace(deploymentRequest, operation, userName)
       .flatMap { newOp =>
         val specAndInvocations = executions.map { case (target, spec) =>
           (spec, dispatch(dispatcher, target, spec.specificParameters).toVector)
         }
-        dbBinding.insertStepOperationXRefs(deploymentPlan.steps, newOp).flatMap(_ =>
+        dbBinding.insertStepOperationXRefs(deploymentPlanSteps, newOp).flatMap(_ =>
           DBIOAction
             .sequence( // in sequence to be able to put all these SQL queries in the same transaction
               specAndInvocations.map { case (spec, invocations) =>
