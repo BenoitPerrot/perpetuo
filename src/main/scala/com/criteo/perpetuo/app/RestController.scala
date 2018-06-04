@@ -233,7 +233,14 @@ class RestController @Inject()(val engine: Engine)
     )
   }
 
-  private def serialize(depReq: DeepDeploymentRequest, lastOperationStatus: Option[(Operation.Kind, OperationStatus.Value)]): Map[String, Any] =
+  private def serialize(depReq: DeepDeploymentRequest, operationEffect: Option[(Operation.Kind, OperationStatus.Value)]): Map[String, Any] =
+    serialize(
+      depReq,
+      operationEffect.map { case (_, opStatus) => opStatus }.getOrElse(OperationStatus.notStarted),
+      operationEffect.map { case (kind, _) => kind }
+    )
+
+  private def serialize(depReq: DeepDeploymentRequest, generalStatus: OperationStatus.Value, lastOperationKind: Option[Operation.Kind]): Map[String, Any] =
     Map(
       "id" -> depReq.id,
       "comment" -> depReq.comment,
@@ -242,13 +249,11 @@ class RestController @Inject()(val engine: Engine)
       "version" -> depReq.version,
       "target" -> RawJson(depReq.target),
       "productName" -> depReq.product.name,
-      "state" -> lastOperationStatus // for the UI: below is what will be displayed (and it must match css classes)
-        .map {
-          case (Operation.deploy, OperationStatus.succeeded) => "deployed"
-          case (Operation.revert, OperationStatus.succeeded) => "reverted"
-          case (op, state) => s"$op $state"
-        }
-        .getOrElse(OperationStatus.notStarted.toString)
+      "state" -> (generalStatus match { // todo: move those conversions to the UI: below is what will be displayed (and it must match css classes)
+        case OperationStatus.notStarted | OperationStatus.paused => generalStatus
+        case OperationStatus.succeeded => s"${lastOperationKind.get}ed"
+        case state => s"${lastOperationKind.get} $state"
+      })
     )
 
   private def serialize(status: DeploymentRequestStatus): Map[String, Any] =

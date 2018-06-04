@@ -22,6 +22,7 @@ object OperationStatus extends Enumeration {
   val flopped = Value("flopped")
   val failed = Value("failed")
   val succeeded = Value("succeeded")
+  val paused = Value("paused")
 }
 
 case class UnprocessableIntent(message: String) extends IllegalArgumentException(message)
