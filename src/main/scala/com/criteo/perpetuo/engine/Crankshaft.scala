@@ -281,20 +281,24 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
       }
 
   def startDeploymentRequest(deploymentRequest: DeepDeploymentRequest, initiatorName: String, emitEvent: Boolean = true): Future[DeepOperationTrace] =
-    startOperation(deploymentRequest, operationStarter.startDeploymentRequest(targetResolver, targetDispatcher, deploymentRequest, initiatorName))
-      .map { case (operationTrace, started, failed) =>
-        if (emitEvent)
-          listeners.foreach(_.onDeploymentRequestStarted(deploymentRequest, started, failed))
-        operationTrace
-      }
+    dbBinding.findDeploymentPlan(deploymentRequest).flatMap(deploymentPlan =>
+      startOperation(deploymentRequest, operationStarter.startDeploymentRequest(targetResolver, targetDispatcher, deploymentRequest, deploymentPlan.steps, initiatorName))
+        .map { case (operationTrace, started, failed) =>
+          if (emitEvent)
+            listeners.foreach(_.onDeploymentRequestStarted(deploymentRequest, started, failed))
+          operationTrace
+        }
+    )
 
   def deployAgain(deploymentRequest: DeepDeploymentRequest, initiatorName: String): Future[DeepOperationTrace] =
     dbBinding.findDeploySpecifications(deploymentRequest).flatMap(executionSpecs =>
-      startOperation(deploymentRequest, operationStarter.deployAgain(targetResolver, targetDispatcher, deploymentRequest, executionSpecs, initiatorName))
-        .map { case (operationTrace, started, failed) =>
-          listeners.foreach(_.onDeploymentRequestRetried(deploymentRequest, started, failed))
-          operationTrace
-        }
+      dbBinding.findDeploymentPlan(deploymentRequest).flatMap(deploymentPlan =>
+        startOperation(deploymentRequest, operationStarter.deployAgain(targetResolver, targetDispatcher, deploymentRequest, deploymentPlan.steps, executionSpecs, initiatorName))
+          .map { case (operationTrace, started, failed) =>
+            listeners.foreach(_.onDeploymentRequestRetried(deploymentRequest, started, failed))
+            operationTrace
+          }
+      )
     )
 
   def revert(deploymentRequest: DeepDeploymentRequest, initiatorName: String, defaultVersion: Option[Version]): Future[DeepOperationTrace] =
