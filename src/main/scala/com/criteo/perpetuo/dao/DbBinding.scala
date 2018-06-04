@@ -1,6 +1,6 @@
 package com.criteo.perpetuo.dao
 
-import com.criteo.perpetuo.engine.Select
+import com.criteo.perpetuo.engine.{DeploymentStatus, Select}
 import com.criteo.perpetuo.model._
 import javax.inject.{Inject, Singleton}
 import slick.jdbc.TransactionIsolation
@@ -88,7 +88,7 @@ class DbBinding @Inject()(val dbContext: DbContext)
     ).map(_.map(_.toExecutionSpecification))
   }
 
-  def deepQueryDeploymentRequests(where: Seq[Map[String, Any]], limit: Int, offset: Int): Future[Iterable[(DeepDeploymentRequest, Option[OperationEffect])]] = {
+  def deepQueryDeploymentRequests(where: Seq[Map[String, Any]], limit: Int, offset: Int): Future[Seq[(DeepDeploymentRequest, DeploymentStatus.Value, Option[Operation.Kind])]] = {
     val filtered = where.foldLeft(this.deploymentRequestQuery join this.productQuery on (_.productId === _.id)) { (queries, spec) =>
       val value = spec.getOrElse("equals", throw new IllegalArgumentException(s"Filters tests must be `equals`"))
       val fieldName = spec.getOrElse("field", throw new IllegalArgumentException(s"Filters must specify ̀`field`"))
@@ -153,6 +153,11 @@ class DbBinding @Inject()(val dbContext: DbContext)
       }
 
     dbContext.db.run(q.map(_.sortBy { case (depReq, _) => -depReq.id }))
+      .map(
+        _.map { case (depReq, lastOperationEffect) =>
+          (depReq, lastOperationEffect.map(effect => effect.state).getOrElse(DeploymentStatus.notStarted), lastOperationEffect.map(effect => effect.operationTrace.kind))
+        }
+      )
   }
 
   // todo: will likely be deprecated by the introduction of the deployment_plan_step and step_operation_xref tables
