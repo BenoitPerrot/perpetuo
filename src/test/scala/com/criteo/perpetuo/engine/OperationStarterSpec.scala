@@ -61,12 +61,11 @@ class OperationStarterSpec extends Test with TestDb {
 
   implicit class ComplexDispatchTest(private val target: TargetExpr) {
     private val request = ProtoDeploymentRequest(product.name, Version("\"v42\""), Seq(ProtoDeploymentPlanStep("", target.toJson, "")), "No fear", "c.norris")
-    private val depReq = operationStarter.dbBinding.insertDeploymentRequest(request)
 
     def dispatchedAs(that: Map[ExecutionTrigger, TargetExpr]): Unit = {
       Await.result(
-        depReq.flatMap(
-          operationStarter.startDeploymentRequest(testResolver, TestTargetDispatcher, _, "c.norris")
+        operationStarter.dbBinding.insertDeploymentRequest(request).flatMap(deploymentRequest =>
+          operationStarter.startDeploymentRequest(testResolver, TestTargetDispatcher, deploymentRequest, "c.norris")
             .map(_._1)
             .flatMap(dbContext.db.run)
             .map { case (_, toTrigger) =>
