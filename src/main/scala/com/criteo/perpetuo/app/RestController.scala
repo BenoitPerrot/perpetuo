@@ -3,7 +3,7 @@ package com.criteo.perpetuo.app
 import com.criteo.perpetuo.auth.UserFilter._
 import com.criteo.perpetuo.auth.{Authenticator, User}
 import com.criteo.perpetuo.config.AppConfigProvider
-import com.criteo.perpetuo.engine.{DeploymentRequestStatus, Engine, OperationStatus}
+import com.criteo.perpetuo.engine.{DeploymentRequestStatus, Engine, DeploymentStatus}
 import com.criteo.perpetuo.model._
 import com.twitter.finagle.http.Request
 import com.twitter.finatra.http.exceptions._
@@ -233,14 +233,14 @@ class RestController @Inject()(val engine: Engine)
     )
   }
 
-  private def serialize(depReq: DeepDeploymentRequest, operationEffect: Option[(Operation.Kind, OperationStatus.Value)]): Map[String, Any] =
+  private def serialize(depReq: DeepDeploymentRequest, deploymentStatus: Option[(Operation.Kind, DeploymentStatus.Value)]): Map[String, Any] =
     serialize(
       depReq,
-      operationEffect.map { case (_, opStatus) => opStatus }.getOrElse(OperationStatus.notStarted),
-      operationEffect.map { case (kind, _) => kind }
+      deploymentStatus.map { case (_, opStatus) => opStatus }.getOrElse(DeploymentStatus.notStarted),
+      deploymentStatus.map { case (kind, _) => kind }
     )
 
-  private def serialize(depReq: DeepDeploymentRequest, generalStatus: OperationStatus.Value, lastOperationKind: Option[Operation.Kind]): Map[String, Any] =
+  private def serialize(depReq: DeepDeploymentRequest, generalStatus: DeploymentStatus.Value, lastOperationKind: Option[Operation.Kind]): Map[String, Any] =
     Map(
       "id" -> depReq.id,
       "comment" -> depReq.comment,
@@ -250,8 +250,8 @@ class RestController @Inject()(val engine: Engine)
       "target" -> RawJson(depReq.target),
       "productName" -> depReq.product.name,
       "state" -> (generalStatus match { // todo: move those conversions to the UI: below is what will be displayed (and it must match css classes)
-        case OperationStatus.notStarted | OperationStatus.paused => generalStatus
-        case OperationStatus.succeeded => s"${lastOperationKind.get}ed"
+        case DeploymentStatus.notStarted | DeploymentStatus.paused => generalStatus
+        case DeploymentStatus.succeeded => s"${lastOperationKind.get}ed"
         case state => s"${lastOperationKind.get} $state"
       })
     )
@@ -293,8 +293,8 @@ class RestController @Inject()(val engine: Engine)
         }
         try {
           engine.queryShallowDeploymentRequestStatuses(r.where, r.limit, r.offset)
-            .map(_.map { case (deploymentRequest, lastOperationStatus) =>
-              serialize(deploymentRequest, lastOperationStatus)
+            .map(_.map { case (deploymentRequest, deploymentStatus) =>
+              serialize(deploymentRequest, deploymentStatus)
             })
         } catch {
           case e: IllegalArgumentException => throw BadRequestException(e.getMessage)

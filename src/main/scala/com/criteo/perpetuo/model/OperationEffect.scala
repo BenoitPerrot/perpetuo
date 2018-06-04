@@ -1,25 +1,25 @@
 package com.criteo.perpetuo.model
 
-import com.criteo.perpetuo.engine.OperationStatus
+import com.criteo.perpetuo.engine.DeploymentStatus
 
 
 case class OperationEffect(operationTrace: OperationTrace,
                            executionTraces: Iterable[ShallowExecutionTrace],
                            targetStatuses: Iterable[TargetStatus]) {
-  val state: OperationStatus.Value =
+  val state: DeploymentStatus.Value =
     computeOperationState(operationTrace.closingDate.isEmpty, executionTraces.toStream.map(_.state), targetStatuses.toStream.map(_.code))
 }
 
 
 object computeOperationState {
   // only makes sense if the operation is closed
-  def apply(isRunning: Boolean, executionStates: => Iterable[ExecutionState.ExecutionState], statuses: => Iterable[Status.Code]): OperationStatus.Value =
+  def apply(isRunning: Boolean, executionStates: => Iterable[ExecutionState.ExecutionState], statuses: => Iterable[Status.Code]): DeploymentStatus.Value =
     if (isRunning)
-      OperationStatus.inProgress
+      DeploymentStatus.inProgress
     else if (statuses.forall(_ == Status.notDone))
-      OperationStatus.flopped
+      DeploymentStatus.flopped
     else if (statuses.forall(_ == Status.success) && executionStates.forall(_ == ExecutionState.completed))
-      OperationStatus.succeeded
+      DeploymentStatus.succeeded
     else
-      OperationStatus.failed
+      DeploymentStatus.failed
 }

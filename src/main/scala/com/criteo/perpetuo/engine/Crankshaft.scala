@@ -16,7 +16,7 @@ import scala.concurrent.Future
 import scala.util.Try
 
 
-object OperationStatus extends Enumeration {
+object DeploymentStatus extends Enumeration {
   val notStarted = Value("notStarted")
   val inProgress = Value("inProgress")
   val flopped = Value("flopped")
@@ -169,9 +169,9 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
         dbBinding.getOperationEffect(trace)
           .flatMap { effect =>
             val (kind, status) = computeState(effect)
-            val transactionOngoing = kind == Operation.deploy && status == OperationStatus.failed
+            val transactionOngoing = kind == Operation.deploy && status == DeploymentStatus.failed
             if (updated) {
-              val handler = if (status == OperationStatus.succeeded)
+              val handler = if (status == DeploymentStatus.succeeded)
                 (_: AsyncListener).onOperationSucceeded _
               else
                 (_: AsyncListener).onOperationFailed _
@@ -352,7 +352,7 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
   def queryDeepDeploymentRequests(where: Seq[Map[String, Any]], limit: Int, offset: Int): Future[Iterable[(DeepDeploymentRequest, Option[OperationEffect])]] =
     dbBinding.deepQueryDeploymentRequests(where, limit, offset)
 
-  def computeState(operationEffect: OperationEffect): (Operation.Kind, OperationStatus.Value) =
+  def computeState(operationEffect: OperationEffect): (Operation.Kind, DeploymentStatus.Value) =
     (operationEffect.operationTrace.kind, operationEffect.state)
 
   /**
