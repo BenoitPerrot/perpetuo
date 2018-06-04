@@ -158,7 +158,7 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
         val specAndInvocations = executions.map { case (target, spec) =>
           (spec, dispatch(dispatcher, target, spec.specificParameters).toVector)
         }
-        dbBinding.insertStepOperationXRefs(deploymentPlan, newOp).flatMap(_ =>
+        dbBinding.insertStepOperationXRefs(deploymentPlan.steps, newOp).flatMap(_ =>
           DBIOAction
             .sequence( // in sequence to be able to put all these SQL queries in the same transaction
               specAndInvocations.map { case (spec, invocations) =>

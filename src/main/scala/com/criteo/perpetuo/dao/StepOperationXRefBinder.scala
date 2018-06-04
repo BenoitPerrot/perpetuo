@@ -31,8 +31,8 @@ trait StepOperationXRefBinder extends TableBinder {
 
   val stepOperationXRefQuery = TableQuery[StepOperationXRefTable]
 
-  def insertStepOperationXRefs(deploymentPlan: DeploymentPlan, operationTrace: OperationTrace): FixedSqlAction[Option[Int], NoStream, Effect.Write] =
-    stepOperationXRefQuery ++= deploymentPlan.steps.map(dps => StepOperationXRefRecord(dps.id, operationTrace.id))
+  def insertStepOperationXRefs(steps: Iterable[DeploymentPlanStep], operationTrace: OperationTrace): FixedSqlAction[Option[Int], NoStream, Effect.Write] =
+    stepOperationXRefQuery ++= steps.map(dps => StepOperationXRefRecord(dps.id, operationTrace.id))
 
   @VisibleForTesting
   protected def findStepOperationXRefs(deploymentPlanStep: DeploymentPlanStep): Future[Seq[StepOperationXRefRecord]] =
