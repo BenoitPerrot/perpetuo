@@ -107,56 +107,83 @@ class DbBinding @Inject()(val dbContext: DbContext)
       .drop(offset)
       .take(limit)
 
-      // get the last operation for each deployment request in the provided query
-      .joinLeft(operationTraceQuery).on(_._1.id === _.deploymentRequestId)
-      .groupBy { case ((request, _), _) => request.id }
-      .map { case (requestId, operations) => (requestId, operations.map { case (_, operation) => operation.map(_.id) }.max) }
+      .join(deploymentPlanStepQuery)
+      .on { case ((deploymentRequest, _), planStep) => deploymentRequest.id === planStep.deploymentRequestId }
 
-      // since we lost everything but the selected operation trace ID (because of Slick and SQL backend limitations), let's get everything back
-      .join(productQuery)
-      .join(deploymentRequestQuery)
-      .filter { case (((requestId, _), product), request) => requestId === request.id && request.productId === product.id }
-      .joinLeft(operationTraceQuery).on { case ((((_, operationId), _), _), operation) => operationId === operation.id }
-      .map { case (((_, product), deploymentRequest), operationTrace) => ((deploymentRequest, product), operationTrace) }
-
-      // get the execution traces
-      .joinLeft(executionQuery).on { case ((_, operationTrace), execution) => operationTrace.map(_.id) === execution.operationTraceId }
-      .joinLeft(executionTraceQuery).on { case ((_, execution), executionTrace) => execution.map(_.id) === executionTrace.executionId }
-      .map { case ((((deploymentRequest, product), operationTrace), execution), executionTrace) => (deploymentRequest, product, operationTrace, execution.map(_.id), executionTrace) }
-      .result
-
-      .flatMap { executionTracesTree =>
-        val executionIdToOperationId = executionTracesTree.flatMap { case (_, _, operationTrace, executionId, _) => executionId.map(_ -> operationTrace.get.id.get) }.toMap
-
-        // in a separate request to not create huge joins between two orthogonal tables: ExecutionTrace and TargetStatus
-        targetStatusQuery
-          .filter(_.executionId.inSet(executionIdToOperationId.keys))
-          .result
-
-          .map { targetStatuses =>
-            val operationIdToTargetStatuses = targetStatuses.groupBy(targetStatus => executionIdToOperationId(targetStatus.executionId))
-
-            executionTracesTree
-              .groupBy { case (deploymentRequest, _, _, _, _) => deploymentRequest.id.get }
-              .toStream
-              .map { case (_, deploymentGroup) =>
-                val (deploymentRequest, product, optOperationTrace, _, _) = deploymentGroup.head
-                val effects = optOperationTrace.map { operationTrace =>
-                  val executionTraces = deploymentGroup.flatMap { case (_, _, _, _, executionTrace) => executionTrace.map(_.toExecutionTrace) }
-                  val targetStatuses = operationIdToTargetStatuses.getOrElse(operationTrace.id.get, Seq()).map(_.toTargetStatus)
-                  OperationEffect(operationTrace.toOperationTrace, executionTraces, targetStatuses)
-                }
-                (deploymentRequest.toDeepDeploymentRequest(product), effects)
-              }
-          }
+      // get all the execution traces branches, which have been inserted in a single transaction per operation
+      .joinLeft(stepOperationXRefQuery)
+      .on { case ((_, planStep), xref) => planStep.id === xref.deploymentPlanStepId }
+      .joinLeft(operationTraceQuery)
+      .on { case ((_, xref), operationTrace) => xref.map(_.operationTraceId) === operationTrace.id }
+      .joinLeft(executionQuery)
+      .on { case ((_, operationTrace), execution) => operationTrace.map(_.id) === execution.operationTraceId }
+      .joinLeft(executionTraceQuery)
+      .on { case ((_, execution), executionTrace) => execution.map(_.id) === executionTrace.executionId && executionTrace.state =!= ExecutionState.completed }
+      .map { case ((((((deploymentRequest, product), planStep), _), operationTrace), _), executionTrace) =>
+        (deploymentRequest, product, planStep.id, operationTrace.map((_, executionTrace.map(_.state))))
       }
 
-    dbContext.db.run(q.map(_.sortBy { case (depReq, _) => -depReq.id }))
-      .map(
-        _.map { case (depReq, lastOperationEffect) =>
-          (depReq, lastOperationEffect.map(effect => effect.state).getOrElse(DeploymentStatus.notStarted), lastOperationEffect.map(effect => effect.operationTrace.kind))
-        }
-      )
+      // prune the tree to only return one branch per operation, plus one branch per non-started deployment request (i.e. with no operation):
+      .distinctOn { case (deploymentRequest, _, _, effect) => effect.map { case (op, _) => op.id }.getOrElse(deploymentRequest.id * -1L) }
+      .result
+
+      .flatMap { executionTraceBranches =>
+        // in a separate request to not create huge joins between two orthogonal tables: ExecutionTrace and TargetStatus, and to only request the latter when necessary
+
+        val deploymentStatuses = Seq.newBuilder[(DeepDeploymentRequest, DeploymentStatus.Value, Option[Operation.Kind])]
+
+        val dependingOnTargetStatuses = executionTraceBranches
+          .groupBy { case (deploymentRequest, _, _, _) => deploymentRequest.id.get }
+          .values
+          .map { group =>
+            val (deploymentRequest, product, planStepId, lastEffect) = group.maxBy { case (_, _, _, effect) =>
+              effect.map { case (op, _) => op.id.get }.getOrElse(Long.MinValue)
+            }
+            val depReq = deploymentRequest.toDeepDeploymentRequest(product)
+            lastEffect
+              .map { case (operationTrace, executionTraceState) =>
+                operationTrace.closingDate
+                  .map { _ =>
+                    val forward = operationTrace.operation == Operation.deploy
+                    val isPaused = group.exists { case (_, _, stepId, _) => if (forward) planStepId < stepId else stepId < planStepId }
+                    Some(operationTrace.id.get -> (depReq, operationTrace.operation, isPaused, executionTraceState))
+                  }
+                  .getOrElse {
+                    deploymentStatuses.+=((depReq, DeploymentStatus.inProgress, Some(operationTrace.operation)))
+                    None
+                  }
+              }
+              .getOrElse {
+                deploymentStatuses.+=((depReq, DeploymentStatus.notStarted, None))
+                None
+              }
+          }
+          .flatten
+          .toMap
+
+        if (dependingOnTargetStatuses.nonEmpty)
+          executionQuery
+            .join(targetStatusQuery)
+            .on { case (execution, targetStatus) => execution.operationTraceId.inSet(dependingOnTargetStatuses.keySet) && execution.id === targetStatus.executionId }
+            .map { case (execution, targetStatus) => (execution.operationTraceId, targetStatus.code) }
+            .result
+            .map { statuses =>
+              val targetStatuses = statuses
+                .groupBy { case (operationTraceId, _) => operationTraceId }
+                .map { case (operationTraceId, group) => (operationTraceId, group.map { case (_, status) => status }) }
+              dependingOnTargetStatuses.foreach { case (operationTraceId, (deploymentRequest, kind, isPaused, executionState)) =>
+                val statuses = targetStatuses.getOrElse(operationTraceId, Seq())
+                val state = computeOperationState(isRunning = false, executionState, statuses)
+                val deploymentStatus = if (isPaused && (state == DeploymentStatus.succeeded || kind == Operation.revert)) DeploymentStatus.paused else state
+                deploymentStatuses.+=((deploymentRequest, deploymentStatus, Some(kind)))
+              }
+              deploymentStatuses.result
+            }
+        else
+          DBIO.successful(deploymentStatuses.result)
+      }
+
+    dbContext.db.run(q.map(_.sortBy { case (depReq, _, _) => -depReq.id }))
   }
 
   // todo: will likely be deprecated by the introduction of the deployment_plan_step and step_operation_xref tables
