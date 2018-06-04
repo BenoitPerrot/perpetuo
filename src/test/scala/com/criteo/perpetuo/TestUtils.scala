@@ -83,7 +83,7 @@ trait SimpleScenarioTesting extends Test with TestDb with MockitoSugar {
       )
       .map(_.flatten)
 
-  def deploy(productName: String, version: String, target: Seq[String], finalStatus: Status.Code = Status.success): DeepOperationTrace = {
+  def startDeploy(productName: String, version: String, target: Seq[String]): DeepOperationTrace = {
     if (!lastDeploymentRequests.contains(productName))
       await(crankshaft.insertProductIfNotExists(productName))
 
@@ -96,9 +96,15 @@ trait SimpleScenarioTesting extends Test with TestDb with MockitoSugar {
         }
         depPlan <- crankshaft.dbBinding.findDeploymentPlan(depReq)
         operationTrace <- crankshaft.startDeploymentStep(depReq, depPlan.steps.head, "s.tarter") if depPlan.steps.size == 1
-        _ <- closeOperation(operationTrace, target.map(_ -> finalStatus).toMap)
       } yield operationTrace
     }
+  }
+
+  def deploy(productName: String, version: String, target: Seq[String], finalStatus: Status.Code = Status.success): DeepOperationTrace = {
+
+    val operationTrace = startDeploy(productName, version, target)
+    await(closeOperation(operationTrace, target.map(_ -> finalStatus).toMap))
+    operationTrace
   }
 
   def revert(productName: String, defaultVersion: Option[String] = None): DeepOperationTrace = {
