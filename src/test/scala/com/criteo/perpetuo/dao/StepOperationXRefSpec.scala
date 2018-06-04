@@ -22,12 +22,12 @@ class StepOperationXRefSpec
   test("Deployment plan steps can be inserted and retrieved") {
     val op1 = deploy("humanity", "v1", Seq("af"))
     val depReq = op1.deploymentRequest
-    val (op2, stepIds, stepIdsBoundToOp1, stepIdsBoundToOp2, opIdsBoundToOp1, opIdsBoundToOp2) = Await.result(
+    val (op2, step2, stepIdsBoundToOp1, stepIdsBoundToOp2, opIdsBoundToOp1, opIdsBoundToOp2) = Await.result(
       for {
         step2 <- insertDeploymentPlanStep(depReq.id, ProtoDeploymentPlanStep("Eurasia", JsArray(JsString("eu"), JsString("as")), ""))
         _ <- insertDeploymentPlanStep(depReq.id, ProtoDeploymentPlanStep("America", JsArray(JsString("am")), ""))
         xrefsStep2NotStarted <- findStepOperationXRefs(step2)
-        op2 <- crankshaft.startDeploymentRequest(depReq, "initiator", emitEvent = false)
+        op2 <- crankshaft.startDeploymentStep(depReq, step2, "initiator", emitEvent = false)
         xrefsOp1 <- findStepOperationXRefs(op1)
         xrefsOp2 <- findStepOperationXRefs(op2)
         // todo: add tests when a specific plan step will be picked by a deploy
@@ -35,7 +35,7 @@ class StepOperationXRefSpec
         xrefsStep2NotStarted.size shouldBe 0
         (
           op2,
-          Range.inclusive(step2.id.toInt - 1, step2.id.toInt + 1),
+          step2,
           xrefsOp1.map(x => x.deploymentPlanStepId),
           xrefsOp2.map(x => x.deploymentPlanStepId),
           xrefsOp1.map(x => x.operationTraceId).toSet,
@@ -45,8 +45,8 @@ class StepOperationXRefSpec
       1.second
     )
 
-    stepIdsBoundToOp1 shouldEqual Seq(stepIds.start) // op1 has been applied on the first step only
-    stepIdsBoundToOp2.sorted shouldEqual stepIds.toList // op2 has been applied on all steps (that will obviously be changed when there will be functions to appropriately execute the plan)
+    stepIdsBoundToOp1 shouldEqual Seq(step2.id - 1) // op1 has been applied on the first step only
+    stepIdsBoundToOp2 shouldEqual Seq(step2.id) // op2 has been applied on second steps only
     opIdsBoundToOp1 shouldEqual Set(op1.id)
     opIdsBoundToOp2 shouldEqual Set(op2.id)
   }

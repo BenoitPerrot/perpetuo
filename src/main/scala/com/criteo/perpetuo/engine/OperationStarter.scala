@@ -29,11 +29,11 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
     (reflectInDb, expandedTarget.map(_.flatMap(_.select)))
   }
 
-  def startDeploymentRequest(resolver: TargetResolver,
-                             dispatcher: TargetDispatcher,
-                             deploymentRequest: DeepDeploymentRequest,
-                             deploymentPlanSteps: Iterable[DeploymentPlanStep],
-                             userName: String): OperationStartSpecifics = {
+  def startDeploymentStep(resolver: TargetResolver,
+                          dispatcher: TargetDispatcher,
+                          deploymentRequest: DeepDeploymentRequest,
+                          deploymentPlanStep: DeploymentPlanStep,
+                          userName: String): OperationStartSpecifics = {
     // generation of specific parameters
     val specificParameters = dispatcher.freezeParameters(deploymentRequest.product.name, deploymentRequest.version)
     // target resolution
@@ -44,7 +44,7 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
     // Moreover, this will likely be rewritten eventually for the specifications to be created alongside with the
     // `deploy` operations at the time the deployment request is created.
     dbBinding.insertExecutionSpecification(specificParameters, deploymentRequest.version).map(executionSpec =>
-      insertExecutionTree(dispatcher, deploymentRequest, deploymentPlanSteps, expandedTarget, Seq(executionSpec), userName)
+      insertExecutionTree(dispatcher, deploymentRequest, Seq(deploymentPlanStep), expandedTarget, Seq(executionSpec), userName)
     )
   }
 
