@@ -52,11 +52,13 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
                           dispatcher: TargetDispatcher,
                           deploymentRequest: DeepDeploymentRequest,
                           deploymentPlanStep: DeploymentPlanStep,
-                          executionSpecs: Seq[ExecutionSpecification],
                           userName: String): OperationStartSpecifics = {
     // todo: map the right target to the right specification
     val expandedTarget = expandTarget(resolver, deploymentRequest.product.name, deploymentRequest.version, deploymentRequest.parsedTarget)
-    Future.successful(insertExecutionTree(dispatcher, deploymentRequest, Seq(deploymentPlanStep), expandedTarget, executionSpecs, userName))
+
+    dbBinding.findDeploySpecifications(deploymentRequest).map(executionSpecs =>
+      insertExecutionTree(dispatcher, deploymentRequest, Seq(deploymentPlanStep), expandedTarget, executionSpecs, userName)
+    )
   }
 
   def revert(dispatcher: TargetDispatcher,
