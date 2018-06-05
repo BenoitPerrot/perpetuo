@@ -114,49 +114,55 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
     else
       dbBinding.releaseLocks(deploymentRequest.id)
 
+  private def triggerExecutions(deploymentRequest: DeepDeploymentRequest,
+                                operationTrace: DeepOperationTrace,
+                                executionsToTrigger: ExecutionsToTrigger) =
+    operationStarter.triggerExecutions(deploymentRequest, executionsToTrigger).flatMap(effects =>
+      Future.traverse(effects) { case (status, execTraceId, executionUpdate) =>
+        executionUpdate
+          .map { case (state, detail, logHref) =>
+            // will close the operation if there is no more ongoing execution
+            updateExecutionTrace(execTraceId, state, detail, logHref)
+              .map(_ => status)
+              .recover { case e =>
+                // only log update errors, which are not critical in that case
+                logger.error(s"Could not update execution trace #$execTraceId${logHref.map(s => s" ($s)").getOrElse("")} as $state: $detail", e)
+                status
+              }
+          }
+          .getOrElse(Future.successful(status))
+      }.map { statuses =>
+        val (successes, failures) = statuses.partition(identity)
+        (operationTrace, successes.size, failures.size)
+      }
+    )
+
+  private def acquireOperationLock(deploymentRequest: DeepDeploymentRequest) =
+    dbBinding.tryAcquireLocks(Seq(getOperationLockName(deploymentRequest)), deploymentRequest.id, reentrant = false).map(alreadyRunning =>
+      if (alreadyRunning.nonEmpty)
+        throw Conflict("Cannot be processed for the moment because another operation is running for the same deployment request")
+    )
+
+  private def acquireDeploymentTransactionLock(deploymentRequest: DeepDeploymentRequest, atoms: Option[Set[String]]) =
+    dbBinding.tryAcquireLocks(getTransactionLockNames(deploymentRequest, atoms), deploymentRequest.id, reentrant = true).map(conflictingRequestIds =>
+      if (conflictingRequestIds.nonEmpty)
+        throw Conflict("Cannot be processed for the moment because a conflicting transaction is ongoing, which must first succeed or be reverted", conflictingRequestIds)
+    )
+
   private def startOperation(deploymentRequest: DeepDeploymentRequest,
                              operationStartSpecifics: OperationStartSpecifics): Future[(DeepOperationTrace, Int, Int)] =
     operationStartSpecifics
       .flatMap { case (recordsCreation, atoms) =>
         dbBinding.executeInSerializableTransaction(
-          dbBinding.tryAcquireLocks(Seq(getOperationLockName(deploymentRequest)), deploymentRequest.id, reentrant = false).flatMap { alreadyRunning =>
-            if (alreadyRunning.nonEmpty)
-              throw Conflict(
-                "Cannot be processed for the moment because another operation is running for the same deployment request"
-              )
-
-            dbBinding.tryAcquireLocks(getTransactionLockNames(deploymentRequest, atoms), deploymentRequest.id, reentrant = true).flatMap { conflictingRequestIds =>
-              if (conflictingRequestIds.nonEmpty)
-                throw Conflict(
-                  "Cannot be processed for the moment because a conflicting transaction is ongoing, which must first succeed or be reverted",
-                  conflictingRequestIds
-                )
-
+          acquireOperationLock(deploymentRequest).flatMap(_ =>
+            acquireDeploymentTransactionLock(deploymentRequest, atoms).flatMap(_ =>
               recordsCreation
-            }
-          }
+            )
+          )
         )
       }
       .flatMap { case (createdOperation, executionsToTrigger) =>
-        operationStarter.triggerExecutions(deploymentRequest, executionsToTrigger).flatMap(effects =>
-          Future.traverse(effects) { case (status, execTraceId, executionUpdate) =>
-            executionUpdate
-              .map { case (state, detail, logHref) =>
-                // will close the operation if there is no more ongoing execution
-                updateExecutionTrace(execTraceId, state, detail, logHref)
-                  .map(_ => status)
-                  .recover { case e =>
-                    // only log update errors, which are not critical in that case
-                    logger.error(s"Could not update execution trace #$execTraceId${logHref.map(s => s" ($s)").getOrElse("")} as $state: $detail", e)
-                    status
-                  }
-              }
-              .getOrElse(Future.successful(status))
-          }.map { statuses =>
-            val (successes, failures) = statuses.partition(identity)
-            (createdOperation, successes.size, failures.size)
-          }
-        )
+        triggerExecutions(deploymentRequest, createdOperation, executionsToTrigger)
       }
 
   // idempotent: on several attempts the listeners would be invoked at most once, but the DB updates
