@@ -36,7 +36,10 @@ class Engine @Inject()(val crankshaft: Crankshaft,
         .canDeployDeploymentRequest(deploymentRequest)
         .flatMap(_ =>
           if (isStarted)
-            crankshaft.deployAgain(deploymentRequest, user.name)
+            crankshaft.dbBinding.findDeploymentPlan(deploymentRequest).flatMap { deploymentPlan =>
+              assert(deploymentPlan.steps.size == 1)
+              crankshaft.retryDeploymentStep(deploymentRequest, deploymentPlan.steps.head, user.name)
+            }
           else
             crankshaft.startDeploymentRequest(deploymentRequest, user.name)
         )

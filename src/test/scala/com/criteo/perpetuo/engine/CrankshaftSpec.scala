@@ -258,11 +258,12 @@ class CrankshaftSpec extends SimpleScenarioTesting {
       for {
         product <- crankshaft.insertProductIfNotExists("martian")
         deploymentRequest <- crankshaft.createDeploymentRequest(ProtoDeploymentRequest(product.name, Version(JsString("42").compactPrint), Seq(ProtoDeploymentPlanStep("", JsArray(JsString("moon"), JsString("mars")), "")), "", "robert"))
+        deploymentPlan <- dbBinding.findDeploymentPlan(deploymentRequest)
         _ <- crankshaft.startDeploymentRequest(deploymentRequest, "ignace")
         operationTraces <- dbBinding.findOperationTracesByDeploymentRequest(deploymentRequest.id)
         operationTrace = operationTraces.head
         firstExecutionTraces <- closeOperation(operationTrace, Map("moon" -> Status.success, "mars" -> Status.hostFailure))
-        retriedOperation <- crankshaft.deployAgain(deploymentRequest, "b.lightning")
+        retriedOperation <- crankshaft.retryDeploymentStep(deploymentRequest, deploymentPlan.steps.head, "b.lightning") if deploymentPlan.steps.size == 1
         secondExecutionTraces <- closeOperation(retriedOperation, Map("moon" -> Status.success, "mars" -> Status.success))
         hasOpenExecutionAfter <- crankshaft.dbBinding.hasOpenExecutionTracesForOperation(retriedOperation.id)
         operationReClosingSucceeded <- crankshaft.dbBinding.closeOperationTrace(retriedOperation)

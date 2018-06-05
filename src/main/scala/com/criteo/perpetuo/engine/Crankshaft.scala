@@ -304,13 +304,6 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
         }
     )
 
-  // TODO: remove: replace it by retryDeploymentStep in callers
-  def deployAgain(deploymentRequest: DeepDeploymentRequest, initiatorName: String): Future[DeepOperationTrace] =
-    dbBinding.findDeploymentPlan(deploymentRequest).flatMap { deploymentPlan =>
-      assert(deploymentPlan.steps.size == 1)
-      retryDeploymentStep(deploymentRequest, deploymentPlan.steps.head, initiatorName)
-    }
-
   def revert(deploymentRequest: DeepDeploymentRequest, initiatorName: String, defaultVersion: Option[Version]): Future[DeepOperationTrace] =
     startOperation(deploymentRequest, operationStarter.revert(targetDispatcher, deploymentRequest, initiatorName, defaultVersion))
       .map { case (operationTrace, started, failed) =>
