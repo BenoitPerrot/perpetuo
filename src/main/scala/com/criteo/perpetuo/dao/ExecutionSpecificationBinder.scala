@@ -31,12 +31,13 @@ trait ExecutionSpecificationBinder extends TableBinder {
 
   val executionSpecificationQuery: TableQuery[ExecutionSpecificationTable] = TableQuery[ExecutionSpecificationTable]
 
-  def insertExecutionSpecification(specificParameters: String, version: Version): Future[ExecutionSpecification] = {
-    val record = ExecutionSpecificationRecord(None, version, specificParameters)
-    dbContext.db.run((executionSpecificationQuery returning executionSpecificationQuery.map(_.id)) += record).map(
+  def insertingExecutionSpecification(specificParameters: String, version: Version): DBIOAction[ExecutionSpecification, NoStream, Effect.Write] =
+    ((executionSpecificationQuery returning executionSpecificationQuery.map(_.id)) += ExecutionSpecificationRecord(None, version, specificParameters)).map(
       ExecutionSpecification(_, version, specificParameters)
     )
-  }
+
+  def insertExecutionSpecification(specificParameters: String, version: Version): Future[ExecutionSpecification] =
+    dbContext.db.run(insertingExecutionSpecification(specificParameters, version))
 
   def findExecutionSpecificationById(executionSpecificationId: Long): Future[Option[ExecutionSpecification]] =
     dbContext.db.run(executionSpecificationQuery.filter(_.id === executionSpecificationId).result)

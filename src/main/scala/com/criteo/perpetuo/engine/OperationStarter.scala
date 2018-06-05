@@ -33,7 +33,14 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
                           dispatcher: TargetDispatcher,
                           deploymentRequest: DeepDeploymentRequest,
                           deploymentPlanStep: DeploymentPlanStep,
-                          userName: String): OperationStartSpecifics = {
+                          userName: String): OperationStartSpecifics =
+    dbBinding.dbContext.db.run(startingDeploymentStep(resolver, dispatcher, deploymentRequest, deploymentPlanStep, userName))
+
+  def startingDeploymentStep(resolver: TargetResolver,
+                             dispatcher: TargetDispatcher,
+                             deploymentRequest: DeepDeploymentRequest,
+                             deploymentPlanStep: DeploymentPlanStep,
+                             userName: String): DBIOAction[(DBIOAction[(DeepOperationTrace, ExecutionsToTrigger), NoStream, Effect.Read with Effect.Write], Option[Set[String]]), NoStream, Effect.Write] = {
     // generation of specific parameters
     val specificParameters = dispatcher.freezeParameters(deploymentRequest.product.name, deploymentRequest.version)
     // target resolution
@@ -43,7 +50,7 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
     // fails afterward and the specification remains unbound.
     // Moreover, this will likely be rewritten eventually for the specifications to be created alongside with the
     // `deploy` operations at the time the deployment request is created.
-    dbBinding.insertExecutionSpecification(specificParameters, deploymentRequest.version).map(executionSpec =>
+    dbBinding.insertingExecutionSpecification(specificParameters, deploymentRequest.version).map(executionSpec =>
       insertExecutionTree(dispatcher, deploymentRequest, Seq(deploymentPlanStep), expandedTarget, Seq(executionSpec), userName)
     )
   }
