@@ -94,7 +94,8 @@ trait SimpleScenarioTesting extends Test with TestDb with MockitoSugar {
           lastDeploymentRequests(productName) = depReq
           depReq
         }
-        operationTrace <- crankshaft.startDeploymentRequest(depReq, "s.tarter")
+        depPlan <- crankshaft.dbBinding.findDeploymentPlan(depReq)
+        operationTrace <- crankshaft.startDeploymentStep(depReq, depPlan.steps.head, "s.tarter") if depPlan.steps.size == 1
         _ <- closeOperation(operationTrace, target.map(_ -> finalStatus).toMap)
       } yield operationTrace
     }
