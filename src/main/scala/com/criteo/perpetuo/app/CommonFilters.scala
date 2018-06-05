@@ -49,7 +49,7 @@ class AccessLoggingFilter[R <: Request] @Inject()(logFormatter: LogFormatter[R, 
           "requested_uri" -> request.uri,
           "referer" -> response.referer.getOrElse(""),
           "response_status" -> response.statusCode,
-          "response_time_ms" -> elapsed_time.inMilliseconds / 1000.0
+          "response_time_s" -> elapsed_time.inMilliseconds / 1000.0
         ).asJava
         logger.info(Markers.appendEntries(map), logFormatter.format(request, response, elapsed_time));
       } onFailure { e =>
