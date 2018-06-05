@@ -59,11 +59,18 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
                           dispatcher: TargetDispatcher,
                           deploymentRequest: DeepDeploymentRequest,
                           deploymentPlanStep: DeploymentPlanStep,
-                          userName: String): OperationStartSpecifics = {
+                          userName: String): OperationStartSpecifics =
+    dbBinding.dbContext.db.run(retryingDeploymentStep(resolver, dispatcher, deploymentRequest, deploymentPlanStep, userName))
+
+  def retryingDeploymentStep(resolver: TargetResolver,
+                             dispatcher: TargetDispatcher,
+                             deploymentRequest: DeepDeploymentRequest,
+                             deploymentPlanStep: DeploymentPlanStep,
+                             userName: String): DBIOAction[(DBIOAction[(DeepOperationTrace, ExecutionsToTrigger), NoStream, Effect.Read with Effect.Write], Option[Set[String]]), NoStream, Effect.Read] = {
     // todo: map the right target to the right specification
     val expandedTarget = expandTarget(resolver, deploymentRequest.product.name, deploymentRequest.version, deploymentRequest.parsedTarget)
 
-    dbBinding.findDeploySpecifications(deploymentRequest).map(executionSpecs =>
+    dbBinding.findingDeploySpecifications(deploymentRequest).map(executionSpecs =>
       insertExecutionTree(dispatcher, deploymentRequest, Seq(deploymentPlanStep), expandedTarget, executionSpecs, userName)
     )
   }

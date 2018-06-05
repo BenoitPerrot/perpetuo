@@ -73,8 +73,8 @@ class DbBinding @Inject()(val dbContext: DbContext)
     dbContext.db.run(q.map(_.map { case (depReq, effects) => (depReq, effects.sortBy(_.operationTrace.id)) }))
   }
 
-  def findDeploySpecifications(deploymentRequest: DeepDeploymentRequest): Future[Seq[ExecutionSpecification]] = {
-    dbContext.db.run(operationTraceQuery
+  def findingDeploySpecifications(deploymentRequest: DeepDeploymentRequest): DBIOAction[Seq[ExecutionSpecification], NoStream, Effect.Read] =
+    operationTraceQuery
       .filter(op => op.deploymentRequestId === deploymentRequest.id && op.operation === Operation.deploy)
       .take(1)
       .join(executionQuery)
@@ -85,8 +85,7 @@ class DbBinding @Inject()(val dbContext: DbContext)
       }
       .map { case (_, executionSpec) => executionSpec }
       .result
-    ).map(_.map(_.toExecutionSpecification))
-  }
+      .map(_.map(_.toExecutionSpecification))
 
   def deepQueryDeploymentRequests(where: Seq[Map[String, Any]], limit: Int, offset: Int): Future[Seq[(DeepDeploymentRequest, DeploymentStatus.Value, Option[Operation.Kind])]] = {
     val filtered = where.foldLeft(this.deploymentRequestQuery join this.productQuery on (_.productId === _.id)) { (queries, spec) =>
