@@ -127,6 +127,13 @@
         }
       }
 
+      select(e) {
+        const i = this.filteredChoices.findIndex(_ => _ == e);
+        if (0 <= i) {
+          this.$.listbox.selected = i;
+        }
+      }
+
       addElement(value) {
         if (this.multi)
           this.push('selectedItems', value);

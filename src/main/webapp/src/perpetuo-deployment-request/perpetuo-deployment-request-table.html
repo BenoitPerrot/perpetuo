@@ -55,6 +55,7 @@
     }
     </style>
     <perpetuo-identity id="identity" login="{{login}}"></perpetuo-identity>
+    <app-location query-params="{{queryParams}}"></app-location>
     <perpetuo-app-toolbar page-title="Perpetuo / Deployment Requests"></perpetuo-app-toolbar>
 
     <div sticky class="table" style="background: #fff">
@@ -69,7 +70,7 @@
       </div>
       <div style="display: flex;">
         <div class="product-name">
-          <perpetuo-list-editor key="productName" label="Filter" choices="[[productNames]]" initial-count="10" on-selected-items-changed="updateFilter"></perpetuo-list-editor>
+          <perpetuo-list-editor id="productFilter" key="productName" label="Filter" choices="[[productNames]]" initial-count="10" on-selected-items-changed="updateFilter"></perpetuo-list-editor>
         </div>
         <div class="version"></div>
         <span class="target"></span>
@@ -105,6 +106,7 @@
       static get properties() {
         return {
           login: String,
+          queryParams: Object,
           active: {type: Boolean, observer: 'onActiveChanged'},
           data: {type: Array, observer: 'convertTimestamp' },
           indices: {type: Object, value: () => new Object()},
@@ -129,14 +131,13 @@
         this.client = new Perpetuo.Client();
       }
 
-      connectedCallback() {
-        super.connectedCallback();
-
-        this.client.fetchProducts().then(products => { this.productNames = products.map(_ => _.name); });
-      }
-
       onActiveChanged(active) {
         if (active) {
+          this.deploymentRequestFilter = decodeURIComponent(this.queryParams['q'] || '');
+          this.client.fetchProducts().then(products => {
+            this.productNames = products.map(_ => _.name);
+            this.$.productFilter.select(this.deploymentRequestFilter);
+          });
           const installRefresh = () => this.refresh().then(reinstallRefresh, reinstallRefresh);
           const refreshDelay = 1000;
           const reinstallRefresh = () => {
@@ -184,8 +185,16 @@
 
       updateFilter(e) {
         if (this.active) {
-          this.deploymentRequestFilter = e.target.selectedItem;
-          this.refresh(true);
+          if (this.deploymentRequestFilter != e.target.selectedItem) {
+            this.deploymentRequestFilter = e.target.selectedItem;
+            if (this.deploymentRequestFilter) {
+              this.set('queryParams.q', encodeURIComponent(this.deploymentRequestFilter));
+            } else {
+              delete this.queryParams.q;
+              this.set('queryParams', Object.assign({}, this.queryParams));
+            }
+            this.refresh(true);
+          }
         }
       }
 
