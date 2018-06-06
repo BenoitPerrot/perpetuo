@@ -10,10 +10,8 @@ class SchemaSpec extends Test {
 
   val schema = new Schema(new DbContext(SQLServerProfile, null))
 
-  def getResourceAsString(resourceFileName: String): String = {
-    val cls = Class.forName(Thread.currentThread.getStackTrace.apply(2).getClassName)
-    Source.fromURL(cls.getResource(resourceFileName)).mkString
-  }
+  def getResourceAsString(resourceFileName: String): String =
+    Source.fromURL(getClass.getResource(resourceFileName)).mkString
 
   def toWords(string: String): List[String] = {
     """"[^"]*"|\w+|[^"\w]+""".r.findAllIn(string.trim).toList.map {
