@@ -28,7 +28,7 @@ trait ExecutionHttpTrigger extends ExecutionTrigger {
   protected def extractMessage(status: Int, content: String): String // answer "" if no message can be extracted
 
   // HTTP client
-  protected val ssl: Boolean = port == 443
+  protected def ssl: Boolean = port == 443
   protected val requestTimeout: Duration = 20.seconds
   protected val maxConnectionsPerHost: Int = 10
   protected val backoffDurations: Stream[Duration] = Backoff.exponentialJittered(1.seconds, 5.seconds)
