@@ -11,16 +11,30 @@ import scala.concurrent.{Await, Future}
 
 
 class CrankshaftSpec extends SimpleScenarioTesting {
+
+  private def getLastDoneAndToDoPlanStepId(deploymentRequestId: Long) =
+    crankshaft.dbBinding.dbContext.db.run(crankshaft.dbBinding.gettingLastDoneAndToDoPlanStepId(deploymentRequestId))
+
   test("A trivial execution triggers a job with no log href when there is no log href provided") {
     Await.result(
       for {
         product <- crankshaft.insertProductIfNotExists("product #1")
         depPlan <- crankshaft.dbBinding.insertDeploymentRequest(ProtoDeploymentRequest(product.name, Version("\"1000\""), Seq(ProtoDeploymentPlanStep("", JsString("*"), "")), "", "s.omeone"))
+        beforeStart <- getLastDoneAndToDoPlanStepId(depPlan.deploymentRequest.id)
         _ <- crankshaft.startDeploymentStep(depPlan.deploymentRequest, depPlan.steps.head, "s.tarter") if depPlan.steps.size == 1
+        afterStart <- getLastDoneAndToDoPlanStepId(depPlan.deploymentRequest.id)
         traces <- crankshaft.findExecutionTracesByDeploymentRequest(depPlan.deploymentRequest.id)
-      } yield traces.get.map(trace => (trace.id, trace.logHref)),
+      } yield (
+        traces.get.map(trace => (trace.id, trace.logHref)),
+        beforeStart._1.isEmpty,
+        beforeStart._2 == afterStart._1,
+        beforeStart._2 == afterStart._2 // Deployment flopped, so the next step remains the same
+      ),
       1.second
-    ) shouldEqual Seq((1, None))
+    ) shouldEqual (
+      Seq((1, None)),
+      true, true, true
+    )
   }
 
   test("Crankshaft keeps track of open executions for an operation") {

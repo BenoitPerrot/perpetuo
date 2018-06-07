@@ -195,6 +195,90 @@ class DbBinding @Inject()(val dbContext: DbContext)
     ).map(_.headOption.map { case ((depReq, product), started) => (depReq.toDeepDeploymentRequest(product), started) })
   }
 
+  private def findingDeploymentPlanStepAndLatestOperations(deploymentRequestId: Long) =
+    deploymentPlanStepQuery
+      .filter(_.deploymentRequestId === deploymentRequestId)
+      .joinLeft(stepOperationXRefQuery)
+      .on { case (step, xref) => step.id === xref.deploymentPlanStepId }
+      .joinLeft(operationTraceQuery)
+      .on { case ((_, xref), operation) => xref.map(_.operationTraceId) === operation.id }
+      .groupBy { case ((step, _), _) => step.id }
+      .map { case (deploymentPlanStepId, q) =>
+        (deploymentPlanStepId, q.map { case (_, operationTrace) => operationTrace.map(_.id) }.max)
+      }
+      .result
+
+  private def getLastDoneStepAndOperation(planStepsAndLatestOperations: Seq[(Long, Option[Long])]) =
+    planStepsAndLatestOperations.reduce[(Long, Option[Long])] {
+      case ((latestPlanStepId, None), current@(planStepId, None)) if planStepId < latestPlanStepId =>
+        // When comparing two steps, both with no operation, the oldest one is the latest one
+        current
+
+      case ((_, Some(latestOperationId)), current@(_, Some(operationId))) if latestOperationId < operationId =>
+        // When comparing two steps, both with operations, the step with the youngest operation is the latest one
+        current
+
+      case ((_, None), current@(_, Some(_))) =>
+        // When comparing a step with no operation to another with operations, the one with operations is the latest one
+        current
+
+      case (latest, _) =>
+        // When all conditions failed, the latest one is to be kept
+        latest
+    }
+
+  private def findNextPlanStepId(planStepIds: Seq[Long], referencePlanStepId: Long) =
+    planStepIds
+      .filter(referencePlanStepId < _)
+      .reduceOption(_ min _)
+
+  private def computingOperationStatus(operationId: Long, isRunning: Boolean): DBIOAction[DeploymentStatus.Value, NoStream, Effect.Read] =
+    if (isRunning)
+      DBIO.successful(DeploymentStatus.inProgress)
+    else
+      executionQuery
+        .joinLeft(executionTraceQuery)
+        .on { case (ex, et) => ex.operationTraceId === operationId && ex.id === et.executionId && et.state =!= ExecutionState.completed }
+        .take(1)
+        .joinLeft(targetStatusQuery)
+        .on { case ((ex, _), ts) => ex.id === ts.executionId }
+        .map { case ((_, et), ts) => (et.map(_.state), ts.map(_.code).getOrElse(Status.notDone)) }
+        .distinctOn { case (_, targetState) => targetState }
+        .result
+        .map(statusSummary =>
+          computeOperationState(
+            isRunning,
+            statusSummary.flatMap { case (execState, _) => execState },
+            statusSummary.map { case (_, targetStatus) => targetStatus }
+          )
+        )
+
+  private def gettingLastDoneAndToDoPlanStepId(planStepsAndLatestOperations: Seq[(Long, Option[Long])]): DBIOAction[(Option[Long], Option[Long]), NoStream, Effect.Read] =
+    getLastDoneStepAndOperation(planStepsAndLatestOperations) match {
+      case (latestPlanStepId, None) =>
+        DBIO.successful((None, Some(latestPlanStepId)))
+
+      case (latestPlanStepId, Some(operationId)) =>
+        computingOperationStatus(operationId, isRunning = false)
+          .map(operationStatus =>
+            (Some(latestPlanStepId),
+              if (operationStatus == DeploymentStatus.flopped || operationStatus == DeploymentStatus.failed)
+                Some(latestPlanStepId)
+              else
+                findNextPlanStepId(planStepsAndLatestOperations.map(_._1), latestPlanStepId)
+            )
+          )
+    }
+
+  def gettingLastDoneAndToDoPlanStepId(deploymentRequestId: Long): DBIOAction[(Option[Long], Option[Long]), dbContext.profile.api.NoStream, Effect.Read with Effect.Read] =
+    findingDeploymentPlanStepAndLatestOperations(deploymentRequestId)
+      .flatMap(planStepsAndLatestOperations =>
+        if (planStepsAndLatestOperations.isEmpty)
+          DBIO.failed(new RuntimeException(s"$deploymentRequestId: should not be there: deployment plan is empty"))
+        else
+          gettingLastDoneAndToDoPlanStepId(planStepsAndLatestOperations)
+      )
+
   // if that is removed one day (with multi-step, out-dating a deployment request makes less sense),
   // a few functions must be changed to not rely on current request application order, for instance
   // findExecutionSpecificationsForRevert
