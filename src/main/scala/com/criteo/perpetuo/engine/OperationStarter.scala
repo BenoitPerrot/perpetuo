@@ -23,9 +23,11 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
                                   expandedTarget: Option[TargetExpr],
                                   executionSpecs: Seq[ExecutionSpecification],
                                   userName: String) = {
-    val executions = executionSpecs.map(spec => (expandedTarget.getOrElse(deploymentRequest.parsedTarget), spec))
 
-    val reflectInDb = createRecords(deploymentRequest, deploymentPlanSteps, Operation.deploy, userName, dispatcher, executions)
+    val specAndInvocations = executionSpecs.map(spec =>
+      (spec, dispatch(dispatcher, expandedTarget.getOrElse(deploymentRequest.parsedTarget), spec.specificParameters).toVector)
+    )
+    val reflectInDb = createRecords(deploymentRequest, deploymentPlanSteps, Operation.deploy, userName, specAndInvocations)
     (reflectInDb, expandedTarget.map(_.flatMap(_.select)))
   }
 
@@ -98,10 +100,12 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
           Future.successful(determined)
       }
       .flatMap { groups =>
-        val executions = groups.map { case (spec, targets) => (Set(TargetTerm(select = targets)), spec) }
+        val specAndInvocations = groups.map { case (spec, targets) =>
+          (spec, dispatch(dispatcher, Set(TargetTerm(select = targets)), spec.specificParameters).toVector)
+        }
         val atoms = groups.flatMap { case (_, targets) => targets }
         dbBinding.findDeploymentPlan(deploymentRequest).map { plan =>
-          val reflectInDb = createRecords(plan.deploymentRequest, plan.steps, Operation.revert, userName, dispatcher, executions, createTargetStatuses = true)
+          val reflectInDb = createRecords(plan.deploymentRequest, plan.steps, Operation.revert, userName, specAndInvocations, createTargetStatuses = true)
           (reflectInDb, Some(atoms.toSet))
         }
       }
@@ -167,15 +171,11 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
                             deploymentPlanSteps: Iterable[DeploymentPlanStep],
                             operation: Operation.Kind,
                             userName: String,
-                            dispatcher: TargetDispatcher,
-                            executions: Iterable[(TargetExpr, ExecutionSpecification)],
+                            specAndInvocations: Iterable[(ExecutionSpecification, scala.Vector[(ExecutionTrigger, TargetExpr)])],
                             createTargetStatuses: Boolean = false): DBIOAction[(DeepOperationTrace, ExecutionsToTrigger), NoStream, Effect.Read with Effect.Write] =
     dbBinding
       .insertOperationTrace(deploymentRequest, operation, userName)
       .flatMap { newOp =>
-        val specAndInvocations = executions.map { case (target, spec) =>
-          (spec, dispatch(dispatcher, target, spec.specificParameters).toVector)
-        }
         dbBinding.insertStepOperationXRefs(deploymentPlanSteps, newOp).flatMap(_ =>
           DBIOAction
             .sequence( // in sequence to be able to put all these SQL queries in the same transaction
