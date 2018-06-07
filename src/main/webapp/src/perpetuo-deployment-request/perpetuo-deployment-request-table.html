@@ -128,7 +128,6 @@
         super();
 
         this.client = new Perpetuo.Client();
-        this.deploymentRequestFilters = [];
       }
 
       connectedCallback() {
@@ -150,11 +149,14 @@
       }
 
       refresh(forced) {
-        return this.client.fetchDeploymentRequests({
-          where: this.deploymentRequestFilters,
-          offset: this.deploymentRequestOffset,
-          limit: this.deploymentRequestLimit
-        }).then(deploymentRequests => {
+        const query = Object.assign(
+          {
+            offset: this.deploymentRequestOffset,
+            limit: this.deploymentRequestLimit
+          },
+          this.deploymentRequestFilter ? {where: [{'field': 'productName', 'equals': this.deploymentRequestFilter}]} : {}
+        );
+        return this.client.fetchDeploymentRequests(query).then(deploymentRequests => {
           this.data = deploymentRequests;
           this.hasNextPage = this.client.hasMoreDeploymentRequests;
           if (forced) {
@@ -181,10 +183,7 @@
       }
 
       updateFilter(e) {
-        const fieldName = e.target.getAttribute('key');
-        this.deploymentRequestFilters = e.target.selectedItems.map(v => {
-          return {'field': fieldName, 'equals': v};
-        });
+        this.deploymentRequestFilter = e.target.selectedItem;
         this.refresh(true);
       }
 
