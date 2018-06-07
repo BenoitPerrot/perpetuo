@@ -174,7 +174,7 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
       .flatMap { case (trace, updated) =>
         dbBinding.getOperationEffect(trace)
           .flatMap { effect =>
-            val (kind, status) = computeState(effect)
+            val (kind, status) = computeState(effect) // todo: compute actual deployment status (with 'paused')
             val transactionOngoing = kind == Operation.deploy && status == DeploymentStatus.failed
             if (updated) {
               val handler = if (status == DeploymentStatus.succeeded)
@@ -356,6 +356,7 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
   def findDeploymentRequestsWithStatuses(where: Seq[Map[String, Any]], limit: Int, offset: Int): Future[Seq[(DeepDeploymentRequest, DeploymentStatus.Value, Option[Operation.Kind])]] =
     dbBinding.findDeploymentRequestsWithStatuses(where, limit, offset)
 
+  // todo: inline
   def computeState(operationEffect: OperationEffect): (Operation.Kind, DeploymentStatus.Value) =
     (operationEffect.operationTrace.kind, operationEffect.state)
 

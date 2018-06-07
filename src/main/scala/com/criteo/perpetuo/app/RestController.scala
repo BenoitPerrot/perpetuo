@@ -240,7 +240,7 @@ class RestController @Inject()(val engine: Engine)
       deploymentStatus.map { case (kind, _) => kind }
     )
 
-  private def serialize(depReq: DeepDeploymentRequest, generalStatus: DeploymentStatus.Value, lastOperationKind: Option[Operation.Kind]): Map[String, Any] =
+  private def serialize(depReq: DeepDeploymentRequest, deploymentStatus: DeploymentStatus.Value, lastOperationKind: Option[Operation.Kind]): Map[String, Any] =
     Map(
       "id" -> depReq.id,
       "comment" -> depReq.comment,
@@ -249,8 +249,8 @@ class RestController @Inject()(val engine: Engine)
       "version" -> depReq.version,
       "target" -> RawJson(depReq.target),
       "productName" -> depReq.product.name,
-      "state" -> (generalStatus match { // todo: move those conversions to the UI: below is what will be displayed (and it must match css classes)
-        case DeploymentStatus.notStarted | DeploymentStatus.paused => generalStatus
+      "state" -> (deploymentStatus match { // todo: move those conversions to the UI: below is what will be displayed (and it must match css classes)
+        case DeploymentStatus.notStarted | DeploymentStatus.paused => deploymentStatus
         case DeploymentStatus.succeeded => s"${lastOperationKind.get}ed"
         case state => s"${lastOperationKind.get} $state"
       })

@@ -11,7 +11,7 @@ case class OperationEffect(operationTrace: OperationTrace,
 }
 
 
-object computeOperationState {
+object computeOperationState { // fixme: we likely need the deployment status, not the operation one
   // only makes sense if the operation is closed
   def apply(isRunning: Boolean, executionStates: => Iterable[ExecutionState.ExecutionState], statuses: => Iterable[Status.Code]): DeploymentStatus.Value =
     if (isRunning)

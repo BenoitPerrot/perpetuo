@@ -4,6 +4,6 @@ import com.criteo.perpetuo.model.{DeepDeploymentRequest, Operation, OperationEff
 
 case class DeploymentRequestStatus(deploymentRequest: DeepDeploymentRequest,
                                    operationEffects: Iterable[OperationEffect],
-                                   lastOperationStatus: Option[(Operation.Kind, DeploymentStatus.Value)],
+                                   lastOperationStatus: Option[(Operation.Kind, DeploymentStatus.Value)], // fixme
                                    authorizedActions: Seq[(Operation.Kind, Boolean)],
                                    canAccessLogs: Boolean)
