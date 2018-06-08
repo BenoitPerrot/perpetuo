@@ -183,13 +183,17 @@
       }
 
       updateFilter(e) {
-        this.deploymentRequestFilter = e.target.selectedItem;
-        this.refresh(true);
+        if (this.active) {
+          this.deploymentRequestFilter = e.target.selectedItem;
+          this.refresh(true);
+        }
       }
 
       onPageChanged() {
-        this.hasNextPage = false; // Assume no more page
-        this.refresh();
+        if (this.active) {
+          this.hasNextPage = false; // Assume no more page
+          this.refresh();
+        }
       }
     }
 
