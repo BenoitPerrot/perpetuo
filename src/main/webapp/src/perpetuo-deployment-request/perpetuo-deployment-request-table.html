@@ -138,6 +138,9 @@
             this.productNames = products.map(_ => _.name);
             this.$.productFilter.select(this.deploymentRequestFilter);
           });
+          const page = parseInt(this.queryParams['page']);
+          if (0 < page)
+            this.page = page;
           const installRefresh = () => this.refresh().then(reinstallRefresh, reinstallRefresh);
           const refreshDelay = 1000;
           const reinstallRefresh = () => {
@@ -201,6 +204,7 @@
       onPageChanged() {
         if (this.active) {
           this.hasNextPage = false; // Assume no more page
+          this.set('queryParams.page', this.page);
           this.refresh();
         }
       }
