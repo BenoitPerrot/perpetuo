@@ -86,7 +86,7 @@
     </div>
     <a href="/deployment-requests/new"><paper-fab icon="add" style="position:fixed; left: 20px; top: 105px; background: #ff8f1c;"></paper-fab></a>
     <perpetuo-paging id="paging"
-                     page-sizes="[20,50,100]" page-size="{{deploymentRequestLimit}}"
+                     page-sizes="[20,50,100]" page-size="{{pageSize}}"
                      page="{{page}}" is-last-page="[[!hasNextPage]]"
                      count-on-page="[[data.length]]"
                      total="..."
@@ -115,7 +115,7 @@
 
           page: {type: Number, value: 1, observer: 'onPageChanged', notify: true},
           hasNextPage: Boolean,
-          deploymentRequestLimit: {type: Number, notify: true}
+          pageSize: Number
         };
       }
 
@@ -152,7 +152,7 @@
         const query = Object.assign(
           {
             offset: this.$.paging.offset,
-            limit: this.deploymentRequestLimit
+            limit: this.pageSize
           },
           this.deploymentRequestFilter ? {where: [{'field': 'productName', 'equals': this.deploymentRequestFilter}]} : {}
         );
