@@ -92,7 +92,7 @@
                      total="..."
                      class="table">
       <template is="dom-repeat" items="[[data]]">
-        <perpetuo-deployment-request-entry data="[[item]]" expanded="[[isEntryExpanded(item.id)]]" on-expanded-changed="onEntryExpandedChanged"></perpetuo-deployment-request-entry>
+        <perpetuo-deployment-request-entry data="[[item]]"></perpetuo-deployment-request-entry>
       </template>
     </perpetuo-paging>
 
@@ -128,7 +128,6 @@
         super();
 
         this.client = new Perpetuo.Client();
-        this.expandedDeploymentRequests = new Set();
         this.deploymentRequestFilters = [];
       }
 
@@ -162,18 +161,6 @@
             this.page = 1;
           }
         });
-      }
-
-      isEntryExpanded(id) {
-        return this.expandedDeploymentRequests.has(id);
-      }
-
-      onEntryExpandedChanged(e) {
-        if (e.detail.value) {
-          this.expandedDeploymentRequests.add(e.target.data.id);
-        } else {
-          this.expandedDeploymentRequests.delete(e.target.data.id);
-        }
       }
 
       convertTimestamp() {
