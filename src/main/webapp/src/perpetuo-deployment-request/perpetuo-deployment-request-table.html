@@ -138,11 +138,12 @@
 
       onActiveChanged(active) {
         if (active) {
+          const installRefresh = () => this.refresh().then(reinstallRefresh, reinstallRefresh);
           const refreshDelay = 1000;
-          (function installRefresh() {
-            const reinstallRefresh = () => installRefresh.apply(this);
-            this.refreshTimeoutId = setTimeout(() => this.refresh().then(reinstallRefresh, reinstallRefresh), refreshDelay);
-          }).apply(this);
+          const reinstallRefresh = () => {
+            this.refreshTimeoutId = setTimeout(installRefresh, refreshDelay);
+          }
+          installRefresh();
         } else {
           clearTimeout(this.refreshTimeoutId);
         }
