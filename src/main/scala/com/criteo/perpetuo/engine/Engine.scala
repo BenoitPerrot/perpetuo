@@ -50,10 +50,7 @@ class Engine @Inject()(val crankshaft: Crankshaft,
       crankshaft
         .canRevertDeploymentRequest(deploymentRequest, isStarted)
         .recover { case e: RejectingError => throw e.copy(s"Cannot revert the request #${deploymentRequest.id}: ${e.msg}") } // TODO: remove the copy
-        .flatMap { _ =>
-        crankshaft
-          .findExecutionSpecificationsForRevert(deploymentRequest)
-      }
+        .flatMap(_ => crankshaft.findExecutionSpecificationsForRevert(deploymentRequest))
     }
 
   def stepBack(user: User, deploymentRequestId: Long, currentStepId: Option[Long], defaultVersion: Option[Version]): Future[Option[DeepOperationTrace]] =

@@ -1,6 +1,5 @@
 package com.criteo.perpetuo.model
 
-import com.criteo.perpetuo.app.RawJson
 import com.criteo.perpetuo.engine.TargetExpr
 import spray.json._
 

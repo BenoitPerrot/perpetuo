@@ -1,6 +1,6 @@
 package com.criteo.perpetuo.engine
 
-import com.criteo.perpetuo.model.{DeepDeploymentRequest, ProtoDeploymentRequest, OperationTrace}
+import com.criteo.perpetuo.model.{DeepDeploymentRequest, OperationTrace, ProtoDeploymentRequest}
 
 import scala.concurrent.Future
 

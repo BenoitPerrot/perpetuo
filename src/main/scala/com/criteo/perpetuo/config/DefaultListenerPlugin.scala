@@ -1,7 +1,7 @@
 package com.criteo.perpetuo.config
 
 import com.criteo.perpetuo.engine.{AsyncListener, SyncListener}
-import com.criteo.perpetuo.model.{DeepDeploymentRequest, ProtoDeploymentRequest, OperationTrace}
+import com.criteo.perpetuo.model.{DeepDeploymentRequest, OperationTrace, ProtoDeploymentRequest}
 
 import scala.concurrent.Future
 
