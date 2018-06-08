@@ -23,6 +23,8 @@ object DeploymentRequestParser {
             .getOrElse( // >>
               scanner.getArray("plan").map(parsePlanStep)
             )
+        // TODO: remove once migration complete:
+        assert(plan.size == 1)
         val protoDeploymentRequest = ProtoDeploymentRequest(
           productName,
           version,

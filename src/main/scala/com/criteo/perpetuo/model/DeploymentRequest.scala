@@ -45,10 +45,7 @@ case class ProtoDeploymentRequest(productName: String,
                                   comment: String,
                                   creator: String,
                                   creationDate: java.sql.Timestamp = new java.sql.Timestamp(System.currentTimeMillis)) extends ParsedTarget {
-  val target: String = {
-    assert(plan.size == 1) // TODO: remove once migration complete
-    plan.head.targetExpression.compactPrint
-  }
+  val target: String = plan.head.targetExpression.compactPrint
 }
 
 
