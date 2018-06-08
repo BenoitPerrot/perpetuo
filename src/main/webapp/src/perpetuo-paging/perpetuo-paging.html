@@ -69,6 +69,15 @@
         }
       }
 
+      selectPageSize(pageSize) {
+        let i = this.pageSizes.findIndex(_ => _ === pageSize);
+        if (i < 0) {
+          this.push('pageSizes', pageSize);
+          i = this.pageSizes.length - 1;
+        }
+        this.pageSizeIndex = i;
+      }
+
       computePageSize(pageSizes, pageSizeIndex) {
         return pageSizes[pageSizeIndex];
       }

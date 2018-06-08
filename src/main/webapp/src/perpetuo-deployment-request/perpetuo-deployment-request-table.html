@@ -117,7 +117,7 @@
 
           page: {type: Number, value: 1, observer: 'onPageChanged', notify: true},
           hasNextPage: Boolean,
-          pageSize: Number
+          pageSize: {type: Number, observer: 'onPageSizeChanged'}
         };
       }
 
@@ -141,6 +141,9 @@
           const page = parseInt(this.queryParams['page']);
           if (0 < page)
             this.page = page;
+          const pageSize = parseInt(this.queryParams['page-size']);
+          if (0 < pageSize)
+            this.$.paging.selectPageSize(pageSize);
           const installRefresh = () => this.refresh().then(reinstallRefresh, reinstallRefresh);
           const refreshDelay = 1000;
           const reinstallRefresh = () => {
@@ -205,6 +208,13 @@
         if (this.active) {
           this.hasNextPage = false; // Assume no more page
           this.set('queryParams.page', this.page);
+          this.refresh();
+        }
+      }
+
+      onPageSizeChanged() {
+        if (this.active) {
+          this.set('queryParams.page-size', this.pageSize);
           this.refresh();
         }
       }
