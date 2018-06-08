@@ -165,6 +165,7 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
     }
   }
 
+  // todo: move it in a dedicated EffectInserter along with DeploymentRequestInserter
   // fixme: type the targets to differentiate atomic from other ones in order to always create atomic targets
   //        instead of taking the boolean as parameter (to be done later, since it's not trivial)
   private def createRecords(deploymentRequest: DeepDeploymentRequest,

@@ -50,6 +50,7 @@ trait DeploymentRequestInserter
 
   import dbContext.profile.api._
 
+  // todo: rename it to insertIntent or insertDeploymentIntent, and likely rename the return type?
   def insertDeploymentRequest(r: ProtoDeploymentRequest): Future[DeploymentPlan] = {
     val targetExpressions = r.plan.map(step => step.targetExpression.compactPrint -> step.targetExpression).toMap // avoid useless JSON parsing
     findProductByName(r.productName).map(_.getOrElse {
