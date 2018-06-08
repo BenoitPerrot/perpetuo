@@ -177,7 +177,7 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
     dbBinding
       .insertOperationTrace(deploymentRequest, operation, userName)
       .flatMap { newOp =>
-        dbBinding.insertStepOperationXRefs(deploymentPlanSteps, newOp).flatMap(_ =>
+        dbBinding.insertStepOperationXRefs(deploymentPlanSteps, newOp).andThen(
           DBIOAction
             .sequence( // in sequence to be able to put all these SQL queries in the same transaction
               specAndInvocations.map { case (spec, invocations) =>
@@ -197,7 +197,7 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
                             // todo: change detail to "pending" when all executors send `running` status codes: DREDD-725
                             .toMap
                         )
-                        .flatMap(_ => ret)
+                        .andThen(ret)
                     else
                       ret
                   }

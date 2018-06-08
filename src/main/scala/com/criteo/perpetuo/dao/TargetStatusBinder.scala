@@ -71,30 +71,28 @@ trait TargetStatusBinder extends TableBinder {
       .flatMap { case (same, different) =>
         val alreadyCreated = (same.toStream ++ different).toSet
         val toUpdate = Iterable.newBuilder[String] ++= different
-        DBIO
-          .sequence(
-            statusMap.toStream.collect { case (atom, status) if !alreadyCreated(atom) =>
-              // try to create missing atoms
-              (targetStatusQuery += TargetStatusRecord(executionId, atom, status.code, status.detail)).asTry.map {
-                case Success(_) => ()
-                case Failure(_) => toUpdate += atom // it has possibly been created meanwhile but we don't know with which values
-              }
+        DBIO.sequence(
+          statusMap.toStream.collect { case (atom, status) if !alreadyCreated(atom) =>
+            // try to create missing atoms
+            (targetStatusQuery += TargetStatusRecord(executionId, atom, status.code, status.detail)).asTry.map {
+              case Success(_) => ()
+              case Failure(_) => toUpdate += atom // it has possibly been created meanwhile but we don't know with which values
             }
-          )
-          .flatMap(_ => DBIO.sequence(
-            toUpdate
-              .result
-              // for efficiency purpose, try to chain as less requests as possible by gathering the atoms sharing the same status
-              .groupBy(statusMap)
-              .map { case (TargetAtomStatus(newCode, newDetail), atomsToUpdate) =>
-                targetStatusQuery
-                  .filter(ts => ts.executionId === executionId && ts.targetAtom.inSet(atomsToUpdate)) // we could reject impossible transitions here too but it's not that important: see below
-                  .map(ts => (ts.code, ts.detail))
-                  // there might be a race condition here, but we don't care: if two requests give different results
-                  // at the "same time" for the same target, we don't know which one is right anyway
-                  .update(newCode, newDetail)
-              }
-          ))
+          }
+        ).andThen(DBIO.sequence(
+          toUpdate
+            .result
+            // for efficiency purpose, try to chain as less requests as possible by gathering the atoms sharing the same status
+            .groupBy(statusMap)
+            .map { case (TargetAtomStatus(newCode, newDetail), atomsToUpdate) =>
+              targetStatusQuery
+                .filter(ts => ts.executionId === executionId && ts.targetAtom.inSet(atomsToUpdate)) // we could reject impossible transitions here too but it's not that important: see below
+                .map(ts => (ts.code, ts.detail))
+                // there might be a race condition here, but we don't care: if two requests give different results
+                // at the "same time" for the same target, we don't know which one is right anyway
+                .update(newCode, newDetail)
+            }
+        ))
       }
       .map(_ => ())
       .withPinnedSession
