@@ -1,6 +1,6 @@
 package com.criteo.perpetuo.dao
 
-import com.criteo.perpetuo.model.{DeploymentPlan, DeploymentPlanStep, OperationTrace}
+import com.criteo.perpetuo.model.{DeploymentPlanStep, OperationTrace}
 import com.google.common.annotations.VisibleForTesting
 import slick.sql.FixedSqlAction
 

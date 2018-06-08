@@ -24,8 +24,8 @@ class StepOperationXRefSpec
     val depReq = op1.deploymentRequest
     val (op2, step2, stepIdsBoundToOp1, stepIdsBoundToOp2, opIdsBoundToOp1, opIdsBoundToOp2) = Await.result(
       for {
-        step2 <- insertDeploymentPlanStep(depReq.id, ProtoDeploymentPlanStep("Eurasia", JsArray(JsString("eu"), JsString("as")), ""))
-        _ <- insertDeploymentPlanStep(depReq.id, ProtoDeploymentPlanStep("America", JsArray(JsString("am")), ""))
+        step2 <- insertDeploymentPlanStep(depReq, ProtoDeploymentPlanStep("Eurasia", JsArray(JsString("eu"), JsString("as")), ""))
+        _ <- insertDeploymentPlanStep(depReq, ProtoDeploymentPlanStep("America", JsArray(JsString("am")), ""))
         xrefsStep2NotStarted <- findStepOperationXRefs(step2)
         op2 <- crankshaft.startDeploymentStep(depReq, step2, "initiator", emitEvent = false)
         xrefsOp1 <- findStepOperationXRefs(op1)

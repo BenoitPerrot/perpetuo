@@ -7,7 +7,7 @@ case class ProtoDeploymentPlanStep(name: String,
                                    comment: String)
 
 case class DeploymentPlanStep(id: Long,
-                              deploymentRequestId: Long,
+                              deploymentRequest: DeepDeploymentRequest,
                               name: String,
                               targetExpression: JsValue,
                               comment: String)
@@ -19,5 +19,5 @@ case class DeploymentPlanStep(id: Long,
   */
 case class DeploymentPlan(deploymentRequest: DeepDeploymentRequest,
                           steps: Iterable[DeploymentPlanStep]) {
-  assert(steps.forall(_.deploymentRequestId == deploymentRequest.id))
+  assert(steps.forall(_.deploymentRequest.id == deploymentRequest.id))
 }

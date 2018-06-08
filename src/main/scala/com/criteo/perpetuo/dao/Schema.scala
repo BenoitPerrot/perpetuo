@@ -57,22 +57,25 @@ trait DeploymentRequestInserter
       throw UnprocessableIntent(s"Unknown product `${r.productName}`")
     }).flatMap { product =>
       val q = (for {
-        deploymentRequestId <-
-          deploymentRequestQuery.returning(deploymentRequestQuery.map(_.id)) +=
-            DeploymentRequestRecord(None, product.id, r.version, r.target, r.comment, r.creator, r.creationDate)
+        deploymentRequest <-
+          deploymentRequestQuery
+            .returning(deploymentRequestQuery.map(_.id))
+            .into((_, id) => DeepDeploymentRequest(id, product, r.version, r.target, r.comment, r.creator, r.creationDate))
+            .+=(
+              DeploymentRequestRecord(None, product.id, r.version, r.target, r.comment, r.creator, r.creationDate)
+            )
         planSteps <-
           deploymentPlanStepQuery
             .returning(deploymentPlanStepQuery.map(_.id))
-            .into((planStep, id) => DeploymentPlanStep(id, deploymentRequestId, planStep.name, targetExpressions(planStep.targetExpression), planStep.comment))
+            .into((planStep, id) => DeploymentPlanStep(id, deploymentRequest, planStep.name, targetExpressions(planStep.targetExpression), planStep.comment))
             .++=(
-              r.plan.map(step => DeploymentPlanStepRecord(None, deploymentRequestId, step.name, step.targetExpression.compactPrint, step.comment))
+              r.plan.map(step => DeploymentPlanStepRecord(None, deploymentRequest.id, step.name, step.targetExpression.compactPrint, step.comment))
             )
-      } yield (deploymentRequestId, planSteps)).transactionally
+      } yield (deploymentRequest, planSteps)).transactionally
 
-      dbContext.db.run(q).map { case (depReqId, planSteps) =>
-        val req = DeepDeploymentRequest(depReqId, product, r.version, r.target, r.comment, r.creator, r.creationDate)
-        req.copyParsedTargetCacheFrom(r)
-        DeploymentPlan(req, planSteps)
+      dbContext.db.run(q).map { case (depReq, planSteps) =>
+        depReq.copyParsedTargetCacheFrom(r)
+        DeploymentPlan(depReq, planSteps)
       }
     }
   }

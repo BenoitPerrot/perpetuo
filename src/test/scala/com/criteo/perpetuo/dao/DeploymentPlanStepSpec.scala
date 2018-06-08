@@ -27,8 +27,8 @@ class DeploymentPlanStepSpec
       for {
         product <- insertProductIfNotExists("humanity")
         deploymentRequest <- insertDeploymentRequest(ProtoDeploymentRequest(product.name, Version("\"v1\""), Seq(ProtoDeploymentPlanStep("Africa", JsArray(JsString("af")), "")), "", "f.sm")).map(_.deploymentRequest)
-        _ <- insertDeploymentPlanStep(deploymentRequest.id, ProtoDeploymentPlanStep("Eurasia", JsArray(JsString("eu"), JsString("as")), ""))
-        _ <- insertDeploymentPlanStep(deploymentRequest.id, ProtoDeploymentPlanStep("America", JsArray(JsString("am")), ""))
+        _ <- insertDeploymentPlanStep(deploymentRequest, ProtoDeploymentPlanStep("Eurasia", JsArray(JsString("eu"), JsString("as")), ""))
+        _ <- insertDeploymentPlanStep(deploymentRequest, ProtoDeploymentPlanStep("America", JsArray(JsString("am")), ""))
         plan <- findDeploymentPlan(deploymentRequest)
       } yield {
         plan.steps.size
