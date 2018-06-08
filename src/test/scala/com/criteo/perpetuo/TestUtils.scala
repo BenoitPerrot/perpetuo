@@ -28,7 +28,21 @@ trait TestDb extends DbContextProvider {
 }
 
 
-trait SimpleScenarioTesting extends Test with TestDb with MockitoSugar {
+trait TestHelpers extends Test {
+  def asynchronouslyThrow[T <: Throwable : ClassTag](pattern: String): Matcher[Future[_]] =
+    be(a[T])
+      .and(fullyMatch.regex(pattern).compose((_: Throwable).getMessage))
+      .compose(f => await(f.failed))
+
+  def become[T](value: T): Matcher[Future[T]] = eventually(be(value))
+
+  def eventually[T](matcher: Matcher[T]): Matcher[Future[T]] = matcher.compose(await)
+
+  def await[T](a: Awaitable[T]): T = Await.result(a, 2.seconds)
+}
+
+
+trait SimpleScenarioTesting extends TestHelpers with TestDb with MockitoSugar {
   private val lastDeploymentRequests = mutable.Map[String, DeepDeploymentRequest]()
   private val loader = new PluginLoader(null)
   private val executionTrigger: DummyExecutionTrigger = mock[DummyExecutionTrigger]
@@ -41,17 +55,6 @@ trait SimpleScenarioTesting extends Test with TestDb with MockitoSugar {
   }
 
   protected def triggerMock: Option[String] = None
-
-  def asynchronouslyThrow[T <: Throwable : ClassTag](pattern: String): Matcher[Future[_]] =
-    be(a[T])
-      .and(fullyMatch.regex(pattern).compose((_: Throwable).getMessage))
-      .compose(f => await(f.failed))
-
-  def become[T](value: T): Matcher[Future[T]] = eventually(be(value))
-
-  def eventually[T](matcher: Matcher[T]): Matcher[Future[T]] = matcher.compose(await)
-
-  def await[T](a: Awaitable[T]): T = Await.result(a, 2.seconds)
 
   def closeOperation(operationTrace: OperationTrace,
                      targetFinalStatus: Map[String, Status.Code] = Map(),
