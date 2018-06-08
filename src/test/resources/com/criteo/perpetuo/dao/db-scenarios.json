@@ -1,0 +1,10 @@
+{
+  "intents": {
+    "product-A": [
+      ["step-01", "step-02", "step-03"],
+      ["step-11", "step-12"]
+    ],
+    "product-B": [],
+    "product-C": []
+  }
+}
