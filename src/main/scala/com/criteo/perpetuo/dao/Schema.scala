@@ -50,7 +50,8 @@ trait DeploymentRequestInserter
 
   import dbContext.profile.api._
 
-  def insertDeploymentRequest(r: ProtoDeploymentRequest): Future[DeepDeploymentRequest] = {
+  def insertDeploymentRequest(r: ProtoDeploymentRequest): Future[DeploymentPlan] = {
+    val targetExpressions = r.plan.map(step => step.targetExpression.compactPrint -> step.targetExpression).toMap // avoid useless JSON parsing
     findProductByName(r.productName).map(_.getOrElse {
       throw UnprocessableIntent(s"Unknown product `${r.productName}`")
     }).flatMap { product =>
@@ -58,17 +59,19 @@ trait DeploymentRequestInserter
         deploymentRequestId <-
           deploymentRequestQuery.returning(deploymentRequestQuery.map(_.id)) +=
             DeploymentRequestRecord(None, product.id, r.version, r.target, r.comment, r.creator, r.creationDate)
-        _ <-
-          deploymentPlanStepQuery ++=
-            r.plan.map(step =>
-              DeploymentPlanStepRecord(None, deploymentRequestId, step.name, step.targetExpression.compactPrint, step.comment)
+        planSteps <-
+          deploymentPlanStepQuery
+            .returning(deploymentPlanStepQuery.map(_.id))
+            .into((planStep, id) => DeploymentPlanStep(id, deploymentRequestId, planStep.name, targetExpressions(planStep.targetExpression), planStep.comment))
+            .++=(
+              r.plan.map(step => DeploymentPlanStepRecord(None, deploymentRequestId, step.name, step.targetExpression.compactPrint, step.comment))
             )
-      } yield deploymentRequestId).transactionally
+      } yield (deploymentRequestId, planSteps)).transactionally
 
-      dbContext.db.run(q).map { id =>
-        val ret = DeepDeploymentRequest(id, product, r.version, r.target, r.comment, r.creator, r.creationDate)
-        ret.copyParsedTargetCacheFrom(r)
-        ret
+      dbContext.db.run(q).map { case (depReqId, planSteps) =>
+        val req = DeepDeploymentRequest(depReqId, product, r.version, r.target, r.comment, r.creator, r.creationDate)
+        req.copyParsedTargetCacheFrom(r)
+        DeploymentPlan(req, planSteps)
       }
     }
   }

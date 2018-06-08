@@ -39,7 +39,7 @@ class TargetStatusSpec
       for {
         _ <- dbContext.db.run(targetStatusQuery.delete)
         product <- insertProductIfNotExists("perpetuo-app")
-        request <- insertDeploymentRequest(ProtoDeploymentRequest(product.name, Version("\"v42\""), Seq(ProtoDeploymentPlanStep("", JsString("Moon"), "")), "That's one small step for man, one giant leap for mankind", "n.armstrong"))
+        request <- insertDeploymentRequest(ProtoDeploymentRequest(product.name, Version("\"v42\""), Seq(ProtoDeploymentPlanStep("", JsString("Moon"), "")), "That's one small step for man, one giant leap for mankind", "n.armstrong")).map(_.deploymentRequest)
         deployOperationTrace <- dbContext.db.run(insertOperationTrace(request, Operation.deploy, "n.armstrong"))
         execSpec <- insertExecutionSpecification("{}", Version("\"456\""))
         execId <- dbContext.db.run(insertExecution(deployOperationTrace.id, execSpec.id))
@@ -60,7 +60,7 @@ class TargetStatusSpec
       for {
         _ <- dbContext.db.run(targetStatusQuery.delete)
         product <- insertProductIfNotExists("sleepy-owl")
-        request <- insertDeploymentRequest(ProtoDeploymentRequest(product.name, Version("\"0\""), Seq(ProtoDeploymentPlanStep("", JsString("Earth"), "")), "", "creator"))
+        request <- insertDeploymentRequest(ProtoDeploymentRequest(product.name, Version("\"0\""), Seq(ProtoDeploymentPlanStep("", JsString("Earth"), "")), "", "creator")).map(_.deploymentRequest)
         deployOperationTrace <- dbContext.db.run(insertOperationTrace(request, Operation.deploy, "runner"))
         execSpec <- insertExecutionSpecification("{}", Version("\"0\""))
         execId <- dbContext.db.run(insertExecution(deployOperationTrace.id, execSpec.id))

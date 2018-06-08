@@ -15,10 +15,9 @@ class CrankshaftSpec extends SimpleScenarioTesting {
     Await.result(
       for {
         product <- crankshaft.insertProductIfNotExists("product #1")
-        depReq <- crankshaft.dbBinding.insertDeploymentRequest(ProtoDeploymentRequest(product.name, Version("\"1000\""), Seq(ProtoDeploymentPlanStep("", JsString("*"), "")), "", "s.omeone"))
-        depPlan <- crankshaft.dbBinding.findDeploymentPlan(depReq)
-        _ <- crankshaft.startDeploymentStep(depReq, depPlan.steps.head, "s.tarter") if depPlan.steps.size == 1
-        traces <- crankshaft.findExecutionTracesByDeploymentRequest(depReq.id)
+        depPlan <- crankshaft.dbBinding.insertDeploymentRequest(ProtoDeploymentRequest(product.name, Version("\"1000\""), Seq(ProtoDeploymentPlanStep("", JsString("*"), "")), "", "s.omeone"))
+        _ <- crankshaft.startDeploymentStep(depPlan.deploymentRequest, depPlan.steps.head, "s.tarter") if depPlan.steps.size == 1
+        traces <- crankshaft.findExecutionTracesByDeploymentRequest(depPlan.deploymentRequest.id)
       } yield traces.get.map(trace => (trace.id, trace.logHref)),
       1.second
     ) shouldEqual Seq((1, None))
