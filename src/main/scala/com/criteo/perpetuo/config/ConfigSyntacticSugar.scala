@@ -19,6 +19,9 @@ object ConfigSyntacticSugar {
     def tryGetString(path: String): Option[String] =
       if (config.hasPath(path)) Some(config.getString(path)) else None
 
+    def tryGetBoolean(path: String): Option[Boolean] =
+      if (config.hasPath(path)) Some(config.getBoolean(path)) else None
+
     def getIntOrElse(path: String, default: Int): Int =
       if (config.hasPath(path)) config.getInt(path) else default
   }
