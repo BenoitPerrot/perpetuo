@@ -142,8 +142,8 @@ class DbBinding @Inject()(val dbContext: DbContext)
                 operationTrace.closingDate
                   .map { _ =>
                     val forward = operationTrace.operation == Operation.deploy
-                    val isPaused = group.exists { case (_, _, stepId, _) => if (forward) planStepId < stepId else stepId < planStepId }
-                    Some(operationTrace.id.get -> (depReq, operationTrace.operation, isPaused, executionTraceState))
+                    val notFinished = group.exists { case (_, _, stepId, _) => if (forward) planStepId < stepId else stepId < planStepId }
+                    Some(operationTrace.id.get -> (depReq, operationTrace.operation, notFinished, executionTraceState))
                   }
                   .getOrElse {
                     deploymentStatuses.+=((depReq, DeploymentStatus.inProgress, Some(operationTrace.operation)))
@@ -168,10 +168,10 @@ class DbBinding @Inject()(val dbContext: DbContext)
               val targetStatuses = statuses
                 .groupBy { case (operationTraceId, _) => operationTraceId }
                 .map { case (operationTraceId, group) => (operationTraceId, group.map { case (_, status) => status }) }
-              dependingOnTargetStatuses.foreach { case (operationTraceId, (deploymentRequest, kind, isPaused, executionState)) =>
+              dependingOnTargetStatuses.foreach { case (operationTraceId, (deploymentRequest, kind, notFinished, executionState)) =>
                 val statuses = targetStatuses.getOrElse(operationTraceId, Seq())
                 val state = computeOperationState(isRunning = false, executionState, statuses)
-                val deploymentStatus = if (isPaused && (state == DeploymentStatus.succeeded || kind == Operation.revert)) DeploymentStatus.paused else state
+                val deploymentStatus = if (notFinished && (state == DeploymentStatus.succeeded || kind == Operation.revert)) DeploymentStatus.paused else state
                 deploymentStatuses.+=((deploymentRequest, deploymentStatus, Some(kind)))
               }
               deploymentStatuses.result
