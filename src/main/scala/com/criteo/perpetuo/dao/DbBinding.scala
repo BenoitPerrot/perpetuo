@@ -122,9 +122,6 @@ class DbBinding @Inject()(val dbContext: DbContext)
       .map { case ((((((deploymentRequest, product), planStep), _), operationTrace), _), executionTrace) =>
         (deploymentRequest, product, planStep.id, operationTrace.map((_, executionTrace.map(_.state))))
       }
-
-      // prune the tree to only return one branch per operation, plus one branch per non-started deployment request (i.e. with no operation):
-      .distinctOn { case (deploymentRequest, _, _, effect) => effect.map { case (op, _) => op.id }.getOrElse(deploymentRequest.id * -1L) }
       .result
 
       .flatMap { executionTraceBranches =>
@@ -137,7 +134,7 @@ class DbBinding @Inject()(val dbContext: DbContext)
           .values
           .map { group =>
             val (deploymentRequest, product, planStepId, lastEffect) = group.maxBy { case (_, _, _, effect) =>
-              effect.map { case (op, _) => op.id.get }.getOrElse(Long.MinValue)
+              effect.map { case (op, executionState) => (op.id.get, executionState.isDefined) }.getOrElse((Long.MinValue, false))
             }
             val depReq = deploymentRequest.toDeepDeploymentRequest(product)
             lastEffect
