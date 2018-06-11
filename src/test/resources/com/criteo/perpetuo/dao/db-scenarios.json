@@ -4,7 +4,27 @@
       ["step-01", "step-02", "step-03"],
       ["step-11", "step-12"]
     ],
-    "product-B": [],
+    "product-B": [
+      ["step-21"]
+    ],
     "product-C": []
-  }
+  },
+
+  "effects": [
+    {
+      "scenarioName": "first deployment, first step, first attempt",
+      "deploymentStatus": "failed",
+      "planSteps": ["step-01"],
+      "executions": [
+        {
+          "executionTraceStates": ["completed", "unreachable", "stopped"],
+          "targetStatuses": ["success", "hostFailure", "notDone"]
+        },
+        {
+          "executionTraceStates": ["completed", "unreachable", "stopped"],
+          "targetStatuses": ["success", "hostFailure", "notDone"]
+        }
+      ]
+    }
+  ]
 }
