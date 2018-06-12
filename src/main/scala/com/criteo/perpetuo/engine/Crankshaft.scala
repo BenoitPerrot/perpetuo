@@ -194,7 +194,7 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
   def isDeploymentRequestStarted(deploymentRequestId: Long): Future[Option[(DeepDeploymentRequest, Boolean)]] =
     dbBinding.isDeploymentRequestStarted(deploymentRequestId)
 
-  def step(deploymentRequest: DeepDeploymentRequest, planStepIdHint: Option[Long], initiatorName: String, emitEvent: Boolean): Future[DeepOperationTrace] = {
+  def step(deploymentRequest: DeepDeploymentRequest, planStepIdHint: Option[Long], initiatorName: String, emitEvent: Boolean = true): Future[DeepOperationTrace] = {
     def rejectForUnexpectedState() =
       throw UnprocessableIntent(s"${deploymentRequest.id}: the state of the deployment has just changed; have another look before choosing an action to trigger")
 
@@ -332,9 +332,6 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
   // TODO: remove once callers use step directly <<
   def startDeploymentStep(deploymentRequest: DeepDeploymentRequest, deploymentPlanStep: DeploymentPlanStep, initiatorName: String, emitEvent: Boolean = true): Future[DeepOperationTrace] =
     step(deploymentRequest, Some(deploymentPlanStep.id), initiatorName, emitEvent)
-
-  def retryDeploymentStep(deploymentRequest: DeepDeploymentRequest, deploymentPlanStep: DeploymentPlanStep, initiatorName: String): Future[DeepOperationTrace] =
-    step(deploymentRequest, Some(deploymentPlanStep.id), initiatorName, true)
   // >>
 
   def revert(deploymentRequest: DeepDeploymentRequest, initiatorName: String, defaultVersion: Option[Version]): Future[DeepOperationTrace] =
