@@ -57,13 +57,6 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
     )
   }
 
-  def retryDeploymentStep(resolver: TargetResolver,
-                          dispatcher: TargetDispatcher,
-                          deploymentRequest: DeepDeploymentRequest,
-                          deploymentPlanStep: DeploymentPlanStep,
-                          userName: String): OperationStartSpecifics =
-    dbBinding.dbContext.db.run(retryingDeploymentStep(resolver, dispatcher, deploymentRequest, deploymentPlanStep, userName))
-
   def retryingDeploymentStep(resolver: TargetResolver,
                              dispatcher: TargetDispatcher,
                              deploymentRequest: DeepDeploymentRequest,
