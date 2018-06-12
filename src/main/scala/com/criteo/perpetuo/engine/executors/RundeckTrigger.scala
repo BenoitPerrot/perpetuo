@@ -32,7 +32,7 @@ class RundeckTrigger(name: String,
   private def runPath(jobName: String): String =
     apiPath(s"job/$jobName/executions")
 
-  protected def buildRequest(execTraceId: Long, productName: String, version: Version, target: String, initiator: String): Request = {
+  protected def buildRequest(execTraceId: Long, productName: String, version: Version, target: String): Request = {
     def squote(s: String) = s"'$s'"
 
     var quotedVersion = version.toString
@@ -70,7 +70,7 @@ class RundeckTrigger(name: String,
 
   private val ERROR_IN_HTML = """.+<p>(.+)</p>.+""".r
 
-  def extractMessage(status: Int, content: String): String = {
+  def extractMessage(content: String): String = {
     try {
       content.parseJson.asJsObject.fields("message").asInstanceOf[JsString].value
     } catch {
@@ -84,7 +84,7 @@ class RundeckTrigger(name: String,
 
   override def trigger(execTraceId: Long, productName: String, version: Version, target: TargetExpr, initiator: String): Future[Option[String]] = {
     // todo: while we only support deployment tactics, we directly give the select dimension, and formatted differently
-    val req = buildRequest(execTraceId, productName, version, Target.getSimpleSelect(target).mkString(","), initiator)
+    val req = buildRequest(execTraceId, productName, version, Target.getSimpleSelect(target).mkString(","))
 
     // trigger the job and return a future to the execution's log href
     Future {
@@ -97,7 +97,7 @@ class RundeckTrigger(name: String,
           val logHref = extractLogHref(content)
           if (logHref.nonEmpty) Some(logHref) else None
         case s =>
-          val embeddedDetail = extractMessage(response.statusCode, content)
+          val embeddedDetail = extractMessage(content)
           val detail = if (embeddedDetail.nonEmpty) s"${s.reason}: $embeddedDetail" else s.reason
           throw new Exception(s"Bad response from $this: " + detail)
       }
