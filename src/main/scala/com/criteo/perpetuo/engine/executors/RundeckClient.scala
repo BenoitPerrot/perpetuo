@@ -14,10 +14,8 @@ import spray.json.DefaultJsonProtocol._
 import spray.json._
 
 
-trait RundeckApi {
+class RundeckClient(val host: String) {
   val apiVersion = 16
-
-  val host: String
 
   private val config = AppConfigProvider.executorConfig("rundeck")
   val port: Int = config.getIntOrElse("port", 80)

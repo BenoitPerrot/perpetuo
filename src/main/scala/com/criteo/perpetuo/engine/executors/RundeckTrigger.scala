@@ -17,7 +17,7 @@ import scala.concurrent.Future
 class RundeckTrigger(name: String,
                      val host: String,
                      jobName: String,
-                     specificParameters: Iterable[(String, String)] = Map()) extends ExecutionTrigger with RundeckApi {
+                     specificParameters: Iterable[(String, String)] = Map()) extends ExecutionTrigger {
   def this(config: Config) {
     this(
       config.getString("name"),
@@ -28,8 +28,12 @@ class RundeckTrigger(name: String,
 
   override def toString: String = s"$name (job: $jobName)"
 
+  protected val client: RundeckClient = new RundeckClient(host)
+
   def extractLogHref(executorAnswer: String): String =
     executorAnswer.parseJson.asJsObject.fields("permalink").asInstanceOf[JsString].value
+
+  private val requestTimeout = 20.seconds
 
   private val ERROR_IN_HTML = """.+<p>(.+)</p>.+""".r
 
@@ -66,7 +70,7 @@ class RundeckTrigger(name: String,
     // trigger the job and return a future to the execution's log href
     Future {
       // convert a twitter Future to a scala one
-      val response = Await.result(startJob(jobName, triggerParameters), requestTimeout + 1.second)
+      val response = Await.result(client.startJob(jobName, triggerParameters), requestTimeout + 1.second)
 
       val content = response.contentString
       response.status match {
