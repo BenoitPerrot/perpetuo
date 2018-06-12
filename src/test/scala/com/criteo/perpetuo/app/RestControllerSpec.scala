@@ -349,10 +349,8 @@ class RestControllerSpec extends Test with TestDb {
     }
   }
 
-  lazy val values3 = deepGetDepReq(3).fields
-
   test("The DeploymentRequest's GET entry-point returns 200 and a JSON with the same target expression as provided") {
-    val target = values3("target")
+    val target = deepGetDepReq(3).fields("target")
     target shouldBe a[JsArray]
     target.asInstanceOf[JsArray].elements.map(
       el => {
