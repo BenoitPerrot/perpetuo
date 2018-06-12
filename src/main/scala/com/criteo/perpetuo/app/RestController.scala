@@ -47,11 +47,6 @@ private case class RequestWithIdAndCurrentStepId(@RouteParam @NotEmpty id: Strin
                                                  currentStepId: Option[Long],
                                                  @Inject request: Request) extends WithId with WithRequest
 
-private case class RequestWithIdAndCurrentStepAndDefaultVersion(@RouteParam @NotEmpty id: String,
-                                                                currentStepId: Option[Long],
-                                                                @NotEmpty defaultVersion: Option[String] = None,
-                                                                @Inject request: Request) extends WithId with WithRequest
-
 private case class ExecutionTracePut(@RouteParam @NotEmpty id: String,
                                      @NotEmpty state: String,
                                      detail: String = "",
