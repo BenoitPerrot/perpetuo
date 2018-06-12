@@ -34,7 +34,7 @@ class Engine @Inject()(val crankshaft: Crankshaft,
 
       crankshaft
         .canDeployDeploymentRequest(deploymentRequest)
-        .flatMap(_ => crankshaft.step(deploymentRequest, None, user.name))
+        .flatMap(_ => crankshaft.step(deploymentRequest, operationCount, user.name))
     }
 
   def deviseRevertPlan(id: Long): Future[Option[(Select, Iterable[(ExecutionSpecification, Select)])]] =
