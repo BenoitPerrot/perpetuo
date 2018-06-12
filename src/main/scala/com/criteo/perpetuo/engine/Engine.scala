@@ -53,7 +53,7 @@ class Engine @Inject()(val crankshaft: Crankshaft,
         .flatMap(_ => crankshaft.findExecutionSpecificationsForRevert(deploymentRequest))
     }
 
-  def stepBack(user: User, deploymentRequestId: Long, currentStepId: Option[Long], defaultVersion: Option[Version]): Future[Option[DeepOperationTrace]] =
+  def revert(user: User, deploymentRequestId: Long, currentStepId: Option[Long], defaultVersion: Option[Version]): Future[Option[DeepOperationTrace]] =
     withDeepDeploymentRequest(deploymentRequestId) { (deploymentRequest, isStarted) =>
       if (!permissions.isAuthorized(user, DeploymentAction.applyOperation, Operation.revert, deploymentRequest.product.name, deploymentRequest.parsedTarget.select))
         throw PermissionDenied()

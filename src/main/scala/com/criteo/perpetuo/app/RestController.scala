@@ -156,12 +156,6 @@ class RestController @Inject()(val engine: Engine)
       .map(_.map(_ => Map("id" -> id)))
   }
 
-  post("/api/deployment-requests/:id/actions/step-back", 5.seconds) { (id: Long, r: RequestWithIdAndCurrentStepAndDefaultVersion, user: User) =>
-    engine
-      .stepBack(user, id, r.currentStepId, r.defaultVersion.map(Version.apply))
-      .map(_.map(_ => Map("id" -> id)))
-  }
-
   // TODO: Remove once clients have migrated to step
   post("/api/deployment-requests/:id/actions/deploy", 5.seconds) { (id: Long, _: RequestWithId, user: User) =>
     engine
@@ -171,7 +165,7 @@ class RestController @Inject()(val engine: Engine)
 
   post("/api/deployment-requests/:id/actions/revert", 5.seconds) { (id: Long, r: RequestWithIdAndDefaultVersion, user: User) =>
     engine
-      .stepBack(user, id, None, r.defaultVersion.map(Version.apply))
+      .revert(user, id, None, r.defaultVersion.map(Version.apply))
       .map(_.map(_ => Map("id" -> id)))
   }
   // >>

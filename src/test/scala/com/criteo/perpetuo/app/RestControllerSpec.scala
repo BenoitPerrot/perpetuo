@@ -297,7 +297,7 @@ class RestControllerSpec extends Test with TestDb {
 
     createProduct("my new product")
     val id = requestDeployment("my new product", "789", "par".toJson)
-    val respJson1 = getRespJson(actOnDeploymentRequest(id, "step-back", Map("currentStepId" -> 0).toJson, UnprocessableEntity))
+    val respJson1 = getRespJson(actOnDeploymentRequest(id, "revert", Map("currentStepId" -> 0).toJson, UnprocessableEntity))
     respJson1("error") should include("it has not yet been applied")
     respJson1 shouldNot contain("required")
 
@@ -309,11 +309,11 @@ class RestControllerSpec extends Test with TestDb {
           "targetB" -> Map("code" -> "productFailure", "detail" -> "").toJson)),
       None, Map("targetA" -> ("success", ""), "targetB" -> ("productFailure", ""))
     )
-    val respJson2 = getRespJson(actOnDeploymentRequest(id, "step-back", Map("currentStepId" -> 0).toJson, UnprocessableEntity))
+    val respJson2 = getRespJson(actOnDeploymentRequest(id, "revert", Map("currentStepId" -> 0).toJson, UnprocessableEntity))
     respJson2("error") should include("a default rollback version is required")
     respJson2("required") shouldEqual "defaultVersion"
 
-    actOnDeploymentRequest(id, "step-back", ToJsonAlias.deepToJson(Map("defaultVersion" -> "42", "currentStepId" -> 0)), Ok)
+    actOnDeploymentRequest(id, "revert", ToJsonAlias.deepToJson(Map("defaultVersion" -> "42", "currentStepId" -> 0)), Ok)
   }
 
   private def getDeploymentRequest(id: String): JsObject = {
