@@ -60,12 +60,6 @@ trait OperationTraceBinder extends TableBinder {
     }
   }
 
-  def findOperationTracesByDeploymentRequest(deploymentRequestId: Long): Future[Seq[ShallowOperationTrace]] = {
-    dbContext.db.run(operationTraceQuery.filter(_.deploymentRequestId === deploymentRequestId).sortBy(_.id).result).map(
-      _.map(_.toOperationTrace)
-    )
-  }
-
   def closeOperationTrace(operationTrace: OperationTrace): Future[Option[ShallowOperationTrace]] = {
     val now = Some(new java.sql.Timestamp(System.currentTimeMillis))
     dbContext.db.run(
