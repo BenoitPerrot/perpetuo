@@ -18,7 +18,7 @@ import scala.concurrent.Future
 class RundeckTrigger(name: String,
                      val host: String,
                      jobName: String,
-                     specificParameters: Iterable[(String, String)] = Map()) extends ExecutionHttpTrigger with RundeckApi {
+                     specificParameters: Iterable[(String, String)] = Map()) extends ExecutionTrigger with RundeckApi {
   def this(config: Config) {
     this(
       config.getString("name"),

@@ -1,7 +1,15 @@
 package com.criteo.perpetuo.engine.executors
 
+import java.net.InetSocketAddress
+
 import com.criteo.perpetuo.config.AppConfigProvider
 import com.criteo.perpetuo.config.ConfigSyntacticSugar._
+import com.twitter.conversions.time._
+import com.twitter.finagle.Http.Client
+import com.twitter.finagle.builder.ClientBuilder
+import com.twitter.finagle.http.{Request, Response}
+import com.twitter.finagle.service.{Backoff, RetryPolicy}
+import com.twitter.util.{Duration, Future => TwitterFuture, Try => TwitterTry}
 
 
 trait RundeckApi {
@@ -12,6 +20,22 @@ trait RundeckApi {
   private val config = AppConfigProvider.executorConfig("rundeck")
   val port: Int = config.getIntOrElse("port", 80)
   val authToken: Option[String] = config.tryGetString("token")
+
+  // HTTP client
+  protected def ssl: Boolean = port == 443
+  protected val requestTimeout: Duration = 20.seconds
+  protected val maxConnectionsPerHost: Int = 10
+  protected val backoffDurations: Stream[Duration] = Backoff.exponentialJittered(1.seconds, 5.seconds)
+  protected val backoffPolicy: RetryPolicy[TwitterTry[Nothing]] = RetryPolicy.backoff(backoffDurations)(RetryPolicy.TimeoutAndWriteExceptionsOnly)
+
+  protected lazy val client: Request => TwitterFuture[Response] = (if (ssl) ClientBuilder().tlsWithoutValidation else ClientBuilder())
+    .stack(Client())
+    .timeout(requestTimeout)
+    .hostConnectionLimit(maxConnectionsPerHost)
+    .hosts(new InetSocketAddress(host, port))
+    .retryPolicy(backoffPolicy)
+    .failFast(false)
+    .build()
 
   protected def apiPath(apiSubPath: String): String = {
     val path = s"/api/$apiVersion/$apiSubPath"
