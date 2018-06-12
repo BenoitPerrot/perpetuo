@@ -315,14 +315,6 @@ class RestControllerSpec extends Test with TestDb {
     actOnDeploymentRequest(id, "revert", Map("defaultVersion" -> "42").toJson, Ok)
   }
 
-  private def getDeploymentRequest(id: String): JsObject = {
-    val response = server.httpGet(
-      path = s"/api/deployment-requests/$id",
-      andExpect = Ok
-    )
-    response.contentString.parseJson.asJsObject
-  }
-
   private def getExecutionTracesByDeploymentRequestId(deploymentRequestId: String, expectedStatus: Status): Option[JsArray] = {
     val response = server.httpGet(
       path = s"/api/deployment-requests/$deploymentRequestId/execution-traces",
