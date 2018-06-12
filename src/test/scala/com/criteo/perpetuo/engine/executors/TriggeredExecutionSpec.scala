@@ -9,7 +9,7 @@ class TriggeredExecutionSpec extends Test {
   val finder = new TriggeredExecutionFinder(new PluginLoader(null))
 
   test("The TriggeredExecutionFinder can load a Rundeck execution") {
-    finder(ShallowExecutionTrace(42, Some("https://rundeck.somewhere/project/foo-bar/execution/show/42"), ExecutionState.completed, "")).stopper shouldBe None
+    finder(ShallowExecutionTrace(42, Some("https://rundeck.somewhere/project/foo-bar/execution/show/42"), ExecutionState.completed, "")).stopper shouldBe defined
   }
 
   test("The TriggeredExecutionFinder fails to load an execution of an unknown type") {
