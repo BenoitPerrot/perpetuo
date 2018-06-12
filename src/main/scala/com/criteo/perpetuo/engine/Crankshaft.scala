@@ -201,7 +201,7 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
             .map(expectedCount =>
               dbBinding.countingOperationTraces(deploymentRequest).map(count =>
                 if (count != expectedCount)
-                  throw UnprocessableIntent(s"${deploymentRequest.id}: the state of the deployment has just changed; have another look before choosing an action to trigger")
+                  throw Conflict(s"${deploymentRequest.id}: the state of the deployment has just changed; have another look before choosing an action to trigger")
               )
             )
             .getOrElse(DBIOAction.successful(()))

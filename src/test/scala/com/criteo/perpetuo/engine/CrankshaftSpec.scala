@@ -291,7 +291,7 @@ class CrankshaftSpec extends SimpleScenarioTesting {
         operationReClosingSucceeded.isDefined shouldBe false
         initialExecutionSpecIds.length == retriedExecutionSpecIds.length shouldBe true
         initialExecutionSpecIds == retriedExecutionSpecIds shouldBe true
-        raceConditionError should beLike[UnprocessableIntent]("[0-9]+: the state of the deployment has just changed.+")
+        raceConditionError should beLike[Conflict]("[0-9]+: the state of the deployment has just changed.+")
       }
     )
   }
