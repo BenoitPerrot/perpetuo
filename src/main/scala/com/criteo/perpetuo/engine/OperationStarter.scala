@@ -31,13 +31,6 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
     (reflectInDb, expandedTarget.map(_.flatMap(_.select)))
   }
 
-  def startDeploymentStep(resolver: TargetResolver,
-                          dispatcher: TargetDispatcher,
-                          deploymentRequest: DeepDeploymentRequest,
-                          deploymentPlanStep: DeploymentPlanStep,
-                          userName: String): OperationStartSpecifics =
-    dbBinding.dbContext.db.run(startingDeploymentStep(resolver, dispatcher, deploymentRequest, deploymentPlanStep, userName))
-
   def startingDeploymentStep(resolver: TargetResolver,
                              dispatcher: TargetDispatcher,
                              deploymentRequest: DeepDeploymentRequest,
