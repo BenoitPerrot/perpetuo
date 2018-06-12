@@ -2,6 +2,7 @@ package com.criteo.perpetuo.dao
 
 import com.criteo.perpetuo.auth.User
 import com.criteo.perpetuo.model._
+import slick.sql.FixedSqlAction
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
@@ -59,6 +60,9 @@ trait OperationTraceBinder extends TableBinder {
       DeepOperationTrace(id, deploymentRequest, operation, creator, operationTrace.creationDate, operationTrace.closingDate)
     }
   }
+
+  def countingOperationTraces(deploymentRequest: DeepDeploymentRequest): FixedSqlAction[Int, dbContext.profile.api.NoStream, Effect.Read] =
+    operationTraceQuery.filter(_.deploymentRequestId === deploymentRequest.id).length.result
 
   def closeOperationTrace(operationTrace: OperationTrace): Future[Option[ShallowOperationTrace]] = {
     val now = Some(new java.sql.Timestamp(System.currentTimeMillis))

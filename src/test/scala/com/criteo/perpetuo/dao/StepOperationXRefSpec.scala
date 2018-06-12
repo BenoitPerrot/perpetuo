@@ -27,7 +27,7 @@ class StepOperationXRefSpec
         step2 <- insertDeploymentPlanStep(depReq, ProtoDeploymentPlanStep("Eurasia", JsArray(JsString("eu"), JsString("as")), ""))
         _ <- insertDeploymentPlanStep(depReq, ProtoDeploymentPlanStep("America", JsArray(JsString("am")), ""))
         xrefsStep2NotStarted <- findStepOperationXRefs(step2)
-        op2 <- crankshaft.step(depReq, Some(step2.id), "initiator", emitEvent = false)
+        op2 <- crankshaft.step(depReq, Some(1), "initiator", emitEvent = false)
         xrefsOp1 <- findStepOperationXRefs(op1)
         xrefsOp2 <- findStepOperationXRefs(op2)
         // todo: add tests when a specific plan step will be picked by a deploy

@@ -98,7 +98,7 @@ trait SimpleScenarioTesting extends TestHelpers with TestDb with MockitoSugar {
           depReq
         }
         depPlan <- crankshaft.dbBinding.findDeploymentPlan(depReq)
-        operationTrace <- crankshaft.step(depReq, Some(depPlan.steps.head.id), "s.tarter")
+        operationTrace <- crankshaft.step(depReq, Some(0), "s.tarter")
       } yield operationTrace
     }
   }

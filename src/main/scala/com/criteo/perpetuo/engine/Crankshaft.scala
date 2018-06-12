@@ -10,6 +10,7 @@ import com.criteo.perpetuo.model._
 import com.google.common.annotations.VisibleForTesting
 import com.twitter.inject.Logging
 import javax.inject.{Inject, Singleton}
+import slick.dbio.DBIOAction
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
@@ -192,20 +193,27 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
   def isDeploymentRequestStarted(deploymentRequestId: Long): Future[Option[(DeepDeploymentRequest, Boolean)]] =
     dbBinding.isDeploymentRequestStarted(deploymentRequestId)
 
-  def step(deploymentRequest: DeepDeploymentRequest, planStepIdHint: Option[Long], initiatorName: String, emitEvent: Boolean = true): Future[DeepOperationTrace] = {
-    def rejectForUnexpectedState() =
-      throw UnprocessableIntent(s"${deploymentRequest.id}: the state of the deployment has just changed; have another look before choosing an action to trigger")
-
+  def step(deploymentRequest: DeepDeploymentRequest, currentOperationCount: Option[Int], initiatorName: String, emitEvent: Boolean = true): Future[DeepOperationTrace] = {
     dbBinding.executeInSerializableTransaction(
-      acquireOperationLock(deploymentRequest).andThen(
-        dbBinding.gettingLastDoneAndToDoPlanStep(deploymentRequest).flatMap {
+      acquireOperationLock(deploymentRequest)
+        .andThen(
+          currentOperationCount
+            .map(expectedCount =>
+              dbBinding.countingOperationTraces(deploymentRequest).map(count =>
+                if (count != expectedCount)
+                  throw UnprocessableIntent(s"${deploymentRequest.id}: the state of the deployment has just changed; have another look before choosing an action to trigger")
+              )
+            )
+            .getOrElse(DBIOAction.successful(()))
+        )
+        .andThen(
+          dbBinding.gettingLastDoneAndToDoPlanStep(deploymentRequest)
+        )
+        .flatMap {
           case (_, None) =>
-            rejectForUnexpectedState()
+            throw UnprocessableIntent(s"${deploymentRequest.id}: there is no next step, they have all been applied")
 
           case (lastDone, Some(toDo)) =>
-            planStepIdHint
-              .filter(_ != toDo.id)
-              .foreach(_ => rejectForUnexpectedState())
             val isRetry = lastDone.map(_.id).contains(toDo.id)
             val action = if (isRetry) operationStarter.retryingDeploymentStep _ else operationStarter.startingDeploymentStep _
             action(targetResolver, targetDispatcher, deploymentRequest, toDo, initiatorName)
@@ -215,7 +223,6 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
               }
               .map((_, (lastDone, toDo)))
         }
-      )
     ).flatMap { case ((createdOperation, executionsToTrigger), (lastDone, toDo)) =>
       triggerExecutions(deploymentRequest, createdOperation, executionsToTrigger).map((_, (lastDone, toDo)))
     }.map { case ((operationTrace, started, failed), (lastDone, toDo)) =>
