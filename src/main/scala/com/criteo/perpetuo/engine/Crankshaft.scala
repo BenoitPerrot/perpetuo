@@ -154,11 +154,9 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
     operationStartSpecifics
       .flatMap { case (recordsCreation, atoms) =>
         dbBinding.executeInSerializableTransaction(
-          acquireOperationLock(deploymentRequest).flatMap(_ =>
-            acquireDeploymentTransactionLock(deploymentRequest, atoms).flatMap(_ =>
-              recordsCreation
-            )
-          )
+          acquireOperationLock(deploymentRequest)
+            .andThen(acquireDeploymentTransactionLock(deploymentRequest, atoms))
+            .andThen(recordsCreation)
         )
       }
       .flatMap { case (createdOperation, executionsToTrigger) =>
@@ -199,7 +197,7 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
       throw UnprocessableIntent(s"${deploymentRequest.id}: the state of the deployment has just changed; have another look before choosing an action to trigger")
 
     dbBinding.executeInSerializableTransaction(
-      acquireOperationLock(deploymentRequest).flatMap(_ =>
+      acquireOperationLock(deploymentRequest).andThen(
         dbBinding.gettingLastDoneAndToDoPlanStep(deploymentRequest).flatMap {
           case (_, None) =>
             rejectForUnexpectedState()
@@ -213,7 +211,7 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
             action(targetResolver, targetDispatcher, deploymentRequest, toDo, initiatorName)
               .flatMap { case (creatingRecords, atoms) =>
                 acquireDeploymentTransactionLock(deploymentRequest, atoms)
-                  .flatMap(_ => creatingRecords)
+                  .andThen(creatingRecords)
               }
               .map((_, (lastDone, toDo)))
         }
