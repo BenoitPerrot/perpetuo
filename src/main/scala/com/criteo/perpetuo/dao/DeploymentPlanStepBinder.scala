@@ -48,6 +48,10 @@ trait DeploymentPlanStepBinder extends TableBinder {
       .map(id => DeploymentPlanStep(id, deploymentRequest, step.name, step.targetExpression, step.comment))
   }
 
+  def findingDeploymentPlanStep(deploymentRequest: DeepDeploymentRequest, deploymentPlanStepId: Long): DBIOAction[Option[DeploymentPlanStep], NoStream, Effect.Read] =
+    deploymentPlanStepQuery.filter(_.id === deploymentPlanStepId).result
+      .map(_.headOption.map(s => DeploymentPlanStep(s.id.get, deploymentRequest, s.name, s.targetExpression.parseJson, s.comment)))
+
   def findDeploymentPlan(deploymentRequest: DeepDeploymentRequest): Future[DeploymentPlan] =
     dbContext.db
       .run(deploymentPlanStepQuery.filter(_.deploymentRequestId === deploymentRequest.id).result)

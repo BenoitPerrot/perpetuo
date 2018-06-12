@@ -270,13 +270,22 @@ class DbBinding @Inject()(val dbContext: DbContext)
           )
     }
 
-  def gettingLastDoneAndToDoPlanStepId(deploymentRequestId: Long): DBIOAction[(Option[Long], Option[Long]), dbContext.profile.api.NoStream, Effect.Read with Effect.Read] =
-    findingDeploymentPlanStepAndLatestOperations(deploymentRequestId)
+  def gettingLastDoneAndToDoPlanStep(deploymentRequest: DeepDeploymentRequest): DBIOAction[(Option[DeploymentPlanStep], Option[DeploymentPlanStep]), dbContext.profile.api.NoStream, Effect.Read with Effect.Read] =
+    findingDeploymentPlanStepAndLatestOperations(deploymentRequest.id)
       .flatMap(planStepsAndLatestOperations =>
         if (planStepsAndLatestOperations.isEmpty)
-          DBIO.failed(new RuntimeException(s"$deploymentRequestId: should not be there: deployment plan is empty"))
+          DBIO.failed(new RuntimeException(s"${deploymentRequest.id}: should not be there: deployment plan is empty"))
         else
-          gettingLastDoneAndToDoPlanStepId(planStepsAndLatestOperations)
+          gettingLastDoneAndToDoPlanStepId(planStepsAndLatestOperations).flatMap { case (lastDone, toDo) =>
+            lastDone
+              .map(findingDeploymentPlanStep(deploymentRequest, _))
+              .getOrElse(DBIO.successful(None))
+              .zip(
+                toDo
+                  .map(findingDeploymentPlanStep(deploymentRequest, _))
+                  .getOrElse(DBIO.successful(None))
+              )
+          }
       )
 
   // if that is removed one day (with multi-step, out-dating a deployment request makes less sense),
