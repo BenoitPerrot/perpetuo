@@ -31,7 +31,7 @@ class CrankshaftSpec extends SimpleScenarioTesting {
         beforeStart._2 == afterStart._2 // Deployment flopped, so the next step remains the same
       ),
       1.second
-    ) shouldEqual (
+    ) shouldEqual(
       Seq((1, None)),
       true, true, true
     )

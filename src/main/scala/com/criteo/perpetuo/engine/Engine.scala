@@ -28,7 +28,7 @@ class Engine @Inject()(val crankshaft: Crankshaft,
       )
 
   def step(user: User, deploymentRequestId: Long, operationCount: Option[Int]): Future[Option[DeepOperationTrace]] =
-    withDeepDeploymentRequest(deploymentRequestId) { (deploymentRequest, isStarted) =>
+    withDeepDeploymentRequest(deploymentRequestId) { (deploymentRequest, _) =>
       if (!permissions.isAuthorized(user, DeploymentAction.applyOperation, Operation.deploy, deploymentRequest.product.name, deploymentRequest.parsedTarget.select))
         throw PermissionDenied()
 
