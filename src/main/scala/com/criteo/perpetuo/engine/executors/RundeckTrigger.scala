@@ -62,12 +62,11 @@ class RundeckTrigger(name: String,
     ) ++ specificParameters.map { case (parameterName, value) =>
       parameterName.replaceAll("([A-Z])", "-$1").toLowerCase -> value
     }
-    val req = buildRequest(runPath(jobName), triggerParameters)
 
     // trigger the job and return a future to the execution's log href
     Future {
       // convert a twitter Future to a scala one
-      val response = Await.result(client(req), requestTimeout + 1.second)
+      val response = Await.result(startJob(jobName, triggerParameters), requestTimeout + 1.second)
 
       val content = response.contentString
       response.status match {

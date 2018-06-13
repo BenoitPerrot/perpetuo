@@ -44,9 +44,6 @@ trait RundeckApi {
     authToken.map(t => s"$path?authtoken=$t").getOrElse(path)
   }
 
-  protected def runPath(jobName: String): String =
-    apiPath(s"job/$jobName/executions")
-
   protected def buildRequest(apiSubPath: String, parameters: Map[String, String] = Map()): Request = {
 
     // Rundeck before API version 18 does not support invocation with structured arguments
@@ -65,4 +62,7 @@ trait RundeckApi {
     req.contentString = body.compactPrint
     req
   }
+
+  def startJob(jobName: String, parameters: Map[String, String] = Map()): TwitterFuture[Response] =
+    client(buildRequest(apiPath(s"job/$jobName/executions"), parameters))
 }
