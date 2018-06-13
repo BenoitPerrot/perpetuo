@@ -36,7 +36,6 @@ class Engine @Inject()(val crankshaft: Crankshaft,
         .canDeployDeploymentRequest(deploymentRequest)
         .flatMap(_ =>
           crankshaft.dbBinding.findDeploymentPlan(deploymentRequest).flatMap { deploymentPlan =>
-            assert(deploymentPlan.steps.size == 1)
             crankshaft.step(deploymentRequest, Some(deploymentPlan.steps.head.id), user.name)
           }
         )
