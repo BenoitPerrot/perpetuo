@@ -6,8 +6,7 @@ import spray.json.DefaultJsonProtocol._
 import spray.json._
 
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.duration._
-import scala.concurrent.{Await, Future}
+import scala.concurrent.Future
 
 
 class CrankshaftSpec extends SimpleScenarioTesting {
@@ -16,7 +15,7 @@ class CrankshaftSpec extends SimpleScenarioTesting {
     crankshaft.dbBinding.dbContext.db.run(crankshaft.dbBinding.gettingLastDoneAndToDoPlanStep(deploymentRequest))
 
   test("A trivial execution triggers a job with no log href when there is no log href provided") {
-    Await.result(
+    await(
       for {
         product <- crankshaft.insertProductIfNotExists("product #1")
         depPlan <- crankshaft.dbBinding.insertDeploymentRequest(ProtoDeploymentRequest(product.name, Version("\"1000\""), Seq(ProtoDeploymentPlanStep("", JsString("*"), "")), "", "s.omeone"))
@@ -29,8 +28,7 @@ class CrankshaftSpec extends SimpleScenarioTesting {
         beforeStart._1.isEmpty,
         beforeStart._2 == afterStart._1,
         beforeStart._2 == afterStart._2 // Deployment flopped, so the next step remains the same
-      ),
-      1.second
+      )
     ) shouldEqual(
       Seq((1, None)),
       true, true, true
@@ -38,7 +36,7 @@ class CrankshaftSpec extends SimpleScenarioTesting {
   }
 
   test("Crankshaft keeps track of open executions for an operation") {
-    Await.result(
+    await(
       for {
         product <- crankshaft.insertProductIfNotExists("human")
         deploymentRequest <- crankshaft.createDeploymentRequest(ProtoDeploymentRequest(product.name, Version(JsString("42").compactPrint), Seq(ProtoDeploymentPlanStep("", JsArray(JsString("moon"), JsString("mars")), "")), "", "robert"))
@@ -48,8 +46,7 @@ class CrankshaftSpec extends SimpleScenarioTesting {
         _ <- closeOperation(operationTrace, Map("moon" -> Status.success, "mars" -> Status.hostFailure))
         hasOpenExecutionAfter <- crankshaft.dbBinding.hasOpenExecutionTracesForOperation(operationTrace.id)
         operationReClosingSucceeded <- crankshaft.dbBinding.closeOperationTrace(operationTrace)
-      } yield (hasOpenExecutionBefore, hasOpenExecutionAfter, operationReClosingSucceeded.isDefined),
-      2.seconds
+      } yield (hasOpenExecutionBefore, hasOpenExecutionAfter, operationReClosingSucceeded.isDefined)
     ) shouldBe(true, false, false)
   }
 
@@ -70,7 +67,7 @@ class CrankshaftSpec extends SimpleScenarioTesting {
   }
 
   test("Crankshaft checks that an operation can be started only if previous transactions on the same product have been completed") {
-    Await.result(
+    await(
       for {
         product <- crankshaft.insertProductIfNotExists("pig")
 
@@ -100,13 +97,12 @@ class CrankshaftSpec extends SimpleScenarioTesting {
         _ <- mockDeployExecution(product.name, "103", Map("racing" -> Status.success))
       } yield {
         conflictMsg shouldBe "Cannot be processed for the moment because a conflicting transaction is ongoing, which must first succeed or be reverted"
-      },
-      2.seconds
+      }
     )
   }
 
   test("Crankshaft checks if an operation can be retried") {
-    Await.result(
+    await(
       for {
         product <- crankshaft.insertProductIfNotExists("horse")
 
@@ -126,13 +122,12 @@ class CrankshaftSpec extends SimpleScenarioTesting {
         // The last one of course is retryable
         thirdDeploymentRequest <- crankshaft.dbBinding.findDeepDeploymentRequestById(thirdDeploymentRequest.id).map(_.get)
         _ <- crankshaft.canDeployDeploymentRequest(thirdDeploymentRequest)
-      } yield rejectionOfSecond.getMessage.split(":")(1).trim,
-      2.seconds
+      } yield rejectionOfSecond.getMessage.split(":")(1).trim
     ) shouldBe "a newer one has already been applied"
   }
 
   test("Crankshaft finds executions for reverting") {
-    Await.result(
+    await(
       for {
         product <- crankshaft.insertProductIfNotExists("mouse")
 
@@ -162,13 +157,12 @@ class CrankshaftSpec extends SimpleScenarioTesting {
           specsThird(firstExecSpecId),
           specsThird(secondExecSpecId)
         )
-      },
-      2.seconds
+      }
     ) shouldBe(Set("moon", "mars"), true, true, (""""27"""", Set("mars")), (""""54"""", Set("moon")))
   }
 
   test("Crankshaft checks if an operation can be reverted") {
-    Await.result(
+    await(
       for {
         product <- crankshaft.insertProductIfNotExists("monkey")
         otherProduct <- crankshaft.insertProductIfNotExists("donkey")
@@ -194,14 +188,13 @@ class CrankshaftSpec extends SimpleScenarioTesting {
         // Meanwhile the deployment on another product can be reverted (even when it's the first one for that product: it just requires a default revert version)
         otherDeploymentRequest <- crankshaft.dbBinding.findDeepDeploymentRequestById(otherDeploymentRequest.id).map(_.get)
         _ <- crankshaft.canRevertDeploymentRequest(otherDeploymentRequest, isStarted = true)
-      } yield rejectionOfSecond.getMessage.split(":")(1).trim,
-      2.seconds
+      } yield rejectionOfSecond.getMessage.split(":")(1).trim
     ) shouldBe "a newer one has already been applied"
   }
 
   test("Crankshaft performs a revert") {
     val defaultRevertVersion = Version(""""00"""")
-    Await.result(
+    await(
       for {
         product <- crankshaft.insertProductIfNotExists("pony")
 
@@ -254,8 +247,7 @@ class CrankshaftSpec extends SimpleScenarioTesting {
         revertOperationTraceC.deploymentRequestId == firstDeploymentRequest.id,
         revertExecutionSpecIdsC.length,
         revertExecutionSpecC.version == defaultRevertVersion
-      ),
-      2.seconds
+      )
     ) shouldBe(
       1, true,
       "a newer one has already been applied",

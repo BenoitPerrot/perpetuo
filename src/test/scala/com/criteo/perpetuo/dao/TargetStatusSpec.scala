@@ -1,22 +1,15 @@
 package com.criteo.perpetuo.dao
 
-import com.criteo.perpetuo.TestDb
 import com.criteo.perpetuo.model._
-import org.junit.runner.RunWith
-import org.scalatest.FunSuite
-import org.scalatest.concurrent._
-import org.scalatest.junit.JUnitRunner
+import com.criteo.perpetuo.{TestDb, TestHelpers}
 import spray.json.JsString
 
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.duration._
-import scala.concurrent.{Await, Future}
+import scala.concurrent.Future
 
 
-@RunWith(classOf[JUnitRunner])
 class TargetStatusSpec
-  extends FunSuite
-    with ScalaFutures
+  extends TestHelpers
     with TargetStatusBinder
     with ExecutionTraceBinder
     with ExecutionBinder
@@ -35,7 +28,7 @@ class TargetStatusSpec
     )
 
   test("Target statuses can be inserted and retrieved") {
-    Await.result(
+    await(
       for {
         _ <- dbContext.db.run(targetStatusQuery.delete)
         product <- insertProductIfNotExists("perpetuo-app")
@@ -48,15 +41,14 @@ class TargetStatusSpec
         targetStatuses <- readStatuses
         nbStatuses <- dbContext.db.run(targetStatusQuery.filter(_.executionId === execId).length.result)
       } yield {
-        assert(targetStatuses == "Moon: hostFailure (Houston, we've got a problem)")
-        assert(nbStatuses == 1)
-      },
-      1.second
+        targetStatuses shouldEqual "Moon: hostFailure (Houston, we've got a problem)"
+        nbStatuses shouldEqual 1
+      }
     )
   }
 
   test("Target statuses can be updated") {
-    Await.result(
+    await(
       for {
         _ <- dbContext.db.run(targetStatusQuery.delete)
         product <- insertProductIfNotExists("sleepy-owl")
@@ -76,12 +68,11 @@ class TargetStatusSpec
           "East" -> TargetAtomStatus(Status.running, "soaring"))))
         statuses4 <- readStatuses
       } yield {
-        assert(statuses1 == "")
-        assert(statuses2 == "West: running (confident)")
-        assert(statuses3 == "East: running (starting), West: productFailure (crashing)")
-        assert(statuses4 == "East: running (soaring), West: productFailure (crashing)")
-      },
-      1.second
+        statuses1 shouldEqual ""
+        statuses2 shouldEqual "West: running (confident)"
+        statuses3 shouldEqual "East: running (starting), West: productFailure (crashing)"
+        statuses4 shouldEqual "East: running (soaring), West: productFailure (crashing)"
+      }
     )
   }
 }

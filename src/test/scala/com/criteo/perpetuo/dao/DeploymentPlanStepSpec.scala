@@ -1,21 +1,14 @@
 package com.criteo.perpetuo.dao
 
-import com.criteo.perpetuo.TestDb
 import com.criteo.perpetuo.model.{ProtoDeploymentPlanStep, ProtoDeploymentRequest, Version}
-import com.twitter.inject.Test
-import org.junit.runner.RunWith
-import org.scalatest.concurrent._
-import org.scalatest.junit.JUnitRunner
+import com.criteo.perpetuo.{TestDb, TestHelpers}
 import spray.json.{JsArray, JsString}
 
-import scala.concurrent.Await
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.duration._
 
-@RunWith(classOf[JUnitRunner])
+
 class DeploymentPlanStepSpec
-  extends Test
-    with ScalaFutures
+  extends TestHelpers
     with ProductBinder
     with DeploymentRequestBinder
     with DeploymentPlanStepBinder
@@ -23,7 +16,7 @@ class DeploymentPlanStepSpec
     with TestDb {
 
   test("Deployment plan steps can be inserted and retrieved") {
-    Await.result(
+    await(
       for {
         product <- insertProductIfNotExists("humanity")
         deploymentRequest <- insertDeploymentRequest(ProtoDeploymentRequest(product.name, Version("\"v1\""), Seq(ProtoDeploymentPlanStep("Africa", JsArray(JsString("af")), "")), "", "f.sm")).map(_.deploymentRequest)
@@ -31,9 +24,8 @@ class DeploymentPlanStepSpec
         _ <- insertDeploymentPlanStep(deploymentRequest, ProtoDeploymentPlanStep("America", JsArray(JsString("am")), ""))
         plan <- findDeploymentPlan(deploymentRequest)
       } yield {
-        plan.steps.size
-      },
-      1.second
-    ) shouldBe 3
+        plan.steps.size shouldEqual 3
+      }
+    )
   }
 }

@@ -1,22 +1,14 @@
 package com.criteo.perpetuo.dao
 
-import com.criteo.perpetuo.TestDb
 import com.criteo.perpetuo.model._
-import org.junit.runner.RunWith
-import org.scalatest.FunSuite
-import org.scalatest.concurrent._
-import org.scalatest.junit.JUnitRunner
+import com.criteo.perpetuo.{TestDb, TestHelpers}
 import spray.json.JsString
 
-import scala.concurrent.Await
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.duration._
 
 
-@RunWith(classOf[JUnitRunner])
 class OperationTraceSpec
-  extends FunSuite
-    with ScalaFutures
+  extends TestHelpers
     with OperationTraceBinder
     with DeploymentRequestBinder
     with ProductBinder
@@ -34,7 +26,7 @@ class OperationTraceSpec
   }
 
   test("Operation traces can be bound to deployment requests, and retrieved") {
-    Await.result(
+    await(
       for {
         product <- insertProductIfNotExists("perpetuo-app")
         request <- insertDeploymentRequest(ProtoDeploymentRequest(product.name, Version("\"v42\""), Seq(ProtoDeploymentPlanStep("", JsString("*"), "")), "No fear", "c.norris")).map(_.deploymentRequest)
@@ -42,19 +34,18 @@ class OperationTraceSpec
         revertOperationTrace <- dbContext.db.run(insertOperationTrace(request, Operation.revert, "c.norris"))
         traces <- dbContext.db.run(operationTraceQuery.result)
       } yield {
-        assert(traces.length == 2)
+        traces.length shouldEqual 2
         val deploy = traces.head
         val revert = traces.tail.head
-        assert(deployOperationTrace.id == deploy.id.get)
-        assert(revertOperationTrace.id == revert.id.get)
-        assert(deploy.id.get != revert.id.get) // different primary keys
-        assert(deploy.deploymentRequestId == revert.deploymentRequestId) // same foreign key
-        assert(deploy.deploymentRequestId == request.id) // pointing to the same DeploymentRequest
-        assert(deploy.operation == Operation.deploy) // right operation type
-        assert(revert.operation == Operation.revert) // right operation type
-        assert(deploy.operation != revert.operation) // different operation types
-      },
-      1.second
+        deployOperationTrace.id shouldEqual deploy.id.get
+        revertOperationTrace.id shouldEqual revert.id.get
+        deploy.id.get shouldNot equal(revert.id.get) // different primary keys
+        deploy.deploymentRequestId shouldEqual revert.deploymentRequestId // same foreign key
+        deploy.deploymentRequestId shouldEqual request.id // pointing to the same DeploymentRequest
+        deploy.operation shouldEqual Operation.deploy // right operation type
+        revert.operation shouldEqual Operation.revert // right operation type
+        deploy.operation shouldNot equal(revert.operation) // different operation types
+      }
     )
   }
 }
