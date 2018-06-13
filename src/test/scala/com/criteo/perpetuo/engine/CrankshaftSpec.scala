@@ -56,7 +56,6 @@ class CrankshaftSpec extends SimpleScenarioTesting {
   def mockDeployExecution(productName: String, v: String, targetAtomToStatus: Map[String, Status.Code], initFailed: Boolean = false): Future[(DeepDeploymentRequest, Long)] = {
     for {
       deploymentRequest <- crankshaft.createDeploymentRequest(ProtoDeploymentRequest(productName, Version(JsString(v).compactPrint), Seq(ProtoDeploymentPlanStep("", targetAtomToStatus.keys.toJson, "")), "", "r.equestor"))
-      deploymentPlan <- crankshaft.dbBinding.findDeploymentPlan(deploymentRequest)
       operationTrace <- crankshaft.step(deploymentRequest, Some(0), "s.tarter")
       executionSpecIds <- crankshaft.dbBinding.findExecutionSpecIdsByOperationTrace(operationTrace.id)
       _ <- closeOperation(operationTrace, targetAtomToStatus, initFailed)
@@ -272,7 +271,6 @@ class CrankshaftSpec extends SimpleScenarioTesting {
       for {
         product <- crankshaft.insertProductIfNotExists("martian")
         deploymentRequest <- crankshaft.createDeploymentRequest(ProtoDeploymentRequest(product.name, Version(JsString("42").compactPrint), Seq(ProtoDeploymentPlanStep("", JsArray(JsString("moon"), JsString("mars")), "")), "", "robert"))
-        deploymentPlan <- dbBinding.findDeploymentPlan(deploymentRequest)
         operationTrace <- crankshaft.step(deploymentRequest, Some(0), "ignace")
         firstExecutionTraces <- closeOperation(operationTrace, Map("moon" -> Status.success, "mars" -> Status.hostFailure))
         retriedOperation <- crankshaft.step(deploymentRequest, Some(1), "b.lightning", emitEvent = false)
@@ -372,7 +370,6 @@ class CrankshaftWithFailingExecutorSpec extends SimpleScenarioTesting {
     val res = for {
       product <- crankshaft.insertProductIfNotExists("airplane")
       deploymentRequest <- crankshaft.createDeploymentRequest(ProtoDeploymentRequest(product.name, Version(JsString("42").compactPrint), Seq(ProtoDeploymentPlanStep("", JsArray(JsString("moon"), JsString("mars")), "")), "", "bob"))
-      deploymentPlan <- dbBinding.findDeploymentPlan(deploymentRequest)
       operationTrace <- crankshaft.step(deploymentRequest, Some(0), "ignace")
       hasOpenExecution <- crankshaft.dbBinding.hasOpenExecutionTracesForOperation(operationTrace.id)
       executionTrace <- crankshaft.dbBinding.findExecutionTracesByDeploymentRequest(deploymentRequest.id).map(_.head)
