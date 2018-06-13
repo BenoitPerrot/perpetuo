@@ -4,10 +4,9 @@ import com.criteo.perpetuo.app.RestApi
 import com.criteo.perpetuo.engine.TargetExpr
 import com.criteo.perpetuo.model.{Target, Version}
 import com.twitter.conversions.time._
-import com.twitter.finagle.http.{Message, Method, Request, Status}
+import com.twitter.finagle.http.Status
 import com.twitter.util.Await
 import com.typesafe.config.Config
-import spray.json.DefaultJsonProtocol._
 import spray.json._
 
 import scala.collection.JavaConverters._
@@ -28,28 +27,6 @@ class RundeckTrigger(name: String,
   }
 
   override def toString: String = s"$name (job: $jobName)"
-
-  private def runPath(jobName: String): String =
-    apiPath(s"job/$jobName/executions")
-
-  protected def buildRequest(apiSubPath: String, parameters: Map[String, String] = Map()): Request = {
-
-    // Rundeck before API version 18 does not support invocation with structured arguments
-    val argString = parameters.toStream
-      .map { case (parameterName, value) =>
-        s"-$parameterName $value"
-      }
-      .mkString(" ")
-
-    val body = Map("argString" -> argString).toJson
-
-    val req = Request(Method.Post, apiSubPath)
-    req.host = host
-    req.contentType = Message.ContentTypeJson
-    req.accept = Message.ContentTypeJson // default response format is XML
-    req.contentString = body.compactPrint
-    req
-  }
 
   def extractLogHref(executorAnswer: String): String =
     executorAnswer.parseJson.asJsObject.fields("permalink").asInstanceOf[JsString].value

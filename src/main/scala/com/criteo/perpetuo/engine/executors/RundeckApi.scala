@@ -7,9 +7,11 @@ import com.criteo.perpetuo.config.ConfigSyntacticSugar._
 import com.twitter.conversions.time._
 import com.twitter.finagle.Http.Client
 import com.twitter.finagle.builder.ClientBuilder
-import com.twitter.finagle.http.{Request, Response}
+import com.twitter.finagle.http.{Message, Method, Request, Response}
 import com.twitter.finagle.service.{Backoff, RetryPolicy}
 import com.twitter.util.{Duration, Future => TwitterFuture, Try => TwitterTry}
+import spray.json.DefaultJsonProtocol._
+import spray.json._
 
 
 trait RundeckApi {
@@ -40,5 +42,27 @@ trait RundeckApi {
   protected def apiPath(apiSubPath: String): String = {
     val path = s"/api/$apiVersion/$apiSubPath"
     authToken.map(t => s"$path?authtoken=$t").getOrElse(path)
+  }
+
+  protected def runPath(jobName: String): String =
+    apiPath(s"job/$jobName/executions")
+
+  protected def buildRequest(apiSubPath: String, parameters: Map[String, String] = Map()): Request = {
+
+    // Rundeck before API version 18 does not support invocation with structured arguments
+    val argString = parameters.toStream
+      .map { case (parameterName, value) =>
+        s"-$parameterName $value"
+      }
+      .mkString(" ")
+
+    val body = Map("argString" -> argString).toJson
+
+    val req = Request(Method.Post, apiSubPath)
+    req.host = host
+    req.contentType = Message.ContentTypeJson
+    req.accept = Message.ContentTypeJson // default response format is XML
+    req.contentString = body.compactPrint
+    req
   }
 }
