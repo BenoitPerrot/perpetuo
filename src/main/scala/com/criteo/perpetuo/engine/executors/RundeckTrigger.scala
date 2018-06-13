@@ -32,24 +32,10 @@ class RundeckTrigger(name: String,
   private def runPath(jobName: String): String =
     apiPath(s"job/$jobName/executions")
 
-  protected def buildRequest(execTraceId: Long, productName: String, version: Version, target: String): Request = {
-    def squote(s: String) = s"'$s'"
-
-    var quotedVersion = version.toString
-    if (quotedVersion.startsWith("["))
-      quotedVersion = squote(quotedVersion)
+  protected def buildRequest(apiSubPath: String, parameters: Map[String, String] = Map()): Request = {
 
     // Rundeck before API version 18 does not support invocation with structured arguments
-    val args = Map(
-      "callback-url" -> squote(RestApi.executionCallbackUrl(execTraceId)),
-      "product-name" -> squote(productName),
-      "target" -> squote(target),
-      "product-version" -> quotedVersion
-    ) ++ specificParameters.map { case (parameterName, value) =>
-      parameterName.replaceAll("([A-Z])", "-$1").toLowerCase -> value
-    }
-
-    val argString = args.toStream
+    val argString = parameters.toStream
       .map { case (parameterName, value) =>
         s"-$parameterName $value"
       }
@@ -57,7 +43,7 @@ class RundeckTrigger(name: String,
 
     val body = Map("argString" -> argString).toJson
 
-    val req = Request(Method.Post, runPath(jobName))
+    val req = Request(Method.Post, apiSubPath)
     req.host = host
     req.contentType = Message.ContentTypeJson
     req.accept = Message.ContentTypeJson // default response format is XML
@@ -84,7 +70,22 @@ class RundeckTrigger(name: String,
 
   override def trigger(execTraceId: Long, productName: String, version: Version, target: TargetExpr, initiator: String): Future[Option[String]] = {
     // todo: while we only support deployment tactics, we directly give the select dimension, and formatted differently
-    val req = buildRequest(execTraceId, productName, version, Target.getSimpleSelect(target).mkString(","))
+
+    def squote(s: String) = s"'$s'"
+
+    var quotedVersion = version.toString
+    if (quotedVersion.startsWith("["))
+      quotedVersion = squote(quotedVersion)
+
+    val triggerParameters = Map(
+      "callback-url" -> squote(RestApi.executionCallbackUrl(execTraceId)),
+      "product-name" -> squote(productName),
+      "target" -> squote(Target.getSimpleSelect(target).mkString(",")),
+      "product-version" -> quotedVersion
+    ) ++ specificParameters.map { case (parameterName, value) =>
+      parameterName.replaceAll("([A-Z])", "-$1").toLowerCase -> value
+    }
+    val req = buildRequest(runPath(jobName), triggerParameters)
 
     // trigger the job and return a future to the execution's log href
     Future {
