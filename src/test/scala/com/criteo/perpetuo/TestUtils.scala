@@ -30,9 +30,10 @@ trait TestDb extends DbContextProvider {
 
 trait TestHelpers extends Test {
   def asynchronouslyThrow[T <: Throwable : ClassTag](pattern: String): Matcher[Future[_]] =
-    be(a[T])
-      .and(fullyMatch.regex(pattern).compose((_: Throwable).getMessage))
-      .compose(f => await(f.failed))
+    beLike[T](pattern).compose(f => await(f.failed))
+
+  def beLike[T <: Throwable : ClassTag](pattern: String): Matcher[Throwable] =
+    be(a[T]).and(fullyMatch.regex(pattern).compose(_.getMessage))
 
   def become[T](value: T): Matcher[Future[T]] = eventually(be(value))
 

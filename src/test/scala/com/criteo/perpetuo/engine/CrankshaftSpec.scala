@@ -268,7 +268,7 @@ class CrankshaftSpec extends SimpleScenarioTesting {
   }
 
   test("Crankshaft keeps track of retried operation") {
-    Await.result(
+    await(
       for {
         product <- crankshaft.insertProductIfNotExists("martian")
         deploymentRequest <- crankshaft.createDeploymentRequest(ProtoDeploymentRequest(product.name, Version(JsString("42").compactPrint), Seq(ProtoDeploymentPlanStep("", JsArray(JsString("moon"), JsString("mars")), "")), "", "robert"))
@@ -277,23 +277,23 @@ class CrankshaftSpec extends SimpleScenarioTesting {
         firstExecutionTraces <- closeOperation(operationTrace, Map("moon" -> Status.success, "mars" -> Status.hostFailure))
         retriedOperation <- crankshaft.step(deploymentRequest, Some(1), "b.lightning", emitEvent = false)
         secondExecutionTraces <- closeOperation(retriedOperation, Map("moon" -> Status.success, "mars" -> Status.success))
-        UnprocessableIntent(raceConditionMsg) <- crankshaft.step(deploymentRequest, Some(1), "b.lightning", emitEvent = false).failed
+        raceConditionError <- crankshaft.step(deploymentRequest, Some(1), "b.lightning", emitEvent = false).failed
         hasOpenExecutionAfter <- crankshaft.dbBinding.hasOpenExecutionTracesForOperation(retriedOperation.id)
         operationReClosingSucceeded <- crankshaft.dbBinding.closeOperationTrace(retriedOperation)
         initialExecutionSpecIds <- crankshaft.dbBinding.findExecutionSpecIdsByOperationTrace(operationTrace.id)
         retriedExecutionSpecIds <- crankshaft.dbBinding.findExecutionSpecIdsByOperationTrace(retriedOperation.id)
-      } yield (
-        firstExecutionTraces.length,
-        secondExecutionTraces.length,
-        firstExecutionTraces.intersect(secondExecutionTraces).length,
-        retriedOperation.id == operationTrace.id,
-        hasOpenExecutionAfter, operationReClosingSucceeded.isDefined,
-        initialExecutionSpecIds.length == retriedExecutionSpecIds.length,
-        initialExecutionSpecIds == retriedExecutionSpecIds,
-        raceConditionMsg.contains("the state of the deployment has just changed")
-      ),
-      2.seconds
-    ) shouldBe(1, 1, 0, false, false, false, true, true, true)
+      } yield {
+        firstExecutionTraces.length shouldEqual 1
+        secondExecutionTraces.length shouldEqual 1
+        firstExecutionTraces.intersect(secondExecutionTraces).length shouldEqual 0
+        retriedOperation.id == operationTrace.id shouldBe false
+        hasOpenExecutionAfter shouldBe false
+        operationReClosingSucceeded.isDefined shouldBe false
+        initialExecutionSpecIds.length == retriedExecutionSpecIds.length shouldBe true
+        initialExecutionSpecIds == retriedExecutionSpecIds shouldBe true
+        raceConditionError should beLike[UnprocessableIntent]("[0-9]+: the state of the deployment has just changed.+")
+      }
+    )
   }
 
   test("Crankshaft's binding provides the last version deployed on a given target") {
