@@ -50,7 +50,7 @@ trait ExecutionTraceBinder extends TableBinder {
   val executionTraceQuery = TableQuery[ExecutionTraceTable]
 
   def insertExecutionTraces(executionId: Long, numberOfTraces: Int): FixedSqlAction[Seq[Long], NoStream, Effect.Write] =
-    insertExecutionTraces(executionId,  List.fill(numberOfTraces)(ExecutionTraceRecord(None, executionId)))
+    insertExecutionTraces(executionId, List.fill(numberOfTraces)(ExecutionTraceRecord(None, executionId)))
 
   def insertExecutionTraces(executionId: Long, traces: Iterable[ExecutionTraceRecord]): FixedSqlAction[Seq[Long], NoStream, Effect.Write] =
     (executionTraceQuery returning executionTraceQuery.map(_.id)) ++= traces
