@@ -39,13 +39,13 @@ private case class RequestWithName(@NotEmpty name: String,
 private case class ProductPostWithVersion(@NotEmpty name: String,
                                           @NotEmpty version: String)
 
-private case class RevertRequest(@RouteParam @NotEmpty id: String,
-                                 @NotEmpty defaultVersion: Option[String] = None,
-                                 @Inject request: Request) extends WithId with WithRequest
-
 private case class DeploymentActionRequest(@RouteParam @NotEmpty id: String,
                                            operationCount: Option[Int],
                                            @Inject request: Request) extends WithId with WithRequest
+
+private case class RevertRequest(@RouteParam @NotEmpty id: String,
+                                 @NotEmpty defaultVersion: Option[String] = None,
+                                 @Inject request: Request) extends WithId with WithRequest
 
 private case class ExecutionTracePut(@RouteParam @NotEmpty id: String,
                                      @NotEmpty state: String,
