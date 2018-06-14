@@ -49,12 +49,12 @@ class CrankshaftSpec extends SimpleScenarioTesting {
     ) shouldBe(true, false, false)
   }
 
-  def mockDeployExecution(productName: String, v: String, targetAtomToStatus: Map[String, Status.Code], initFailed: Boolean = false): Future[(DeploymentRequest, Long)] = {
+  def mockDeployExecution(productName: String, v: String, targetAtomToStatus: Map[String, Status.Code], initFailed: Boolean = false, updateTargetStatuses: Boolean = true): Future[(DeploymentRequest, Long)] = {
     for {
       deploymentRequest <- crankshaft.createDeploymentRequest(ProtoDeploymentRequest(productName, Version(JsString(v).compactPrint), Seq(ProtoDeploymentPlanStep("", targetAtomToStatus.keys.toJson, "")), "", "r.equestor"))
       operationTrace <- crankshaft.step(deploymentRequest, Some(0), "s.tarter")
       executionSpecIds <- crankshaft.dbBinding.findExecutionSpecIdsByOperationTrace(operationTrace.id)
-      _ <- closeOperation(operationTrace, targetAtomToStatus, initFailed)
+      _ <- closeOperation(operationTrace, if (updateTargetStatuses) targetAtomToStatus else Map(), initFailed)
     } yield (deploymentRequest, executionSpecIds.head)
   }
 
@@ -187,8 +187,23 @@ class CrankshaftSpec extends SimpleScenarioTesting {
         // Meanwhile the deployment on another product can be reverted (even when it's the first one for that product: it just requires a default revert version)
         otherDeploymentRequest <- crankshaft.dbBinding.findDeepDeploymentRequestById(otherDeploymentRequest.id).map(_.get)
         _ <- crankshaft.canRevertDeploymentRequest(otherDeploymentRequest, isStarted = true)
-      } yield rejectionOfSecond.getMessage.split(":")(1).trim
-    ) shouldBe "a newer one has already been applied"
+
+        (nothingDoneDeploymentRequest, _) <- mockDeployExecution(product.name, "51", Map("pluto" -> Status.notDone), initFailed = true, updateTargetStatuses = false)
+        // Status = initFailed
+
+        // Verify we can't revert a request if no targetStatuses exists
+        nothingDoneDeploymentRequest <- crankshaft.dbBinding.findDeepDeploymentRequestById(nothingDoneDeploymentRequest.id).map(_.get)
+        rejectionOfNothingDone <- crankshaft.canRevertDeploymentRequest(nothingDoneDeploymentRequest, isStarted = true).failed
+
+        (notDoneDeploymentRequest, _) <- mockDeployExecution(product.name, "51", Map("planet x" -> Status.notDone), initFailed = true)
+        // Status = initFailed
+
+        // Verify we can't revert a request if it has no effect
+        notDoneDeploymentRequest <- crankshaft.dbBinding.findDeepDeploymentRequestById(notDoneDeploymentRequest.id).map(_.get)
+        rejectionOfNotDone <- crankshaft.canRevertDeploymentRequest(notDoneDeploymentRequest, isStarted = true).failed
+
+      } yield List(rejectionOfSecond, rejectionOfNothingDone, rejectionOfNotDone).map(_.getMessage.split(":")(1).trim)
+    ) shouldBe List("a newer one has already been applied", "Nothing to revert", "Nothing to revert")
   }
 
   test("Crankshaft rejects outdated revert intents before devising the plan") {

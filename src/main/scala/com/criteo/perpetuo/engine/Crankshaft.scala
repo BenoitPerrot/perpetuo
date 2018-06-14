@@ -228,6 +228,14 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
       }
   }
 
+  private def rejectIfNothingToRevert(deploymentRequest: DeploymentRequest): Future[Unit] =
+    dbBinding.hasHadAnEffect(deploymentRequest.id).flatMap(
+      if (_)
+        Future.successful(())
+      else
+        Future.failed(UnavailableAction(s"${deploymentRequest.id}: Nothing to revert"))
+    )
+
   private def rejectIfOutdatedOrLocked(deploymentRequest: DeploymentRequest): Future[Unit] =
     dbBinding.lockExists(getOperationLockName(deploymentRequest)).flatMap(
       if (_)
@@ -253,6 +261,7 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
       // todo: now we can allow successive rollbacks,
       // by using dbBinding.findTargetAtomNotActionableBy instead of `outdated` here
       rejectIfOutdatedOrLocked(deploymentRequest)
+        .flatMap(_ => rejectIfNothingToRevert(deploymentRequest))
     }
 
   /**

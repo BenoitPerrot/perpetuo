@@ -494,4 +494,17 @@ class DbBinding @Inject()(val dbContext: DbContext)
         .result
     ).map(_.toMap)
   }
+
+  def hasHadAnEffect(deploymentRequestId: Long): Future[Boolean] =
+    dbContext.db.run(
+      targetStatusQuery
+        .join(executionQuery)
+        .join(operationTraceQuery)
+        .filter { case ((ts, ex), op) =>
+          ts.executionId === ex.id && ex.operationTraceId === op.id &&
+            op.deploymentRequestId === deploymentRequestId && ts.code =!= Status.notDone
+        }
+        .exists
+        .result
+    )
 }
