@@ -44,7 +44,7 @@ private case class DeploymentActionRequest(@RouteParam @NotEmpty id: String,
                                            @Inject request: Request) extends WithId with WithRequest
 
 private case class RevertRequest(@RouteParam @NotEmpty id: String,
-                                 @NotEmpty defaultVersion: Option[String] = None,
+                                 @NotEmpty defaultVersion: Option[String],
                                  @Inject request: Request) extends WithId with WithRequest
 
 private case class ExecutionTracePut(@RouteParam @NotEmpty id: String,
