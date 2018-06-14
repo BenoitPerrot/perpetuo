@@ -39,13 +39,13 @@ private case class RequestWithName(@NotEmpty name: String,
 private case class ProductPostWithVersion(@NotEmpty name: String,
                                           @NotEmpty version: String)
 
-private case class RequestWithIdAndDefaultVersion(@RouteParam @NotEmpty id: String,
-                                                  @NotEmpty defaultVersion: Option[String] = None,
-                                                  @Inject request: Request) extends WithId with WithRequest
+private case class RevertRequest(@RouteParam @NotEmpty id: String,
+                                 @NotEmpty defaultVersion: Option[String] = None,
+                                 @Inject request: Request) extends WithId with WithRequest
 
-private case class RequestWithIdAndOperationCount(@RouteParam @NotEmpty id: String,
-                                                  operationCount: Option[Int],
-                                                  @Inject request: Request) extends WithId with WithRequest
+private case class DeploymentActionRequest(@RouteParam @NotEmpty id: String,
+                                           operationCount: Option[Int],
+                                           @Inject request: Request) extends WithId with WithRequest
 
 private case class ExecutionTracePut(@RouteParam @NotEmpty id: String,
                                      @NotEmpty state: String,
@@ -145,7 +145,7 @@ class RestController @Inject()(val engine: Engine)
     )(r)
   }
 
-  post("/api/deployment-requests/:id/actions/step", 5.seconds) { (id: Long, r: RequestWithIdAndOperationCount, user: User) =>
+  post("/api/deployment-requests/:id/actions/step", 5.seconds) { (id: Long, r: DeploymentActionRequest, user: User) =>
     engine
       .step(user, id, r.operationCount)
       .map(_.map(_ => Map("id" -> id)))
@@ -158,7 +158,7 @@ class RestController @Inject()(val engine: Engine)
       .map(_.map(_ => Map("id" -> id)))
   }
 
-  post("/api/deployment-requests/:id/actions/revert", 5.seconds) { (id: Long, r: RequestWithIdAndDefaultVersion, user: User) =>
+  post("/api/deployment-requests/:id/actions/revert", 5.seconds) { (id: Long, r: RevertRequest, user: User) =>
     engine
       .revert(user, id, None, r.defaultVersion.map(Version.apply))
       .map(_.map(_ => Map("id" -> id)))
@@ -171,7 +171,7 @@ class RestController @Inject()(val engine: Engine)
     * key in the body gives the number of executions that have been successfully stopped.
     * No information is returned about the executions that were already stopped.
     */
-  post("/api/deployment-requests/:id/actions/stop", 5.seconds) { (id: Long, r: RequestWithIdAndOperationCount, user: User) =>
+  post("/api/deployment-requests/:id/actions/stop", 5.seconds) { (id: Long, r: DeploymentActionRequest, user: User) =>
     engine
       .stop(user, id, r.operationCount)
       .map(_.map { case (nbStopped, errorMessages) =>
