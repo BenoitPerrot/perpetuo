@@ -313,8 +313,8 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
     *         Executions that were already stopped are not included in the response.
     */
   def tryStopDeploymentRequest(deploymentRequest: DeepDeploymentRequest, initiatorName: String): Future[(Int, Seq[String])] =
-    dbBinding
-      .findOpenExecutionTracesByDeploymentRequest(deploymentRequest.id)
+    dbBinding.dbContext.db
+      .run(dbBinding.findingOpenExecutionTracesByDeploymentRequest(deploymentRequest.id))
       .flatMap { openExecutionTraces =>
         Future.traverse(openExecutionTraces) { openExecutionTrace =>
           try {
