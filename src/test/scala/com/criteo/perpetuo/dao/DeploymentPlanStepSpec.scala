@@ -1,6 +1,6 @@
 package com.criteo.perpetuo.dao
 
-import com.criteo.perpetuo.model.{ProtoDeploymentPlanStep, ProtoDeploymentRequest, Version}
+import com.criteo.perpetuo.model._
 import com.criteo.perpetuo.{TestDb, TestHelpers}
 import spray.json.{JsArray, JsString}
 
@@ -15,6 +15,8 @@ class DeploymentPlanStepSpec
     with DeploymentRequestInserter
     with TestDb {
 
+  import dbContext.profile.api._
+
   test("Deployment plan steps can be inserted and retrieved") {
     await(
       for {
@@ -22,9 +24,9 @@ class DeploymentPlanStepSpec
         deploymentRequest <- insertDeploymentRequest(ProtoDeploymentRequest(product.name, Version("\"v1\""), Seq(ProtoDeploymentPlanStep("Africa", JsArray(JsString("af")), "")), "", "f.sm")).map(_.deploymentRequest)
         _ <- insertDeploymentPlanStep(deploymentRequest, ProtoDeploymentPlanStep("Eurasia", JsArray(JsString("eu"), JsString("as")), ""))
         _ <- insertDeploymentPlanStep(deploymentRequest, ProtoDeploymentPlanStep("America", JsArray(JsString("am")), ""))
-        plan <- findDeploymentPlan(deploymentRequest)
+        nbSteps <- dbContext.db.run(deploymentPlanStepQuery.filter(_.deploymentRequestId === deploymentRequest.id).length.result)
       } yield {
-        plan.steps.size shouldEqual 3
+        nbSteps shouldEqual 3
       }
     )
   }
