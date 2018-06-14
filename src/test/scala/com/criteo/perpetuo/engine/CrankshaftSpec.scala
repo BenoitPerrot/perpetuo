@@ -40,7 +40,6 @@ class CrankshaftSpec extends SimpleScenarioTesting {
       for {
         product <- crankshaft.insertProductIfNotExists("human")
         deploymentRequest <- crankshaft.createDeploymentRequest(ProtoDeploymentRequest(product.name, Version(JsString("42").compactPrint), Seq(ProtoDeploymentPlanStep("", JsArray(JsString("moon"), JsString("mars")), "")), "", "robert"))
-        deploymentPlan <- crankshaft.dbBinding.findDeploymentPlan(deploymentRequest)
         operationTrace <- crankshaft.step(deploymentRequest, Some(0), "ignace")
         hasOpenExecutionBefore <- crankshaft.dbBinding.hasOpenExecutionTracesForOperation(operationTrace.id)
         _ <- closeOperation(operationTrace, Map("moon" -> Status.success, "mars" -> Status.hostFailure))
@@ -265,9 +264,9 @@ class CrankshaftSpec extends SimpleScenarioTesting {
         deploymentRequest <- crankshaft.createDeploymentRequest(ProtoDeploymentRequest(product.name, Version(JsString("42").compactPrint), Seq(ProtoDeploymentPlanStep("", JsArray(JsString("moon"), JsString("mars")), "")), "", "robert"))
         operationTrace <- crankshaft.step(deploymentRequest, Some(0), "ignace")
         firstExecutionTraces <- closeOperation(operationTrace, Map("moon" -> Status.success, "mars" -> Status.hostFailure))
-        retriedOperation <- crankshaft.step(deploymentRequest, Some(1), "b.lightning", emitEvent = false)
+        retriedOperation <- crankshaft.step(deploymentRequest, Some(1), "b.lightning")
         secondExecutionTraces <- closeOperation(retriedOperation, Map("moon" -> Status.success, "mars" -> Status.success))
-        raceConditionError <- crankshaft.step(deploymentRequest, Some(1), "b.lightning", emitEvent = false).failed
+        raceConditionError <- crankshaft.step(deploymentRequest, Some(1), "b.lightning").failed
         hasOpenExecutionAfter <- crankshaft.dbBinding.hasOpenExecutionTracesForOperation(retriedOperation.id)
         operationReClosingSucceeded <- crankshaft.dbBinding.closeOperationTrace(retriedOperation)
         initialExecutionSpecIds <- crankshaft.dbBinding.findExecutionSpecIdsByOperationTrace(operationTrace.id)
