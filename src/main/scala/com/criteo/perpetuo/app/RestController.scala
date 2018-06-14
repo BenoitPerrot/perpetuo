@@ -44,6 +44,7 @@ private case class DeploymentActionRequest(@RouteParam @NotEmpty id: String,
                                            @Inject request: Request) extends WithId with WithRequest
 
 private case class RevertRequest(@RouteParam @NotEmpty id: String,
+                                 operationCount: Option[Int],
                                  @NotEmpty defaultVersion: Option[String],
                                  @Inject request: Request) extends WithId with WithRequest
 
@@ -127,6 +128,7 @@ class RestController @Inject()(val engine: Engine)
     }
   }
 
+  // todo? consider sending back the operationCount for "versioning" the plan in the revert request
   post("/api/deployment-requests/:id/actions/devise-revert-plan") { r: RequestWithId =>
     withIdAndRequest(
       (id, _: RequestWithId) => {
@@ -160,7 +162,7 @@ class RestController @Inject()(val engine: Engine)
 
   post("/api/deployment-requests/:id/actions/revert", 5.seconds) { (id: Long, r: RevertRequest, user: User) =>
     engine
-      .revert(user, id, None, r.defaultVersion.map(Version.apply))
+      .revert(user, id, r.operationCount, r.defaultVersion.map(Version.apply))
       .map(_.map(_ => Map("id" -> id)))
   }
   // >>
