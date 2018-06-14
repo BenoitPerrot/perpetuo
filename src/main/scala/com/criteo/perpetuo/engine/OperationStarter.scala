@@ -35,7 +35,7 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
                              dispatcher: TargetDispatcher,
                              deploymentRequest: DeploymentRequest,
                              deploymentPlanStep: DeploymentPlanStep,
-                             userName: String): DBIOAction[(DBIOAction[(DeepOperationTrace, ExecutionsToTrigger), NoStream, Effect.Read with Effect.Write], Option[Set[String]]), NoStream, Effect.Write] = {
+                             userName: String): DBIOAction[OperationStartSpecifics, NoStream, Effect.Write] = {
     // generation of specific parameters
     val specificParameters = dispatcher.freezeParameters(deploymentRequest.product.name, deploymentRequest.version)
     // target resolution
@@ -54,7 +54,7 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
                              dispatcher: TargetDispatcher,
                              deploymentRequest: DeploymentRequest,
                              deploymentPlanStep: DeploymentPlanStep,
-                             userName: String): DBIOAction[(DBIOAction[(DeepOperationTrace, ExecutionsToTrigger), NoStream, Effect.Read with Effect.Write], Option[Set[String]]), NoStream, Effect.Read] = {
+                             userName: String): DBIOAction[OperationStartSpecifics, NoStream, Effect.Read] = {
     // todo: map the right target to the right specification
     val expandedTarget = expandTarget(resolver, deploymentRequest.product.name, deploymentRequest.version, deploymentRequest.parsedTarget)
 
@@ -66,7 +66,7 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
   def revert(dispatcher: TargetDispatcher,
              deploymentRequest: DeploymentRequest,
              userName: String,
-             defaultVersion: Option[Version]): OperationStartSpecifics = {
+             defaultVersion: Option[Version]): Future[OperationStartSpecifics] = {
     dbBinding
       .findExecutionSpecificationsForRevert(deploymentRequest)
       .flatMap { case (undetermined, determined) =>
@@ -159,7 +159,7 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
                             operation: Operation.Kind,
                             userName: String,
                             specAndInvocations: Iterable[(ExecutionSpecification, scala.Vector[(ExecutionTrigger, TargetExpr)])],
-                            createTargetStatuses: Boolean = false): DBIOAction[(DeepOperationTrace, ExecutionsToTrigger), NoStream, Effect.Read with Effect.Write] =
+                            createTargetStatuses: Boolean = false) =
     dbBinding
       .insertOperationTrace(deploymentRequest, operation, userName)
       .flatMap { newOp =>

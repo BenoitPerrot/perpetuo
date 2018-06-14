@@ -10,7 +10,6 @@ import spray.json.DefaultJsonProtocol._
 import spray.json.{JsObject, JsonFormat}
 
 import scala.collection.JavaConverters._
-import scala.concurrent.Future
 
 
 package object engine {
@@ -39,5 +38,5 @@ package object engine {
 
 
   type ExecutionsToTrigger = Iterable[(Long, Version, TargetExpr, ExecutionTrigger)]
-  type OperationStartSpecifics = Future[(DBIOAction[(DeepOperationTrace, ExecutionsToTrigger), NoStream, Effect.Read with Effect.Write], Option[Set[String]])]
+  type OperationStartSpecifics = (DBIOAction[(DeepOperationTrace, ExecutionsToTrigger), NoStream, Effect.Read with Effect.Write], Option[Set[String]])
 }

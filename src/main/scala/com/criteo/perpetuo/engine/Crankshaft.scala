@@ -151,7 +151,7 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
     )
 
   private def startOperation(deploymentRequest: DeploymentRequest,
-                             operationStartSpecifics: OperationStartSpecifics): Future[(DeepOperationTrace, Int, Int)] =
+                             operationStartSpecifics: Future[OperationStartSpecifics]): Future[(DeepOperationTrace, Int, Int)] =
     operationStartSpecifics
       .flatMap { case (recordsCreation, atoms) =>
         dbBinding.executeInSerializableTransaction(
@@ -194,7 +194,7 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
     dbBinding.isDeploymentRequestStarted(deploymentRequestId)
 
   private def act[T](deploymentRequest: DeploymentRequest, currentOperationCount: Option[Int], initiatorName: String,
-                     getAction: DBIOAction[((DBIOAction[(DeepOperationTrace, ExecutionsToTrigger), NoStream, Effect.Read with Effect.Write], Option[Set[String]]), T), NoStream, Effect.Read with Effect.Write]) =
+                     getAction: DBIOAction[(OperationStartSpecifics, T), NoStream, Effect.Read with Effect.Write]) =
     dbBinding.executeInSerializableTransaction(
       acquireOperationLock(deploymentRequest)
         .andThen(
