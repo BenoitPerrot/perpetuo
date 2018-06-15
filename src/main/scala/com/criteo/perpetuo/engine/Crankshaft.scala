@@ -211,7 +211,7 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
         )
         .flatMap {
           case (_, None) =>
-            throw UnprocessableIntent(s"${deploymentRequest.id}: there is no next step, they have all been applied")
+            DBIOAction.failed(UnprocessableIntent(s"${deploymentRequest.id}: there is no next step, they have all been applied"))
 
           case (lastDone, Some(toDo)) =>
             val isRetry = lastDone.map(_.id).contains(toDo.id)
