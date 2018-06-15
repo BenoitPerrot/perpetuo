@@ -13,7 +13,7 @@ import scala.io.Source
 class DbBindingSpec extends TestHelpers with TestDb {
   private val dbScenarios = new DbScenarios(dbBinding)
 
-  private def getStatus(deploymentRequest: DeepDeploymentRequest): Future[(DeploymentStatus.Value, Option[Operation.Kind])] =
+  private def getStatus(deploymentRequest: DeploymentRequest): Future[(DeploymentStatus.Value, Option[Operation.Kind])] =
     dbBinding
       .findDeploymentRequestsWithStatuses(Seq(Map("field" -> "id", "equals" -> deploymentRequest.id)), 10, 0)
       .map { seq =>

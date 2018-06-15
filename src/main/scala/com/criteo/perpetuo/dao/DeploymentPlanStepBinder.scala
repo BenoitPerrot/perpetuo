@@ -41,18 +41,18 @@ trait DeploymentPlanStepBinder extends TableBinder {
   // todo: add tests to cover the retrieval of plan steps from the insertion of full deployment requests, then remove this method:
 
   @VisibleForTesting
-  protected def insertDeploymentPlanStep(deploymentRequest: DeepDeploymentRequest, step: ProtoDeploymentPlanStep): Future[DeploymentPlanStep] = {
+  protected def insertDeploymentPlanStep(deploymentRequest: DeploymentRequest, step: ProtoDeploymentPlanStep): Future[DeploymentPlanStep] = {
     val record = DeploymentPlanStepRecord(None, deploymentRequest.id, step.name, step.targetExpression.compactPrint, step.comment)
     dbContext.db
       .run((deploymentPlanStepQuery returning deploymentPlanStepQuery.map(_.id)) += record)
       .map(id => DeploymentPlanStep(id, deploymentRequest, step.name, step.targetExpression, step.comment))
   }
 
-  def findingDeploymentPlanStep(deploymentRequest: DeepDeploymentRequest, deploymentPlanStepId: Long): DBIOAction[Option[DeploymentPlanStep], NoStream, Effect.Read] =
+  def findingDeploymentPlanStep(deploymentRequest: DeploymentRequest, deploymentPlanStepId: Long): DBIOAction[Option[DeploymentPlanStep], NoStream, Effect.Read] =
     deploymentPlanStepQuery.filter(_.id === deploymentPlanStepId).result
       .map(_.headOption.map(s => DeploymentPlanStep(s.id.get, deploymentRequest, s.name, s.targetExpression.parseJson, s.comment)))
 
-  def findDeploymentPlan(deploymentRequest: DeepDeploymentRequest): Future[DeploymentPlan] =
+  def findDeploymentPlan(deploymentRequest: DeploymentRequest): Future[DeploymentPlan] =
     dbContext.db
       .run(deploymentPlanStepQuery.filter(_.deploymentRequestId === deploymentRequest.id).result)
       .map(steps => DeploymentPlan(deploymentRequest, steps.map(s => DeploymentPlanStep(s.id.get, deploymentRequest, s.name, s.targetExpression.parseJson, s.comment))))

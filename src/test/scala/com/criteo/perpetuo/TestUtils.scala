@@ -44,7 +44,7 @@ trait TestHelpers extends Test {
 
 
 trait SimpleScenarioTesting extends TestHelpers with TestDb with MockitoSugar {
-  private val lastDeploymentRequests = mutable.Map[String, DeepDeploymentRequest]()
+  private val lastDeploymentRequests = mutable.Map[String, DeploymentRequest]()
   private val loader = new PluginLoader(null)
   private val executionTrigger: DummyExecutionTrigger = mock[DummyExecutionTrigger]
   val plugins = new Plugins(loader)

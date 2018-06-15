@@ -53,7 +53,7 @@ trait OperationTraceBinder extends TableBinder {
 
   val operationTraceQuery = TableQuery[OperationTraceTable]
 
-  def insertOperationTrace(deploymentRequest: DeepDeploymentRequest, operation: Operation.Kind, creator: String): DBIOAction[DeepOperationTrace, NoStream, Effect.Write] = {
+  def insertOperationTrace(deploymentRequest: DeploymentRequest, operation: Operation.Kind, creator: String): DBIOAction[DeepOperationTrace, NoStream, Effect.Write] = {
     val date = new java.sql.Timestamp(System.currentTimeMillis)
     val operationTrace = OperationTraceRecord(None, deploymentRequest.id, operation, creator, date, Some(date))
     ((operationTraceQuery returning operationTraceQuery.map(_.id)) += operationTrace).map { id =>
@@ -61,7 +61,7 @@ trait OperationTraceBinder extends TableBinder {
     }
   }
 
-  def countingOperationTraces(deploymentRequest: DeepDeploymentRequest): FixedSqlAction[Int, dbContext.profile.api.NoStream, Effect.Read] =
+  def countingOperationTraces(deploymentRequest: DeploymentRequest): FixedSqlAction[Int, dbContext.profile.api.NoStream, Effect.Read] =
     operationTraceQuery.filter(_.deploymentRequestId === deploymentRequest.id).length.result
 
   def closeOperationTrace(operationTrace: OperationTrace): Future[Option[ShallowOperationTrace]] = {

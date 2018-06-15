@@ -27,17 +27,6 @@ object Target {
 }
 
 
-trait DeploymentRequest extends ParsedTarget {
-  val id: Long
-  val productId: Int
-  val version: Version
-  val target: String
-  val comment: String
-  val creator: String
-  val creationDate: java.sql.Timestamp
-}
-
-
 case class ProtoDeploymentRequest(productName: String,
                                   version: Version,
                                   plan: Seq[ProtoDeploymentPlanStep],
@@ -48,13 +37,13 @@ case class ProtoDeploymentRequest(productName: String,
 }
 
 
-case class DeepDeploymentRequest(id: Long,
-                                 product: Product,
-                                 version: Version,
-                                 target: String,
-                                 comment: String,
-                                 creator: String,
-                                 creationDate: java.sql.Timestamp) extends DeploymentRequest {
+case class DeploymentRequest(id: Long,
+                             product: Product,
+                             version: Version,
+                             target: String,
+                             comment: String,
+                             creator: String,
+                             creationDate: java.sql.Timestamp) extends ParsedTarget {
 
   val productId: Int = product.id
 

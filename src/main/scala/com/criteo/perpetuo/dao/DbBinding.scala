@@ -30,7 +30,7 @@ class DbBinding @Inject()(val dbContext: DbContext)
   def executeInSerializableTransaction[T](q: DBIOAction[T, NoStream, _]): Future[T] =
     dbContext.db.run(q.transactionally.withTransactionIsolation(TransactionIsolation.Serializable))
 
-  def findDeepDeploymentRequestAndEffects(deploymentRequestId: Long): Future[Option[(DeepDeploymentRequest, Iterable[OperationEffect])]] = {
+  def findDeepDeploymentRequestAndEffects(deploymentRequestId: Long): Future[Option[(DeploymentRequest, Iterable[OperationEffect])]] = {
     val q = deploymentRequestQuery
       .filter(_.id === deploymentRequestId)
       .join(productQuery).on { case (deploymentRequest, product) => deploymentRequest.productId === product.id }
@@ -73,7 +73,7 @@ class DbBinding @Inject()(val dbContext: DbContext)
     dbContext.db.run(q.map(_.map { case (depReq, effects) => (depReq, effects.sortBy(_.operationTrace.id)) }))
   }
 
-  def findingDeploySpecifications(deploymentRequest: DeepDeploymentRequest): DBIOAction[Seq[ExecutionSpecification], NoStream, Effect.Read] =
+  def findingDeploySpecifications(deploymentRequest: DeploymentRequest): DBIOAction[Seq[ExecutionSpecification], NoStream, Effect.Read] =
     operationTraceQuery
       .filter(op => op.deploymentRequestId === deploymentRequest.id && op.operation === Operation.deploy)
       .take(1)
@@ -87,7 +87,7 @@ class DbBinding @Inject()(val dbContext: DbContext)
       .result
       .map(_.map(_.toExecutionSpecification))
 
-  def findDeploymentRequestsWithStatuses(where: Seq[Map[String, Any]], limit: Int, offset: Int): Future[Seq[(DeepDeploymentRequest, DeploymentStatus.Value, Option[Operation.Kind])]] = {
+  def findDeploymentRequestsWithStatuses(where: Seq[Map[String, Any]], limit: Int, offset: Int): Future[Seq[(DeploymentRequest, DeploymentStatus.Value, Option[Operation.Kind])]] = {
     val filtered = where.foldLeft(this.deploymentRequestQuery join this.productQuery on (_.productId === _.id)) { (queries, spec) =>
       val value = spec.getOrElse("equals", throw new IllegalArgumentException(s"Filters tests must be `equals`"))
       val fieldName = spec.getOrElse("field", throw new IllegalArgumentException(s"Filters must specify ̀`field`"))
@@ -127,7 +127,7 @@ class DbBinding @Inject()(val dbContext: DbContext)
       .flatMap { executionTraceBranches =>
         // in a separate request to not create huge joins between two orthogonal tables: ExecutionTrace and TargetStatus, and to only request the latter when necessary
 
-        val deploymentStatuses = Seq.newBuilder[(DeepDeploymentRequest, DeploymentStatus.Value, Option[Operation.Kind])]
+        val deploymentStatuses = Seq.newBuilder[(DeploymentRequest, DeploymentStatus.Value, Option[Operation.Kind])]
 
         val dependingOnTargetStatuses = executionTraceBranches
           .groupBy { case (deploymentRequest, _, _, _) => deploymentRequest.id.get }
@@ -184,7 +184,7 @@ class DbBinding @Inject()(val dbContext: DbContext)
   }
 
   // todo: will likely be deprecated by the introduction of the deployment_plan_step and step_operation_xref tables
-  def isDeploymentRequestStarted(deploymentRequestId: Long): Future[Option[(DeepDeploymentRequest, Boolean)]] = {
+  def isDeploymentRequestStarted(deploymentRequestId: Long): Future[Option[(DeploymentRequest, Boolean)]] = {
     dbContext.db.run(
       deploymentRequestQuery
         .filter(_.id === deploymentRequestId)
@@ -270,7 +270,7 @@ class DbBinding @Inject()(val dbContext: DbContext)
           )
     }
 
-  def gettingLastDoneAndToDoPlanStep(deploymentRequest: DeepDeploymentRequest): DBIOAction[(Option[DeploymentPlanStep], Option[DeploymentPlanStep]), dbContext.profile.api.NoStream, Effect.Read with Effect.Read] =
+  def gettingLastDoneAndToDoPlanStep(deploymentRequest: DeploymentRequest): DBIOAction[(Option[DeploymentPlanStep], Option[DeploymentPlanStep]), dbContext.profile.api.NoStream, Effect.Read with Effect.Read] =
     findingDeploymentPlanStepAndLatestOperations(deploymentRequest.id)
       .flatMap(planStepsAndLatestOperations =>
         if (planStepsAndLatestOperations.isEmpty)

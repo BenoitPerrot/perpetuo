@@ -224,14 +224,14 @@ class RestController @Inject()(val engine: Engine)
     )
   }
 
-  private def serialize(depReq: DeepDeploymentRequest, deploymentStatus: Option[(Operation.Kind, DeploymentStatus.Value)]): Map[String, Any] =
+  private def serialize(depReq: DeploymentRequest, deploymentStatus: Option[(Operation.Kind, DeploymentStatus.Value)]): Map[String, Any] =
     serialize(
       depReq,
       deploymentStatus.map { case (_, opStatus) => opStatus }.getOrElse(DeploymentStatus.notStarted),
       deploymentStatus.map { case (kind, _) => kind }
     )
 
-  private def serialize(depReq: DeepDeploymentRequest, deploymentStatus: DeploymentStatus.Value, lastOperationKind: Option[Operation.Kind]): Map[String, Any] =
+  private def serialize(depReq: DeploymentRequest, deploymentStatus: DeploymentStatus.Value, lastOperationKind: Option[Operation.Kind]): Map[String, Any] =
     Map(
       "id" -> depReq.id,
       "comment" -> depReq.comment,

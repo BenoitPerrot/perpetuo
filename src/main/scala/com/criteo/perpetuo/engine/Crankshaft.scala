@@ -82,10 +82,10 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
   def insertProductIfNotExists(productName: String): Future[Product] =
     dbBinding.insertProductIfNotExists(productName)
 
-  def findDeepDeploymentRequestById(deploymentRequestId: Long): Future[Option[DeepDeploymentRequest]] =
+  def findDeepDeploymentRequestById(deploymentRequestId: Long): Future[Option[DeploymentRequest]] =
     dbBinding.findDeepDeploymentRequestById(deploymentRequestId)
 
-  def createDeploymentRequest(protoDeploymentRequest: ProtoDeploymentRequest): Future[DeepDeploymentRequest] =
+  def createDeploymentRequest(protoDeploymentRequest: ProtoDeploymentRequest): Future[DeploymentRequest] =
     Future
       .sequence(listeners.map(_.onCreatingDeploymentRequest(protoDeploymentRequest)))
       .flatMap { _ =>
@@ -104,7 +104,7 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
   private def getOperationLockName(deploymentRequest: DeploymentRequest) =
     s"Operating on ${deploymentRequest.id}"
 
-  private def getTransactionLockNames(deploymentRequest: DeepDeploymentRequest, atoms: Option[Set[String]]): Iterable[String] =
+  private def getTransactionLockNames(deploymentRequest: DeploymentRequest, atoms: Option[Set[String]]): Iterable[String] =
     atoms
       .map(_.map(atom => s"${atom.hashCode.toHexString}_${deploymentRequest.product.name}"))
       .getOrElse(Seq("P_" + deploymentRequest.product.name))
@@ -115,7 +115,7 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
     else
       dbBinding.releaseLocks(deploymentRequest.id)
 
-  private def triggerExecutions(deploymentRequest: DeepDeploymentRequest,
+  private def triggerExecutions(deploymentRequest: DeploymentRequest,
                                 operationTrace: DeepOperationTrace,
                                 executionsToTrigger: ExecutionsToTrigger) =
     operationStarter.triggerExecutions(deploymentRequest, executionsToTrigger).flatMap(effects =>
@@ -138,19 +138,19 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
       }
     )
 
-  private def acquireOperationLock(deploymentRequest: DeepDeploymentRequest) =
+  private def acquireOperationLock(deploymentRequest: DeploymentRequest) =
     dbBinding.tryAcquireLocks(Seq(getOperationLockName(deploymentRequest)), deploymentRequest.id, reentrant = false).map(alreadyRunning =>
       if (alreadyRunning.nonEmpty)
         throw Conflict("Cannot be processed for the moment because another operation is running for the same deployment request")
     )
 
-  private def acquireDeploymentTransactionLock(deploymentRequest: DeepDeploymentRequest, atoms: Option[Set[String]]) =
+  private def acquireDeploymentTransactionLock(deploymentRequest: DeploymentRequest, atoms: Option[Set[String]]) =
     dbBinding.tryAcquireLocks(getTransactionLockNames(deploymentRequest, atoms), deploymentRequest.id, reentrant = true).map(conflictingRequestIds =>
       if (conflictingRequestIds.nonEmpty)
         throw Conflict("Cannot be processed for the moment because a conflicting transaction is ongoing, which must first succeed or be reverted", conflictingRequestIds)
     )
 
-  private def startOperation(deploymentRequest: DeepDeploymentRequest,
+  private def startOperation(deploymentRequest: DeploymentRequest,
                              operationStartSpecifics: OperationStartSpecifics): Future[(DeepOperationTrace, Int, Int)] =
     operationStartSpecifics
       .flatMap { case (recordsCreation, atoms) =>
@@ -167,7 +167,7 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
   // idempotent: on several attempts the listeners would be invoked at most once, but the DB updates
   // would be reapplied in an idempotent way (in the case something failed in the previous attempt)
   // because they are not done in a single transaction here
-  private def closeOperation(operationTrace: ShallowOperationTrace, deploymentRequest: DeepDeploymentRequest): Future[ShallowOperationTrace] =
+  private def closeOperation(operationTrace: ShallowOperationTrace, deploymentRequest: DeploymentRequest): Future[ShallowOperationTrace] =
     dbBinding.closeOperationTrace(operationTrace)
       .map(_.map((_, true)).getOrElse((operationTrace, false)))
       .flatMap { case (trace, updated) =>
@@ -190,10 +190,10 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
           .map(_ => trace)
       }
 
-  def isDeploymentRequestStarted(deploymentRequestId: Long): Future[Option[(DeepDeploymentRequest, Boolean)]] =
+  def isDeploymentRequestStarted(deploymentRequestId: Long): Future[Option[(DeploymentRequest, Boolean)]] =
     dbBinding.isDeploymentRequestStarted(deploymentRequestId)
 
-  private def act[T](deploymentRequest: DeepDeploymentRequest, currentOperationCount: Option[Int], initiatorName: String,
+  private def act[T](deploymentRequest: DeploymentRequest, currentOperationCount: Option[Int], initiatorName: String,
                      getAction: DBIOAction[((DBIOAction[(DeepOperationTrace, ExecutionsToTrigger), NoStream, Effect.Read with Effect.Write], Option[Set[String]]), T), NoStream, Effect.Read with Effect.Write]) =
     dbBinding.executeInSerializableTransaction(
       acquireOperationLock(deploymentRequest)
@@ -217,7 +217,7 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
       triggerExecutions(deploymentRequest, createdOperation, executionsToTrigger).map((_, actionSpecifics))
     }
 
-  def step(deploymentRequest: DeepDeploymentRequest, currentOperationCount: Option[Int], initiatorName: String, emitEvent: Boolean = true): Future[DeepOperationTrace] = {
+  def step(deploymentRequest: DeploymentRequest, currentOperationCount: Option[Int], initiatorName: String, emitEvent: Boolean = true): Future[DeepOperationTrace] = {
     val getAction = dbBinding.gettingLastDoneAndToDoPlanStep(deploymentRequest).flatMap {
       case (_, None) =>
         DBIOAction.failed(UnprocessableIntent(s"${deploymentRequest.id}: there is no next step, they have all been applied"))
@@ -315,7 +315,7 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
     *         for each execution that could not be stopped and is presumably still running).
     *         Executions that were already stopped are not included in the response.
     */
-  def tryStopDeploymentRequest(deploymentRequest: DeepDeploymentRequest, initiatorName: String): Future[(Int, Seq[String])] =
+  def tryStopDeploymentRequest(deploymentRequest: DeploymentRequest, initiatorName: String): Future[(Int, Seq[String])] =
     dbBinding.dbContext.db
       .run(dbBinding.findingOpenExecutionTracesByDeploymentRequest(deploymentRequest.id))
       .flatMap { openExecutionTraces =>
@@ -337,7 +337,7 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
         (nbStopped, errors)
       }
 
-  def revert(deploymentRequest: DeepDeploymentRequest, initiatorName: String, defaultVersion: Option[Version]): Future[DeepOperationTrace] =
+  def revert(deploymentRequest: DeploymentRequest, initiatorName: String, defaultVersion: Option[Version]): Future[DeepOperationTrace] =
     startOperation(deploymentRequest, operationStarter.revert(targetDispatcher, deploymentRequest, initiatorName, defaultVersion))
       .map { case (operationTrace, started, failed) =>
         listeners.foreach(_.onDeploymentRequestReverted(deploymentRequest, started, failed))
@@ -385,10 +385,10 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
       .getOrElse(Future.successful(None))
     )
 
-  def findDeepDeploymentRequestAndEffects(deploymentRequestId: Long): Future[Option[(DeepDeploymentRequest, Iterable[OperationEffect])]] =
+  def findDeepDeploymentRequestAndEffects(deploymentRequestId: Long): Future[Option[(DeploymentRequest, Iterable[OperationEffect])]] =
     dbBinding.findDeepDeploymentRequestAndEffects(deploymentRequestId)
 
-  def findDeploymentRequestsWithStatuses(where: Seq[Map[String, Any]], limit: Int, offset: Int): Future[Seq[(DeepDeploymentRequest, DeploymentStatus.Value, Option[Operation.Kind])]] =
+  def findDeploymentRequestsWithStatuses(where: Seq[Map[String, Any]], limit: Int, offset: Int): Future[Seq[(DeploymentRequest, DeploymentStatus.Value, Option[Operation.Kind])]] =
     dbBinding.findDeploymentRequestsWithStatuses(where, limit, offset)
 
   // todo: inline

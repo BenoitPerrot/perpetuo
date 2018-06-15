@@ -18,7 +18,7 @@ import scala.concurrent.Future
 class OperationStarter(val dbBinding: DbBinding) extends Logging {
 
   private def insertExecutionTree(dispatcher: TargetDispatcher,
-                                  deploymentRequest: DeepDeploymentRequest,
+                                  deploymentRequest: DeploymentRequest,
                                   deploymentPlanSteps: Iterable[DeploymentPlanStep],
                                   expandedTarget: Option[TargetExpr],
                                   executionSpecs: Seq[ExecutionSpecification],
@@ -33,7 +33,7 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
 
   def startingDeploymentStep(resolver: TargetResolver,
                              dispatcher: TargetDispatcher,
-                             deploymentRequest: DeepDeploymentRequest,
+                             deploymentRequest: DeploymentRequest,
                              deploymentPlanStep: DeploymentPlanStep,
                              userName: String): DBIOAction[(DBIOAction[(DeepOperationTrace, ExecutionsToTrigger), NoStream, Effect.Read with Effect.Write], Option[Set[String]]), NoStream, Effect.Write] = {
     // generation of specific parameters
@@ -52,7 +52,7 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
 
   def retryingDeploymentStep(resolver: TargetResolver,
                              dispatcher: TargetDispatcher,
-                             deploymentRequest: DeepDeploymentRequest,
+                             deploymentRequest: DeploymentRequest,
                              deploymentPlanStep: DeploymentPlanStep,
                              userName: String): DBIOAction[(DBIOAction[(DeepOperationTrace, ExecutionsToTrigger), NoStream, Effect.Read with Effect.Write], Option[Set[String]]), NoStream, Effect.Read] = {
     // todo: map the right target to the right specification
@@ -64,7 +64,7 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
   }
 
   def revert(dispatcher: TargetDispatcher,
-             deploymentRequest: DeepDeploymentRequest,
+             deploymentRequest: DeploymentRequest,
              userName: String,
              defaultVersion: Option[Version]): OperationStartSpecifics = {
     dbBinding
@@ -97,7 +97,7 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
       }
   }
 
-  def triggerExecutions(deploymentRequest: DeepDeploymentRequest,
+  def triggerExecutions(deploymentRequest: DeploymentRequest,
                         toTrigger: ExecutionsToTrigger): Future[Iterable[(Boolean, Long, Option[(ExecutionState, String, Option[String])])]] = {
     val productName = deploymentRequest.product.name
     Future.traverse(toTrigger) { case (execTraceId, version, target, executor) =>
@@ -154,7 +154,7 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
   // todo: move it in a dedicated EffectInserter along with DeploymentRequestInserter
   // fixme: type the targets to differentiate atomic from other ones in order to always create atomic targets
   //        instead of taking the boolean as parameter (to be done later, since it's not trivial)
-  private def createRecords(deploymentRequest: DeepDeploymentRequest,
+  private def createRecords(deploymentRequest: DeploymentRequest,
                             deploymentPlanSteps: Iterable[DeploymentPlanStep],
                             operation: Operation.Kind,
                             userName: String,

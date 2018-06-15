@@ -12,14 +12,14 @@ case class PermissionDenied() extends RuntimeException
 @Singleton
 class Engine @Inject()(val crankshaft: Crankshaft,
                        val permissions: Permissions) {
-  def requestDeployment(user: User, protoDeploymentRequest: ProtoDeploymentRequest, targets: Set[String]): Future[DeepDeploymentRequest] = {
+  def requestDeployment(user: User, protoDeploymentRequest: ProtoDeploymentRequest, targets: Set[String]): Future[DeploymentRequest] = {
     if (!permissions.isAuthorized(user, DeploymentAction.requestOperation, Operation.deploy, protoDeploymentRequest.productName, targets))
       throw PermissionDenied()
 
     crankshaft.createDeploymentRequest(protoDeploymentRequest)
   }
 
-  private def withDeepDeploymentRequest[T](id: Long)(callback: (DeepDeploymentRequest, Boolean) => Future[T]): Future[Option[T]] =
+  private def withDeepDeploymentRequest[T](id: Long)(callback: (DeploymentRequest, Boolean) => Future[T]): Future[Option[T]] =
     crankshaft.isDeploymentRequestStarted(id)
       .flatMap(
         _.map(callback.tupled)
@@ -70,7 +70,7 @@ class Engine @Inject()(val crankshaft: Crankshaft,
         .getOrElse(Future.successful(None))
       )
 
-  def findDeploymentRequestsWithStatuses(where: Seq[Map[String, Any]], limit: Int, offset: Int): Future[Seq[(DeepDeploymentRequest, DeploymentStatus.Value, Option[Operation.Kind])]] =
+  def findDeploymentRequestsWithStatuses(where: Seq[Map[String, Any]], limit: Int, offset: Int): Future[Seq[(DeploymentRequest, DeploymentStatus.Value, Option[Operation.Kind])]] =
     crankshaft.findDeploymentRequestsWithStatuses(where, limit, offset)
 
   def queryDeploymentRequestStatus(user: Option[User], id: Long): Future[Option[DeploymentRequestStatus]] =

@@ -11,7 +11,7 @@ import scala.concurrent.Future
 
 class CrankshaftSpec extends SimpleScenarioTesting {
 
-  private def getLastDoneAndToDoPlanStepId(deploymentRequest: DeepDeploymentRequest) =
+  private def getLastDoneAndToDoPlanStepId(deploymentRequest: DeploymentRequest) =
     crankshaft.dbBinding.dbContext.db.run(crankshaft.dbBinding.gettingLastDoneAndToDoPlanStep(deploymentRequest))
 
   test("A trivial execution triggers a job with no log href when there is no log href provided") {
@@ -49,7 +49,7 @@ class CrankshaftSpec extends SimpleScenarioTesting {
     ) shouldBe(true, false, false)
   }
 
-  def mockDeployExecution(productName: String, v: String, targetAtomToStatus: Map[String, Status.Code], initFailed: Boolean = false): Future[(DeepDeploymentRequest, Long)] = {
+  def mockDeployExecution(productName: String, v: String, targetAtomToStatus: Map[String, Status.Code], initFailed: Boolean = false): Future[(DeploymentRequest, Long)] = {
     for {
       deploymentRequest <- crankshaft.createDeploymentRequest(ProtoDeploymentRequest(productName, Version(JsString(v).compactPrint), Seq(ProtoDeploymentPlanStep("", targetAtomToStatus.keys.toJson, "")), "", "r.equestor"))
       operationTrace <- crankshaft.step(deploymentRequest, Some(0), "s.tarter")
@@ -58,7 +58,7 @@ class CrankshaftSpec extends SimpleScenarioTesting {
     } yield (deploymentRequest, executionSpecIds.head)
   }
 
-  def mockRevertExecution(deploymentRequest: DeepDeploymentRequest, targetAtomToStatus: Map[String, Status.Code], defaultVersion: Option[Version] = None): Future[Long] = {
+  def mockRevertExecution(deploymentRequest: DeploymentRequest, targetAtomToStatus: Map[String, Status.Code], defaultVersion: Option[Version] = None): Future[Long] = {
     for {
       operationTrace <- crankshaft.revert(deploymentRequest, "r.everter", defaultVersion)
       _ <- closeOperation(operationTrace, targetAtomToStatus)

@@ -15,7 +15,7 @@ private[dao] case class DeploymentRequestRecord(id: Option[Long],
                                                 creator: String,
                                                 creationDate: java.sql.Timestamp) {
   def toDeepDeploymentRequest(product: ProductRecord) =
-    DeepDeploymentRequest(id.get, product.toProduct, version, target, comment, creator, creationDate)
+    DeploymentRequest(id.get, product.toProduct, version, target, comment, creator, creationDate)
 }
 
 
@@ -49,7 +49,7 @@ trait DeploymentRequestBinder extends TableBinder {
     dbContext.db.run(deploymentRequestQuery.filter(_.id === id).exists.result)
   }
 
-  def findDeepDeploymentRequestById(id: Long): Future[Option[DeepDeploymentRequest]] = {
+  def findDeepDeploymentRequestById(id: Long): Future[Option[DeploymentRequest]] = {
     dbContext.db.run((deploymentRequestQuery join productQuery on (_.productId === _.id) filter (_._1.id === id)).result)
       .map(_.headOption.map {
         case (req, prod) => req.toDeepDeploymentRequest(prod)
