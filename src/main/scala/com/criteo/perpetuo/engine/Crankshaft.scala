@@ -10,7 +10,7 @@ import com.criteo.perpetuo.model._
 import com.google.common.annotations.VisibleForTesting
 import com.twitter.inject.Logging
 import javax.inject.{Inject, Singleton}
-import slick.dbio.DBIOAction
+import slick.dbio.{DBIOAction, Effect, NoStream}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
@@ -193,7 +193,8 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
   def isDeploymentRequestStarted(deploymentRequestId: Long): Future[Option[(DeepDeploymentRequest, Boolean)]] =
     dbBinding.isDeploymentRequestStarted(deploymentRequestId)
 
-  def step(deploymentRequest: DeepDeploymentRequest, currentOperationCount: Option[Int], initiatorName: String, emitEvent: Boolean = true): Future[DeepOperationTrace] = {
+  private def act[T](deploymentRequest: DeepDeploymentRequest, currentOperationCount: Option[Int], initiatorName: String,
+                     getAction: DBIOAction[((DBIOAction[(DeepOperationTrace, ExecutionsToTrigger), NoStream, Effect.Read with Effect.Write], Option[Set[String]]), T), NoStream, Effect.Read with Effect.Write]) =
     dbBinding.executeInSerializableTransaction(
       acquireOperationLock(deploymentRequest)
         .andThen(
@@ -206,41 +207,41 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
             )
             .getOrElse(DBIOAction.successful(()))
         )
-        .andThen(
-          dbBinding.gettingLastDoneAndToDoPlanStep(deploymentRequest)
-            .flatMap {
-              case (_, None) =>
-                DBIOAction.failed(UnprocessableIntent(s"${deploymentRequest.id}: there is no next step, they have all been applied"))
-
-              case (lastDone, Some(toDo)) =>
-                val isRetry = lastDone.map(_.id).contains(toDo.id)
-                val action = if (isRetry) operationStarter.retryingDeploymentStep _ else operationStarter.startingDeploymentStep _
-                action(targetResolver, targetDispatcher, deploymentRequest, toDo, initiatorName)
-                  .map((_, (lastDone, toDo)))
-            }
-        )
+        .andThen(getAction)
         .flatMap { case ((creatingRecords, atoms), actionSpecifics) =>
           acquireDeploymentTransactionLock(deploymentRequest, atoms)
             .andThen(creatingRecords)
             .map((_, actionSpecifics))
         }
-
-    ).flatMap { case ((createdOperation, executionsToTrigger), (lastDone, toDo)) =>
-      triggerExecutions(deploymentRequest, createdOperation, executionsToTrigger).map((_, (lastDone, toDo)))
-    }.map { case ((operationTrace, started, failed), (lastDone, toDo)) =>
-      if (emitEvent) {
-        if (lastDone.contains(toDo)) {
-          // TODO: rename onDeploymentRequestRetried to onDeploymentStepRetried
-          listeners.foreach(_.onDeploymentRequestRetried(deploymentRequest, started, failed))
-        }
-        else {
-          // TODO: if lastDone.isEmpty:
-          listeners.foreach(_.onDeploymentRequestStarted(deploymentRequest, started, failed))
-          // TODO: anyway fire onDeploymentStepStarted
-        }
-      }
-      operationTrace
+    ).flatMap { case ((createdOperation, executionsToTrigger), actionSpecifics) =>
+      triggerExecutions(deploymentRequest, createdOperation, executionsToTrigger).map((_, actionSpecifics))
     }
+
+  def step(deploymentRequest: DeepDeploymentRequest, currentOperationCount: Option[Int], initiatorName: String, emitEvent: Boolean = true): Future[DeepOperationTrace] = {
+    val getAction = dbBinding.gettingLastDoneAndToDoPlanStep(deploymentRequest).flatMap {
+      case (_, None) =>
+        DBIOAction.failed(UnprocessableIntent(s"${deploymentRequest.id}: there is no next step, they have all been applied"))
+
+      case (lastDone, Some(toDo)) =>
+        val isRetry = lastDone.map(_.id).contains(toDo.id)
+        val action = if (isRetry) operationStarter.retryingDeploymentStep _ else operationStarter.startingDeploymentStep _
+        action(targetResolver, targetDispatcher, deploymentRequest, toDo, initiatorName)
+          .map((_, (lastDone, toDo)))
+    }
+    act(deploymentRequest, currentOperationCount, initiatorName, getAction)
+      .map { case ((operationTrace, started, failed), (lastDone, toDo)) =>
+        if (emitEvent)
+          if (lastDone.contains(toDo)) {
+            // TODO: rename onDeploymentRequestRetried to onDeploymentStepRetried
+            listeners.foreach(_.onDeploymentRequestRetried(deploymentRequest, started, failed))
+          }
+          else {
+            // TODO: if lastDone.isEmpty:
+            listeners.foreach(_.onDeploymentRequestStarted(deploymentRequest, started, failed))
+            // TODO: anyway fire onDeploymentStepStarted
+          }
+        operationTrace
+      }
   }
 
   private def rejectIfOutdatedOrLocked(deploymentRequest: DeploymentRequest): Future[Unit] =
