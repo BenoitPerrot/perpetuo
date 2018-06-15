@@ -208,21 +208,23 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
         )
         .andThen(
           dbBinding.gettingLastDoneAndToDoPlanStep(deploymentRequest)
-        )
-        .flatMap {
-          case (_, None) =>
-            DBIOAction.failed(UnprocessableIntent(s"${deploymentRequest.id}: there is no next step, they have all been applied"))
+            .flatMap {
+              case (_, None) =>
+                DBIOAction.failed(UnprocessableIntent(s"${deploymentRequest.id}: there is no next step, they have all been applied"))
 
-          case (lastDone, Some(toDo)) =>
-            val isRetry = lastDone.map(_.id).contains(toDo.id)
-            val action = if (isRetry) operationStarter.retryingDeploymentStep _ else operationStarter.startingDeploymentStep _
-            action(targetResolver, targetDispatcher, deploymentRequest, toDo, initiatorName)
-              .flatMap { case (creatingRecords, atoms) =>
-                acquireDeploymentTransactionLock(deploymentRequest, atoms)
-                  .andThen(creatingRecords)
-              }
-              .map((_, (lastDone, toDo)))
+              case (lastDone, Some(toDo)) =>
+                val isRetry = lastDone.map(_.id).contains(toDo.id)
+                val action = if (isRetry) operationStarter.retryingDeploymentStep _ else operationStarter.startingDeploymentStep _
+                action(targetResolver, targetDispatcher, deploymentRequest, toDo, initiatorName)
+                  .map((_, (lastDone, toDo)))
+            }
+        )
+        .flatMap { case ((creatingRecords, atoms), actionSpecifics) =>
+          acquireDeploymentTransactionLock(deploymentRequest, atoms)
+            .andThen(creatingRecords)
+            .map((_, actionSpecifics))
         }
+
     ).flatMap { case ((createdOperation, executionsToTrigger), (lastDone, toDo)) =>
       triggerExecutions(deploymentRequest, createdOperation, executionsToTrigger).map((_, (lastDone, toDo)))
     }.map { case ((operationTrace, started, failed), (lastDone, toDo)) =>
