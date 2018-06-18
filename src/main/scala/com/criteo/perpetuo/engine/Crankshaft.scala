@@ -323,8 +323,8 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
         (nbStopped, errors)
       }
 
-  def revert(deploymentRequest: DeploymentRequest, initiatorName: String, defaultVersion: Option[Version]): Future[DeepOperationTrace] =
-    act(deploymentRequest, None, initiatorName, operationStarter.reverting(targetDispatcher, deploymentRequest, initiatorName, defaultVersion).map((_, ())))
+  def revert(deploymentRequest: DeploymentRequest, operationCount: Option[Int], initiatorName: String, defaultVersion: Option[Version]): Future[DeepOperationTrace] =
+    act(deploymentRequest, operationCount, initiatorName, operationStarter.reverting(targetDispatcher, deploymentRequest, initiatorName, defaultVersion).map((_, ())))
       .map { case ((operationTrace, started, failed), _) =>
         listeners.foreach(_.onDeploymentRequestReverted(deploymentRequest, started, failed))
         operationTrace

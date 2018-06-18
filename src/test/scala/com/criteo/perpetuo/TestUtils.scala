@@ -114,7 +114,7 @@ trait SimpleScenarioTesting extends TestHelpers with TestDb with MockitoSugar {
     val depReq = lastDeploymentRequests(productName)
     await {
       for {
-        operationTrace <- crankshaft.revert(depReq, "r.everter", defaultVersion.map(v => Version(v.toJson)))
+        operationTrace <- crankshaft.revert(depReq, None, "r.everter", defaultVersion.map(v => Version(v.toJson)))
         _ <- closeOperation(operationTrace)
       } yield operationTrace
     }
