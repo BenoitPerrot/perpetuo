@@ -150,20 +150,6 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
         throw Conflict("Cannot be processed for the moment because a conflicting transaction is ongoing, which must first succeed or be reverted", conflictingRequestIds)
     )
 
-  private def startOperation(deploymentRequest: DeploymentRequest,
-                             operationStartSpecifics: Future[OperationStartSpecifics]): Future[(DeepOperationTrace, Int, Int)] =
-    operationStartSpecifics
-      .flatMap { case (recordsCreation, atoms) =>
-        dbBinding.executeInSerializableTransaction(
-          acquireOperationLock(deploymentRequest)
-            .andThen(acquireDeploymentTransactionLock(deploymentRequest, atoms))
-            .andThen(recordsCreation)
-        )
-      }
-      .flatMap { case (createdOperation, executionsToTrigger) =>
-        triggerExecutions(deploymentRequest, createdOperation, executionsToTrigger)
-      }
-
   // idempotent: on several attempts the listeners would be invoked at most once, but the DB updates
   // would be reapplied in an idempotent way (in the case something failed in the previous attempt)
   // because they are not done in a single transaction here
@@ -338,8 +324,8 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
       }
 
   def revert(deploymentRequest: DeploymentRequest, initiatorName: String, defaultVersion: Option[Version]): Future[DeepOperationTrace] =
-    startOperation(deploymentRequest, dbBinding.dbContext.db.run(operationStarter.reverting(targetDispatcher, deploymentRequest, initiatorName, defaultVersion)))
-      .map { case (operationTrace, started, failed) =>
+    act(deploymentRequest, None, initiatorName, operationStarter.reverting(targetDispatcher, deploymentRequest, initiatorName, defaultVersion).map((_, ())))
+      .map { case ((operationTrace, started, failed), _) =>
         listeners.foreach(_.onDeploymentRequestReverted(deploymentRequest, started, failed))
         operationTrace
       }
