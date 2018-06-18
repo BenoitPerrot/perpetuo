@@ -237,19 +237,23 @@ class DbBinding @Inject()(val dbContext: DbContext)
       DBIO.successful(DeploymentStatus.inProgress)
     else
       executionQuery
-        .joinLeft(executionTraceQuery)
-        .on { case (ex, et) => ex.operationTraceId === operationId && ex.id === et.executionId && et.state =!= ExecutionState.completed }
+        .join(executionTraceQuery)
+        .filter { case (ex, et) => ex.operationTraceId === operationId && ex.id === et.executionId && et.state =!= ExecutionState.completed }
         .take(1)
-        .joinLeft(targetStatusQuery)
-        .on { case ((ex, _), ts) => ex.id === ts.executionId }
-        .map { case ((_, et), ts) => (et.map(_.state), ts.map(_.code).getOrElse(Status.notDone)) }
-        .distinctOn { case (_, targetState) => targetState }
+        .map { case (_, et) => et.state }
+        .joinFull(
+          executionQuery
+            .join(targetStatusQuery)
+            .filter { case (ex, ts) => ex.operationTraceId === operationId && ex.id === ts.executionId }
+            .map { case (_, ts) => ts.code }
+            .distinct
+        )
         .result
         .map(statusSummary =>
           computeOperationState(
             isRunning,
             statusSummary.flatMap { case (execState, _) => execState },
-            statusSummary.map { case (_, targetStatus) => targetStatus }
+            statusSummary.flatMap { case (_, targetStatus) => targetStatus }
           )
         )
 
