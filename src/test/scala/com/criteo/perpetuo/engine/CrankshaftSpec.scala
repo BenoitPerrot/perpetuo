@@ -141,11 +141,11 @@ class CrankshaftSpec extends SimpleScenarioTesting {
 
         // Can't revert as-is the first deployment request: we need to know the default revert version
         firstDeploymentRequest <- crankshaft.dbBinding.findDeepDeploymentRequestById(firstDeploymentRequest.id).map(_.get)
-        (undeterminedSpecsFirst, determinedSpecsFirst) <- crankshaft.dbBinding.findExecutionSpecificationsForRevert(firstDeploymentRequest)
+        (undeterminedSpecsFirst, determinedSpecsFirst) <- dbContext.db.run(crankshaft.dbBinding.findingExecutionSpecificationsForRevert(firstDeploymentRequest))
 
         // Can revert
         thirdDeploymentRequest <- crankshaft.dbBinding.findDeepDeploymentRequestById(thirdDeploymentRequest.id).map(_.get)
-        (undeterminedSpecsThird, determinedSpecsThird) <- crankshaft.dbBinding.findExecutionSpecificationsForRevert(thirdDeploymentRequest)
+        (undeterminedSpecsThird, determinedSpecsThird) <- dbContext.db.run(crankshaft.dbBinding.findingExecutionSpecificationsForRevert(thirdDeploymentRequest))
 
       } yield {
         val specsThird = determinedSpecsThird.map { case (spec, targets) => spec.id -> (spec.version.value, targets) }.toMap

@@ -308,7 +308,7 @@ class DbBinding @Inject()(val dbContext: DbContext)
     * @return the target atoms for which there is no previous execution specification on the same product,
     *         followed by the groups of target atoms sharing the same last execution specification for the same product.
     */
-  def findExecutionSpecificationsForRevert(deploymentRequest: DeploymentRequest): Future[(Select, Iterable[(ExecutionSpecification, Select)])] = {
+  def findingExecutionSpecificationsForRevert(deploymentRequest: DeploymentRequest): DBIOAction[(Select, Iterable[(ExecutionSpecification, Select)]), NoStream, Effect.Read] = {
     val previousTargetStatuses = targetStatusQuery
       .join(executionQuery)
       .join(operationTraceQuery)
@@ -346,7 +346,7 @@ class DbBinding @Inject()(val dbContext: DbContext)
       .on { case ((_, targetExecutionId), (anyExecutionId, _)) => targetExecutionId === anyExecutionId }
       .map { case ((targetAtom, _), specLink) => (targetAtom, specLink.map(_._2)) }
 
-    dbContext.db.run(execSpecIds.result).map { perAtom =>
+    execSpecIds.result.map { perAtom =>
       type Targets = ArrayBuffer[TargetAtom.Type]
       val undetermined = new Targets
       var determined = Map[Long, (ExecutionSpecification, Targets)]()

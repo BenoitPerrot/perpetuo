@@ -63,19 +63,19 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
     )
   }
 
-  def revert(dispatcher: TargetDispatcher,
-             deploymentRequest: DeploymentRequest,
-             userName: String,
-             defaultVersion: Option[Version]): Future[OperationStartSpecifics] = {
+  def reverting(dispatcher: TargetDispatcher,
+                deploymentRequest: DeploymentRequest,
+                userName: String,
+                defaultVersion: Option[Version]): DBIOAction[OperationStartSpecifics, NoStream, Effect.Read with Effect.Write] = {
     dbBinding
-      .findExecutionSpecificationsForRevert(deploymentRequest)
+      .findingExecutionSpecificationsForRevert(deploymentRequest)
       .flatMap { case (undetermined, determined) =>
         if (undetermined.nonEmpty)
           defaultVersion.map { version =>
             val specificParameters = dispatcher.freezeParameters(deploymentRequest.product.name, version)
             // Create the execution specification outside of any transaction: it's not an issue if the request
             // fails afterward and the specification remains unbound.
-            dbBinding.insertExecutionSpecification(specificParameters, version).map(executionSpecification =>
+            dbBinding.insertingExecutionSpecification(specificParameters, version).map(executionSpecification =>
               Stream.cons((executionSpecification, undetermined), determined.toStream)
             )
           }.getOrElse(throw MissingInfo(
@@ -83,14 +83,14 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
             "defaultVersion"
           ))
         else
-          Future.successful(determined)
+          DBIOAction.successful(determined)
       }
       .flatMap { groups =>
         val specAndInvocations = groups.map { case (spec, targets) =>
           (spec, dispatch(dispatcher, Set(TargetTerm(select = targets)), spec.specificParameters).toVector)
         }
         val atoms = groups.flatMap { case (_, targets) => targets }
-        dbBinding.findDeploymentPlan(deploymentRequest).map { plan =>
+        dbBinding.findingDeploymentPlan(deploymentRequest).map { plan =>
           val reflectInDb = createRecords(plan.deploymentRequest, plan.steps, Operation.revert, userName, specAndInvocations, createTargetStatuses = true)
           (reflectInDb, Some(atoms.toSet))
         }
