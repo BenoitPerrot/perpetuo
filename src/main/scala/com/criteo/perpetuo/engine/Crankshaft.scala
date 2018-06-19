@@ -196,7 +196,7 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
         .andThen(getAction)
         .flatMap { case ((deploymentPlanSteps, (operation, specAndInvocations, atoms)), actionSpecifics) =>
           acquireDeploymentTransactionLock(deploymentRequest, atoms)
-            .andThen(operationStarter.createRecords(deploymentRequest, deploymentPlanSteps, operation, initiatorName, specAndInvocations, atoms.nonEmpty))
+            .andThen(dbBinding.insertingEffect(deploymentRequest, deploymentPlanSteps, operation, initiatorName, specAndInvocations, atoms.nonEmpty))
             .map((_, actionSpecifics))
         }
     ).flatMap { case ((createdOperation, executionsToTrigger), actionSpecifics) =>

@@ -1,6 +1,7 @@
 package com.criteo.perpetuo.dao
 
-import com.criteo.perpetuo.engine.UnprocessableIntent
+import com.criteo.perpetuo.engine.executors.ExecutionTrigger
+import com.criteo.perpetuo.engine.{TargetExpr, UnprocessableIntent}
 import com.criteo.perpetuo.model._
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -41,7 +42,6 @@ class Schema(val dbContext: DbContext)
 }
 
 
-// todo: find a place for that trait; maybe one day there could be a plan inserter and an effect inserter, and they would end up in a same dedicated module?
 trait DeploymentRequestInserter
   extends DbContextProvider
     with ProductBinder
@@ -79,4 +79,59 @@ trait DeploymentRequestInserter
       }
     }
   }
+}
+
+
+trait EffectInserter
+  extends DbContextProvider
+    with ProductBinder
+    with DeploymentRequestBinder
+    with DeploymentPlanStepBinder
+    with OperationTraceBinder
+    with StepOperationXRefBinder
+    with ExecutionSpecificationBinder
+    with ExecutionBinder
+    with ExecutionTraceBinder
+    with TargetStatusBinder {
+
+  import dbContext.profile.api._
+
+  // fixme: type the targets to differentiate atomic from other ones in order to always create atomic targets
+  //        instead of taking the boolean as parameter (to be done later, since it's not trivial)
+  def insertingEffect(deploymentRequest: DeploymentRequest,
+                      deploymentPlanSteps: Iterable[DeploymentPlanStep],
+                      operation: Operation.Kind,
+                      userName: String,
+                      specAndInvocations: Iterable[(ExecutionSpecification, Vector[(ExecutionTrigger, TargetExpr)])],
+                      createTargetStatuses: Boolean = false): DBIOAction[(DeepOperationTrace, Iterable[(Long, Version, TargetExpr, ExecutionTrigger)]), NoStream, Effect.Read with Effect.Write] =
+    insertOperationTrace(deploymentRequest, operation, userName)
+      .flatMap { newOp =>
+        insertStepOperationXRefs(deploymentPlanSteps, newOp).andThen(
+          DBIO
+            .sequence( // in sequence to be able to put all these SQL queries in the same transaction
+              specAndInvocations.map { case (spec, invocations) =>
+                insertExecution(newOp.id, spec.id)
+                  .flatMap { executionId =>
+                    // create as many traces as needed, all at the same time
+                    val ret = insertExecutionTraces(executionId, invocations.length)
+                    if (createTargetStatuses)
+                      updateTargetStatuses(
+                        executionId,
+                        invocations
+                          .toStream
+                          .flatMap { case (_, target) => target.toStream.flatMap(_.select) }
+                          .map(_ -> TargetAtomStatus(Status.notDone, "running..."))
+                          // todo: change detail to "pending" when all executors send `running` status codes: DREDD-725
+                          .toMap
+                      )
+                        .andThen(ret)
+                    else
+                      ret
+                  }
+                  .map(_.zip(invocations).map { case (execTraceId, (trigger, target)) => (execTraceId, spec.version, target, trigger) })
+              }
+            )
+            .map(effects => (newOp, effects.flatten))
+        )
+      }
 }

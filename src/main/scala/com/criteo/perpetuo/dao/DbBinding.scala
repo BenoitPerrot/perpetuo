@@ -23,7 +23,8 @@ class DbBinding @Inject()(val dbContext: DbContext)
     with TargetStatusBinder
     with ExecutionTraceBinder
     with LockBinder
-    with DeploymentRequestInserter {
+    with DeploymentRequestInserter
+    with EffectInserter {
 
   import dbContext.profile.api._
 

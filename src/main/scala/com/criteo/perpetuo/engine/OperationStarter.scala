@@ -143,49 +143,6 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
     }
   }
 
-  // todo: move it in a dedicated EffectInserter along with DeploymentRequestInserter
-  // fixme: type the targets to differentiate atomic from other ones in order to always create atomic targets
-  //        instead of taking the boolean as parameter (to be done later, since it's not trivial)
-  def createRecords(deploymentRequest: DeploymentRequest,
-                    deploymentPlanSteps: Iterable[DeploymentPlanStep],
-                    operation: Operation.Kind,
-                    userName: String,
-                    specAndInvocations: Iterable[(ExecutionSpecification, Vector[(ExecutionTrigger, TargetExpr)])],
-                    createTargetStatuses: Boolean = false): DBIOrw[(DeepOperationTrace, Iterable[(Long, Version, TargetExpr, ExecutionTrigger)])] =
-    dbBinding
-      .insertOperationTrace(deploymentRequest, operation, userName)
-      .flatMap { newOp =>
-        dbBinding.insertStepOperationXRefs(deploymentPlanSteps, newOp).andThen(
-          DBIOAction
-            .sequence( // in sequence to be able to put all these SQL queries in the same transaction
-              specAndInvocations.map { case (spec, invocations) =>
-                dbBinding
-                  .insertExecution(newOp.id, spec.id)
-                  .flatMap { executionId =>
-                    // create as many traces as needed, all at the same time
-                    val ret = dbBinding.insertExecutionTraces(executionId, invocations.length)
-                    if (createTargetStatuses)
-                      dbBinding
-                        .updateTargetStatuses(
-                          executionId,
-                          invocations
-                            .toStream
-                            .flatMap { case (_, target) => target.toStream.flatMap(_.select) }
-                            .map(_ -> TargetAtomStatus(Status.notDone, "running..."))
-                            // todo: change detail to "pending" when all executors send `running` status codes: DREDD-725
-                            .toMap
-                        )
-                        .andThen(ret)
-                    else
-                      ret
-                  }
-                  .map(_.zip(invocations).map { case (execTraceId, (trigger, target)) => (execTraceId, spec.version, target, trigger) })
-              }
-            )
-            .map(effects => (newOp, effects.flatten))
-        )
-      }
-
   private[engine] def dispatch(dispatcher: TargetDispatcher, expandedTarget: TargetExpr, frozenParameters: String): Iterable[(ExecutionTrigger, TargetExpr)] =
     dispatchAlternatives(dispatcher, expandedTarget, frozenParameters).map {
       // return the shortest target expression for the executor
