@@ -1,7 +1,5 @@
 package com.criteo.perpetuo.model
 
-import com.fasterxml.jackson.annotation.JsonIgnore
-
 
 trait OperationTrace {
   val id: Long
@@ -14,7 +12,7 @@ trait OperationTrace {
 
 
 case class ShallowOperationTrace(id: Long,
-                                 @JsonIgnore deploymentRequestId: Long,
+                                 deploymentRequestId: Long,
                                  kind: Operation.Kind,
                                  creator: String,
                                  creationDate: java.sql.Timestamp,
