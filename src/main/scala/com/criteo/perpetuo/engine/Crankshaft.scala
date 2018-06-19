@@ -10,7 +10,7 @@ import com.criteo.perpetuo.model._
 import com.google.common.annotations.VisibleForTesting
 import com.twitter.inject.Logging
 import javax.inject.{Inject, Singleton}
-import slick.dbio.{DBIOAction, Effect, NoStream}
+import slick.dbio.DBIOAction
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
@@ -180,7 +180,7 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
     dbBinding.isDeploymentRequestStarted(deploymentRequestId)
 
   private def act[T](deploymentRequest: DeploymentRequest, currentOperationCount: Option[Int], initiatorName: String,
-                     getAction: DBIOrw[(OperationStartSpecifics, T)]) =
+                     getAction: DBIOrw[((Iterable[DeploymentPlanStep], OperationCreationParams), T)]) =
     dbBinding.executeInSerializableTransaction(
       acquireOperationLock(deploymentRequest)
         .andThen(
@@ -194,9 +194,9 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
             .getOrElse(DBIOAction.successful(()))
         )
         .andThen(getAction)
-        .flatMap { case ((creatingRecords, atoms), actionSpecifics) =>
+        .flatMap { case ((deploymentPlanSteps, (operation, specAndInvocations, atoms)), actionSpecifics) =>
           acquireDeploymentTransactionLock(deploymentRequest, atoms)
-            .andThen(creatingRecords)
+            .andThen(operationStarter.createRecords(deploymentRequest, deploymentPlanSteps, operation, initiatorName, specAndInvocations, atoms.nonEmpty))
             .map((_, actionSpecifics))
         }
     ).flatMap { case ((createdOperation, executionsToTrigger), actionSpecifics) =>
@@ -211,8 +211,8 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
       case (lastDone, Some(toDo)) =>
         val isRetry = lastDone.map(_.id).contains(toDo.id)
         val action = if (isRetry) operationStarter.retryingDeploymentStep _ else operationStarter.startingDeploymentStep _
-        action(targetResolver, targetDispatcher, deploymentRequest, toDo, initiatorName)
-          .map((_, (lastDone, toDo)))
+        action(targetResolver, targetDispatcher, deploymentRequest)
+          .map(operationCreationSpecifics => ((Seq(toDo), operationCreationSpecifics), (lastDone, toDo)))
     }
     act(deploymentRequest, currentOperationCount, initiatorName, getAction)
       .map { case ((operationTrace, started, failed), (lastDone, toDo)) =>

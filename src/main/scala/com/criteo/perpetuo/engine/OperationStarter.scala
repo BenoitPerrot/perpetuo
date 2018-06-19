@@ -7,7 +7,7 @@ import com.criteo.perpetuo.engine.resolvers.TargetResolver
 import com.criteo.perpetuo.model.ExecutionState.ExecutionState
 import com.criteo.perpetuo.model._
 import com.twitter.inject.Logging
-import slick.dbio.{DBIOAction, Effect, NoStream}
+import slick.dbio.DBIOAction
 import spray.json.DefaultJsonProtocol._
 import spray.json._
 
@@ -19,23 +19,18 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
 
   private def insertExecutionTree(dispatcher: TargetDispatcher,
                                   deploymentRequest: DeploymentRequest,
-                                  deploymentPlanSteps: Iterable[DeploymentPlanStep],
                                   expandedTarget: Option[TargetExpr],
-                                  executionSpecs: Seq[ExecutionSpecification],
-                                  userName: String) = {
+                                  executionSpecs: Seq[ExecutionSpecification]): OperationCreationParams = {
 
     val specAndInvocations = executionSpecs.map(spec =>
       (spec, dispatch(dispatcher, expandedTarget.getOrElse(deploymentRequest.parsedTarget), spec.specificParameters).toVector)
     )
-    val reflectInDb = createRecords(deploymentRequest, deploymentPlanSteps, Operation.deploy, userName, specAndInvocations)
-    (reflectInDb, expandedTarget.map(_.flatMap(_.select)))
+    (Operation.deploy, specAndInvocations, expandedTarget.map(_.flatMap(_.select)))
   }
 
   def startingDeploymentStep(resolver: TargetResolver,
                              dispatcher: TargetDispatcher,
-                             deploymentRequest: DeploymentRequest,
-                             deploymentPlanStep: DeploymentPlanStep,
-                             userName: String): DBIOAction[OperationStartSpecifics, NoStream, Effect.Write] = {
+                             deploymentRequest: DeploymentRequest): DBIOrw[OperationCreationParams] = {
     // generation of specific parameters
     val specificParameters = dispatcher.freezeParameters(deploymentRequest.product.name, deploymentRequest.version)
     // target resolution
@@ -46,27 +41,25 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
     // Moreover, this will likely be rewritten eventually for the specifications to be created alongside with the
     // `deploy` operations at the time the deployment request is created.
     dbBinding.insertingExecutionSpecification(specificParameters, deploymentRequest.version).map(executionSpec =>
-      insertExecutionTree(dispatcher, deploymentRequest, Seq(deploymentPlanStep), expandedTarget, Seq(executionSpec), userName)
+      insertExecutionTree(dispatcher, deploymentRequest, expandedTarget, Seq(executionSpec))
     )
   }
 
   def retryingDeploymentStep(resolver: TargetResolver,
                              dispatcher: TargetDispatcher,
-                             deploymentRequest: DeploymentRequest,
-                             deploymentPlanStep: DeploymentPlanStep,
-                             userName: String): DBIOAction[OperationStartSpecifics, NoStream, Effect.Read] = {
+                             deploymentRequest: DeploymentRequest): DBIOrw[OperationCreationParams] = {
     // todo: map the right target to the right specification
     val expandedTarget = expandTarget(resolver, deploymentRequest.product.name, deploymentRequest.version, deploymentRequest.parsedTarget)
 
     dbBinding.findingDeploySpecifications(deploymentRequest).map(executionSpecs =>
-      insertExecutionTree(dispatcher, deploymentRequest, Seq(deploymentPlanStep), expandedTarget, executionSpecs, userName)
+      insertExecutionTree(dispatcher, deploymentRequest, expandedTarget, executionSpecs)
     )
   }
 
   def reverting(dispatcher: TargetDispatcher,
                 deploymentRequest: DeploymentRequest,
                 userName: String,
-                defaultVersion: Option[Version]): DBIOrw[OperationStartSpecifics] = {
+                defaultVersion: Option[Version]): DBIOrw[(Iterable[DeploymentPlanStep], OperationCreationParams)] = {
     dbBinding
       .findingExecutionSpecificationsForRevert(deploymentRequest)
       .flatMap { case (undetermined, determined) =>
@@ -91,8 +84,7 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
         }
         val atoms = groups.flatMap { case (_, targets) => targets }
         dbBinding.findingDeploymentPlan(deploymentRequest).map { plan =>
-          val reflectInDb = createRecords(plan.deploymentRequest, plan.steps, Operation.revert, userName, specAndInvocations, createTargetStatuses = true)
-          (reflectInDb, Some(atoms.toSet))
+          (plan.steps, (Operation.revert, specAndInvocations, Some(atoms.toSet)))
         }
       }
   }
@@ -154,12 +146,12 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
   // todo: move it in a dedicated EffectInserter along with DeploymentRequestInserter
   // fixme: type the targets to differentiate atomic from other ones in order to always create atomic targets
   //        instead of taking the boolean as parameter (to be done later, since it's not trivial)
-  private def createRecords(deploymentRequest: DeploymentRequest,
-                            deploymentPlanSteps: Iterable[DeploymentPlanStep],
-                            operation: Operation.Kind,
-                            userName: String,
-                            specAndInvocations: Iterable[(ExecutionSpecification, scala.Vector[(ExecutionTrigger, TargetExpr)])],
-                            createTargetStatuses: Boolean = false) =
+  def createRecords(deploymentRequest: DeploymentRequest,
+                    deploymentPlanSteps: Iterable[DeploymentPlanStep],
+                    operation: Operation.Kind,
+                    userName: String,
+                    specAndInvocations: Iterable[(ExecutionSpecification, Vector[(ExecutionTrigger, TargetExpr)])],
+                    createTargetStatuses: Boolean = false): DBIOrw[(DeepOperationTrace, Iterable[(Long, Version, TargetExpr, ExecutionTrigger)])] =
     dbBinding
       .insertOperationTrace(deploymentRequest, operation, userName)
       .flatMap { newOp =>

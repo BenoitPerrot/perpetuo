@@ -64,16 +64,17 @@ class OperationStarterSpec extends Test with TestDb {
 
     def dispatchedAs(that: Map[ExecutionTrigger, TargetExpr]): Unit = {
       Await.result(
-        operationStarter.dbBinding.insertDeploymentRequest(request).flatMap { deploymentPlan =>
-          operationStarter.dbBinding.dbContext.db
-            .run(operationStarter.startingDeploymentStep(testResolver, TestTargetDispatcher, deploymentPlan.deploymentRequest, deploymentPlan.steps.head, "c.norris"))
-            .map(_._1)
-            .flatMap(dbContext.db.run)
-            .map { case (_, toTrigger) =>
-              assertEqual(toTrigger.map { case (_, _, targetExpr, trigger) => (trigger, targetExpr) }.toMap, that)
-              assertEqual(toTrigger.size, that.size) // look for unexpected duplicates
-            }
-        },
+        operationStarter.dbBinding.insertDeploymentRequest(request)
+          .flatMap(deploymentPlan =>
+            operationStarter.dbBinding.dbContext.db.run(
+              operationStarter.startingDeploymentStep(testResolver, TestTargetDispatcher, deploymentPlan.deploymentRequest)
+            )
+          )
+          .map { case (_, executionsToTrigger, _) =>
+            val toTrigger = executionsToTrigger.flatMap { case (_, executionToTrigger) => executionToTrigger }
+            assertEqual(toTrigger.toMap, that)
+            assertEqual(toTrigger.size, that.size) // look for unexpected duplicates
+          },
         1.second
       )
     }
