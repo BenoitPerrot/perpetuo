@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.module.SimpleModule
 import com.fasterxml.jackson.databind.ser.std.StdSerializer
 import com.fasterxml.jackson.databind.{PropertyNamingStrategy, SerializerProvider}
 import com.twitter.finatra.json.modules.FinatraJacksonModule
+import spray.json.JsValue
 
 
 object CustomJacksonModule extends FinatraJacksonModule {
@@ -14,6 +15,7 @@ object CustomJacksonModule extends FinatraJacksonModule {
 
   override val additionalJacksonModules = Seq(
     new SimpleModule {
+      addSerializer(JsValueSerializer)
       addSerializer(RawJsonSerializer)
       addSerializer(TimestampSerializer)
       addSerializer(VersionSerializer)
@@ -24,6 +26,13 @@ object CustomJacksonModule extends FinatraJacksonModule {
 
 
 case class RawJson(raw: String)
+
+
+object JsValueSerializer extends StdSerializer[JsValue](classOf[JsValue]) {
+  def serialize(value: JsValue, jgen: JsonGenerator, provider: SerializerProvider) {
+    jgen.writeRawValue(value.compactPrint)
+  }
+}
 
 
 object RawJsonSerializer extends StdSerializer[RawJson](classOf[RawJson]) {

@@ -246,6 +246,7 @@ class RestController @Inject()(val engine: Engine)
       status.lastOperationStatus.map { case (_, opStatus) => opStatus }.getOrElse(DeploymentStatus.notStarted),
       status.lastOperationStatus.map { case (kind, _) => kind }
     ) ++
+      Map("plan" -> status.deploymentPlanSteps) ++
       Map("operations" ->
         status.operationEffects.map { case OperationEffect(op, executionTraces, targetStatus) =>
           Map(

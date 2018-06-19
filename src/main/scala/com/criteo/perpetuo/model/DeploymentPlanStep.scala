@@ -1,11 +1,13 @@
 package com.criteo.perpetuo.model
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import spray.json.JsValue
 
 case class ProtoDeploymentPlanStep(name: String,
                                    targetExpression: JsValue,
                                    comment: String)
 
+@JsonIgnoreProperties(Array("deploymentRequest"))
 case class DeploymentPlanStep(id: Long,
                               deploymentRequest: DeploymentRequest,
                               name: String,
