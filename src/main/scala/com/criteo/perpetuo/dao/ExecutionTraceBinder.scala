@@ -82,9 +82,11 @@ trait ExecutionTraceBinder extends TableBinder {
   def findExecutionTraceById(executionTraceId: Long): Future[Option[DeepExecutionTrace]] =
     dbContext.db.run(
       executionTraceQuery
-        .filter(_.id === executionTraceId)
-        .join(executionQuery).on { case (executionTrace, execution) => executionTrace.executionId === execution.id }
-        .join(operationTraceQuery).on { case ((_, execution), operationTrace) => execution.operationTraceId === operationTrace.id }
+        .join(executionQuery)
+        .join(operationTraceQuery)
+        .filter { case ((executionTrace, execution), operationTrace) =>
+          executionTrace.id === executionTraceId && executionTrace.executionId === execution.id && execution.operationTraceId === operationTrace.id
+        }
         .map { case ((executionTrace, _), operationTrace) => (executionTrace, operationTrace) }
         .result
     ).map(_.headOption.map { case (exec, op) =>
@@ -94,10 +96,12 @@ trait ExecutionTraceBinder extends TableBinder {
   def hasOpenExecutionTracesForOperation(operationTraceId: Long): Future[Boolean] =
     dbContext.db.run(
       operationTraceQuery
-        .filter(_.id === operationTraceId)
-        .join(executionQuery).on { case (operationTrace, execution) => operationTrace.id === execution.operationTraceId }
-        .join(executionTraceQuery).on { case ((_, execution), executionTrace) => execution.id === executionTrace.executionId }
-        .filter { case ((_, _), executionTrace) => executionTrace.state === ExecutionState.pending || executionTrace.state === ExecutionState.running }
+        .join(executionQuery)
+        .join(executionTraceQuery)
+        .filter { case ((operationTrace, execution), executionTrace) =>
+          operationTrace.id === operationTraceId && execution.operationTraceId === operationTrace.id && executionTrace.executionId === execution.id &&
+            (executionTrace.state === ExecutionState.pending || executionTrace.state === ExecutionState.running)
+        }
         .exists
         .result
     )

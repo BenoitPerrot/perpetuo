@@ -173,7 +173,7 @@ class DbBinding @Inject()(val dbContext: DbContext)
         if (dependingOnTargetStatuses.nonEmpty)
           executionQuery
             .join(targetStatusQuery)
-            .on { case (execution, targetStatus) => execution.operationTraceId.inSet(dependingOnTargetStatuses.keySet) && execution.id === targetStatus.executionId }
+            .filter { case (execution, targetStatus) => execution.operationTraceId.inSet(dependingOnTargetStatuses.keySet) && execution.id === targetStatus.executionId }
             .map { case (execution, targetStatus) => (execution.operationTraceId, targetStatus.code) }
             .result
             .map { statuses =>
@@ -199,8 +199,8 @@ class DbBinding @Inject()(val dbContext: DbContext)
   def isDeploymentRequestStarted(deploymentRequestId: Long): Future[Option[(DeploymentRequest, Boolean)]] = {
     dbContext.db.run(
       deploymentRequestQuery
-        .filter(_.id === deploymentRequestId)
-        .join(productQuery).on(_.productId === _.id)
+        .join(productQuery)
+        .filter { case (deploymentRequest, product) => deploymentRequest.id === deploymentRequestId && deploymentRequest.productId === product.id }
         .joinLeft(operationTraceQuery).on { case ((depReq, _), operation) => depReq.id === operation.deploymentRequestId }
         .map { case (x, op) => (x, op.isDefined) }
         .result
@@ -310,8 +310,10 @@ class DbBinding @Inject()(val dbContext: DbContext)
   def isOutdated(deploymentRequest: DeploymentRequest): Future[Boolean] = {
     val outdatedByOperation =
       deploymentRequestQuery
-        .filter(depReq => depReq.id > deploymentRequest.id && depReq.productId === deploymentRequest.productId)
-        .join(operationTraceQuery).on(_.id === _.deploymentRequestId)
+        .join(operationTraceQuery)
+        .filter { case (depReq, operationTrace) =>
+          depReq.id > deploymentRequest.id && depReq.productId === deploymentRequest.productId && depReq.id === operationTrace.deploymentRequestId
+        }
         .exists
     dbContext.db.run(outdatedByOperation.result)
   }

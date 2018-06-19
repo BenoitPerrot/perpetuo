@@ -50,7 +50,15 @@ trait DeploymentRequestBinder extends TableBinder {
   }
 
   def findDeepDeploymentRequestById(id: Long): Future[Option[DeploymentRequest]] = {
-    dbContext.db.run((deploymentRequestQuery join productQuery on (_.productId === _.id) filter (_._1.id === id)).result)
+    dbContext.db
+      .run(
+        deploymentRequestQuery
+          .join(productQuery)
+          .filter { case (deploymentRequest, product) =>
+            deploymentRequest.id === id && deploymentRequest.productId === product.id
+          }
+          .result
+      )
       .map(_.headOption.map {
         case (req, prod) => req.toDeepDeploymentRequest(prod)
       })
