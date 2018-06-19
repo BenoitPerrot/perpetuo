@@ -77,7 +77,7 @@ class Engine @Inject()(val crankshaft: Crankshaft,
     crankshaft
       .findDeepDeploymentRequestAndEffects(id)
       .flatMap(
-        _.map { case (deploymentRequest, sortedEffects) =>
+        _.map { case (deploymentRequest, deploymentPlanSteps, sortedEffects) =>
           val targets = deploymentRequest.parsedTarget.select
 
           val isAdmin = user.exists(user =>
@@ -101,7 +101,7 @@ class Engine @Inject()(val crankshaft: Crankshaft,
               )
             )
             .map(authorizedActions =>
-              Some(DeploymentRequestStatus(deploymentRequest, sortedEffects, sortedEffects.lastOption.map(crankshaft.computeState), authorizedActions.flatten, isAdmin || authorized(Operation.deploy)))
+              Some(DeploymentRequestStatus(deploymentRequest, deploymentPlanSteps, sortedEffects, sortedEffects.lastOption.map(crankshaft.computeState), authorizedActions.flatten, isAdmin || authorized(Operation.deploy)))
             )
 
         }.getOrElse(Future.successful(None))

@@ -30,12 +30,13 @@ class DbBinding @Inject()(val dbContext: DbContext)
   def executeInSerializableTransaction[T](q: DBIOAction[T, NoStream, _]): Future[T] =
     dbContext.db.run(q.transactionally.withTransactionIsolation(TransactionIsolation.Serializable))
 
-  def findDeepDeploymentRequestAndEffects(deploymentRequestId: Long): Future[Option[(DeploymentRequest, Iterable[OperationEffect])]] = {
+  def findDeepDeploymentRequestAndEffects(deploymentRequestId: Long): Future[Option[(DeploymentRequest, Seq[DeploymentPlanStep], Iterable[OperationEffect])]] = {
     val findingDeploymentRequest =
       deploymentRequestQuery
         .join(productQuery)
-        .filter { case (deploymentRequest, product) =>
-          deploymentRequest.id === deploymentRequestId && deploymentRequest.productId === product.id
+        .join(deploymentPlanStepQuery)
+        .filter { case ((deploymentRequest, product), planStep) =>
+          deploymentRequest.id === deploymentRequestId && deploymentRequest.productId === product.id && planStep.deploymentRequestId === deploymentRequestId
         }
         .result
 
@@ -72,14 +73,17 @@ class DbBinding @Inject()(val dbContext: DbContext)
             }
         }
 
-    val findingDeploymentRequestAndEffects = findingDeploymentRequest.flatMap(_
-      .headOption
-      .map { case (deploymentRequest, product) =>
-        findingEffects.map(effects =>
-          Some((deploymentRequest.toDeepDeploymentRequest(product), effects.sortBy(_.operationTrace.id)))
-        )
-      }
-      .getOrElse(DBIO.successful(None))
+    val findingDeploymentRequestAndEffects = findingDeploymentRequest.flatMap(deploymentIntent =>
+      deploymentIntent
+        .headOption
+        .map { case ((deploymentRequestRecord, product), _) =>
+          val deploymentRequest = deploymentRequestRecord.toDeepDeploymentRequest(product)
+          val deploymentPlanSteps = deploymentIntent.map { case (_, deploymentPlanStepRecord) => deploymentPlanStepRecord.toDeploymentPlanStep(deploymentRequest) }
+          findingEffects.map { effects =>
+            Some((deploymentRequest, deploymentPlanSteps, effects.sortBy(_.operationTrace.id)))
+          }
+        }
+        .getOrElse(DBIO.successful(None))
     )
 
     dbContext.db.run(findingDeploymentRequestAndEffects)
