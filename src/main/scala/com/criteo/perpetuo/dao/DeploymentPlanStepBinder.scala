@@ -12,8 +12,10 @@ case class DeploymentPlanStepRecord(id: Option[Long],
                                     deploymentRequestId: Long,
                                     name: String,
                                     targetExpression: String,
-                                    comment: String) // Not an `Option` because it's easier to consider that no comment <=> empty
-
+                                    comment: String) { // Not an `Option` because it's easier to consider that no comment <=> empty
+  def toDeploymentPlanStep(deploymentRequest: DeploymentRequest) =
+    DeploymentPlanStep(id.get, deploymentRequest, name, targetExpression.parseJson, comment)
+}
 
 trait DeploymentPlanStepBinder extends TableBinder {
   this: DeploymentRequestBinder with DbContextProvider =>
@@ -50,9 +52,9 @@ trait DeploymentPlanStepBinder extends TableBinder {
 
   def findingDeploymentPlanStep(deploymentRequest: DeploymentRequest, deploymentPlanStepId: Long): DBIOAction[Option[DeploymentPlanStep], NoStream, Effect.Read] =
     deploymentPlanStepQuery.filter(_.id === deploymentPlanStepId).result
-      .map(_.headOption.map(s => DeploymentPlanStep(s.id.get, deploymentRequest, s.name, s.targetExpression.parseJson, s.comment)))
+      .map(_.headOption.map(_.toDeploymentPlanStep(deploymentRequest)))
 
   def findingDeploymentPlan(deploymentRequest: DeploymentRequest): DBIOAction[DeploymentPlan, NoStream, Effect.Read] =
     deploymentPlanStepQuery.filter(_.deploymentRequestId === deploymentRequest.id).result
-      .map(steps => DeploymentPlan(deploymentRequest, steps.map(s => DeploymentPlanStep(s.id.get, deploymentRequest, s.name, s.targetExpression.parseJson, s.comment))))
+      .map(steps => DeploymentPlan(deploymentRequest, steps.map(_.toDeploymentPlanStep(deploymentRequest))))
 }
