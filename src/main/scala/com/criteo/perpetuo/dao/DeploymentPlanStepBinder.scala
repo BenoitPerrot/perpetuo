@@ -7,12 +7,11 @@ import spray.json._
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
-// todo: make it private[dao] again
-case class DeploymentPlanStepRecord(id: Option[Long],
-                                    deploymentRequestId: Long,
-                                    name: String,
-                                    targetExpression: String,
-                                    comment: String) { // Not an `Option` because it's easier to consider that no comment <=> empty
+private[dao] case class DeploymentPlanStepRecord(id: Option[Long],
+                                                 deploymentRequestId: Long,
+                                                 name: String,
+                                                 targetExpression: String,
+                                                 comment: String) { // Not an `Option` because it's easier to consider that no comment <=> empty
   def toDeploymentPlanStep(deploymentRequest: DeploymentRequest) =
     DeploymentPlanStep(id.get, deploymentRequest, name, targetExpression.parseJson, comment)
 }

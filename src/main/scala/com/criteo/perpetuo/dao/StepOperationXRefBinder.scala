@@ -7,9 +7,8 @@ import slick.sql.FixedSqlAction
 import scala.concurrent.Future
 
 
-// todo: make it private[dao] again
-case class StepOperationXRefRecord(deploymentPlanStepId: Long,
-                                   operationTraceId: Long)
+private[dao] case class StepOperationXRefRecord(deploymentPlanStepId: Long,
+                                                operationTraceId: Long)
 
 
 trait StepOperationXRefBinder extends TableBinder {
