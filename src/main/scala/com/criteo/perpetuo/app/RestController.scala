@@ -224,13 +224,6 @@ class RestController @Inject()(val engine: Engine)
     )
   }
 
-  private def serialize(depReq: DeploymentRequest, deploymentStatus: Option[(Operation.Kind, DeploymentStatus.Value)]): Map[String, Any] =
-    serialize(
-      depReq,
-      deploymentStatus.map { case (_, opStatus) => opStatus }.getOrElse(DeploymentStatus.notStarted),
-      deploymentStatus.map { case (kind, _) => kind }
-    )
-
   private def serialize(depReq: DeploymentRequest, deploymentStatus: DeploymentStatus.Value, lastOperationKind: Option[Operation.Kind]): Map[String, Any] =
     Map(
       "id" -> depReq.id,
@@ -248,7 +241,11 @@ class RestController @Inject()(val engine: Engine)
     )
 
   private def serialize(status: DeploymentRequestStatus): Map[String, Any] =
-    serialize(status.deploymentRequest, status.lastOperationStatus) ++
+    serialize(
+      status.deploymentRequest,
+      status.lastOperationStatus.map { case (_, opStatus) => opStatus }.getOrElse(DeploymentStatus.notStarted),
+      status.lastOperationStatus.map { case (kind, _) => kind }
+    ) ++
       Map("operations" ->
         status.operationEffects.map { case OperationEffect(op, executionTraces, targetStatus) =>
           Map(
