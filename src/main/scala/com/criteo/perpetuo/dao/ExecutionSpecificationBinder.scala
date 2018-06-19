@@ -1,6 +1,7 @@
 package com.criteo.perpetuo.dao
 
 import com.criteo.perpetuo.model.{ExecutionSpecification, Version}
+import com.google.common.annotations.VisibleForTesting
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
@@ -36,9 +37,11 @@ trait ExecutionSpecificationBinder extends TableBinder {
       ExecutionSpecification(_, version, specificParameters)
     )
 
+  @VisibleForTesting
   def insertExecutionSpecification(specificParameters: String, version: Version): Future[ExecutionSpecification] =
     dbContext.db.run(insertingExecutionSpecification(specificParameters, version))
 
+  @VisibleForTesting
   def findExecutionSpecificationById(executionSpecificationId: Long): Future[Option[ExecutionSpecification]] =
     dbContext.db.run(executionSpecificationQuery.filter(_.id === executionSpecificationId).result)
       .map(_.headOption.map(_.toExecutionSpecification))
