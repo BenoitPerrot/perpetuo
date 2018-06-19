@@ -104,7 +104,7 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
   private def getOperationLockName(deploymentRequest: DeploymentRequest) =
     s"Operating on ${deploymentRequest.id}"
 
-  private def getTransactionLockNames(deploymentRequest: DeploymentRequest, atoms: Option[Set[String]]): Iterable[String] =
+  private def getTransactionLockNames(deploymentRequest: DeploymentRequest, atoms: Option[Select]): Iterable[String] =
     atoms
       .map(_.map(atom => s"${atom.hashCode.toHexString}_${deploymentRequest.product.name}"))
       .getOrElse(Seq("P_" + deploymentRequest.product.name))
@@ -144,7 +144,7 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
         throw Conflict("Cannot be processed for the moment because another operation is running for the same deployment request")
     )
 
-  private def acquireDeploymentTransactionLock(deploymentRequest: DeploymentRequest, atoms: Option[Set[String]]) =
+  private def acquireDeploymentTransactionLock(deploymentRequest: DeploymentRequest, atoms: Option[Select]) =
     dbBinding.tryAcquireLocks(getTransactionLockNames(deploymentRequest, atoms), deploymentRequest.id, reentrant = true).map(conflictingRequestIds =>
       if (conflictingRequestIds.nonEmpty)
         throw Conflict("Cannot be processed for the moment because a conflicting transaction is ongoing, which must first succeed or be reverted", conflictingRequestIds)

@@ -21,12 +21,12 @@ package object engine {
   implicit def targetTermJsonFormat: JsonFormat[TargetTerm] = jsonFormat2(TargetTerm)
 
   implicit class ExprToSelect(targetExpr: TargetExpr) {
-    def select: Set[String] = targetExpr.flatMap(_.select)
+    def select: Select = targetExpr.flatMap(_.select)
   }
 
 
   implicit class TargetGroups[T](javaTargetGroups: JavaMap[T, JavaIterable[String]]) {
-    def iterateAsScala: Iterator[(T, Set[String])] =
+    def iterateAsScala: Iterator[(T, Select)] =
       javaTargetGroups.entrySet.iterator.asScala
         .map(entry => entry.getKey -> entry.getValue.iterator.asScala.toSet)
   }
