@@ -312,7 +312,7 @@ class RestControllerSpec extends Test with TestDb {
     respJson2("error") should include("a default rollback version is required")
     respJson2("required") shouldEqual "defaultVersion"
 
-    actOnDeploymentRequest(id, "revert", Map("defaultVersion" -> "42").toJson, Ok)
+    actOnDeploymentRequest(id, "revert", JsObject("defaultVersion" -> JsString("42"), "operationCount" -> JsNumber(1)), Ok)
   }
 
   private def getExecutionTracesByDeploymentRequestId(deploymentRequestId: String, expectedStatus: Status): Option[JsArray] = {
