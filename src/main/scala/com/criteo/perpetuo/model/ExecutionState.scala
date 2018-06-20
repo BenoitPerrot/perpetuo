@@ -25,7 +25,7 @@ object ExecutionState extends Enumeration {
     aborted -> allOpenStates,
     unresolved -> allOpenStates,
     stopped -> allOpenStates,
-    completed -> List(pending, running) // todo: remove pending once DREDD-836 is implemented
+    completed -> List(pending, running) // todo: remove pending once DREDD-725 is implemented
   )
   assert(values.equals(getPredecessors.keySet))
 }
