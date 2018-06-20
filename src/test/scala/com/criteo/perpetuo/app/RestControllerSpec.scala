@@ -211,6 +211,7 @@ class RestControllerSpec extends Test with TestDb {
     operations.size shouldEqual 1
     Map(
       "id" -> T,
+      "planStepIds" -> JsArray(T),
       "kind" -> "deploy".toJson,
       "creator" -> "r.eleaser".toJson,
       "creationDate" -> T,
@@ -595,6 +596,7 @@ class RestControllerSpec extends Test with TestDb {
     JsArray(
       JsObject(
         "id" -> T,
+        "planStepIds" -> JsArray(T),
         "kind" -> "deploy".toJson,
         "creator" -> "r.eleaser".toJson,
         "creationDate" -> T,
@@ -621,6 +623,7 @@ class RestControllerSpec extends Test with TestDb {
     JsArray(
       JsObject(
         "id" -> T,
+        "planStepIds" -> JsArray(T),
         "kind" -> "deploy".toJson,
         "creator" -> "r.eleaser".toJson,
         "creationDate" -> T,
