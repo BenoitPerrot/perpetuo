@@ -312,7 +312,7 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
         }
       }
       .map { results =>
-        val nbStopped = results.collect { case Left(updated) if updated => 1 }.length
+        val nbStopped = results.count(_.left.getOrElse(false))
         val errors = results.collect { case Right(message) => message }
         listeners.foreach(_.onDeploymentRequestStopped(deploymentRequest, nbStopped, errors.length))
         (nbStopped, errors)
