@@ -67,7 +67,7 @@ class OperationStarterSpec extends Test with TestDb {
         operationStarter.dbBinding.insertDeploymentRequest(request)
           .flatMap(deploymentPlan =>
             operationStarter.dbBinding.dbContext.db.run(
-              operationStarter.startingDeploymentStep(testResolver, TestTargetDispatcher, deploymentPlan.deploymentRequest)
+              operationStarter.getStepSpecifics(testResolver, TestTargetDispatcher, deploymentPlan.deploymentRequest)
             )
           )
           .map { case (_, executionsToTrigger, _) =>

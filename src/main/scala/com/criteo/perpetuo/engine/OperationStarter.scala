@@ -17,10 +17,10 @@ import scala.concurrent.Future
 
 class OperationStarter(val dbBinding: DbBinding) extends Logging {
 
-  private def insertExecutionTree(dispatcher: TargetDispatcher,
-                                  deploymentRequest: DeploymentRequest,
-                                  expandedTarget: Option[TargetExpr],
-                                  executionSpecs: Seq[ExecutionSpecification]): OperationCreationParams = {
+  private def getDeploySpecifics(dispatcher: TargetDispatcher,
+                                 deploymentRequest: DeploymentRequest,
+                                 expandedTarget: Option[TargetExpr],
+                                 executionSpecs: Seq[ExecutionSpecification]): OperationCreationParams = {
 
     val specAndInvocations = executionSpecs.map(spec =>
       (spec, dispatch(dispatcher, expandedTarget.getOrElse(deploymentRequest.parsedTarget), spec.specificParameters).toVector)
@@ -28,9 +28,9 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
     (Operation.deploy, specAndInvocations, expandedTarget.map(_.flatMap(_.select)))
   }
 
-  def startingDeploymentStep(resolver: TargetResolver,
-                             dispatcher: TargetDispatcher,
-                             deploymentRequest: DeploymentRequest): DBIOrw[OperationCreationParams] = {
+  def getStepSpecifics(resolver: TargetResolver,
+                       dispatcher: TargetDispatcher,
+                       deploymentRequest: DeploymentRequest): DBIOrw[OperationCreationParams] = {
     // generation of specific parameters
     val specificParameters = dispatcher.freezeParameters(deploymentRequest.product.name, deploymentRequest.version)
     // target resolution
@@ -41,25 +41,25 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
     // Moreover, this will likely be rewritten eventually for the specifications to be created alongside with the
     // `deploy` operations at the time the deployment request is created.
     dbBinding.insertingExecutionSpecification(specificParameters, deploymentRequest.version).map(executionSpec =>
-      insertExecutionTree(dispatcher, deploymentRequest, expandedTarget, Seq(executionSpec))
+      getDeploySpecifics(dispatcher, deploymentRequest, expandedTarget, Seq(executionSpec))
     )
   }
 
-  def retryingDeploymentStep(resolver: TargetResolver,
-                             dispatcher: TargetDispatcher,
-                             deploymentRequest: DeploymentRequest): DBIOrw[OperationCreationParams] = {
+  def getRetrySpecifics(resolver: TargetResolver,
+                        dispatcher: TargetDispatcher,
+                        deploymentRequest: DeploymentRequest): DBIOrw[OperationCreationParams] = {
     // todo: map the right target to the right specification
     val expandedTarget = expandTarget(resolver, deploymentRequest.product.name, deploymentRequest.version, deploymentRequest.parsedTarget)
 
     dbBinding.findingDeploySpecifications(deploymentRequest).map(executionSpecs =>
-      insertExecutionTree(dispatcher, deploymentRequest, expandedTarget, executionSpecs)
+      getDeploySpecifics(dispatcher, deploymentRequest, expandedTarget, executionSpecs)
     )
   }
 
-  def reverting(dispatcher: TargetDispatcher,
-                deploymentRequest: DeploymentRequest,
-                userName: String,
-                defaultVersion: Option[Version]): DBIOrw[(Iterable[DeploymentPlanStep], OperationCreationParams)] = {
+  def getRevertSpecifics(dispatcher: TargetDispatcher,
+                         deploymentRequest: DeploymentRequest,
+                         userName: String,
+                         defaultVersion: Option[Version]): DBIOrw[(Iterable[DeploymentPlanStep], OperationCreationParams)] = {
     dbBinding
       .findingExecutionSpecificationsForRevert(deploymentRequest)
       .flatMap { case (undetermined, determined) =>

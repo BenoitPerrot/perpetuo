@@ -180,7 +180,7 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
     dbBinding.isDeploymentRequestStarted(deploymentRequestId)
 
   private def act[T](deploymentRequest: DeploymentRequest, currentOperationCount: Option[Int], initiatorName: String,
-                     getAction: DBIOrw[((Iterable[DeploymentPlanStep], OperationCreationParams), T)]) =
+                     getOperationSpecifics: DBIOrw[((Iterable[DeploymentPlanStep], OperationCreationParams), T)]) =
     dbBinding.executeInSerializableTransaction(
       acquireOperationLock(deploymentRequest)
         .andThen(
@@ -193,7 +193,7 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
             )
             .getOrElse(DBIOAction.successful(()))
         )
-        .andThen(getAction)
+        .andThen(getOperationSpecifics)
         .flatMap { case ((deploymentPlanSteps, (operation, specAndInvocations, atoms)), actionSpecifics) =>
           acquireDeploymentTransactionLock(deploymentRequest, atoms)
             .andThen(dbBinding.insertingEffect(deploymentRequest, deploymentPlanSteps, operation, initiatorName, specAndInvocations, atoms.nonEmpty))
@@ -204,17 +204,17 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
     }
 
   def step(deploymentRequest: DeploymentRequest, currentOperationCount: Option[Int], initiatorName: String, emitEvent: Boolean = true): Future[DeepOperationTrace] = {
-    val getAction = dbBinding.gettingLastDoneAndToDoPlanStep(deploymentRequest).flatMap {
+    val getSpecifics = dbBinding.gettingLastDoneAndToDoPlanStep(deploymentRequest).flatMap {
       case (_, None) =>
         DBIOAction.failed(UnprocessableIntent(s"${deploymentRequest.id}: there is no next step, they have all been applied"))
 
       case (lastDone, Some(toDo)) =>
         val isRetry = lastDone.map(_.id).contains(toDo.id)
-        val action = if (isRetry) operationStarter.retryingDeploymentStep _ else operationStarter.startingDeploymentStep _
-        action(targetResolver, targetDispatcher, deploymentRequest)
+        val getOperationSpecifics = if (isRetry) operationStarter.getRetrySpecifics _ else operationStarter.getStepSpecifics _
+        getOperationSpecifics(targetResolver, targetDispatcher, deploymentRequest)
           .map(operationCreationSpecifics => ((Seq(toDo), operationCreationSpecifics), (lastDone, toDo)))
     }
-    act(deploymentRequest, currentOperationCount, initiatorName, getAction)
+    act(deploymentRequest, currentOperationCount, initiatorName, getSpecifics)
       .map { case ((operationTrace, started, failed), (lastDone, toDo)) =>
         if (emitEvent)
           if (lastDone.contains(toDo)) {
@@ -324,7 +324,7 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
       }
 
   def revert(deploymentRequest: DeploymentRequest, operationCount: Option[Int], initiatorName: String, defaultVersion: Option[Version]): Future[DeepOperationTrace] =
-    act(deploymentRequest, operationCount, initiatorName, operationStarter.reverting(targetDispatcher, deploymentRequest, initiatorName, defaultVersion).map((_, ())))
+    act(deploymentRequest, operationCount, initiatorName, operationStarter.getRevertSpecifics(targetDispatcher, deploymentRequest, initiatorName, defaultVersion).map((_, ())))
       .map { case ((operationTrace, started, failed), _) =>
         listeners.foreach(_.onDeploymentRequestReverted(deploymentRequest, started, failed))
         operationTrace
