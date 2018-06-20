@@ -168,10 +168,8 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
                 (_: AsyncListener).onOperationFailed _
               listeners.foreach(listener => handler(listener)(trace, deploymentRequest))
             }
-            Future.sequence(Seq(
-              dbBinding.closeTargetStatuses(trace.id),
-              releaseLocks(deploymentRequest, transactionOngoing)
-            ))
+            dbBinding.closeTargetStatuses(trace.id)
+              .zip(releaseLocks(deploymentRequest, transactionOngoing))
           }
           .map(_ => trace)
       }
@@ -231,22 +229,19 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
   }
 
   private def rejectIfOutdatedOrLocked(deploymentRequest: DeploymentRequest): Future[Unit] =
-    Future
-      .sequence(Seq(
-        dbBinding.lockExists(getOperationLockName(deploymentRequest)).flatMap(
-          if (_)
-            Future.failed(Conflict(s"${deploymentRequest.id}: an operation is still running for it"))
-          else
-            Future.successful(())
-        ),
-        dbBinding.isOutdated(deploymentRequest).flatMap(
-          if (_)
-            Future.failed(Conflict(s"${deploymentRequest.id}: a newer one has already been applied"))
-          else
-            Future.successful(())
-        )
-      ))
-      .map(_ => ())
+    dbBinding.lockExists(getOperationLockName(deploymentRequest)).flatMap(
+      if (_)
+        Future.failed(Conflict(s"${deploymentRequest.id}: an operation is still running for it"))
+      else
+        Future.successful(())
+    ).zip(
+      dbBinding.isOutdated(deploymentRequest).flatMap(
+        if (_)
+          Future.failed(Conflict(s"${deploymentRequest.id}: a newer one has already been applied"))
+        else
+          Future.successful(())
+      )
+    ).map(_ => ())
 
   def canDeployDeploymentRequest(deploymentRequest: DeploymentRequest): Future[Unit] =
     rejectIfOutdatedOrLocked(deploymentRequest)
