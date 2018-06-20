@@ -109,12 +109,6 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
       .map(_.map(atom => s"${atom.hashCode.toHexString}_${deploymentRequest.product.name}"))
       .getOrElse(Seq("P_" + deploymentRequest.product.name))
 
-  private def releaseLocks(deploymentRequest: DeploymentRequest, transactionOngoing: Boolean) =
-    if (transactionOngoing && withTransactions)
-      dbBinding.releaseLock(getOperationLockName(deploymentRequest), deploymentRequest.id) // keep the locks per product/target
-    else
-      dbBinding.releaseLocks(deploymentRequest.id)
-
   private def triggerExecutions(deploymentRequest: DeploymentRequest,
                                 operationTrace: DeepOperationTrace,
                                 executionsToTrigger: ExecutionsToTrigger) =
@@ -160,7 +154,6 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
         dbBinding.getOperationEffect(trace)
           .flatMap { effect =>
             val (kind, status) = computeState(effect) // todo: compute actual deployment status (with 'paused')
-            val transactionOngoing = kind == Operation.deploy && status == DeploymentStatus.failed
             if (updated) {
               val handler = if (status == DeploymentStatus.succeeded)
                 (_: AsyncListener).onOperationSucceeded _
@@ -168,9 +161,13 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
                 (_: AsyncListener).onOperationFailed _
               listeners.foreach(listener => handler(listener)(trace, deploymentRequest))
             }
-            dbBinding.closeTargetStatuses(trace.id).flatMap(_ =>
-              releaseLocks(deploymentRequest, transactionOngoing)
-            )
+            dbBinding.closeTargetStatuses(trace.id).flatMap { _ =>
+              val transactionOngoing = kind == Operation.deploy && status == DeploymentStatus.failed
+              if (transactionOngoing && withTransactions)
+                dbBinding.releaseLock(getOperationLockName(deploymentRequest), deploymentRequest.id) // keep the locks per product/target
+              else
+                dbBinding.releaseLocks(deploymentRequest.id)
+            }
           }
           .map(_ => trace)
       }
