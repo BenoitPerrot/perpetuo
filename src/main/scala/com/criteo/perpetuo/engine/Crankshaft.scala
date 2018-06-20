@@ -175,12 +175,12 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
   def isDeploymentRequestStarted(deploymentRequestId: Long): Future[Option[(DeploymentRequest, Boolean)]] =
     dbBinding.isDeploymentRequestStarted(deploymentRequestId)
 
-  private def act[T](deploymentRequest: DeploymentRequest, currentOperationCount: Option[Int], initiatorName: String,
+  private def act[T](deploymentRequest: DeploymentRequest, expectedOperationCount: Option[Int], initiatorName: String,
                      getOperationSpecifics: DBIOrw[((Iterable[DeploymentPlanStep], OperationCreationParams), T)]) =
     dbBinding.executeInSerializableTransaction(
       acquireOperationLock(deploymentRequest)
         .andThen(
-          currentOperationCount
+          expectedOperationCount
             .map(expectedCount =>
               dbBinding.countingOperationTraces(deploymentRequest).map(count =>
                 if (count != expectedCount)
@@ -199,7 +199,7 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
       triggerExecutions(deploymentRequest, createdOperation, executionsToTrigger).map((_, actionSpecifics))
     }
 
-  def step(deploymentRequest: DeploymentRequest, currentOperationCount: Option[Int], initiatorName: String, emitEvent: Boolean = true): Future[DeepOperationTrace] = {
+  def step(deploymentRequest: DeploymentRequest, operationCount: Option[Int], initiatorName: String, emitEvent: Boolean = true): Future[DeepOperationTrace] = {
     val getSpecifics = dbBinding.gettingLastDoneAndToDoPlanStep(deploymentRequest).flatMap {
       case (_, None) =>
         DBIOAction.failed(UnprocessableIntent(s"${deploymentRequest.id}: there is no next step, they have all been applied"))
@@ -210,7 +210,7 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
         getOperationSpecifics(targetResolver, targetDispatcher, deploymentRequest)
           .map(operationCreationSpecifics => ((Seq(toDo), operationCreationSpecifics), (lastDone, toDo)))
     }
-    act(deploymentRequest, currentOperationCount, initiatorName, getSpecifics)
+    act(deploymentRequest, operationCount, initiatorName, getSpecifics)
       .map { case ((operationTrace, started, failed), (lastDone, toDo)) =>
         if (emitEvent)
           if (lastDone.contains(toDo)) {
