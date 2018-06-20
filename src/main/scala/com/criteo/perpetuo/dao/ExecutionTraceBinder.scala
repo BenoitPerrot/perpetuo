@@ -93,18 +93,16 @@ trait ExecutionTraceBinder extends TableBinder {
       exec.toExecutionTrace(op.toOperationTrace)
     })
 
+  private def openExecutionTracesQuery(operationTraceId: Long) =
+    executionQuery
+      .join(executionTraceQuery)
+      .filter { case (execution, executionTrace) =>
+        execution.operationTraceId === operationTraceId && execution.id === executionTrace.executionId &&
+          (executionTrace.state === ExecutionState.pending || executionTrace.state === ExecutionState.running)
+      }
+
   def hasOpenExecutionTracesForOperation(operationTraceId: Long): Future[Boolean] =
-    dbContext.db.run(
-      operationTraceQuery
-        .join(executionQuery)
-        .join(executionTraceQuery)
-        .filter { case ((operationTrace, execution), executionTrace) =>
-          operationTrace.id === operationTraceId && execution.operationTraceId === operationTrace.id && executionTrace.executionId === execution.id &&
-            (executionTrace.state === ExecutionState.pending || executionTrace.state === ExecutionState.running)
-        }
-        .exists
-        .result
-    )
+    dbContext.db.run(openExecutionTracesQuery(operationTraceId).exists.result)
 
   /**
     * @return Some(id) if it has been successfully updated, None if it doesn't exist
