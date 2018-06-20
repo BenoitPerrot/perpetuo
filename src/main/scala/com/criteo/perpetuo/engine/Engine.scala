@@ -91,14 +91,15 @@ class Engine @Inject()(val crankshaft: Crankshaft,
 
           Future
             .sequence(
-              Operation.values.toSeq.map(action =>
-                (action match {
+              Operation.values.toSeq.map { action =>
+                val canApply = action match {
                   case Operation.deploy => crankshaft.canDeployDeploymentRequest(deploymentRequest)
                   case Operation.revert => crankshaft.canRevertDeploymentRequest(deploymentRequest, sortedEffects.nonEmpty)
-                })
+                }
+                canApply
                   .map(_ => Some((action, authorized(action))))
                   .recover { case _ => None }
-              )
+              }
             )
             .map(authorizedActions =>
               Some(DeploymentRequestStatus(deploymentRequest, deploymentPlanSteps, sortedEffects, sortedEffects.lastOption.map(crankshaft.computeState), authorizedActions.flatten, isAdmin || authorized(Operation.deploy)))
