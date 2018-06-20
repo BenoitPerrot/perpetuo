@@ -28,6 +28,9 @@ class RundeckClient(val host: String) {
   protected val backoffDurations: Stream[Duration] = Backoff.exponentialJittered(1.seconds, 5.seconds)
   protected val backoffPolicy: RetryPolicy[TwitterTry[Nothing]] = RetryPolicy.backoff(backoffDurations)(RetryPolicy.TimeoutAndWriteExceptionsOnly)
 
+  protected def fetch(apiSubPath: String, parameters: Map[String, String] = Map()): TwitterFuture[Response] =
+    client(buildRequest(apiSubPath, parameters))
+
   protected lazy val client: Request => TwitterFuture[Response] = (if (ssl) ClientBuilder().tlsWithoutValidation else ClientBuilder())
     .stack(Client())
     .timeout(requestTimeout)
@@ -62,5 +65,5 @@ class RundeckClient(val host: String) {
   }
 
   def startJob(jobName: String, parameters: Map[String, String] = Map()): TwitterFuture[Response] =
-    client(buildRequest(apiPath(s"job/$jobName/executions"), parameters))
+    fetch(apiPath(s"job/$jobName/executions"), parameters)
 }
