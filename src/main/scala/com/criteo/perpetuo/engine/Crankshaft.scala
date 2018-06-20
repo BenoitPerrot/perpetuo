@@ -175,6 +175,10 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
   def isDeploymentRequestStarted(deploymentRequestId: Long): Future[Option[(DeploymentRequest, Boolean)]] =
     dbBinding.isDeploymentRequestStarted(deploymentRequestId)
 
+  private def checkState(deploymentRequest: DeploymentRequest, currentState: Long, expectedState: Long): Unit =
+    if (currentState != expectedState)
+      throw Conflict(s"${deploymentRequest.id}: the state of the deployment has just changed; have another look before choosing an action to trigger")
+
   private def act[T](deploymentRequest: DeploymentRequest, expectedOperationCount: Option[Int], initiatorName: String,
                      getOperationSpecifics: DBIOrw[((Iterable[DeploymentPlanStep], OperationCreationParams), T)]) =
     dbBinding.executeInSerializableTransaction(
@@ -182,10 +186,8 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
         .andThen(
           expectedOperationCount
             .map(expectedCount =>
-              dbBinding.countingOperationTraces(deploymentRequest).map(count =>
-                if (count != expectedCount)
-                  throw Conflict(s"${deploymentRequest.id}: the state of the deployment has just changed; have another look before choosing an action to trigger")
-              )
+              dbBinding.countingOperationTraces(deploymentRequest)
+                .map(checkState(deploymentRequest, _, expectedCount))
             )
             .getOrElse(DBIOAction.successful(()))
         )
