@@ -4,7 +4,7 @@ import com.criteo.perpetuo.engine.UnavailableAction
 import com.criteo.perpetuo.model.ExecutionState.ExecutionState
 import com.criteo.perpetuo.model._
 import com.google.common.annotations.VisibleForTesting
-import slick.sql.FixedSqlAction
+import slick.sql.{FixedSqlAction, FixedSqlStreamingAction}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
@@ -66,19 +66,6 @@ trait ExecutionTraceBinder extends TableBinder {
         .result
     ).map(_.map(_.toExecutionTrace))
 
-  def findingOpenExecutionTracesByDeploymentRequest(deploymentRequestId: Long): DBIOAction[Seq[ShallowExecutionTrace], NoStream, Effect.Read] =
-    operationTraceQuery
-      .join(executionQuery)
-      .join(executionTraceQuery)
-      .filter { case ((operationTrace, execution), executionTrace) =>
-        operationTrace.deploymentRequestId === deploymentRequestId &&
-          operationTrace.id === execution.operationTraceId && execution.id === executionTrace.executionId &&
-          (executionTrace.state === ExecutionState.pending || executionTrace.state === ExecutionState.running)
-      }
-      .map { case (_, executionTrace) => executionTrace }
-      .result
-      .map(_.map(_.toExecutionTrace))
-
   def findExecutionTraceById(executionTraceId: Long): Future[Option[DeepExecutionTrace]] =
     dbContext.db.run(
       executionTraceQuery
@@ -93,6 +80,9 @@ trait ExecutionTraceBinder extends TableBinder {
       exec.toExecutionTrace(op.toOperationTrace)
     })
 
+  def findingOperationTraceIdsByDeploymentRequest(deploymentRequestId: Long): FixedSqlStreamingAction[Seq[Long], Long, Effect.Read] =
+    operationTraceQuery.filter(_.deploymentRequestId === deploymentRequestId).map(_.id).result
+
   private def openExecutionTracesQuery(operationTraceId: Long) =
     executionQuery
       .join(executionTraceQuery)
@@ -103,6 +93,12 @@ trait ExecutionTraceBinder extends TableBinder {
 
   def hasOpenExecutionTracesForOperation(operationTraceId: Long): Future[Boolean] =
     dbContext.db.run(openExecutionTracesQuery(operationTraceId).exists.result)
+
+  def findingOpenExecutionTracesByOperationTrace(operationTraceId: Long): DBIOAction[Seq[ShallowExecutionTrace], NoStream, Effect.Read] =
+    openExecutionTracesQuery(operationTraceId)
+      .map { case (_, executionTrace) => executionTrace }
+      .result
+      .map(_.map(_.toExecutionTrace))
 
   /**
     * @return Some(id) if it has been successfully updated, None if it doesn't exist

@@ -433,12 +433,12 @@ class CrankshaftWithRundeckLogHrefSpec extends SimpleScenarioTesting {
     val req = lastOp.deploymentRequest
 
     // try to stop when everything is already terminated
-    crankshaft.tryStopDeploymentRequest(req, "killer-guy") should
+    crankshaft.tryStopDeploymentRequest(req, Some(1), "killer-guy") should
       eventually(be((0, Seq())))
 
     // try to stop when nothing has been terminated but it's impossible to stop
     crankshaft.revert(req, None, "r.everter", Some(Version("0".toJson))).flatMap(op =>
-      crankshaft.tryStopDeploymentRequest(req, "killer-guy")
+      crankshaft.tryStopDeploymentRequest(req, Some(2), "killer-guy")
         .flatMap { case (successes, failures) =>
           tryCloseOperation(op).map(updates =>
             (updates.length, updates.flatten.length, successes, failures.length)
@@ -460,7 +460,7 @@ class CrankshaftWithRundeckLogHrefSpec extends SimpleScenarioTesting {
                 ))
             ))
         }
-        .flatMap(_ => crankshaft.tryStopDeploymentRequest(req, "killer-guy"))
+        .flatMap(_ => crankshaft.tryStopDeploymentRequest(req, Some(3), "killer-guy"))
         .flatMap { case (successes, failures) =>
           tryCloseOperation(op).map(updates =>
             (updates.length, updates.flatten.length, successes, failures.map(_.split(":").head))

@@ -55,7 +55,6 @@ class Engine @Inject()(val crankshaft: Crankshaft,
         .flatMap(_ => crankshaft.revert(deploymentRequest, operationCount, user.name, defaultVersion))
     }
 
-  // TODO: implement for multi-step
   def stop(user: User, id: Long, operationCount: Option[Int]): Future[Option[(Int, Seq[String])]] =
     crankshaft.findDeepDeploymentRequestById(id)
       .flatMap(_
@@ -64,7 +63,7 @@ class Engine @Inject()(val crankshaft: Crankshaft,
             throw PermissionDenied()
 
           crankshaft
-            .tryStopDeploymentRequest(deploymentRequest, user.name)
+            .tryStopDeploymentRequest(deploymentRequest, operationCount, user.name)
             .map(Some.apply)
         }
         .getOrElse(Future.successful(None))

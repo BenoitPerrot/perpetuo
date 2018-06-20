@@ -535,6 +535,8 @@ class RestControllerSpec extends Test with TestDb {
     val depReqId = requestDeployment(productName, "653", Seq("paris", "ams").toJson)
     startDeploymentRequest(depReqId)
 
+    actOnDeploymentRequest(depReqId, "stop", JsObject("operationCount" -> JsNumber(0)), Status.Conflict)
+
     actOnDeploymentRequest(depReqId, "stop", JsObject("operationCount" -> JsNumber(1)), Status.Ok).contentString.parseJson.asJsObject shouldEqual
       JsObject(
         "id" -> JsNumber(depReqId),

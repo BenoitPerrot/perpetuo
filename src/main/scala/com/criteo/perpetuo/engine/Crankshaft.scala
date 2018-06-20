@@ -296,9 +296,16 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
     *         for each execution that could not be stopped and is presumably still running).
     *         Executions that were already stopped are not included in the response.
     */
-  def tryStopDeploymentRequest(deploymentRequest: DeploymentRequest, initiatorName: String): Future[(Int, Seq[String])] =
+  def tryStopDeploymentRequest(deploymentRequest: DeploymentRequest, operationCount: Option[Int], initiatorName: String): Future[(Int, Seq[String])] =
     dbBinding.dbContext.db
-      .run(dbBinding.findingOpenExecutionTracesByDeploymentRequest(deploymentRequest.id))
+      .run(
+        // validate the expected state and find the operation to close from the same request, for consistency yet without any lock
+        dbBinding.findingOperationTraceIdsByDeploymentRequest(deploymentRequest.id).flatMap { operationTraceIds =>
+          operationCount.foreach(checkState(deploymentRequest, operationTraceIds.length, _))
+          val operationTraceId = operationTraceIds.max
+          dbBinding.findingOpenExecutionTracesByOperationTrace(operationTraceId)
+        }
+      )
       .flatMap { openExecutionTraces =>
         Future.traverse(openExecutionTraces) { openExecutionTrace =>
           try {
