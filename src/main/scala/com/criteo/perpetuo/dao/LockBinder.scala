@@ -1,5 +1,6 @@
 package com.criteo.perpetuo.dao
 
+import com.criteo.perpetuo.engine.DBIOrw
 import com.twitter.inject.Logging
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -36,7 +37,7 @@ trait LockBinder extends TableBinder with Logging {
     * @param reentrant either locks are considered acquired (if true) or conflicting (if false) when they are
     *                  already owned by the requester
     */
-  def tryAcquireLocks(names: Iterable[String], acquiringDeploymentRequestId: DeploymentRequestId, reentrant: Boolean): DBIOAction[Iterable[DeploymentRequestId], NoStream, Effect.Read with Effect.Write] = {
+  def tryAcquireLocks(names: Iterable[String], acquiringDeploymentRequestId: DeploymentRequestId, reentrant: Boolean): DBIOrw[Iterable[DeploymentRequestId]] = {
     lockQuery.filter(_.name.inSet(names)).result
       .flatMap { previouslyAcquired =>
         val (namesToAcquire, conflicting) = if (reentrant) {

@@ -66,7 +66,7 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
   def reverting(dispatcher: TargetDispatcher,
                 deploymentRequest: DeploymentRequest,
                 userName: String,
-                defaultVersion: Option[Version]): DBIOAction[OperationStartSpecifics, NoStream, Effect.Read with Effect.Write] = {
+                defaultVersion: Option[Version]): DBIOrw[OperationStartSpecifics] = {
     dbBinding
       .findingExecutionSpecificationsForRevert(deploymentRequest)
       .flatMap { case (undetermined, determined) =>

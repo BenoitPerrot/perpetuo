@@ -37,6 +37,7 @@ package object engine {
   }
 
 
+  type DBIOrw[T] = DBIOAction[T, NoStream, Effect.Read with Effect.Write]
   type ExecutionsToTrigger = Iterable[(Long, Version, TargetExpr, ExecutionTrigger)]
-  type OperationStartSpecifics = (DBIOAction[(DeepOperationTrace, ExecutionsToTrigger), NoStream, Effect.Read with Effect.Write], Option[Set[String]])
+  type OperationStartSpecifics = (DBIOrw[(DeepOperationTrace, ExecutionsToTrigger)], Option[Set[String]])
 }

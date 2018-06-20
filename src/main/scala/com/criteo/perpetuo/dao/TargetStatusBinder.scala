@@ -1,5 +1,6 @@
 package com.criteo.perpetuo.dao
 
+import com.criteo.perpetuo.engine.DBIOrw
 import com.criteo.perpetuo.model.{Status, TargetAtom, TargetAtomStatus, TargetStatus}
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -53,7 +54,7 @@ trait TargetStatusBinder extends TableBinder {
     * considered independent so this function must apply as many changes as possible in order for the next client's
     * attempts to have a chance to succeed.
     */
-  def updateTargetStatuses(executionId: Long, statusMap: Map[String, TargetAtomStatus]): DBIOAction[Unit, NoStream, Effect.Read with Effect.Write] =
+  def updateTargetStatuses(executionId: Long, statusMap: Map[String, TargetAtomStatus]): DBIOrw[Unit] =
     targetStatusQuery
       // first look at what is already created (nothing is ever removed) in order to
       // decrease the size of the following chain of inserts and updates (which can be costly)

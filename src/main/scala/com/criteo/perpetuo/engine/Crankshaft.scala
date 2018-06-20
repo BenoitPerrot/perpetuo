@@ -180,7 +180,7 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
     dbBinding.isDeploymentRequestStarted(deploymentRequestId)
 
   private def act[T](deploymentRequest: DeploymentRequest, currentOperationCount: Option[Int], initiatorName: String,
-                     getAction: DBIOAction[(OperationStartSpecifics, T), NoStream, Effect.Read with Effect.Write]) =
+                     getAction: DBIOrw[(OperationStartSpecifics, T)]) =
     dbBinding.executeInSerializableTransaction(
       acquireOperationLock(deploymentRequest)
         .andThen(
