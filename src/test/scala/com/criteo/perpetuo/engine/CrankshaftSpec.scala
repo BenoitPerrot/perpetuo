@@ -3,11 +3,13 @@ package com.criteo.perpetuo.engine
 import com.criteo.perpetuo.SimpleScenarioTesting
 import com.criteo.perpetuo.engine.executors._
 import com.criteo.perpetuo.model._
+import org.mockito.Mockito.when
 import spray.json.DefaultJsonProtocol._
 import spray.json._
 
+import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.Future
+import scala.concurrent.{Await, Future}
 
 
 class CrankshaftSpec extends SimpleScenarioTesting {
@@ -529,5 +531,87 @@ class MultiStepCrankshaftSpec extends SimpleScenarioTesting {
     r.revert("old", Status.hostFailure)
     r.revert("older")
     getDeployedVersions.map(_ shouldEqual Map("north" -> "older", "south" -> "older"))
+  }
+}
+
+
+class CrankshaftWithStopperSpec extends SimpleScenarioTesting {
+  private val logHref = "controllable.executions.io/42"
+
+  override protected def triggerMock = Some(logHref)
+
+  private val executionMock = mock[TriggeredExecution]
+  when(executionMock.logHref).thenReturn(logHref)
+
+  override val executionFinder = new TriggeredExecutionFinder(null) {
+    override def apply[T](executionTrace: ShallowExecutionTrace): TriggeredExecution =
+      executionMock
+  }
+
+  test("Stop a running execution") {
+    when(executionMock.stopper).thenReturn(Some(() => None))
+
+    val op = request("dusty-duck", "1234567", Seq("thailand")).startStep()
+    Await.result(crankshaft.dbBinding.findExecutionTracesByOperationTrace(op.id)
+      .map(_.head)
+      .flatMap(crankshaft.stopExecution(_, "joe")), 1.second) shouldBe true
+    Await.result(crankshaft.dbBinding.findExecutionTracesByOperationTrace(op.id)
+      .map(_.head), 1.second).state shouldBe ExecutionState.stopped
+  }
+
+  test("Crankshaft tries to stop executions, which might terminate normally at the same time") {
+    when(executionMock.stopper).thenReturn(Some(() => None))
+
+    request("dusty-duck", "1", Seq("here")).step()
+    val lastOp = request("dusty-duck", "2", Seq("here", "there")).step()
+    val req = lastOp.deploymentRequest
+
+    // try to stop when everything is already terminated
+    crankshaft.tryStopDeploymentRequest(req, Some(1), "killer-guy") should
+      eventually(be((0, Seq())))
+
+    // try to stop when nothing has been terminated
+    crankshaft.revert(req, Some(1), "r.everter", Some(Version("0".toJson))).flatMap(op =>
+      crankshaft.tryStopDeploymentRequest(req, Some(2), "killer-guy")
+        .flatMap { case (successes, failures) =>
+          tryCloseOperation(op).map(updates =>
+            (updates.length, updates.flatten.length, successes, failures.length)
+          )
+        }
+    ) should eventually(be((2, 0, 2, 0))) // i.e. 2 execution traces, 0 closed, 2 stopped, 0 failures
+
+    // try to stop when one execution is already terminated
+    crankshaft.revert(req, Some(2), "r.everter", Some(Version("0".toJson))).flatMap(op =>
+      crankshaft.dbBinding.findExecutionIdsByOperationTrace(op.id)
+        .flatMap { executionIds =>
+          val executionId = executionIds.head // only update the first execution (out of the 2 triggered by the revert)
+          crankshaft.dbBinding.findTargetsByExecution(executionId).flatMap(atoms =>
+            crankshaft.dbBinding.findExecutionTraceIdsByExecution(executionId).flatMap(executionTraceIds =>
+              Future.traverse(executionTraceIds)(executionTraceId =>
+                crankshaft.updateExecutionTrace(
+                  executionTraceId, ExecutionState.aborted, "from the executor", None,
+                  atoms.map(_ -> TargetAtomStatus(Status.success, "")).toMap
+                ))
+            ))
+        }
+        .flatMap(_ => crankshaft.tryStopDeploymentRequest(req, Some(3), "killer-guy"))
+        .flatMap { case (successes, failures) =>
+          tryCloseOperation(op).map(updates =>
+            (updates.length, updates.flatten.length, successes, failures.length)
+          )
+        }
+    ) should eventually(be((2, 0, 1, 0))) // i.e. 2 execution traces (1 running, 1 completed), 0 closed, 1 stopped, 0 failure
+
+    when(executionMock.stopper).thenReturn(Some(() => Some(ExecutionState.unreachable)))
+    // try to stop when the job cannot be stopped
+    crankshaft.revert(req, None, "r.everter", Some(Version("0".toJson))).flatMap(op =>
+      crankshaft.tryStopDeploymentRequest(req, Some(4), "killer-guy")
+        .flatMap { case (successes, failures) =>
+          tryCloseOperation(op).map(updates =>
+            (updates.length, updates.flatten.length, successes, failures)
+          )
+        }
+    ) should eventually(be((2, 0, 0, Vector(s"Could not stop the execution $logHref (current state: unreachable)", s"Could not stop the execution $logHref (current state: unreachable)"))))
+    // i.e. 2 execution traces, 0 closed, 0 stopped, 2 failures
   }
 }
