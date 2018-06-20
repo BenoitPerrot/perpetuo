@@ -112,7 +112,7 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
           // if that answers a log href, update the trace with it, and consider that the job
           // is running (i.e. already followable and not yet terminated, really)
           optLogHref.map(logHref =>
-            (true, s"`$logHref` succeeded", Some((ExecutionState.running, "", optLogHref)))
+            (true, s"`$logHref` succeeded", Some((ExecutionState.running, "", optLogHref))) // todo: change to pending once DREDD-725 is implemented
           ).getOrElse(
             (true, "succeeded (but with an unknown log href)", None)
           )

@@ -61,7 +61,7 @@ trait TargetStatusBinder extends TableBinder {
       .filter(ts => ts.executionId === executionId && ts.targetAtom.inSet(statusMap.keySet))
       .result
       .map { currentRecords =>
-        // todo: take the status code "precedence" into account in order to reject impossible transitions
+        // todo: take the status code "precedence" into account in order to reject impossible transitions, once DREDD-725 is implemented
         val (same, different) = currentRecords.partition { currentRecord =>
           val askedStatus = statusMap(currentRecord.targetAtom)
           // look at the records that are up-to-date as of now, so we won't touch them at all
