@@ -248,7 +248,7 @@ class RestController @Inject()(val engine: Engine)
     ) ++
       Map("plan" -> status.deploymentPlanSteps) ++
       Map("operations" ->
-        status.operationEffects.map { case OperationEffect(op, executionTraces, targetStatus) =>
+        status.operationEffects.map { case OperationEffect(op, _, executionTraces, targetStatus) =>
           Map(
             "id" -> op.id,
             "kind" -> op.kind.toString,

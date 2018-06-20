@@ -49,6 +49,13 @@ class DbBinding @Inject()(val dbContext: DbContext)
         .map { case ((operationTrace, execution), executionTrace) => (operationTrace, execution.map(_.id), executionTrace) }
         .result
 
+    val findingXref =
+      operationTraceQuery
+        .join(stepOperationXRefQuery)
+        .filter { case (operationTrace, xref) => operationTrace.deploymentRequestId === deploymentRequestId && operationTrace.id === xref.operationTraceId }
+        .map { case (_, xref) => xref }
+        .result
+
     val findingEffects =
       findingExecutionTraceTree
         .flatMap { executionTraceTree =>
@@ -69,7 +76,7 @@ class DbBinding @Inject()(val dbContext: DbContext)
                   val (operationTrace, _) = operationGroup.head
                   val executionTraces = operationGroup.flatMap { case (_, executionTrace) => executionTrace.map(_.toExecutionTrace) }
                   val targetStatuses = operationIdToTargetStatuses.getOrElse(operationTrace.id.get, Seq()).map(_.toTargetStatus)
-                  OperationEffect(operationTrace.toOperationTrace, executionTraces, targetStatuses)
+                  (operationTrace.toOperationTrace, executionTraces, targetStatuses)
                 }
             }
         }
@@ -80,8 +87,17 @@ class DbBinding @Inject()(val dbContext: DbContext)
         .map { case ((deploymentRequestRecord, product), _) =>
           val deploymentRequest = deploymentRequestRecord.toDeepDeploymentRequest(product)
           val deploymentPlanSteps = deploymentIntent.map { case (_, deploymentPlanStepRecord) => deploymentPlanStepRecord.toDeploymentPlanStep(deploymentRequest) }
-          findingEffects.map { effects =>
-            Some((deploymentRequest, deploymentPlanSteps, effects.sortBy(_.operationTrace.id)))
+          findingXref.flatMap { xrefs =>
+            findingEffects.map { effects =>
+              val operationTraceIdToPlanStepId = xrefs.groupBy(_.operationTraceId).mapValues(_.map(_.deploymentPlanStepId))
+              val sortedEffects =
+                effects
+                  .map { case (operationTrace, executionTraces, targetStatuses) =>
+                    OperationEffect(operationTrace, operationTraceIdToPlanStepId(operationTrace.id), executionTraces, targetStatuses)
+                  }
+                  .sortBy(_.operationTrace.id)
+              Some((deploymentRequest, deploymentPlanSteps, sortedEffects))
+            }
           }
         }
         .getOrElse(DBIO.successful(None))
@@ -451,8 +467,18 @@ class DbBinding @Inject()(val dbContext: DbContext)
           .map { targetStatuses =>
             val et = executionTraces.flatMap { case (_, executionTrace) => executionTrace.map(_.toExecutionTrace) }
             val ts = targetStatuses.map(_.toTargetStatus)
-            OperationEffect(operationTrace, et, ts)
+            (et, ts)
           }
+      }
+      .flatMap { case (et, ts) =>
+        stepOperationXRefQuery
+          .filter(_.operationTraceId === operationTrace.id)
+          .map(_.deploymentPlanStepId)
+          .result
+
+          .map(planStepIds =>
+            OperationEffect(operationTrace, planStepIds, et, ts)
+          )
       }
 
     dbContext.db.run(q)

@@ -4,6 +4,7 @@ import com.criteo.perpetuo.engine.DeploymentStatus
 
 
 case class OperationEffect(operationTrace: OperationTrace,
+                           deploymentPlanStepIds: Seq[Long],
                            executionTraces: Iterable[ShallowExecutionTrace],
                            targetStatuses: Iterable[TargetStatus]) {
   val state: DeploymentStatus.Value =
