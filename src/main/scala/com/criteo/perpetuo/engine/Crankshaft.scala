@@ -168,8 +168,9 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
                 (_: AsyncListener).onOperationFailed _
               listeners.foreach(listener => handler(listener)(trace, deploymentRequest))
             }
-            dbBinding.closeTargetStatuses(trace.id)
-              .zip(releaseLocks(deploymentRequest, transactionOngoing))
+            dbBinding.closeTargetStatuses(trace.id).flatMap(_ =>
+              releaseLocks(deploymentRequest, transactionOngoing)
+            )
           }
           .map(_ => trace)
       }
