@@ -216,13 +216,14 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
       .map { case ((operationTrace, started, failed), (lastDone, toDo)) =>
         if (emitEvent)
           if (lastDone.contains(toDo)) {
-            // TODO: rename onDeploymentRequestRetried to onDeploymentStepRetried
+            // TODO: rename onDeploymentRequestRetried to onDeploymentStepRetried(toDo)
             listeners.foreach(_.onDeploymentRequestRetried(deploymentRequest, started, failed))
           }
           else {
-            // TODO: if lastDone.isEmpty:
-            listeners.foreach(_.onDeploymentRequestStarted(deploymentRequest, started, failed))
-            // TODO: anyway fire onDeploymentStepStarted
+            if (lastDone.isEmpty) {
+              listeners.foreach(_.onDeploymentRequestStarted(deploymentRequest, started, failed))
+            }
+            // TODO: fire onDeploymentStepStarted(toDo)
           }
         operationTrace
       }
