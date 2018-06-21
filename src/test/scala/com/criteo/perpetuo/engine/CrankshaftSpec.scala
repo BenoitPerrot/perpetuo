@@ -1,6 +1,7 @@
 package com.criteo.perpetuo.engine
 
 import com.criteo.perpetuo.SimpleScenarioTesting
+import com.criteo.perpetuo.engine.executors._
 import com.criteo.perpetuo.model._
 import spray.json.DefaultJsonProtocol._
 import spray.json._
@@ -430,9 +431,14 @@ class CrankshaftWithUnknownLogHrefSpec extends SimpleScenarioTesting {
 
 
 class CrankshaftWithUncontrollableTriggeredExecutionSpec extends SimpleScenarioTesting {
-  private val logHref = "https://executor.tld/execution/show/42"
+  private val logHref = "uncontrollable.executions.io/42"
 
   override protected def triggerMock = Some(logHref)
+
+  override val executionFinder = new TriggeredExecutionFinder(null) {
+    override def apply[T](executionTrace: ShallowExecutionTrace): TriggeredExecution =
+      new UncontrollableTriggeredExecution(logHref)
+  }
 
   test("Cannot stop an execution of an explicitly unstoppable type") {
     val op = deploy("dusty-duck", "1234567", Seq("thailand"))
