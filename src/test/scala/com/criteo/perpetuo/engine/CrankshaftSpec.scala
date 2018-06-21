@@ -414,7 +414,7 @@ class CrankshaftWithUnknownLogHrefSpec extends SimpleScenarioTesting {
 }
 
 
-class CrankshaftWithRundeckLogHrefSpec extends SimpleScenarioTesting {
+class CrankshaftWithUncontrollableTriggeredExecutionSpec extends SimpleScenarioTesting {
   private val logHref = "https://executor.tld/execution/show/42"
 
   override protected def triggerMock = Some(logHref)
