@@ -209,7 +209,7 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
       case (lastDone, Some(toDo)) =>
         val isRetry = lastDone.map(_.id).contains(toDo.id)
         val getOperationSpecifics = if (isRetry) operationStarter.getRetrySpecifics _ else operationStarter.getStepSpecifics _
-        getOperationSpecifics(targetResolver, targetDispatcher, deploymentRequest)
+        getOperationSpecifics(targetResolver, targetDispatcher, toDo)
           .map(operationCreationSpecifics => ((Seq(toDo), operationCreationSpecifics), (lastDone, toDo)))
     }
     act(deploymentRequest, operationCount, initiatorName, getSpecifics)
