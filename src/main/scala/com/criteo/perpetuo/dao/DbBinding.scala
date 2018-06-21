@@ -92,11 +92,15 @@ class DbBinding @Inject()(val dbContext: DbContext)
 
   def findingDeploySpecifications(planStep: DeploymentPlanStep): DBIOAction[Seq[ExecutionSpecification], NoStream, Effect.Read] =
     operationTraceQuery
-      .filter(op => op.deploymentRequestId === planStep.deploymentRequest.id && op.operation === Operation.deploy)
+      .join(stepOperationXRefQuery)
+      .filter { case (op, xref) =>
+        op.deploymentRequestId === planStep.deploymentRequest.id && op.operation === Operation.deploy &&
+          op.id === xref.operationTraceId && xref.deploymentPlanStepId === planStep.id
+      }
       .take(1)
       .join(executionQuery)
       .join(executionSpecificationQuery)
-      .filter { case ((operationTrace, execution), executionSpec) =>
+      .filter { case (((operationTrace, _), execution), executionSpec) =>
         execution.operationTraceId === operationTrace.id &&
           execution.executionSpecificationId === executionSpec.id
       }
