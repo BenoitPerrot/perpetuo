@@ -44,7 +44,7 @@ trait TestHelpers extends Test {
 
 
 trait SimpleScenarioTesting extends TestHelpers with TestDb with MockitoSugar {
-  private val lastDeploymentRequests = mutable.Map[String, DeploymentRequest]()
+  private val knownProducts = mutable.Set[String]()
   private val loader = new PluginLoader(null)
   private val executionTrigger: DummyExecutionTrigger = mock[DummyExecutionTrigger]
   val plugins = new Plugins(loader)
@@ -87,36 +87,39 @@ trait SimpleScenarioTesting extends TestHelpers with TestDb with MockitoSugar {
       )
       .map(_.flatten)
 
-  def startDeploy(productName: String, version: String, target: Seq[String]): DeepOperationTrace = {
-    if (!lastDeploymentRequests.contains(productName))
+  def request(productName: String, version: String, target: Seq[String]): RequestTesting = {
+    if (!knownProducts.contains(productName)) {
       await(crankshaft.insertProductIfNotExists(productName))
-
-    val protoDeploymentRequest = ProtoDeploymentRequest(productName, Version(version.toJson), Seq(ProtoDeploymentPlanStep("1", target.toJson, "")), "", "de.ployer")
-    await {
-      for {
-        depReq <- crankshaft.createDeploymentRequest(protoDeploymentRequest).map { depReq =>
-          lastDeploymentRequests(productName) = depReq
-          depReq
-        }
-        operationTrace <- crankshaft.step(depReq, Some(0), "s.tarter")
-      } yield operationTrace
+      knownProducts += productName
     }
+
+    new RequestTesting(productName, version, target)
   }
 
-  def deploy(productName: String, version: String, target: Seq[String], finalStatus: Status.Code = Status.success): DeepOperationTrace = {
+  class RequestTesting(productName: String, version: String, target: Seq[String]) {
+    private val deploymentRequest = await(crankshaft.createDeploymentRequest(ProtoDeploymentRequest(productName, Version(version.toJson), Seq(ProtoDeploymentPlanStep("1", target.toJson, "")), "", "de.ployer")))
 
-    val operationTrace = startDeploy(productName, version, target)
-    await(closeOperation(operationTrace, target.map(_ -> finalStatus).toMap))
-    operationTrace
-  }
-
-  def revert(productName: String, defaultVersion: Option[String] = None): DeepOperationTrace = {
-    val depReq = lastDeploymentRequests(productName)
-    await {
-      for {
-        operationTrace <- crankshaft.revert(depReq, None, "r.everter", defaultVersion.map(v => Version(v.toJson)))
-        _ <- closeOperation(operationTrace)
-      } yield operationTrace
+    def startDeploy(): DeepOperationTrace = {
+      await(crankshaft.step(deploymentRequest, Some(0), "s.tarter"))
     }
+
+    def deploy(finalStatus: Status.Code = Status.success): DeepOperationTrace = {
+      val operationTrace = startDeploy()
+      await(closeOperation(operationTrace, target.map(_ -> finalStatus).toMap))
+      operationTrace
+    }
+
+    def revert(defaultVersion: Option[String] = None): DeepOperationTrace = {
+      await(
+        for {
+          operationTrace <- crankshaft.revert(deploymentRequest, None, "r.everter", defaultVersion.map(v => Version(v.toJson)))
+          _ <- closeOperation(operationTrace)
+        } yield operationTrace
+      )
+    }
+
+    def revert(defaultVersion: String): DeepOperationTrace =
+      revert(Some(defaultVersion))
   }
+
 }

@@ -208,7 +208,7 @@ class CrankshaftSpec extends SimpleScenarioTesting {
   }
 
   test("Crankshaft rejects outdated revert intents before devising the plan") {
-    val deploymentRequest = deploy("ocelot", "awesome-version", Seq("norway", "peru")).deploymentRequest
+    val deploymentRequest = request("ocelot", "awesome-version", Seq("norway", "peru")).deploy().deploymentRequest
     await(
       for {
         msg <- crankshaft.revert(deploymentRequest, Some(0), "foo", None).failed.map(_.getMessage)
@@ -314,10 +314,14 @@ class CrankshaftSpec extends SimpleScenarioTesting {
   test("Crankshaft's binding provides the last version deployed on a given target") {
     def v(versionName: String): Version = Version(JsString(versionName))
 
-    deploy("mournful-moray", "v13", Seq("paris", "london", "tokyo"))
-    deploy("pirate-piranha", "0.0.1", Seq("london", "tokyo"))
-    deploy("mournful-moray", "v14.doomed", Seq("paris", "tokyo"), Status.notDone)
-    deploy("mournful-moray", "v13.eu", Seq("paris", "london", "kuala lumpur"), Status.productFailure)
+    request("mournful-moray", "v13", Seq("paris", "london", "tokyo"))
+      .deploy()
+    request("pirate-piranha", "0.0.1", Seq("london", "tokyo"))
+      .deploy()
+    request("mournful-moray", "v14.doomed", Seq("paris", "tokyo"))
+      .deploy(Status.notDone)
+    val mm = request("mournful-moray", "v13.eu", Seq("paris", "london", "kuala lumpur"))
+    mm.deploy(Status.productFailure)
 
     // projects don't override each other
     crankshaft.dbBinding.findCurrentVersionForEachKnownTarget("pirate-piranha", Seq("paris", "london", "tokyo")) should
@@ -332,7 +336,7 @@ class CrankshaftSpec extends SimpleScenarioTesting {
     crankshaft.dbBinding.findCurrentVersionForEachKnownTarget("mournful-moray", Seq("tokyo")) should
       become(Map("tokyo" -> v("v13")))
 
-    revert("mournful-moray", Some("prewar"))
+    mm.revert("prewar")
     crankshaft.dbBinding.findCurrentVersionForEachKnownTarget("mournful-moray", Seq("paris", "london", "tokyo", "kuala lumpur")) should
       become(Map("paris" -> v("v13"), "london" -> v("v13"), "tokyo" -> v("v13"), "kuala lumpur" -> v("prewar")))
   }
@@ -340,14 +344,21 @@ class CrankshaftSpec extends SimpleScenarioTesting {
   test("Crankshaft computes the dominant version when given an ordered sequence of reference pools") {
     def v(versionName: String): Option[Version] = Some(Version(JsString(versionName)))
 
-    deploy("spatial-sparrow", "hot-fix", Seq("sun"))
-    deploy("side-siberian", "universal", Seq("sun", "earth", "saturn", "proxima"))
-    deploy("spatial-sparrow", "sunny", Seq("mercury", "venus", "earth", "mars"))
-    deploy("spatial-sparrow", "cold", Seq("jupiter", "saturn", "uranus", "neptune"))
-    deploy("side-siberian", "future", Seq("earth", "mars", "neptune"))
-    deploy("spatial-sparrow", "fantasy", Seq("earth", "mars", "moon"))
-    revert("spatial-sparrow", defaultVersion = Some("big-bang"))
-    deploy("spatial-sparrow", "no-op", Seq("mercury", "earth"), Status.notDone)
+    request("spatial-sparrow", "hot-fix", Seq("sun"))
+      .deploy()
+    request("side-siberian", "universal", Seq("sun", "earth", "saturn", "proxima"))
+      .deploy()
+    request("spatial-sparrow", "sunny", Seq("mercury", "venus", "earth", "mars"))
+      .deploy()
+    request("spatial-sparrow", "cold", Seq("jupiter", "saturn", "uranus", "neptune"))
+      .deploy()
+    request("side-siberian", "future", Seq("earth", "mars", "neptune"))
+      .deploy()
+    val ss = request("spatial-sparrow", "fantasy", Seq("earth", "mars", "moon"))
+    ss.deploy()
+    ss.revert("big-bang")
+    request("spatial-sparrow", "no-op", Seq("mercury", "earth"))
+      .deploy(Status.notDone)
 
     crankshaft.computeDominantVersion("spatial-sparrow", Seq(
       Seq("unknown"))
@@ -400,7 +411,7 @@ class CrankshaftWithFailingExecutorSpec extends SimpleScenarioTesting {
 
 class CrankshaftWithNoLogHrefSpec extends SimpleScenarioTesting {
   test("Cannot stop an execution that has no log href") {
-    val op = deploy("dusty-duck", "12345", Seq("thailand"))
+    val op = request("dusty-duck", "12345", Seq("thailand")).deploy()
     crankshaft.dbBinding.findExecutionTracesByOperationTrace(op.id)
       .map(_.head)
       .flatMap(execTrace => crankshaft.stopExecution(execTrace, "joe")) should
@@ -415,13 +426,13 @@ class CrankshaftWithUnknownLogHrefSpec extends SimpleScenarioTesting {
   override protected def triggerMock = Some(logHref)
 
   test("A trivial execution triggers a job with a log href when a log href is provided") {
-    val op = deploy("product #2", "1000", Seq("*"))
+    val op = request("product #2", "1000", Seq("*")).deploy()
     crankshaft.dbBinding.findExecutionTracesByOperationTrace(op.id)
       .map(_.flatMap(_.logHref).toSet) should eventually(be(Set(logHref)))
   }
 
   test("Cannot stop an execution of an unknown type") {
-    val op = deploy("dusty-duck", "123456", Seq("thailand"))
+    val op = request("dusty-duck", "123456", Seq("thailand")).deploy()
     crankshaft.dbBinding.findExecutionTracesByOperationTrace(op.id)
       .map(_.head)
       .flatMap(crankshaft.stopExecution(_, "joe")) should
@@ -441,7 +452,7 @@ class CrankshaftWithUncontrollableTriggeredExecutionSpec extends SimpleScenarioT
   }
 
   test("Cannot stop an execution of an explicitly unstoppable type") {
-    val op = deploy("dusty-duck", "1234567", Seq("thailand"))
+    val op = request("dusty-duck", "1234567", Seq("thailand")).deploy()
     crankshaft.dbBinding.findExecutionTracesByOperationTrace(op.id)
       .map(_.head)
       .flatMap(crankshaft.stopExecution(_, "joe")) should
@@ -449,8 +460,8 @@ class CrankshaftWithUncontrollableTriggeredExecutionSpec extends SimpleScenarioT
   }
 
   test("Crankshaft tries to stop executions, which might terminate normally at the same time") {
-    deploy("dusty-duck", "1", Seq("here"))
-    val lastOp = deploy("dusty-duck", "2", Seq("here", "there"))
+    request("dusty-duck", "1", Seq("here")).deploy()
+    val lastOp = request("dusty-duck", "2", Seq("here", "there")).deploy()
     val req = lastOp.deploymentRequest
 
     // try to stop when everything is already terminated
