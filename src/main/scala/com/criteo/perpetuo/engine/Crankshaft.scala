@@ -207,7 +207,7 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
         DBIOAction.failed(UnprocessableIntent(s"${deploymentRequest.id}: there is no next step, they have all been applied"))
 
       case (lastDone, Some(toDo)) =>
-        val isRetry = lastDone.map(_.id).contains(toDo.id)
+        val isRetry = lastDone.contains(toDo)
         val getOperationSpecifics = if (isRetry) operationStarter.getRetrySpecifics _ else operationStarter.getStepSpecifics _
         getOperationSpecifics(targetResolver, targetDispatcher, toDo)
           .map(operationCreationSpecifics => ((Seq(toDo), operationCreationSpecifics), (lastDone, toDo)))
