@@ -161,7 +161,7 @@
       </paper-card>
       <paper-card id="operations" hidden="[[isEmpty(data.operations)]]">
         <template is="dom-repeat" items="[[data.operations]]">
-          <perpetuo-deployment-operation index="[[sub(data.operations.length, index)]]" data="[[item]]" opened="true" show-execution-logs="[[data.showExecutionLogs]]"></perpetuo-deployment-operation>
+          <perpetuo-deployment-operation index="[[sub(data.operations.length, index)]]" data="[[item]]" opened="[[isOperationOpened(item.id)]]" on-opened-changed="onOperationOpenedChanged" show-execution-logs="[[data.showExecutionLogs]]"></perpetuo-deployment-operation>
         </template>
       </paper-card>
     </div>
@@ -255,6 +255,7 @@
           creationDate: '',
           operations: []
         };
+        this.operationIdToOpened = new Map(); // A Map is required to distinguish inexistence and closed-by-user
         this.refresh();
       }
 
@@ -384,9 +385,20 @@
           : this.client.fetchDeploymentRequest(this.deploymentRequestId).then(_ => {
             if (_.id == this.deploymentRequestId) { // Support out-of-order responses
               this.data = _;
+              const maxOperationId = this.data.operations.reduce((max, op) => max < op.id ? op.id : max, -1);
+              if (!this.operationIdToOpened.has(maxOperationId)) {
+                this.operationIdToOpened.set(maxOperationId, true);
+              }
               this.noData = false;
             }
           });
+      }
+
+      isOperationOpened(id) {
+        return this.operationIdToOpened.get(id);
+      }
+      onOperationOpenedChanged(e) {
+        this.operationIdToOpened.set(e.model.item.id, e.detail.value);
       }
 
       isEmpty(a) {
