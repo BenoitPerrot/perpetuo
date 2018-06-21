@@ -16,6 +16,7 @@
       font-weight: normal;
     }
     h1 {
+      text-transform: capitalize;
       font-size: 24px;
     }
     h2 {
@@ -23,7 +24,7 @@
       margin-top: 1em;
     }
     </style>
-    <h1>Operation #[[plusOne(index)]]: [[data.kind]]</h1>
+    <h1>[[data.kind]] Attempt #[[plusOne(index)]]</h1>
     <p>Started by [[data.creator]] on [[timestampToDates(data.creationDate)]]</p>
     <perpetuo-target-status-table data="[[arrayifyTargetStatus(data.targetStatus)]]"></perpetuo-target-status-table>
     <perpetuo-deployment-execution-list data="[[data.executions]]" show-logs="[[showExecutionLogs]]"></perpetuo-deployment-execution-list>
