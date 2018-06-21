@@ -144,7 +144,7 @@
       </paper-card>
       <paper-card id="operations" hidden="[[isEmpty(data.operations)]]">
         <template is="dom-repeat" items="[[data.operations]]">
-          <perpetuo-deployment-operation index="[[index]]" data="[[item]]" opened="true" show-execution-logs="[[data.showExecutionLogs]]"></perpetuo-deployment-operation>
+          <perpetuo-deployment-operation index="[[sub(data.operations.length, index)]]" data="[[item]]" opened="true" show-execution-logs="[[data.showExecutionLogs]]"></perpetuo-deployment-operation>
         </template>
       </paper-card>
     </div>
@@ -359,6 +359,10 @@
 
       isEmpty(a) {
         return a.length === 0;
+      }
+
+      sub(a, b) {
+        return a - b;
       }
     }
 

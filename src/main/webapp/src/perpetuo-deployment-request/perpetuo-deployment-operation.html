@@ -26,7 +26,7 @@
       margin-top: 1em;
     }
     </style>
-    <h1><paper-icon-button icon="[[lessOrMoreIcon(opened)]]" on-tap="toggleDetail"></paper-icon-button>[[data.kind]] Attempt #[[plusOne(index)]]</h1>
+    <h1><paper-icon-button icon="[[lessOrMoreIcon(opened)]]" on-tap="toggleDetail"></paper-icon-button>[[data.kind]] Attempt #[[index]]</h1>
     <iron-collapse id="detail" opened="{{opened}}">
       <p>Started by [[data.creator]] on [[timestampToDates(data.creationDate)]]</p>
       <perpetuo-target-status-table data="[[arrayifyTargetStatus(data.targetStatus)]]"></perpetuo-target-status-table>
@@ -58,10 +58,6 @@
         const isoTime = iso[1].split('.')[0];
 
         return `${isoYMD} at ${isoTime} UTC (` + (localYMD !== isoYMD ? localYMD + ' ' : '') + localTime + ' local time)';
-      }
-
-      plusOne(i) {
-        return i + 1;
       }
 
       arrayifyTargetStatus(targetStatusMap) {

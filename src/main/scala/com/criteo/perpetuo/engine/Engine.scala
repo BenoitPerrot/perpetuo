@@ -101,8 +101,8 @@ class Engine @Inject()(val crankshaft: Crankshaft,
               }
             )
             .map { authorizedActions =>
-              val sortedEffects = effects.toSeq.sortBy(_.operationTrace.id)
-              Some(DeploymentRequestStatus(deploymentRequest, deploymentPlanSteps, sortedEffects, sortedEffects.lastOption.map(crankshaft.computeState), authorizedActions.flatten, isAdmin || authorized(Operation.deploy)))
+              val sortedEffects = effects.toSeq.sortBy(-_.operationTrace.id)
+              Some(DeploymentRequestStatus(deploymentRequest, deploymentPlanSteps, sortedEffects, sortedEffects.headOption.map(crankshaft.computeState), authorizedActions.flatten, isAdmin || authorized(Operation.deploy)))
             }
 
         }.getOrElse(Future.successful(None))
