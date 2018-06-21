@@ -90,13 +90,13 @@ class DbBinding @Inject()(val dbContext: DbContext)
           findingXref.flatMap { xrefs =>
             findingEffects.map { effects =>
               val operationTraceIdToPlanStepId = xrefs.groupBy(_.operationTraceId).mapValues(_.map(_.deploymentPlanStepId))
-              val sortedEffects =
-                effects
-                  .map { case (operationTrace, executionTraces, targetStatuses) =>
-                    OperationEffect(operationTrace, operationTraceIdToPlanStepId(operationTrace.id), executionTraces, targetStatuses)
-                  }
-                  .sortBy(_.operationTrace.id)
-              Some((deploymentRequest, deploymentPlanSteps, sortedEffects))
+              Some((
+                deploymentRequest,
+                deploymentPlanSteps,
+                effects.map { case (operationTrace, executionTraces, targetStatuses) =>
+                  OperationEffect(operationTrace, operationTraceIdToPlanStepId(operationTrace.id), executionTraces, targetStatuses)
+                }
+              ))
             }
           }
         }
