@@ -18,12 +18,12 @@ import scala.concurrent.Future
 class OperationStarter(val dbBinding: DbBinding) extends Logging {
 
   private def getDeploySpecifics(dispatcher: TargetDispatcher,
-                                 deploymentRequest: DeploymentRequest,
+                                 planStep: DeploymentPlanStep,
                                  expandedTarget: Option[TargetExpr],
                                  executionSpecs: Seq[ExecutionSpecification]): OperationCreationParams = {
 
     val specAndInvocations = executionSpecs.map(spec =>
-      (spec, dispatch(dispatcher, expandedTarget.getOrElse(deploymentRequest.parsedTarget), spec.specificParameters).toVector)
+      (spec, dispatch(dispatcher, expandedTarget.getOrElse(planStep.parsedTarget), spec.specificParameters).toVector)
     )
     (Operation.deploy, specAndInvocations, expandedTarget.map(_.flatMap(_.select)))
   }
@@ -34,14 +34,14 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
     // generation of specific parameters
     val specificParameters = dispatcher.freezeParameters(planStep.deploymentRequest.product.name, planStep.deploymentRequest.version)
     // target resolution
-    val expandedTarget = expandTarget(resolver, planStep.deploymentRequest.product.name, planStep.deploymentRequest.version, planStep.deploymentRequest.parsedTarget)
+    val expandedTarget = expandTarget(resolver, planStep.deploymentRequest.product.name, planStep.deploymentRequest.version, planStep.parsedTarget)
 
     // Create the execution specification outside of any transaction: it's not an issue if the request
     // fails afterward and the specification remains unbound.
     // Moreover, this will likely be rewritten eventually for the specifications to be created alongside with the
     // `deploy` operations at the time the deployment request is created.
     dbBinding.insertingExecutionSpecification(specificParameters, planStep.deploymentRequest.version).map(executionSpec =>
-      getDeploySpecifics(dispatcher, planStep.deploymentRequest, expandedTarget, Seq(executionSpec))
+      getDeploySpecifics(dispatcher, planStep, expandedTarget, Seq(executionSpec))
     )
   }
 
@@ -49,10 +49,10 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
                         dispatcher: TargetDispatcher,
                         planStep: DeploymentPlanStep): DBIOrw[OperationCreationParams] = {
     // todo: map the right target to the right specification
-    val expandedTarget = expandTarget(resolver, planStep.deploymentRequest.product.name, planStep.deploymentRequest.version, planStep.deploymentRequest.parsedTarget)
+    val expandedTarget = expandTarget(resolver, planStep.deploymentRequest.product.name, planStep.deploymentRequest.version, planStep.parsedTarget)
 
     dbBinding.findingDeploySpecifications(planStep).map(executionSpecs =>
-      getDeploySpecifics(dispatcher, planStep.deploymentRequest, expandedTarget, executionSpecs)
+      getDeploySpecifics(dispatcher, planStep, expandedTarget, executionSpecs)
     )
   }
 

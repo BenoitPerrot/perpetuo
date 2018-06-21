@@ -1,5 +1,6 @@
 package com.criteo.perpetuo.model
 
+import com.criteo.perpetuo.engine.TargetExpr
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import spray.json.JsValue
 
@@ -12,7 +13,10 @@ case class DeploymentPlanStep(id: Long,
                               deploymentRequest: DeploymentRequest,
                               name: String,
                               targetExpression: JsValue,
-                              comment: String)
+                              comment: String) {
+  def parsedTarget: TargetExpr = // todo: once the target is removed from DeploymentRequest (DREDD-982), check whether a cache is needed here too
+    DeploymentRequestParser.parseTargetExpression(targetExpression)
+}
 
 
 /**
