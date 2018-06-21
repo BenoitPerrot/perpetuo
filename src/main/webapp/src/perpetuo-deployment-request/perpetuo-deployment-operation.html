@@ -1,5 +1,7 @@
 <link rel="import" href="../../bower_components/polymer/polymer.html">
 
+<link rel="import" href="../../bower_components/iron-collapse/iron-collapse.html">
+
 <link rel="import" href="../perpetuo-deployment-request/perpetuo-target-status-table.html">
 <link rel="import" href="../perpetuo-deployment-request/perpetuo-deployment-execution-list.html">
 
@@ -24,10 +26,12 @@
       margin-top: 1em;
     }
     </style>
-    <h1>[[data.kind]] Attempt #[[plusOne(index)]]</h1>
-    <p>Started by [[data.creator]] on [[timestampToDates(data.creationDate)]]</p>
-    <perpetuo-target-status-table data="[[arrayifyTargetStatus(data.targetStatus)]]"></perpetuo-target-status-table>
-    <perpetuo-deployment-execution-list data="[[data.executions]]" show-logs="[[showExecutionLogs]]"></perpetuo-deployment-execution-list>
+    <h1><paper-icon-button icon="[[lessOrMoreIcon(opened)]]" on-tap="toggleDetail"></paper-icon-button>[[data.kind]] Attempt #[[plusOne(index)]]</h1>
+    <iron-collapse id="detail" opened="{{opened}}">
+      <p>Started by [[data.creator]] on [[timestampToDates(data.creationDate)]]</p>
+      <perpetuo-target-status-table data="[[arrayifyTargetStatus(data.targetStatus)]]"></perpetuo-target-status-table>
+      <perpetuo-deployment-execution-list data="[[data.executions]]" show-logs="[[showExecutionLogs]]"></perpetuo-deployment-execution-list>
+    </iron-collapse>
   </template>
   <script>
   (function () {
@@ -38,6 +42,7 @@
         return {
           index: { type: Number },
           data: Object,
+          opened: {type: Boolean, notify: true, reflectToAttribute: true},
           showExecutionLogs: Boolean
         };
       }
@@ -64,6 +69,14 @@
           const targetAtomStatus = targetStatusMap[targetAtom];
           return { targetAtom: targetAtom, code: targetAtomStatus.code, detail: targetAtomStatus.detail };
         });
+      }
+
+      toggleDetail() {
+        this.$.detail.toggle();
+      }
+
+      lessOrMoreIcon(opened) {
+        return opened ? 'expand-less' : 'expand-more';
       }
     }
 
