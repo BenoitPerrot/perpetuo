@@ -82,7 +82,7 @@ class CrankshaftSpec extends SimpleScenarioTesting {
           .map(_ => "unrejected").recover { case Conflict(msg, _) => msg }
 
         // the failing one must be reverted first
-        _ <- mockRevertExecution(second, Map("corn-field" -> Status.hostFailure), Some(Version(""""big-bang"""")))
+        _ <- mockRevertExecution(second, Map("corn-field" -> Status.hostFailure), Some(Version(JsString("big-bang"))))
 
         // OK after the failing has been reverted (even if the revert failed)
         (third, _) <- mockDeployExecution(product.name, "101", Map("racing" -> Status.success))
@@ -158,7 +158,7 @@ class CrankshaftSpec extends SimpleScenarioTesting {
           specsThird(secondExecSpecId)
         )
       }
-    ) shouldBe(Set("moon", "mars"), true, true, (""""27"""", Set("mars")), (""""54"""", Set("moon")))
+    ) shouldBe(Set("moon", "mars"), true, true, (JsString("27").toString, Set("mars")), (JsString("54").toString, Set("moon")))
   }
 
   test("Crankshaft checks if an operation can be reverted") {
@@ -218,7 +218,7 @@ class CrankshaftSpec extends SimpleScenarioTesting {
   }
 
   test("Crankshaft performs a revert") {
-    val defaultRevertVersion = Version(""""00"""")
+    val defaultRevertVersion = Version(JsString("00"))
     await(
       for {
         product <- crankshaft.insertProductIfNotExists("pony")
