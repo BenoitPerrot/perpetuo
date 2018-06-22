@@ -363,7 +363,9 @@
         return this.deploymentRequestId === undefined ?
                Promise.resolve(false)
           : this.client.fetchDeploymentRequest(this.deploymentRequestId).then(_ => {
-            this.data = _;
+            if (_.id == this.deploymentRequestId) { // Support out-of-order responses
+              this.data = _;
+            }
           });
       }
 
