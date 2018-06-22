@@ -30,9 +30,8 @@
     }
 
     .body > h1 {
-      border-bottom: solid 1px #ddd;
       margin-top: 0;
-      padding: 0 0 20px 0;
+      padding: 0;
       font-weight: normal;
       display: flex;
       align-items: center;
@@ -69,9 +68,11 @@
 
     .actions {
       margin: 0 1em 1em 0;
+      padding-top: 1em;
+      border-top: solid 1px #ddd;
     }
 
-    #general, #target, #operations {
+    #target, #operations {
       padding: 24px 16px;
     }
 
@@ -145,16 +146,15 @@
         </span>
         <span class$="state [[toCssClasses(data.state)]]">[[humanReadable(data.state)]]</span>
       </h1>
+      <div>
+        <p>Requested by [[data.creator]] on [[timestampToDates(data.creationDate)]]</p>
+        <template is="dom-if" if="[[data.comment]]"><p><perpetuo-markdown-viewer md="[[data.comment]]"></perpetuo-markdown-viewer></p></template>
+      </div>
       <div class="actions">
         <template is="dom-repeat" items="[[data.actions]]">
           <paper-button disabled="[[computeDisabled(isInAction, item.authorized)]]" on-tap="onActionTap" raised>[[humanReadable(item.type)]]</paper-button>
         </template>
       </div>
-      <paper-card id="general">
-        <h1>General</h1>
-        <p>Requested by [[data.creator]] on [[timestampToDates(data.creationDate)]]</p>
-        <template is="dom-if" if="[[data.comment]]"><p><perpetuo-markdown-viewer md="[[data.comment]]"></perpetuo-markdown-viewer></p></template>
-      </paper-card>
       <paper-card id="target">
         <h1>Deployment Target</h1>
         <p>[[data.target]]</p>
