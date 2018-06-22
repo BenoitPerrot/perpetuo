@@ -91,7 +91,9 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
       .flatMap { _ =>
         // todo: replace that by the creation of all the related records when the first deploy operation will be created simultaneously
         targetDispatcher.freezeParameters(protoDeploymentRequest.productName, protoDeploymentRequest.version)
-        operationStarter.expandTarget(targetResolver, protoDeploymentRequest.productName, protoDeploymentRequest.version, protoDeploymentRequest.parsedTarget)
+        protoDeploymentRequest.plan.foreach(planStep =>
+          operationStarter.expandTarget(targetResolver, protoDeploymentRequest.productName, protoDeploymentRequest.version, planStep.parsedTarget)
+        )
 
         dbBinding
           .insertDeploymentRequest(protoDeploymentRequest)
