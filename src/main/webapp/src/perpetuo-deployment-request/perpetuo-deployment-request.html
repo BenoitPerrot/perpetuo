@@ -5,6 +5,7 @@
 <link rel="import" href="../../bower_components/paper-dialog/paper-dialog.html">
 <link rel="import" href="../../bower_components/paper-dialog-scrollable/paper-dialog-scrollable.html">
 <link rel="import" href="../../bower_components/paper-input/paper-input.html">
+<link rel="import" href="../../bower_components/paper-progress/paper-progress.html">
 
 <link rel="import" href="../perpetuo-app/perpetuo-app-toolbar.html">
 <link rel="import" href="../perpetuo-deployment-request/perpetuo-conflicting-deployment-requests.html">
@@ -19,6 +20,15 @@
       flex-direction: column;
       padding: 20px;
     }
+
+    .body[hidden] {
+      opacity: 0;
+    }
+    .body:not([hidden]) {
+      opacity: 1;
+      transition: opacity 250ms;
+    }
+
     .body > h1 {
       border-bottom: solid 1px #ddd;
       margin-top: 0;
@@ -114,10 +124,17 @@
     table tbody tr:hover {
       background-color: #eee;
     }
+
+    paper-progress {
+      width: auto;
+      --paper-progress-active-color: #0086b2;
+      --paper-progress-container-color: #fff;
+    }
     </style>
     <perpetuo-app-toolbar page-title="Perpetuo / Deployment Request #[[deploymentRequestId]]"></perpetuo-app-toolbar>
+    <paper-progress indeterminate hidden$="[[!noData]]"></paper-progress>
 
-    <div class="body">
+    <div class="body" hidden$="[[noData]]">
       <h1>
         <span class="product-name">[[data.productName]]</span>
         <span class="version">
@@ -201,6 +218,7 @@
       static get properties() {
         return {
           deploymentRequestId: {type: String, observer: 'onDeploymentRequestIdChanged'},
+          noData: {type: Boolean, value: true},
           active: {type: Boolean, observer: 'onActiveChanged'},
           data: Object,
           version: {type: Array, computed: 'computeVersion(data)'},
@@ -231,6 +249,7 @@
 
       onDeploymentRequestIdChanged() {
         // TODO: have a dedicated view-model instead:
+        this.noData = true;
         this.data = {
           state: '',
           creationDate: '',
@@ -365,6 +384,7 @@
           : this.client.fetchDeploymentRequest(this.deploymentRequestId).then(_ => {
             if (_.id == this.deploymentRequestId) { // Support out-of-order responses
               this.data = _;
+              this.noData = false;
             }
           });
       }
