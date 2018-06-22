@@ -23,11 +23,6 @@ case class DeploymentPlanStep(id: Long,
                               targetExpression: JsValue,
                               comment: String) extends ParsedTarget_
 
-
-/**
-  * It's not necessarily an entire deployment plan, it can be a subset of it,
-  * but in any case a sequence of steps bound to a single deployment request.
-  */
 case class DeploymentPlan(deploymentRequest: DeploymentRequest,
                           steps: Iterable[DeploymentPlanStep]) {
   assert(steps.forall(_.deploymentRequest.id == deploymentRequest.id))

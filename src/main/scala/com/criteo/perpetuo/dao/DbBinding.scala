@@ -124,6 +124,15 @@ class DbBinding @Inject()(val dbContext: DbContext)
       .result
       .map(_.map(_.toExecutionSpecification))
 
+  def findingOperatedPlanSteps(deploymentRequest: DeploymentRequest): DBIOAction[Seq[DeploymentPlanStep], NoStream, Effect.Read] =
+    deploymentPlanStepQuery
+      .join(stepOperationXRefQuery)
+      .filter { case (planStep, xref) => planStep.deploymentRequestId === deploymentRequest.id && planStep.id === xref.deploymentPlanStepId }
+      .groupBy { case (planStep, _) => planStep }
+      .map { case (planStep, _) => planStep }
+      .result
+      .map(_.map(_.toDeploymentPlanStep(deploymentRequest)))
+
   def findDeploymentRequestsWithStatuses(where: Seq[Map[String, Any]], limit: Int, offset: Int): Future[Seq[(DeploymentRequest, DeploymentStatus.Value, Option[Operation.Kind])]] = {
     val filtered = where.foldLeft(this.deploymentRequestQuery join this.productQuery on (_.productId === _.id)) { (queries, spec) =>
       val value = spec.getOrElse("equals", throw new IllegalArgumentException(s"Filters tests must be `equals`"))

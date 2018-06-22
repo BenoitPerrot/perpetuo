@@ -83,9 +83,9 @@ class OperationStarter(val dbBinding: DbBinding) extends Logging {
           (spec, dispatch(dispatcher, Set(TargetTerm(select = targets)), spec.specificParameters).toVector)
         }
         val atoms = groups.flatMap { case (_, targets) => targets }
-        dbBinding.findingDeploymentPlan(deploymentRequest).map { plan => // todo: as a small improvement, bind the operation to the only steps that have ever been deployed
-          (plan.steps, (Operation.revert, specAndInvocations, Some(atoms.toSet)))
-        }
+        dbBinding.findingOperatedPlanSteps(deploymentRequest).map(steps =>
+          (steps, (Operation.revert, specAndInvocations, Some(atoms.toSet)))
+        )
       }
   }
 
