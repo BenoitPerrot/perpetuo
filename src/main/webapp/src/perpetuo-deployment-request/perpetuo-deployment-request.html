@@ -200,7 +200,7 @@
 
       static get properties() {
         return {
-          deploymentRequestId: {type: String, observer: 'refresh'},
+          deploymentRequestId: {type: String, observer: 'onDeploymentRequestIdChanged'},
           active: {type: Boolean, observer: 'onActiveChanged'},
           data: Object,
           version: {type: Array, computed: 'computeVersion(data)'},
@@ -227,6 +227,16 @@
         super();
 
         this.client = new Perpetuo.Client();
+      }
+
+      onDeploymentRequestIdChanged() {
+        // TODO: have a dedicated view-model instead:
+        this.data = {
+          state: '',
+          creationDate: '',
+          operations: []
+        };
+        this.refresh();
       }
 
       // TODO: factor with deployment-request-table
