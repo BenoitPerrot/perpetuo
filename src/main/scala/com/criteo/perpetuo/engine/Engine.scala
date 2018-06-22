@@ -42,7 +42,6 @@ class Engine @Inject()(val crankshaft: Crankshaft,
     withDeepDeploymentRequest(id) { (deploymentRequest, isStarted) =>
       crankshaft
         .canRevertDeploymentRequest(deploymentRequest, isStarted)
-        .recover { case e: RejectingError => throw e.copy(s"Cannot revert the request #${deploymentRequest.id}: ${e.msg}") } // TODO: remove the copy
         .flatMap(_ => crankshaft.findExecutionSpecificationsForRevert(deploymentRequest))
     }
 

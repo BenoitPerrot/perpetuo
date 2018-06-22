@@ -259,7 +259,7 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
 
   def canRevertDeploymentRequest(deploymentRequest: DeploymentRequest, isStarted: Boolean): Future[Unit] =
     if (!isStarted)
-      Future.failed(UnavailableAction("it has not yet been applied"))
+      Future.failed(UnavailableAction(s"${deploymentRequest.id}: cannot revert: it has not yet been applied"))
     else {
       // todo: now we can allow successive rollbacks,
       // by using dbBinding.findTargetAtomNotActionableBy instead of `outdated` here
