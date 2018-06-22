@@ -12,8 +12,8 @@ case class PermissionDenied() extends RuntimeException
 @Singleton
 class Engine @Inject()(val crankshaft: Crankshaft,
                        val permissions: Permissions) {
-  def requestDeployment(user: User, protoDeploymentRequest: ProtoDeploymentRequest, targets: Set[String]): Future[DeploymentRequest] = {
-    if (!permissions.isAuthorized(user, DeploymentAction.requestOperation, Operation.deploy, protoDeploymentRequest.productName, targets))
+  def requestDeployment(user: User, protoDeploymentRequest: ProtoDeploymentRequest): Future[DeploymentRequest] = {
+    if (!permissions.isAuthorized(user, DeploymentAction.requestOperation, Operation.deploy, protoDeploymentRequest.productName, protoDeploymentRequest.parsedTarget.select))
       throw PermissionDenied()
 
     crankshaft.createDeploymentRequest(protoDeploymentRequest)

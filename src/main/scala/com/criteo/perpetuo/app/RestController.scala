@@ -113,15 +113,14 @@ class RestController @Inject()(val engine: Engine)
 
   post("/api/deployment-requests") { r: Request =>
     authenticate(r) { case user =>
-      val (allAttrs, targets) = try {
-        val protoDeploymentRequest = DeploymentRequestParser.parse(r.contentString, user.name)
-        (protoDeploymentRequest, protoDeploymentRequest.parsedTarget.select)
+      val protoDeploymentRequest = try {
+        DeploymentRequestParser.parse(r.contentString, user.name)
       } catch {
         case e: ParsingException => throw BadRequestException(e.getMessage)
       }
 
       timeBoxed(
-        engine.requestDeployment(user, allAttrs, targets)
+        engine.requestDeployment(user, protoDeploymentRequest)
           .map(x => Some(response.created.json(Map("id" -> x.id)))),
         5.seconds
       )
