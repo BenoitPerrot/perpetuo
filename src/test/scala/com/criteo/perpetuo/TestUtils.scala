@@ -87,32 +87,43 @@ trait SimpleScenarioTesting extends TestHelpers with TestDb with MockitoSugar {
       )
       .map(_.flatten)
 
-  def request(productName: String, version: String, target: Seq[String]): RequestTesting = {
+  def request(productName: String, version: String, stepsTargets: Iterable[String]*): RequestTesting = {
     if (!knownProducts.contains(productName)) {
       await(crankshaft.insertProductIfNotExists(productName))
       knownProducts += productName
     }
 
-    new RequestTesting(productName, version, target)
+    new RequestTesting(productName, version, stepsTargets)
   }
 
-  class RequestTesting(productName: String, version: String, target: Seq[String]) {
-    private val deploymentRequest = await(crankshaft.createDeploymentRequest(ProtoDeploymentRequest(productName, Version(version.toJson), Seq(ProtoDeploymentPlanStep("1", target.toJson, "")), "", "de.ployer")))
+  class RequestTesting(productName: String, version: String, stepsTargets: Seq[Iterable[String]]) {
+    private val deploymentRequest = await(crankshaft.createDeploymentRequest(ProtoDeploymentRequest(
+      productName,
+      Version(version.toJson),
+      stepsTargets.zipWithIndex.map { case (target, i) => ProtoDeploymentPlanStep((i + 1).toString, target.toJson, "") },
+      "",
+      "de.ployer"
+    )))
+    private val currentState = Iterator.from(0)
+    private var currentStep = 0
 
-    def startDeploy(): DeepOperationTrace = {
-      await(crankshaft.step(deploymentRequest, Some(0), "s.tarter"))
+    def startStep(): DeepOperationTrace = {
+      await(crankshaft.step(deploymentRequest, Some(currentState.next()), "s.tarter"))
     }
 
-    def deploy(finalStatus: Status.Code = Status.success): DeepOperationTrace = {
-      val operationTrace = startDeploy()
-      await(closeOperation(operationTrace, target.map(_ -> finalStatus).toMap))
+    def step(finalStatus: Status.Code = Status.success): DeepOperationTrace = {
+      val operationTrace = startStep()
+      val targetStatus = stepsTargets(currentStep).map(_ -> finalStatus).toMap
+      if (finalStatus == Status.success)
+        currentStep += 1
+      await(closeOperation(operationTrace, targetStatus))
       operationTrace
     }
 
     def revert(defaultVersion: Option[String] = None): DeepOperationTrace = {
       await(
         for {
-          operationTrace <- crankshaft.revert(deploymentRequest, None, "r.everter", defaultVersion.map(v => Version(v.toJson)))
+          operationTrace <- crankshaft.revert(deploymentRequest, Some(currentState.next()), "r.everter", defaultVersion.map(v => Version(v.toJson)))
           _ <- closeOperation(operationTrace)
         } yield operationTrace
       )

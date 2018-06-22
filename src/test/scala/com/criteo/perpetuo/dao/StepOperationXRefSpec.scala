@@ -16,7 +16,7 @@ class StepOperationXRefSpec
     with TestHelpers {
 
   test("Deployment plan steps can be inserted and retrieved") {
-    val op1 = request("humanity", "v1", Seq("af")).deploy()
+    val op1 = request("humanity", "v1", Seq("af")).step()
     val depReq = op1.deploymentRequest
     await(
       for {

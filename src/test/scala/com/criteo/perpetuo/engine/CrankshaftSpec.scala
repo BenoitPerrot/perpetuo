@@ -208,7 +208,7 @@ class CrankshaftSpec extends SimpleScenarioTesting {
   }
 
   test("Crankshaft rejects outdated revert intents before devising the plan") {
-    val deploymentRequest = request("ocelot", "awesome-version", Seq("norway", "peru")).deploy().deploymentRequest
+    val deploymentRequest = request("ocelot", "awesome-version", Seq("norway", "peru")).step().deploymentRequest
     await(
       for {
         msg <- crankshaft.revert(deploymentRequest, Some(0), "foo", None).failed.map(_.getMessage)
@@ -315,13 +315,13 @@ class CrankshaftSpec extends SimpleScenarioTesting {
     def v(versionName: String): Version = Version(JsString(versionName))
 
     request("mournful-moray", "v13", Seq("paris", "london", "tokyo"))
-      .deploy()
+      .step()
     request("pirate-piranha", "0.0.1", Seq("london", "tokyo"))
-      .deploy()
+      .step()
     request("mournful-moray", "v14.doomed", Seq("paris", "tokyo"))
-      .deploy(Status.notDone)
+      .step(Status.notDone)
     val mm = request("mournful-moray", "v13.eu", Seq("paris", "london", "kuala lumpur"))
-    mm.deploy(Status.productFailure)
+    mm.step(Status.productFailure)
 
     // projects don't override each other
     crankshaft.dbBinding.findCurrentVersionForEachKnownTarget("pirate-piranha", Seq("paris", "london", "tokyo")) should
@@ -345,20 +345,20 @@ class CrankshaftSpec extends SimpleScenarioTesting {
     def v(versionName: String): Option[Version] = Some(Version(JsString(versionName)))
 
     request("spatial-sparrow", "hot-fix", Seq("sun"))
-      .deploy()
+      .step()
     request("side-siberian", "universal", Seq("sun", "earth", "saturn", "proxima"))
-      .deploy()
+      .step()
     request("spatial-sparrow", "sunny", Seq("mercury", "venus", "earth", "mars"))
-      .deploy()
+      .step()
     request("spatial-sparrow", "cold", Seq("jupiter", "saturn", "uranus", "neptune"))
-      .deploy()
+      .step()
     request("side-siberian", "future", Seq("earth", "mars", "neptune"))
-      .deploy()
+      .step()
     val ss = request("spatial-sparrow", "fantasy", Seq("earth", "mars", "moon"))
-    ss.deploy()
+    ss.step()
     ss.revert("big-bang")
     request("spatial-sparrow", "no-op", Seq("mercury", "earth"))
-      .deploy(Status.notDone)
+      .step(Status.notDone)
 
     crankshaft.computeDominantVersion("spatial-sparrow", Seq(
       Seq("unknown"))
@@ -411,7 +411,7 @@ class CrankshaftWithFailingExecutorSpec extends SimpleScenarioTesting {
 
 class CrankshaftWithNoLogHrefSpec extends SimpleScenarioTesting {
   test("Cannot stop an execution that has no log href") {
-    val op = request("dusty-duck", "12345", Seq("thailand")).deploy()
+    val op = request("dusty-duck", "12345", Seq("thailand")).step()
     crankshaft.dbBinding.findExecutionTracesByOperationTrace(op.id)
       .map(_.head)
       .flatMap(execTrace => crankshaft.stopExecution(execTrace, "joe")) should
@@ -426,13 +426,13 @@ class CrankshaftWithUnknownLogHrefSpec extends SimpleScenarioTesting {
   override protected def triggerMock = Some(logHref)
 
   test("A trivial execution triggers a job with a log href when a log href is provided") {
-    val op = request("product #2", "1000", Seq("*")).deploy()
+    val op = request("product #2", "1000", Seq("*")).step()
     crankshaft.dbBinding.findExecutionTracesByOperationTrace(op.id)
       .map(_.flatMap(_.logHref).toSet) should eventually(be(Set(logHref)))
   }
 
   test("Cannot stop an execution of an unknown type") {
-    val op = request("dusty-duck", "123456", Seq("thailand")).deploy()
+    val op = request("dusty-duck", "123456", Seq("thailand")).step()
     crankshaft.dbBinding.findExecutionTracesByOperationTrace(op.id)
       .map(_.head)
       .flatMap(crankshaft.stopExecution(_, "joe")) should
@@ -452,7 +452,7 @@ class CrankshaftWithUncontrollableTriggeredExecutionSpec extends SimpleScenarioT
   }
 
   test("Cannot stop an execution of an explicitly unstoppable type") {
-    val op = request("dusty-duck", "1234567", Seq("thailand")).deploy()
+    val op = request("dusty-duck", "1234567", Seq("thailand")).step()
     crankshaft.dbBinding.findExecutionTracesByOperationTrace(op.id)
       .map(_.head)
       .flatMap(crankshaft.stopExecution(_, "joe")) should
@@ -460,8 +460,8 @@ class CrankshaftWithUncontrollableTriggeredExecutionSpec extends SimpleScenarioT
   }
 
   test("Crankshaft tries to stop executions, which might terminate normally at the same time") {
-    request("dusty-duck", "1", Seq("here")).deploy()
-    val lastOp = request("dusty-duck", "2", Seq("here", "there")).deploy()
+    request("dusty-duck", "1", Seq("here")).step()
+    val lastOp = request("dusty-duck", "2", Seq("here", "there")).step()
     val req = lastOp.deploymentRequest
 
     // try to stop when everything is already terminated
