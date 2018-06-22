@@ -55,19 +55,14 @@ class Engine @Inject()(val crankshaft: Crankshaft,
         .flatMap(_ => crankshaft.revert(deploymentRequest, operationCount, user.name, defaultVersion))
     }
 
-  def stop(user: User, id: Long, operationCount: Option[Int]): Future[Option[(Int, Seq[String])]] =
-    crankshaft.findDeepDeploymentRequestById(id)
-      .flatMap(_
-        .map { deploymentRequest =>
-          if (!permissions.isAuthorized(user, DeploymentAction.applyOperation, Operation.revert, deploymentRequest.product.name, deploymentRequest.parsedTarget.select))
-            throw PermissionDenied()
+  def stop(user: User, deploymentRequestId: Long, operationCount: Option[Int]): Future[Option[(Int, Seq[String])]] =
+    withDeepDeploymentRequest(deploymentRequestId) { (deploymentRequest, _) =>
+      if (!permissions.isAuthorized(user, DeploymentAction.applyOperation, Operation.revert, deploymentRequest.product.name, deploymentRequest.parsedTarget.select))
+        throw PermissionDenied()
 
-          crankshaft
-            .tryStopDeploymentRequest(deploymentRequest, operationCount, user.name)
-            .map(Some.apply)
-        }
-        .getOrElse(Future.successful(None))
-      )
+      crankshaft
+        .tryStopDeploymentRequest(deploymentRequest, operationCount, user.name)
+    }
 
   def findDeploymentRequestsWithStatuses(where: Seq[Map[String, Any]], limit: Int, offset: Int): Future[Seq[(DeploymentRequest, DeploymentStatus.Value, Option[Operation.Kind])]] =
     crankshaft.findDeploymentRequestsWithStatuses(where, limit, offset)
