@@ -501,3 +501,25 @@ class CrankshaftWithUncontrollableTriggeredExecutionSpec extends SimpleScenarioT
     ) should eventually(be((2, 1, 0, Seq("This kind of execution cannot be stopped")))) // i.e. 2 execution traces, 1 closed, 0 stopped, 1 failure
   }
 }
+
+
+class MultiStepCrankshaftSpec extends SimpleScenarioTesting {
+   private val productName = "enormous-elephant"
+   private val step1 = Set("north", "south")
+   private val step2 = Set("east", "west")
+
+  private def getDeployedVersions =
+    crankshaft.dbBinding.findCurrentVersionForEachKnownTarget(productName, step1 ++ step2).map(_.mapValues(_.structured.head.value))
+
+  test("Crankshaft can retry the first step if it's failing and revert it") {
+    val r = request(productName, "new", step1, step2)
+    r.step(Status.productFailure)
+    getDeployedVersions.map(_ shouldEqual Map("north" -> "new", "south" -> "new"))
+
+    r.step()
+    getDeployedVersions.map(_ shouldEqual Map("north" -> "new", "south" -> "new"))
+
+    r.revert("old")
+    getDeployedVersions.map(_ shouldEqual Map("north" -> "old", "south" -> "old"))
+  }
+}
