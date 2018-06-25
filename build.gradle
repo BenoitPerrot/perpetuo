@@ -2,27 +2,9 @@ description = "Perpetuo"
 
 apply plugin: 'com.criteo.moab-module'
 apply plugin: 'scala'
-
-configurations {
-    all {
-        if (it.name != 'zinc') {
-            resolutionStrategy {
-                force "ch.qos.logback:logback-classic:1.2.3" //ch.qos.logback:logback-classic:1.1.7
-                force "ch.qos.logback:logback-core:1.2.3" //ch.qos.logback:logback-core:1.1.7
-                force "com.fasterxml.jackson.core:jackson-annotations:2.8.0" //com.fasterxml.jackson.core:jackson-annotations:2.8.4
-                force "com.google.code.findbugs:jsr305:2.0.1" //com.google.code.findbugs:jsr305:3.0.1
-                force "com.google.inject.extensions:guice-multibindings:4.0" //com.google.inject.extensions:guice-multibindings:4.1.0
-                force "com.google.inject:guice:4.0" //com.google.inject:guice:4.1.0
-                force "io.spray:spray-json_2.11:1.3.0" //io.spray:spray-json_2.11:1.3.1
-                force "org.scalatest:scalatest_2.11:3.0.0" //org.scalatest:scalatest_2.11:2.2.4
-            }
-        }
-    }
-}
-
-apply from: new File(rootDir, 'parent-poms/parent-poms/java-parent/parent.gradle')
-
-apply plugin: com.github.jengelman.gradle.plugins.shadow.ShadowPlugin
+apply plugin: 'com.criteo.uberjar'
+apply from: parentPomsFile('java-parent/parent.gradle')
+apply from: parentPomsFile('java-parent/scalatest.gradle')
 
 ext {
     artifactId = "perpetuo-app"
@@ -44,8 +26,19 @@ ext {
     webapp_build_directory = "${webapp_directory}/build/default"
 }
 
+libraries {
+    library "ch.qos.logback:logback-classic:1.2.3" //ch.qos.logback:logback-classic:1.1.7
+    library "ch.qos.logback:logback-core:1.2.3" //ch.qos.logback:logback-core:1.1.7
+    library "com.fasterxml.jackson.core:jackson-annotations:2.8.0" //com.fasterxml.jackson.core:jackson-annotations:2.8.4
+    library "com.google.code.findbugs:jsr305:2.0.1" //com.google.code.findbugs:jsr305:3.0.1
+    library "com.google.inject.extensions:guice-multibindings:4.0" //com.google.inject.extensions:guice-multibindings:4.1.0
+    library "com.google.inject:guice:4.0" //com.google.inject:guice:4.1.0
+    library "io.spray:spray-json_2.11:1.3.0" //io.spray:spray-json_2.11:1.3.1
+    library "org.scalatest:scalatest_2.11:3.0.0" //org.scalatest:scalatest_2.11:2.2.4
+}
+
 sourceSets.main.resources {
-    srcDirs "src/main/resources", "src/main/webapp/build/default"
+    srcDir "src/main/webapp/build/default"
 }
 
 processResources {
@@ -56,8 +49,6 @@ processResources {
         }
     }
 }
-
-apply from: new File(rootDir, 'parent-poms/parent-poms/java-parent/scalatest.gradle')
 
 dependencies {
     compile "org.apache.httpcomponents:httpmime:4.5.3"
@@ -95,22 +86,21 @@ dependencies {
     testCompile group: "com.twitter", name: "inject-server_${scala_version_short}", version: "${twitter_server_version}", classifier: "tests"
 }
 
-def win = System.getProperty("os.name").toLowerCase().contains("windows")
-task npm_installExec(type: Exec) {
-    executable win ? "cmd" : "npm"
-    args win ? "/C npm install" : "install"
+task npm_installExec(type: CrossPlatformExec) {
+    executable "npm"
+    args "install"
     workingDir "${build_aux_directory}"
 }
 tasks.compileJava.dependsOn(npm_installExec)
 
-task bower_installExec(type: Exec, dependsOn: 'npm_installExec') {
-    executable win ? "cmd" : "bower"
-    args win ? "/C bower install" : "install"
+task bower_installExec(type: CrossPlatformExec, dependsOn: 'npm_installExec') {
+    executable "bower"
+    args "install"
     workingDir "${webapp_directory}"
 }
 tasks.processResources.dependsOn(bower_installExec)
 
-task polymer_buildExec(type: Exec, dependsOn: 'bower_installExec') {
+task polymer_buildExec(type: CrossPlatformExec, dependsOn: 'bower_installExec') {
     executable "node"
     args "${projectDir}/${build_aux_directory}/node_modules/polymer-cli/bin/polymer.js", "build"
     workingDir "${webapp_directory}"
@@ -122,20 +112,7 @@ test {
     enabled = false
 }
 
-configurations {
-    uberjar.extendsFrom(runtime)
-}
-
 shadowJar {
-    configurations = [project.configurations.uberjar]
-    zip64 true
-    dependencies {
-        include(dependency(".*:.*"))
-    }
-    exclude("META-INF/*.SF")
-    exclude("META-INF/*.DSA")
-    exclude("META-INF/*.RSA")
-    classifier = "uber"
     append("reference.conf")
     manifest {
         attributes("Main-Class": "${main_class}")
