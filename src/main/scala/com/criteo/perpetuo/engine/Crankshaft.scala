@@ -13,6 +13,7 @@ import slick.dbio.{DBIOAction, Effect, NoStream}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
+import scala.util.{Failure, Success}
 
 
 object DeploymentStatus extends Enumeration {
@@ -60,7 +61,7 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
   val fuelFilter = new FuelFilter(dbBinding)
   private val operationStarter = new OperationStarter(dbBinding)
 
-  def getEligibleActions(deploymentRequest: DeploymentRequest): Future[Seq[Operation.Kind]] =
+  def getEligibleActions(deploymentRequest: DeploymentRequest): Future[Seq[(Operation.Kind, Option[String])]] =
     dbBinding.dbContext.db.run(
       fuelFilter.rejectingIfLocked(deploymentRequest)
         .andThen(
@@ -70,11 +71,15 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
                 case Operation.deploy => fuelFilter.rejectingIfCannotDeploy(deploymentRequest)
                 case Operation.revert => fuelFilter.rejectingIfCannotRevert(deploymentRequest)
               }
-              canApply.asTry.map(_.toOption.map(_ => action))
+              canApply.asTry.collect {
+                case Success(_) =>
+                  (action, None)
+                case Failure(e) =>
+                  (action, Some(e.getMessage))
+              }
             }
           )
         )
-        .map(_.flatten)
         // todo: add the stop action in the Seq:
         .asTry.map(_.getOrElse(Seq()))
     )

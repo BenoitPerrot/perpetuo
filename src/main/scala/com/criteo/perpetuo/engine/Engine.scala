@@ -75,7 +75,10 @@ class Engine @Inject()(val crankshaft: Crankshaft,
           )
 
           crankshaft.getEligibleActions(deploymentRequest).map { actions =>
-            val authorizedActions = actions.map(action => (action, authorized(action)))
+            val authorizedActions = actions.map { case (action, message) =>
+              val isAuthorized = authorized(action)
+              (action, isAuthorized && message.isEmpty, if (isAuthorized) message else Some("permission denied"))
+            }
             val sortedEffects = effects.toSeq.sortBy(-_.operationTrace.id)
             Some(DeploymentRequestStatus(deploymentRequest, deploymentPlanSteps, sortedEffects, sortedEffects.headOption.map(crankshaft.computeState), authorizedActions, isAdmin || authorized(Operation.deploy)))
           }

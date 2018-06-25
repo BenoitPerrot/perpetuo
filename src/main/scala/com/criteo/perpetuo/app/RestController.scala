@@ -260,8 +260,8 @@ class RestController @Inject()(val engine: Engine)
           ) ++ op.closingDate.map("closingDate" -> _)
         }
       ) ++
-      Map("actions" -> status.authorizedActions.map { case (action, isAuthorized) =>
-        Map("type" -> action.toString, "authorized" -> isAuthorized)
+      Map("actions" -> status.authorizedActions.map { case (action, isAuthorized, comment) =>
+        Map("type" -> action.toString, "authorized" -> isAuthorized) ++ comment.map("comment" -> _)
       }) ++
       Map("showExecutionLogs" -> status.canAccessLogs) // fixme: only as long as we can't show the logs to anyone
 
