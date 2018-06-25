@@ -354,9 +354,9 @@ class CrankshaftSpec extends SimpleScenarioTesting {
       .step()
     request("side-siberian", "future", Seq("earth", "mars", "neptune"))
       .step()
-    val ss = request("spatial-sparrow", "fantasy", Seq("earth", "mars", "moon"))
-    ss.step()
-    ss.revert("big-bang")
+    val sparrow = request("spatial-sparrow", "fantasy", Seq("earth", "mars", "moon"))
+    sparrow.step()
+    sparrow.revert("big-bang")
     request("spatial-sparrow", "no-op", Seq("mercury", "earth"))
       .step(Status.notDone)
 
