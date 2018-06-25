@@ -506,31 +506,30 @@ class CrankshaftWithUncontrollableTriggeredExecutionSpec extends SimpleScenarioT
 
 
 class MultiStepCrankshaftSpec extends SimpleScenarioTesting {
-  private val productName = "enormous-elephant"
   private val step1 = Set("north", "south")
   private val step2 = Set("east", "west")
 
-  private def getDeployedVersions =
+  private def getDeployedVersions(productName: String) =
     crankshaft.dbBinding.findCurrentVersionForEachKnownTarget(productName, step1 ++ step2).map(_.mapValues(_.structured.head.value))
 
   test("Crankshaft can retry the first step if it's failing and revert it") {
-    val r = request(productName, "new", step1, step2)
+    val r = request("enormous-elephant", "new", step1, step2)
     r.step(Status.productFailure)
-    getDeployedVersions.map(_ shouldEqual Map("north" -> "new", "south" -> "new"))
+    getDeployedVersions("enormous-elephant") should become(Map("north" -> "new", "south" -> "new"))
 
     r.step()
-    getDeployedVersions.map(_ shouldEqual Map("north" -> "new", "south" -> "new"))
+    getDeployedVersions("enormous-elephant") should become(Map("north" -> "new", "south" -> "new"))
 
     r.revert("old")
-    getDeployedVersions.map(_ shouldEqual Map("north" -> "old", "south" -> "old"))
+    getDeployedVersions("enormous-elephant") should become(Map("north" -> "old", "south" -> "old"))
   }
 
   test("Crankshaft can retry a failed revert") {
-    val r = request(productName, "new", step1, step2)
+    val r = request("giant-clam", "new", step1, step2)
     r.step()
     r.revert("old", Status.hostFailure)
     r.revert("older")
-    getDeployedVersions.map(_ shouldEqual Map("north" -> "older", "south" -> "older"))
+    getDeployedVersions("giant-clam") should become(Map("north" -> "older", "south" -> "older"))
   }
 }
 
