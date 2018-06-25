@@ -158,12 +158,14 @@
             <template is="dom-if" if="[[data.comment]]"><p><perpetuo-markdown-viewer md="[[data.comment]]"></perpetuo-markdown-viewer></p></template>
           </div>
         </div>
-        <span class$="state [[toCssClasses(data.state)]]">[[humanReadable(data.state)]]</span>
-      </div>
-      <div class="actions">
-        <template is="dom-repeat" items="[[data.actions]]">
-          <paper-button disabled="[[computeDisabled(isInAction, item.authorized)]]" on-tap="onActionTap" raised>[[humanReadable(item.type)]]</paper-button>
-        </template>
+        <div>
+          <span class$="state [[toCssClasses(data.state)]]">[[humanReadable(data.state)]]</span>
+          <div class="actions">
+            <template is="dom-repeat" items="[[data.actions]]">
+              <paper-button disabled="[[computeDisabled(isInAction, item.authorized)]]" on-tap="onActionTap" raised>[[humanReadable(item.type)]]</paper-button>
+            </template>
+          </div>
+        </div>
       </div>
       <paper-card id="target">
         <h1>Deployment Target</h1>
