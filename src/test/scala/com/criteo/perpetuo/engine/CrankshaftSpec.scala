@@ -506,9 +506,9 @@ class CrankshaftWithUncontrollableTriggeredExecutionSpec extends SimpleScenarioT
 
 
 class MultiStepCrankshaftSpec extends SimpleScenarioTesting {
-   private val productName = "enormous-elephant"
-   private val step1 = Set("north", "south")
-   private val step2 = Set("east", "west")
+  private val productName = "enormous-elephant"
+  private val step1 = Set("north", "south")
+  private val step2 = Set("east", "west")
 
   private def getDeployedVersions =
     crankshaft.dbBinding.findCurrentVersionForEachKnownTarget(productName, step1 ++ step2).map(_.mapValues(_.structured.head.value))
