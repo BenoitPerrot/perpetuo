@@ -56,7 +56,10 @@ class Engine @Inject()(val crankshaft: Crankshaft,
 
   def stop(user: User, deploymentRequestId: Long, operationCount: Option[Int]): Future[Option[(Int, Seq[String])]] =
     withDeepDeploymentRequest(deploymentRequestId) { (deploymentRequest, _) =>
-      if (!permissions.isAuthorized(user, DeploymentAction.applyOperation, Operation.revert, deploymentRequest.product.name))
+      def allowedTo(kind: Operation.Kind) =
+        permissions.isAuthorized(user, DeploymentAction.applyOperation, kind, deploymentRequest.product.name)
+
+      if (!(allowedTo(Operation.deploy) || allowedTo(Operation.revert)))
         throw PermissionDenied()
 
       crankshaft
