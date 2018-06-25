@@ -74,8 +74,13 @@
 
     .actions {
       margin: 0 1em 1em 0;
-      padding-top: 1em;
       border-top: solid 1px #ddd;
+    }
+    .action {
+      margin-top: 1em;
+    }
+    .action span {
+      color: #555;
     }
 
     #target, #operations {
@@ -162,7 +167,10 @@
           <span class$="state [[toCssClasses(data.state)]]">[[humanReadable(data.state)]]</span>
           <div class="actions">
             <template is="dom-repeat" items="[[data.actions]]">
-              <paper-button disabled="[[computeDisabled(isInAction, item.authorized)]]" on-tap="onActionTap" raised>[[humanReadable(item.type)]]</paper-button>
+              <div class="action">
+                <paper-button disabled="[[computeDisabled(isInAction, item.authorized)]]" on-tap="onActionTap" raised>[[humanReadable(item.type)]]</paper-button>
+                <span>[[item.comment]]</span>
+              </div>
             </template>
           </div>
         </div>
