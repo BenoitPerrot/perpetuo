@@ -123,11 +123,12 @@ trait SimpleScenarioTesting extends TestHelpers with TestDb with MockitoSugar {
       operationTrace
     }
 
-    def revert(defaultVersion: String = ""): DeepOperationTrace = {
+    def revert(defaultVersion: String = "", finalStatus: Status.Code = Status.success): DeepOperationTrace = {
+      val targetStatus = stepsTargets.zipWithIndex.collect { case (target, index) if index < currentStep => target.map(_ -> finalStatus) }.flatten.toMap
       await(
         for {
           operationTrace <- crankshaft.revert(deploymentRequest, Some(currentState.next()), "r.everter", defaultVersion.headOption.map(_ => Version(defaultVersion.toJson)))
-          _ <- closeOperation(operationTrace)
+          _ <- closeOperation(operationTrace, targetStatus)
         } yield operationTrace
       )
     }

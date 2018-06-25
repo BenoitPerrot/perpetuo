@@ -522,4 +522,12 @@ class MultiStepCrankshaftSpec extends SimpleScenarioTesting {
     r.revert("old")
     getDeployedVersions.map(_ shouldEqual Map("north" -> "old", "south" -> "old"))
   }
+
+  test("Crankshaft can retry a failed revert") {
+    val r = request(productName, "new", step1, step2)
+    r.step()
+    r.revert("old", Status.hostFailure)
+    r.revert("older")
+    getDeployedVersions.map(_ shouldEqual Map("north" -> "older", "south" -> "older"))
+  }
 }
