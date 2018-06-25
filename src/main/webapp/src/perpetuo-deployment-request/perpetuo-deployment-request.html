@@ -29,6 +29,14 @@
       transition: opacity 250ms;
     }
 
+    .columns {
+      display: flex;
+      flex-direction: row;
+    }
+    .columns > * {
+      flex: 1;
+    }
+
     .intent > h1 {
       margin-top: 0;
       padding: 0;
@@ -48,10 +56,11 @@
 
     .state {
       border-radius: 3px;
-      margin-left: 2em;
       padding: 0.7em 0.57em;
       text-transform: uppercase;
       background-color: #f5f5f5;
+      margin: auto;
+      text-align: center;
     }
     .state.deployed {
       color: #fff;
@@ -136,21 +145,23 @@
     <paper-progress indeterminate hidden$="[[!noData]]"></paper-progress>
 
     <div class="body" hidden$="[[noData]]">
-      <div class="intent">
-        <h1>
-          <span class="product-name">[[data.productName]]</span>
-          <span class="version">
-            <template is="dom-repeat" items="[[version]]">
-              <template is="dom-if" if="[[index]]">+</template>
-              [[item.value]]<template is="dom-if" if="[[item.ratio]]">&nbsp;<span class="ratio">[[asPercentage(item.ratio)]]%</span></template>
-            </template>
-          </span>
-          <span class$="state [[toCssClasses(data.state)]]">[[humanReadable(data.state)]]</span>
-        </h1>
-        <div>
-          <p>Requested by [[data.creator]] on [[timestampToDates(data.creationDate)]]</p>
-          <template is="dom-if" if="[[data.comment]]"><p><perpetuo-markdown-viewer md="[[data.comment]]"></perpetuo-markdown-viewer></p></template>
+      <div class="columns">
+        <div class="intent">
+          <h1>
+            <span class="product-name">[[data.productName]]</span>
+            <span class="version">
+              <template is="dom-repeat" items="[[version]]">
+                <template is="dom-if" if="[[index]]">+</template>
+                [[item.value]]<template is="dom-if" if="[[item.ratio]]">&nbsp;<span class="ratio">[[asPercentage(item.ratio)]]%</span></template>
+              </template>
+            </span>
+          </h1>
+          <div>
+            <p>Requested by [[data.creator]] on [[timestampToDates(data.creationDate)]]</p>
+            <template is="dom-if" if="[[data.comment]]"><p><perpetuo-markdown-viewer md="[[data.comment]]"></perpetuo-markdown-viewer></p></template>
+          </div>
         </div>
+        <span class$="state [[toCssClasses(data.state)]]">[[humanReadable(data.state)]]</span>
       </div>
       <div class="actions">
         <template is="dom-repeat" items="[[data.actions]]">
