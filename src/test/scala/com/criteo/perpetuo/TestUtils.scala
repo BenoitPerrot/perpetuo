@@ -70,12 +70,15 @@ trait SimpleScenarioTesting extends TestHelpers with TestDb with MockitoSugar {
     crankshaft.dbBinding.findExecutionIdsByOperationTrace(operationTrace.id)
       .flatMap(executionIds =>
         Future.traverse(executionIds)(executionId =>
-          targetFinalStatus.headOption
-            .map(_ => Future.successful(targetFinalStatus))
-            .getOrElse(crankshaft.dbBinding.findTargetsByExecution(executionId).map(_.map(_ -> Status.success).toMap))
+          crankshaft.dbBinding.findTargetsByExecution(executionId)
+            .map(targets => targets
+              .headOption
+              .map(_ => targets.map(target => target -> targetFinalStatus.getOrElse(target, Status.success)).toMap)
+              .getOrElse(targetFinalStatus)
+            )
             .zip(crankshaft.dbBinding.findExecutionTraceIdsByExecution(executionId))
-            .flatMap { case (statusMap, executionTraceIds) =>
-              val finalStatusMap = statusMap.mapValues(TargetAtomStatus(_, ""))
+            .flatMap { case (statuses, executionTraceIds) =>
+              val finalStatusMap = statuses.mapValues(TargetAtomStatus(_, ""))
               val executionState = if (initFailed) ExecutionState.initFailed else ExecutionState.completed
               Future.traverse(executionTraceIds)(
                 crankshaft.updateExecutionTrace(_, executionState, "", None, finalStatusMap)
