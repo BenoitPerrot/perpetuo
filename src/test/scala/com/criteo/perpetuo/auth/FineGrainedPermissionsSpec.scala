@@ -96,17 +96,17 @@ class FineGrainedPermissionsSpec extends Test {
     }
 
     test(s"$subject authorizes users by their name, on specific products") {
-      Operation.values.forall(permissions.isAuthorized(Users.authorizedToProceedOnFoo, DeploymentAction.applyOperation, _, Products.foo, Seq())) shouldBe true
-      Operation.values.forall(permissions.isAuthorized(Users.authorizedToRequest, DeploymentAction.requestOperation, _, Products.foo, Seq())) shouldBe true
-      Operation.values.forall(permissions.isAuthorized(Users.authorizedToRequest, DeploymentAction.requestOperation, _, Products.bar, Seq())) shouldBe true
+      Operation.values.forall(permissions.isAuthorized(Users.authorizedToProceedOnFoo, DeploymentAction.applyOperation, _, Products.foo)) shouldBe true
+      Operation.values.forall(permissions.isAuthorized(Users.authorizedToRequest, DeploymentAction.requestOperation, _, Products.foo)) shouldBe true
+      Operation.values.forall(permissions.isAuthorized(Users.authorizedToRequest, DeploymentAction.requestOperation, _, Products.bar)) shouldBe true
     }
 
     test(s"$subject forbids users by their name, on specific products") {
-      Operation.values.exists(permissions.isAuthorized(Users.authorizedToProceedOnFoo, DeploymentAction.applyOperation, _, Products.bar, Seq())) shouldBe false
+      Operation.values.exists(permissions.isAuthorized(Users.authorizedToProceedOnFoo, DeploymentAction.applyOperation, _, Products.bar)) shouldBe false
       Products.values.exists(product =>
         DeploymentAction.values.exists(a =>
           Operation.values.exists(op =>
-            permissions.isAuthorized(Users.unauthorized, a, op, product.toString, Seq())
+            permissions.isAuthorized(Users.unauthorized, a, op, product.toString)
           )
         )
       ) shouldBe false

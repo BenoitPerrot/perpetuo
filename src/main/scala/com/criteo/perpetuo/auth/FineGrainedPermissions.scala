@@ -27,7 +27,7 @@ class FineGrainedPermissions(generalActionRules: Map[GeneralAction.Value, Author
   override def isAuthorized(user: User, action: GeneralAction.Value): Boolean =
     generalActionRules.get(action).exists(_.authorizes(user))
 
-  override def isAuthorized(user: User, action: DeploymentAction.Value, operation: Operation.Kind, productName: String, target: Iterable[String]): Boolean =
+  override def isAuthorized(user: User, action: DeploymentAction.Value, operation: Operation.Kind, productName: String): Boolean =
     productRules.exists(_.authorizes(user, action, productName))
 }
 

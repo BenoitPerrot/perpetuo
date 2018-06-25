@@ -13,8 +13,7 @@ case class PermissionDenied() extends RuntimeException
 class Engine @Inject()(val crankshaft: Crankshaft,
                        val permissions: Permissions) {
   def requestDeployment(user: User, protoDeploymentRequest: ProtoDeploymentRequest): Future[DeploymentRequest] = {
-    val targets = protoDeploymentRequest.plan.flatMap(_.parsedTarget.select).toSet
-    if (!permissions.isAuthorized(user, DeploymentAction.requestOperation, Operation.deploy, protoDeploymentRequest.productName, targets))
+    if (!permissions.isAuthorized(user, DeploymentAction.requestOperation, Operation.deploy, protoDeploymentRequest.productName))
       throw PermissionDenied()
 
     crankshaft.createDeploymentRequest(protoDeploymentRequest)
@@ -30,7 +29,7 @@ class Engine @Inject()(val crankshaft: Crankshaft,
 
   def step(user: User, deploymentRequestId: Long, operationCount: Option[Int]): Future[Option[DeepOperationTrace]] =
     withDeepDeploymentRequest(deploymentRequestId) { (deploymentRequest, _) =>
-      if (!permissions.isAuthorized(user, DeploymentAction.applyOperation, Operation.deploy, deploymentRequest.product.name, deploymentRequest.parsedTarget.select))
+      if (!permissions.isAuthorized(user, DeploymentAction.applyOperation, Operation.deploy, deploymentRequest.product.name))
         throw PermissionDenied()
 
       crankshaft
@@ -47,7 +46,7 @@ class Engine @Inject()(val crankshaft: Crankshaft,
 
   def revert(user: User, deploymentRequestId: Long, operationCount: Option[Int], defaultVersion: Option[Version]): Future[Option[DeepOperationTrace]] =
     withDeepDeploymentRequest(deploymentRequestId) { (deploymentRequest, isStarted) =>
-      if (!permissions.isAuthorized(user, DeploymentAction.applyOperation, Operation.revert, deploymentRequest.product.name, deploymentRequest.parsedTarget.select))
+      if (!permissions.isAuthorized(user, DeploymentAction.applyOperation, Operation.revert, deploymentRequest.product.name))
         throw PermissionDenied()
 
       crankshaft
@@ -57,7 +56,7 @@ class Engine @Inject()(val crankshaft: Crankshaft,
 
   def stop(user: User, deploymentRequestId: Long, operationCount: Option[Int]): Future[Option[(Int, Seq[String])]] =
     withDeepDeploymentRequest(deploymentRequestId) { (deploymentRequest, _) =>
-      if (!permissions.isAuthorized(user, DeploymentAction.applyOperation, Operation.revert, deploymentRequest.product.name, deploymentRequest.parsedTarget.select))
+      if (!permissions.isAuthorized(user, DeploymentAction.applyOperation, Operation.revert, deploymentRequest.product.name))
         throw PermissionDenied()
 
       crankshaft
@@ -72,15 +71,13 @@ class Engine @Inject()(val crankshaft: Crankshaft,
       .findDeepDeploymentRequestAndEffects(id)
       .flatMap(
         _.map { case (deploymentRequest, deploymentPlanSteps, effects) =>
-          val targets = deploymentRequest.parsedTarget.select
-
           val isAdmin = user.exists(user =>
             permissions.isAuthorized(user, GeneralAction.administrate)
           )
 
           // todo: a future workflow will differentiate requests and applies
           def authorized(op: Operation.Kind) = user.exists(user =>
-            permissions.isAuthorized(user, DeploymentAction.applyOperation, op, deploymentRequest.product.name, targets)
+            permissions.isAuthorized(user, DeploymentAction.applyOperation, op, deploymentRequest.product.name)
           )
 
           Future
