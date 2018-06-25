@@ -7,7 +7,7 @@ import javax.inject.{Inject, Singleton}
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
-case class PermissionDenied() extends RuntimeException
+case class PermissionDenied() extends RuntimeException("permission denied")
 
 @Singleton
 class Engine @Inject()(val crankshaft: Crankshaft,
