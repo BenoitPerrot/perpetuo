@@ -524,6 +524,17 @@ class MultiStepCrankshaftSpec extends SimpleScenarioTesting {
     getDeployedVersions("enormous-elephant") should become(Map("north" -> "old", "south" -> "old"))
   }
 
+  test("Crankshaft cannot retry a successful deploy") {
+    val r = request("fat-falcon", "new", step1, step2)
+    r.step()
+    getDeployedVersions("fat-falcon") should become(Map("north" -> "new", "south" -> "new"))
+
+    r.step()
+    getDeployedVersions("fat-falcon") should become(Map("north" -> "new", "south" -> "new", "east" -> "new", "west" -> "new"))
+
+    an[UnprocessableIntent] shouldBe thrownBy(r.step())
+  }
+
   test("Crankshaft can retry a failed revert") {
     val r = request("giant-clam", "new", step1, step2)
     r.step()
