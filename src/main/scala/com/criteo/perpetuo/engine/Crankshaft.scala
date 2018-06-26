@@ -204,25 +204,25 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
     }
 
   def step(deploymentRequest: DeploymentRequest, operationCount: Option[Int], initiatorName: String, emitEvent: Boolean = true): Future[DeepOperationTrace] = {
-    val getSpecifics = dbBinding.gettingLastDoneAndToDoPlanStep(deploymentRequest).flatMap {
-      case (_, None) =>
+    val getSpecifics = dbBinding.gettingPlanStepToOperateAndLastDoneStepId(deploymentRequest).flatMap {
+      case None =>
         DBIOAction.failed(UnprocessableIntent(s"${deploymentRequest.id}: there is no next step, they have all been applied"))
 
-      case (lastDone, Some(toDo)) =>
-        val isRetry = lastDone.contains(toDo)
+      case Some((toDo, lastDoneId)) =>
+        val isRetry = lastDoneId.contains(toDo.id)
         val getOperationSpecifics = if (isRetry) operationStarter.getRetrySpecifics _ else operationStarter.getStepSpecifics _
         getOperationSpecifics(targetResolver, targetDispatcher, toDo)
-          .map(operationCreationSpecifics => ((Seq(toDo), operationCreationSpecifics), (lastDone, toDo)))
+          .map(operationCreationSpecifics => ((Seq(toDo), operationCreationSpecifics), (lastDoneId, toDo)))
     }
     act(deploymentRequest, operationCount, initiatorName, getSpecifics)
-      .map { case ((operationTrace, started, failed), (lastDone, toDo)) =>
+      .map { case ((operationTrace, started, failed), (lastDoneId, toDo)) =>
         if (emitEvent)
-          if (lastDone.contains(toDo)) {
+          if (lastDoneId.contains(toDo.id)) {
             // TODO: rename onDeploymentRequestRetried to onDeploymentStepRetried(toDo)
             listeners.foreach(_.onDeploymentRequestRetried(deploymentRequest, started, failed))
           }
           else {
-            if (lastDone.isEmpty) {
+            if (lastDoneId.isEmpty) {
               listeners.foreach(_.onDeploymentRequestStarted(deploymentRequest, started, failed))
             }
             // TODO: fire onDeploymentStepStarted(toDo)

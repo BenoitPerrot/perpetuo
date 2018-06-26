@@ -305,38 +305,33 @@ class DbBinding @Inject()(val dbContext: DbContext)
           )
         )
 
-  private def gettingLastDoneAndToDoPlanStepId(planStepsAndLatestOperations: Seq[(Long, Option[OperationTrace])]): DBIOAction[(Option[Long], Option[Long]), NoStream, Effect.Read] =
+  private def gettingPlanStepIdToOperateAndLastDoneStepId(planStepsAndLatestOperations: Seq[(Long, Option[OperationTrace])]): DBIOAction[Option[(Long, Option[Long])], NoStream, Effect.Read] =
     getLastDoneStepAndOperation(planStepsAndLatestOperations) match {
       case (latestPlanStepId, None) =>
-        DBIO.successful((None, Some(latestPlanStepId)))
+        DBIO.successful(Some((latestPlanStepId, None)))
 
       case (latestPlanStepId, Some(operation)) =>
         computingOperationStatus(operation.id, isRunning = false)
           .map(operationStatus =>
-            (Some(latestPlanStepId),
-              if (operationStatus == DeploymentStatus.flopped || operationStatus == DeploymentStatus.failed)
-                Some(latestPlanStepId)
-              else
-                findNextPlanStepId(planStepsAndLatestOperations.map(_._1), latestPlanStepId)
-            )
+            if (operationStatus == DeploymentStatus.flopped || operationStatus == DeploymentStatus.failed)
+              Some(latestPlanStepId)
+            else
+              findNextPlanStepId(planStepsAndLatestOperations.map(_._1), latestPlanStepId)
           )
+          .map(_.map((_, Some(latestPlanStepId))))
     }
 
-  def gettingLastDoneAndToDoPlanStep(deploymentRequest: DeploymentRequest): DBIOAction[(Option[DeploymentPlanStep], Option[DeploymentPlanStep]), dbContext.profile.api.NoStream, Effect.Read with Effect.Read] =
+  def gettingPlanStepToOperateAndLastDoneStepId(deploymentRequest: DeploymentRequest): DBIOAction[Option[(DeploymentPlanStep, Option[Long])], NoStream, Effect.Read] =
     findingDeploymentPlanStepAndLatestOperations(deploymentRequest.id)
       .flatMap(planStepsAndLatestOperations =>
         if (planStepsAndLatestOperations.isEmpty)
           DBIO.failed(new RuntimeException(s"${deploymentRequest.id}: should not be there: deployment plan is empty"))
         else
-          gettingLastDoneAndToDoPlanStepId(planStepsAndLatestOperations).flatMap { case (lastDone, toDo) =>
-            lastDone
-              .map(findingDeploymentPlanStep(deploymentRequest, _))
-              .getOrElse(DBIO.successful(None))
-              .zip(
-                toDo
-                  .map(findingDeploymentPlanStep(deploymentRequest, _))
-                  .getOrElse(DBIO.successful(None))
-              )
+          gettingPlanStepIdToOperateAndLastDoneStepId(planStepsAndLatestOperations).flatMap {
+            case Some((toDoId, lastDoneId)) =>
+              findingDeploymentPlanStep(deploymentRequest, toDoId).map(_.map((_, lastDoneId)))
+            case None =>
+              DBIO.successful(None)
           }
       )
 

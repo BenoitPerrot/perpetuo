@@ -14,23 +14,23 @@ import scala.concurrent.{Await, Future}
 
 class CrankshaftSpec extends SimpleScenarioTesting {
 
-  private def getLastDoneAndToDoPlanStepId(deploymentRequest: DeploymentRequest) =
-    crankshaft.dbBinding.dbContext.db.run(crankshaft.dbBinding.gettingLastDoneAndToDoPlanStep(deploymentRequest))
+  private def gettingPlanStepToOperateAndLastDoneStepId(deploymentRequest: DeploymentRequest) =
+    crankshaft.dbBinding.dbContext.db.run(crankshaft.dbBinding.gettingPlanStepToOperateAndLastDoneStepId(deploymentRequest))
 
   test("A trivial execution triggers a job with no log href when there is no log href provided") {
     await(
       for {
         product <- crankshaft.insertProductIfNotExists("product #1")
         depPlan <- crankshaft.dbBinding.insertDeploymentRequest(ProtoDeploymentRequest(product.name, Version("\"1000\""), Seq(ProtoDeploymentPlanStep("", JsString("*"), "")), "", "s.omeone"))
-        beforeStart <- getLastDoneAndToDoPlanStepId(depPlan.deploymentRequest)
+        beforeStart <- gettingPlanStepToOperateAndLastDoneStepId(depPlan.deploymentRequest)
         _ <- crankshaft.step(depPlan.deploymentRequest, Some(0), "s.tarter")
-        afterStart <- getLastDoneAndToDoPlanStepId(depPlan.deploymentRequest)
+        afterStart <- gettingPlanStepToOperateAndLastDoneStepId(depPlan.deploymentRequest)
         traces <- crankshaft.findExecutionTracesByDeploymentRequest(depPlan.deploymentRequest.id)
       } yield (
         traces.get.map(trace => (trace.id, trace.logHref)),
-        beforeStart._1.isEmpty,
-        beforeStart._2 == afterStart._1,
-        beforeStart._2 == afterStart._2 // Deployment flopped, so the next step remains the same
+        beforeStart.exists(_._2.isEmpty),
+        afterStart.exists(_._2.exists(lastDoneId => beforeStart.exists(_._1.id == lastDoneId))),
+        beforeStart.map(_._1) == afterStart.map(_._1) // Deployment flopped, so the next step remains the same
       )
     ) shouldEqual(
       Seq((1, None)),
