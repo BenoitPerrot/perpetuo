@@ -598,6 +598,7 @@ class RestControllerSpec extends Test with TestDb {
         "creator" -> "r.eleaser".toJson,
         "creationDate" -> T,
         "closingDate" -> T,
+        "status" -> "failed".toJson,
         "targetStatus" -> Map(
           "paris" -> Map("code" -> "success", "detail" -> "").toJson,
           "amsterdam" -> Map("code" -> "hostFailure", "detail" -> "some interesting details").toJson
@@ -624,6 +625,7 @@ class RestControllerSpec extends Test with TestDb {
         "kind" -> "deploy".toJson,
         "creator" -> "r.eleaser".toJson,
         "creationDate" -> T,
+        "status" -> "inProgress".toJson,
         "targetStatus" -> JsObject(),
         "executions" -> JsArray(
           JsObject(

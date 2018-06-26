@@ -244,7 +244,7 @@ class RestController @Inject()(val engine: Engine)
     ) ++
       Map("plan" -> status.deploymentPlanSteps) ++
       Map("operations" ->
-        status.operationEffects.map { case OperationEffect(op, planStepIds, executionTraces, targetStatus) =>
+        status.operationEffects.map { case effect@OperationEffect(op, planStepIds, executionTraces, targetStatus) =>
           Map(
             "id" -> op.id,
             "planStepIds" -> planStepIds,
@@ -256,6 +256,7 @@ class RestController @Inject()(val engine: Engine)
                 .map(ts => ts.targetAtom -> Map("code" -> ts.code.toString, "detail" -> ts.detail))
                 .toMap
             },
+            "status" -> effect.state,
             "executions" -> executionTraces
           ) ++ op.closingDate.map("closingDate" -> _)
         }
