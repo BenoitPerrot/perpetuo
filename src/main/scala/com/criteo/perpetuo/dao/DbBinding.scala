@@ -246,21 +246,23 @@ class DbBinding @Inject()(val dbContext: DbContext)
       .filter(_.deploymentRequestId === deploymentRequestId)
       .joinLeft(stepOperationXRefQuery)
       .on { case (step, xref) => step.id === xref.deploymentPlanStepId }
-      .joinLeft(operationTraceQuery)
-      .on { case ((_, xref), operation) => xref.map(_.operationTraceId) === operation.id }
-      .groupBy { case ((step, _), _) => step.id }
+      .groupBy { case (step, _) => step.id }
       .map { case (deploymentPlanStepId, q) =>
-        (deploymentPlanStepId, q.map { case (_, operationTrace) => operationTrace.map(_.id) }.max)
+        (deploymentPlanStepId, q.map { case (_, xref) => xref.map(_.operationTraceId) }.max)
       }
+      .joinLeft(operationTraceQuery)
+      .on { case ((_, lastOpId), operationTrace) => lastOpId === operationTrace.id }
+      .map { case ((deploymentPlanStepId, _), operationTrace) => (deploymentPlanStepId, operationTrace) }
       .result
+      .map(_.map { case (deploymentPlanStepId, operationTrace) => (deploymentPlanStepId, operationTrace.map(_.toOperationTrace)) })
 
-  private def getLastDoneStepAndOperation(planStepsAndLatestOperations: Seq[(Long, Option[Long])]) =
-    planStepsAndLatestOperations.reduce[(Long, Option[Long])] {
+  private def getLastDoneStepAndOperation(planStepsAndLatestOperations: Seq[(Long, Option[OperationTrace])]) =
+    planStepsAndLatestOperations.reduce[(Long, Option[OperationTrace])] {
       case ((latestPlanStepId, None), current@(planStepId, None)) if planStepId < latestPlanStepId =>
         // When comparing two steps, both with no operation, the oldest one is the latest one
         current
 
-      case ((_, Some(latestOperationId)), current@(_, Some(operationId))) if latestOperationId < operationId =>
+      case ((_, Some(latestOperation)), current@(_, Some(operation))) if latestOperation.id < operation.id =>
         // When comparing two steps, both with operations, the step with the youngest operation is the latest one
         current
 
@@ -303,13 +305,13 @@ class DbBinding @Inject()(val dbContext: DbContext)
           )
         )
 
-  private def gettingLastDoneAndToDoPlanStepId(planStepsAndLatestOperations: Seq[(Long, Option[Long])]): DBIOAction[(Option[Long], Option[Long]), NoStream, Effect.Read] =
+  private def gettingLastDoneAndToDoPlanStepId(planStepsAndLatestOperations: Seq[(Long, Option[OperationTrace])]): DBIOAction[(Option[Long], Option[Long]), NoStream, Effect.Read] =
     getLastDoneStepAndOperation(planStepsAndLatestOperations) match {
       case (latestPlanStepId, None) =>
         DBIO.successful((None, Some(latestPlanStepId)))
 
-      case (latestPlanStepId, Some(operationId)) =>
-        computingOperationStatus(operationId, isRunning = false)
+      case (latestPlanStepId, Some(operation)) =>
+        computingOperationStatus(operation.id, isRunning = false)
           .map(operationStatus =>
             (Some(latestPlanStepId),
               if (operationStatus == DeploymentStatus.flopped || operationStatus == DeploymentStatus.failed)
