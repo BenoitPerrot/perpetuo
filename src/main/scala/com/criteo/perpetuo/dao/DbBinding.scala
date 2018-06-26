@@ -455,8 +455,8 @@ class DbBinding @Inject()(val dbContext: DbContext)
   }
 
   /** retrieve the "effect" (the leaves of the model tree) of an *existing* operation trace */
-  def getOperationEffect(operationTrace: OperationTrace): Future[OperationEffect] = {
-    val q = executionQuery
+  def gettingOperationEffect(operationTrace: OperationTrace): DBIOAction[OperationEffect, NoStream, Effect.Read] =
+    executionQuery
       .joinLeft(executionTraceQuery)
       .filter { case (execution, executionTrace) =>
         execution.operationTraceId === operationTrace.id && executionTrace.map(_.executionId) === execution.id
@@ -486,9 +486,6 @@ class DbBinding @Inject()(val dbContext: DbContext)
             OperationEffect(operationTrace, planStepIds, et, ts)
           )
       }
-
-    dbContext.db.run(q)
-  }
 
   private def latestExecutions(targetStatuses: Query[TargetStatusTable, TargetStatusRecord, Seq]) =
     targetStatuses

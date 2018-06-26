@@ -2,6 +2,7 @@ package com.criteo.perpetuo.dao
 
 import com.criteo.perpetuo.engine.DBIOrw
 import com.twitter.inject.Logging
+import slick.sql.FixedSqlAction
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
@@ -65,16 +66,16 @@ trait LockBinder extends TableBinder with Logging {
     *
     * @return the number of locks that have actually been released.
     */
-  def releaseLocks(owningDeploymentRequestId: DeploymentRequestId): Future[Int] =
-    dbContext.db.run(lockQuery.filter(_.deploymentRequestId === owningDeploymentRequestId).delete.transactionally)
+  def releasingLocks(owningDeploymentRequestId: DeploymentRequestId): DBIOAction[Int, NoStream, Effect.Write with Effect.Transactional] =
+    lockQuery.filter(_.deploymentRequestId === owningDeploymentRequestId).delete.transactionally
 
   /**
     * Release the given lock if acquired by the given deployment request, otherwise do nothing.
     *
     * @return the number of locks that have actually been released (so 1 or 0).
     */
-  def releaseLock(name: String, owningDeploymentRequestId: DeploymentRequestId): Future[Int] =
-    dbContext.db.run(lockQuery.filter(lock => lock.name === name && lock.deploymentRequestId === owningDeploymentRequestId).delete)
+  def releasingLock(name: String, owningDeploymentRequestId: DeploymentRequestId): FixedSqlAction[Int, NoStream, Effect.Write] =
+    lockQuery.filter(lock => lock.name === name && lock.deploymentRequestId === owningDeploymentRequestId).delete
 
   def lockExists(name: String): Future[Boolean] =
     dbContext.db.run(lockQuery.filter(_.name === name).exists.result)

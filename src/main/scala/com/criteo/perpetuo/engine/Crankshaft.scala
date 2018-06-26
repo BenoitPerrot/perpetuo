@@ -10,7 +10,7 @@ import com.criteo.perpetuo.model._
 import com.google.common.annotations.VisibleForTesting
 import com.twitter.inject.Logging
 import javax.inject.{Inject, Singleton}
-import slick.dbio.DBIOAction
+import slick.dbio.{DBIOAction, Effect, NoStream}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
@@ -146,14 +146,11 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
         throw Conflict("Cannot be processed for the moment because a conflicting transaction is ongoing, which must first succeed or be reverted", conflictingRequestIds)
     )
 
-  // idempotent: on several attempts the listeners would be invoked at most once, but the DB updates
-  // would be reapplied in an idempotent way (in the case something failed in the previous attempt)
-  // because they are not done in a single transaction here
-  private def closeOperation(operationTrace: ShallowOperationTrace, deploymentRequest: DeploymentRequest): Future[ShallowOperationTrace] =
-    dbBinding.closeOperationTrace(operationTrace)
+  private def closingOperation(operationTrace: ShallowOperationTrace, deploymentRequest: DeploymentRequest): DBIOAction[ShallowOperationTrace, NoStream, Effect.Read with Effect.Write with Effect.Transactional] =
+    dbBinding.closingOperationTrace(operationTrace)
       .map(_.map((_, true)).getOrElse((operationTrace, false)))
       .flatMap { case (trace, updated) =>
-        dbBinding.getOperationEffect(trace)
+        dbBinding.gettingOperationEffect(trace)
           .flatMap { effect =>
             val (kind, status) = computeState(effect) // todo: compute actual deployment status (with 'paused')
             if (updated) {
@@ -163,12 +160,12 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
                 (_: AsyncListener).onOperationFailed _
               listeners.foreach(listener => handler(listener)(trace, deploymentRequest))
             }
-            dbBinding.closeTargetStatuses(trace.id).flatMap { _ =>
+            dbBinding.closingTargetStatuses(trace.id).andThen {
               val transactionOngoing = kind == Operation.deploy && status == DeploymentStatus.failed
               if (transactionOngoing && withTransactions)
-                dbBinding.releaseLock(getOperationLockName(deploymentRequest), deploymentRequest.id) // keep the locks per product/target
+                dbBinding.releasingLock(getOperationLockName(deploymentRequest), deploymentRequest.id) // keep the locks per product/target
               else
-                dbBinding.releaseLocks(deploymentRequest.id)
+                dbBinding.releasingLocks(deploymentRequest.id)
             }
           }
           .map(_ => trace)
@@ -357,32 +354,31 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
         Future.successful(Some(traces))
     }
 
-  // idempotent
   def updateExecutionTrace(id: Long, executionState: ExecutionState, detail: String, logHref: Option[String], statusMap: Map[String, TargetAtomStatus] = Map()): Future[Long] =
     tryUpdateExecutionTrace(id, executionState, detail, logHref, statusMap).map(_.getOrElse(throw new AssertionError(s"Trying to update an execution trace ($id) that doesn't exist")))
 
-  // idempotent
   def tryUpdateExecutionTrace(id: Long, executionState: ExecutionState, detail: String, logHref: Option[String], statusMap: Map[String, TargetAtomStatus] = Map()): Future[Option[Long]] =
-    dbBinding.updateExecutionTrace(id, executionState, detail, logHref).flatMap(_
-      .map(_ => // the execution trace exists
-        dbBinding.findExecutionTraceById(id)
-          .map(_.get)
-          .flatMap { execTrace =>
-            val op = execTrace.operationTrace
-            dbBinding.dbContext.db.run(dbBinding.updateTargetStatuses(execTrace.executionId, statusMap))
-              .flatMap(_ => dbBinding.hasOpenExecutionTracesForOperation(op.id))
-              .flatMap(hasOpenExecutions =>
-                if (hasOpenExecutions)
-                  Future.successful(())
-                else
-                  dbBinding.findDeepDeploymentRequestById(op.deploymentRequestId).flatMap(depReq =>
-                    closeOperation(op, depReq.get)
-                  )
-              )
-          }
-          .map(_ => Some(id))
+    dbBinding.dbContext.db.run(
+      dbBinding.updatingExecutionTrace(id, executionState, detail, logHref).flatMap(_
+        .map(_ => // the execution trace exists
+          dbBinding.findingExecutionTraceById(id)
+            .map(_.get)
+            .flatMap { execTrace =>
+              val op = execTrace.operationTrace
+              dbBinding.updateTargetStatuses(execTrace.executionId, statusMap)
+                .flatMap(_ => dbBinding.hasOpenExecutionTracesForOperation(op.id))
+                .flatMap(hasOpenExecutions =>
+                  if (hasOpenExecutions)
+                    DBIOAction.successful(())
+                  else
+                    dbBinding.findingDeepDeploymentRequestById(op.deploymentRequestId)
+                      .flatMap(depReq => closingOperation(op, depReq.get))
+                )
+            }
+            .map(_ => Some(id))
+        )
+        .getOrElse(DBIOAction.successful(None))
       )
-      .getOrElse(Future.successful(None))
     )
 
   def findDeepDeploymentRequestAndEffects(deploymentRequestId: Long): Future[Option[(DeploymentRequest, Seq[DeploymentPlanStep], Iterable[OperationEffect])]] =

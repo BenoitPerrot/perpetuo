@@ -64,19 +64,29 @@ trait OperationTraceBinder extends TableBinder {
   def countingOperationTraces(deploymentRequest: DeploymentRequest): FixedSqlAction[Int, dbContext.profile.api.NoStream, Effect.Read] =
     operationTraceQuery.filter(_.deploymentRequestId === deploymentRequest.id).length.result
 
-  def closeOperationTrace(operationTrace: OperationTrace): Future[Option[ShallowOperationTrace]] = {
-    val now = Some(new java.sql.Timestamp(System.currentTimeMillis))
+  def closeOperationTrace(operationTraceId: Long, now: java.sql.Timestamp = new java.sql.Timestamp(System.currentTimeMillis)): Future[Int] =
     dbContext.db.run(
       operationTraceQuery
-        .filter(op => op.id === operationTrace.id && op.startingDate.nonEmpty && op.closingDate.isEmpty)
+        .filter(op => op.id === operationTraceId && op.startingDate.nonEmpty && op.closingDate.isEmpty)
         .map(_.closingDate)
-        .update(now)
-    ).map(count => {
-      assert(count <= 1)
-      if (count == 1)
-        Some(ShallowOperationTrace(operationTrace.id, operationTrace.deploymentRequestId, operationTrace.kind, operationTrace.creator, operationTrace.creationDate, closingDate = now))
-      else
-        None
-    })
+        .update(Some(now))
+    )
+
+  def closingOperationTrace(operationTrace: OperationTrace): DBIOAction[Option[ShallowOperationTrace], NoStream, Effect.Write] = {
+    val now = Some(new java.sql.Timestamp(System.currentTimeMillis))
+    operationTraceQuery
+      .filter(op => op.id === operationTrace.id && op.startingDate.nonEmpty && op.closingDate.isEmpty)
+      .map(_.closingDate)
+      .update(now)
+      .map(count => {
+        assert(count <= 1)
+        if (count == 1)
+          Some(ShallowOperationTrace(operationTrace.id, operationTrace.deploymentRequestId, operationTrace.kind, operationTrace.creator, operationTrace.creationDate, closingDate = now))
+        else
+          None
+      })
   }
+
+  def closeOperationTrace(operationTrace: OperationTrace): Future[Option[ShallowOperationTrace]] =
+    dbContext.db.run(closingOperationTrace(operationTrace))
 }

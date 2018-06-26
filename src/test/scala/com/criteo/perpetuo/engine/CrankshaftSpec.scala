@@ -14,6 +14,9 @@ import scala.concurrent.{Await, Future}
 
 class CrankshaftSpec extends SimpleScenarioTesting {
 
+  private def hasOpenExecutionTracesForOperation(operationTraceId: Long) =
+    dbContext.db.run(crankshaft.dbBinding.hasOpenExecutionTracesForOperation(operationTraceId))
+
   private def gettingPlanStepToOperateAndLastDoneStepId(deploymentRequest: DeploymentRequest) =
     crankshaft.dbBinding.dbContext.db.run(crankshaft.dbBinding.gettingPlanStepToOperateAndLastDoneStepId(deploymentRequest))
 
@@ -44,9 +47,9 @@ class CrankshaftSpec extends SimpleScenarioTesting {
         product <- crankshaft.insertProductIfNotExists("human")
         deploymentRequest <- crankshaft.createDeploymentRequest(ProtoDeploymentRequest(product.name, Version(JsString("42").compactPrint), Seq(ProtoDeploymentPlanStep("", JsArray(JsString("moon"), JsString("mars")), "")), "", "robert"))
         operationTrace <- crankshaft.step(deploymentRequest, Some(0), "ignace")
-        hasOpenExecutionBefore <- crankshaft.dbBinding.hasOpenExecutionTracesForOperation(operationTrace.id)
+        hasOpenExecutionBefore <- hasOpenExecutionTracesForOperation(operationTrace.id)
         _ <- closeOperation(operationTrace, Map("moon" -> Status.success, "mars" -> Status.hostFailure))
-        hasOpenExecutionAfter <- crankshaft.dbBinding.hasOpenExecutionTracesForOperation(operationTrace.id)
+        hasOpenExecutionAfter <- hasOpenExecutionTracesForOperation(operationTrace.id)
         operationReClosingSucceeded <- crankshaft.dbBinding.closeOperationTrace(operationTrace)
       } yield (hasOpenExecutionBefore, hasOpenExecutionAfter, operationReClosingSucceeded.isDefined)
     ) shouldBe(true, false, false)
@@ -295,7 +298,7 @@ class CrankshaftSpec extends SimpleScenarioTesting {
         retriedOperation <- crankshaft.step(deploymentRequest, Some(1), "b.lightning")
         secondExecutionTraces <- closeOperation(retriedOperation, Map("moon" -> Status.success, "mars" -> Status.success))
         raceConditionError <- crankshaft.step(deploymentRequest, Some(1), "b.lightning").failed
-        hasOpenExecutionAfter <- crankshaft.dbBinding.hasOpenExecutionTracesForOperation(retriedOperation.id)
+        hasOpenExecutionAfter <- hasOpenExecutionTracesForOperation(retriedOperation.id)
         operationReClosingSucceeded <- crankshaft.dbBinding.closeOperationTrace(retriedOperation)
         initialExecutionSpecIds <- crankshaft.dbBinding.findExecutionSpecIdsByOperationTrace(operationTrace.id)
         retriedExecutionSpecIds <- crankshaft.dbBinding.findExecutionSpecIdsByOperationTrace(retriedOperation.id)
@@ -401,7 +404,7 @@ class CrankshaftWithFailingExecutorSpec extends SimpleScenarioTesting {
       product <- crankshaft.insertProductIfNotExists("airplane")
       deploymentRequest <- crankshaft.createDeploymentRequest(ProtoDeploymentRequest(product.name, Version(JsString("42").compactPrint), Seq(ProtoDeploymentPlanStep("", JsArray(JsString("moon"), JsString("mars")), "")), "", "bob"))
       operationTrace <- crankshaft.step(deploymentRequest, Some(0), "ignace")
-      hasOpenExecution <- crankshaft.dbBinding.hasOpenExecutionTracesForOperation(operationTrace.id)
+      hasOpenExecution <- dbContext.db.run(crankshaft.dbBinding.hasOpenExecutionTracesForOperation(operationTrace.id))
       executionTrace <- crankshaft.dbBinding.findExecutionTracesByDeploymentRequest(deploymentRequest.id).map(_.head)
     } yield (
       hasOpenExecution, executionTrace.state

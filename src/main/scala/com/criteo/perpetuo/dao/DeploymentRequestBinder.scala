@@ -49,20 +49,19 @@ trait DeploymentRequestBinder extends TableBinder {
     dbContext.db.run(deploymentRequestQuery.filter(_.id === id).exists.result)
   }
 
-  def findDeepDeploymentRequestById(id: Long): Future[Option[DeploymentRequest]] = {
-    dbContext.db
-      .run(
-        deploymentRequestQuery
-          .join(productQuery)
-          .filter { case (deploymentRequest, product) =>
-            deploymentRequest.id === id && deploymentRequest.productId === product.id
-          }
-          .result
-      )
+  def findingDeepDeploymentRequestById(id: Long): DBIOAction[Option[DeploymentRequest], NoStream, Effect.Read] =
+    deploymentRequestQuery
+      .join(productQuery)
+      .filter { case (deploymentRequest, product) =>
+        deploymentRequest.id === id && deploymentRequest.productId === product.id
+      }
+      .result
       .map(_.headOption.map {
         case (req, prod) => req.toDeepDeploymentRequest(prod)
       })
-  }
+
+  def findDeepDeploymentRequestById(id: Long): Future[Option[DeploymentRequest]] =
+    dbContext.db.run(findingDeepDeploymentRequestById(id))
 
   def updateDeploymentRequestComment(id: Long, comment: String): Future[Boolean] = {
     dbContext.db.run(deploymentRequestQuery.filter(_.id === id).map(_.comment).update(comment))

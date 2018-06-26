@@ -98,14 +98,12 @@ trait TargetStatusBinder extends TableBinder {
       .map(_ => ())
       .withPinnedSession
 
-  def closeTargetStatuses(operationTraceId: Long): Future[Int] = {
-    val q = executionQuery.filter(_.operationTraceId === operationTraceId).map(_.id).result
+  def closingTargetStatuses(operationTraceId: Long): DBIOAction[Int, NoStream, Effect.Read with Effect.Write] =
+    executionQuery.filter(_.operationTraceId === operationTraceId).map(_.id).result
       .flatMap(executionIds =>
         targetStatusQuery
           .filter(targetStatus => targetStatus.code === Status.running && targetStatus.executionId.inSet(executionIds))
           .map(targetStatus => (targetStatus.code, targetStatus.detail))
           .update((Status.undetermined, "No feedback from the executor"))
       )
-    dbContext.db.run(q)
-  }
 }

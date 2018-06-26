@@ -66,19 +66,18 @@ trait ExecutionTraceBinder extends TableBinder {
         .result
     ).map(_.map(_.toExecutionTrace))
 
-  def findExecutionTraceById(executionTraceId: Long): Future[Option[DeepExecutionTrace]] =
-    dbContext.db.run(
-      executionTraceQuery
-        .join(executionQuery)
-        .join(operationTraceQuery)
-        .filter { case ((executionTrace, execution), operationTrace) =>
-          executionTrace.id === executionTraceId && executionTrace.executionId === execution.id && execution.operationTraceId === operationTrace.id
-        }
-        .map { case ((executionTrace, _), operationTrace) => (executionTrace, operationTrace) }
-        .result
-    ).map(_.headOption.map { case (exec, op) =>
-      exec.toExecutionTrace(op.toOperationTrace)
-    })
+  def findingExecutionTraceById(executionTraceId: Long): DBIOAction[Option[DeepExecutionTrace], NoStream, Effect.Read] =
+    executionTraceQuery
+      .join(executionQuery)
+      .join(operationTraceQuery)
+      .filter { case ((executionTrace, execution), operationTrace) =>
+        executionTrace.id === executionTraceId && executionTrace.executionId === execution.id && execution.operationTraceId === operationTrace.id
+      }
+      .map { case ((executionTrace, _), operationTrace) => (executionTrace, operationTrace) }
+      .result
+      .map(_.headOption.map { case (exec, op) =>
+        exec.toExecutionTrace(op.toOperationTrace)
+      })
 
   def findingOperationTraceIdsByDeploymentRequest(deploymentRequestId: Long): FixedSqlStreamingAction[Seq[Long], Long, Effect.Read] =
     operationTraceQuery.filter(_.deploymentRequestId === deploymentRequestId).map(_.id).result
@@ -91,8 +90,8 @@ trait ExecutionTraceBinder extends TableBinder {
           (executionTrace.state === ExecutionState.pending || executionTrace.state === ExecutionState.running)
       }
 
-  def hasOpenExecutionTracesForOperation(operationTraceId: Long): Future[Boolean] =
-    dbContext.db.run(openExecutionTracesQuery(operationTraceId).exists.result)
+  def hasOpenExecutionTracesForOperation(operationTraceId: Long): FixedSqlAction[Boolean, NoStream, Effect.Read] =
+    openExecutionTracesQuery(operationTraceId).exists.result
 
   def findingOpenExecutionTracesByOperationTrace(operationTraceId: Long): DBIOAction[Seq[ShallowExecutionTrace], NoStream, Effect.Read] =
     openExecutionTracesQuery(operationTraceId)
@@ -104,16 +103,16 @@ trait ExecutionTraceBinder extends TableBinder {
     * @return Some(id) if it has been successfully updated, None if it doesn't exist
     * @throws UnavailableAction if the transition is not allowed
     */
-  def updateExecutionTrace(id: Long, state: ExecutionState, detail: String, logHref: Option[String] = None): Future[Option[Long]] =
+  def updatingExecutionTrace(id: Long, state: ExecutionState, detail: String, logHref: Option[String] = None): DBIOAction[Option[Long], NoStream, Effect.Read with Effect.Write] =
     logHref
-      .map(_ => runUpdate(id, state, _.map(r => (r.state, r.detail, r.logHref)).update((state, detail, logHref))))
-      .getOrElse(runUpdate(id, state, _.map(r => (r.state, r.detail)).update((state, detail))))
+      .map(_ => runningUpdate(id, state, _.map(r => (r.state, r.detail, r.logHref)).update((state, detail, logHref))))
+      .getOrElse(runningUpdate(id, state, _.map(r => (r.state, r.detail)).update((state, detail))))
 
-  private def runUpdate(id: Long, state: ExecutionState, updateQuery: Query[ExecutionTraceTable, ExecutionTraceRecord, Seq] => DBIOAction[Int, NoStream, Effect.Write]): Future[Option[Long]] = {
+  private def runningUpdate(id: Long, state: ExecutionState, updateQuery: Query[ExecutionTraceTable, ExecutionTraceRecord, Seq] => DBIOAction[Int, NoStream, Effect.Write]) = {
     val filterQuery = executionTraceQuery.filter(executionTrace =>
       executionTrace.id === id && executionTrace.state.inSet(state :: ExecutionState.getPredecessors(state))
     )
-    val q = updateQuery(filterQuery).flatMap { updatedCount =>
+    updateQuery(filterQuery).flatMap { updatedCount =>
       // only in the case no record matched the filter (which is an error from the user, so exceptional...), we check whether the execution trace exists
       if (updatedCount == 0)
         executionTraceQuery.filter(_.id === id).result.map(_.headOption.map(executionTrace =>
@@ -122,7 +121,6 @@ trait ExecutionTraceBinder extends TableBinder {
       else
         DBIO.successful(Some(id))
     }
-    dbContext.db.run(q)
   }
 
   def findExecutionTraceIdsByExecution(executionId: Long): Future[Seq[Long]] =
