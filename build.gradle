@@ -86,6 +86,16 @@ dependencies {
     testCompile group: "com.twitter", name: "inject-server_${scala_version_short}", version: "${twitter_server_version}", classifier: "tests"
 }
 
+tasks.withType(ScalaCompile) {
+    scalaCompileOptions.additionalParameters = [
+            "-unchecked",
+            "-deprecation",
+            "-feature",
+            "-Xfatal-warnings",
+            "-Ywarn-dead-code",
+    ]
+}
+
 task npm_installExec(type: CrossPlatformExec) {
     executable "npm"
     args "install"
