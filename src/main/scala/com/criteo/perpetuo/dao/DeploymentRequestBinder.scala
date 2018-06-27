@@ -14,7 +14,7 @@ private[dao] case class DeploymentRequestRecord(id: Option[Long],
                                                 comment: String, // Not an `Option` because it's easier to consider that no comment <=> empty
                                                 creator: String,
                                                 creationDate: java.sql.Timestamp) {
-  def toDeepDeploymentRequest(product: ProductRecord) =
+  def toDeploymentRequest(product: ProductRecord) =
     DeploymentRequest(id.get, product.toProduct, version, target, comment, creator, creationDate)
 }
 
@@ -49,7 +49,7 @@ trait DeploymentRequestBinder extends TableBinder {
     dbContext.db.run(deploymentRequestQuery.filter(_.id === id).exists.result)
   }
 
-  def findingDeepDeploymentRequestById(id: Long): DBIOAction[Option[DeploymentRequest], NoStream, Effect.Read] =
+  def findingDeploymentRequestById(id: Long): DBIOAction[Option[DeploymentRequest], NoStream, Effect.Read] =
     deploymentRequestQuery
       .join(productQuery)
       .filter { case (deploymentRequest, product) =>
@@ -57,11 +57,11 @@ trait DeploymentRequestBinder extends TableBinder {
       }
       .result
       .map(_.headOption.map {
-        case (req, prod) => req.toDeepDeploymentRequest(prod)
+        case (req, prod) => req.toDeploymentRequest(prod)
       })
 
-  def findDeepDeploymentRequestById(id: Long): Future[Option[DeploymentRequest]] =
-    dbContext.db.run(findingDeepDeploymentRequestById(id))
+  def findDeploymentRequestById(id: Long): Future[Option[DeploymentRequest]] =
+    dbContext.db.run(findingDeploymentRequestById(id))
 
   def updateDeploymentRequestComment(id: Long, comment: String): Future[Boolean] = {
     dbContext.db.run(deploymentRequestQuery.filter(_.id === id).map(_.comment).update(comment))

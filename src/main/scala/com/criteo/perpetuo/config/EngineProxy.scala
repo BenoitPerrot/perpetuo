@@ -25,6 +25,6 @@ class EngineProxy @Inject()(engineProvider: Provider[Crankshaft]) {
     )
 
   def readComment(deploymentRequest: DeploymentRequest): String =
-    Await.result(engine.dbBinding.findDeepDeploymentRequestById(deploymentRequest.id).map(_.get.comment), 2.seconds)
+    Await.result(engine.dbBinding.findDeploymentRequestById(deploymentRequest.id).map(_.get.comment), 2.seconds)
 
 }

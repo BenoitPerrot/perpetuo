@@ -72,8 +72,8 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
   def insertProductIfNotExists(productName: String): Future[Product] =
     dbBinding.insertProductIfNotExists(productName)
 
-  def findDeepDeploymentRequestById(deploymentRequestId: Long): Future[Option[DeploymentRequest]] =
-    dbBinding.findDeepDeploymentRequestById(deploymentRequestId)
+  def findDeploymentRequestById(deploymentRequestId: Long): Future[Option[DeploymentRequest]] =
+    dbBinding.findDeploymentRequestById(deploymentRequestId)
 
   def createDeploymentRequest(protoDeploymentRequest: ProtoDeploymentRequest): Future[DeploymentRequest] =
     Future
@@ -392,8 +392,8 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
       )
     )
 
-  def findDeepDeploymentRequestAndEffects(deploymentRequestId: Long): Future[Option[(DeploymentRequest, Seq[DeploymentPlanStep], Iterable[OperationEffect])]] =
-    dbBinding.findDeepDeploymentRequestAndEffects(deploymentRequestId)
+  def findDeploymentRequestAndEffects(deploymentRequestId: Long): Future[Option[(DeploymentRequest, Seq[DeploymentPlanStep], Iterable[OperationEffect])]] =
+    dbBinding.findDeploymentRequestAndEffects(deploymentRequestId)
 
   def findDeploymentRequestsWithStatuses(where: Seq[Map[String, Any]], limit: Int, offset: Int): Future[Seq[(DeploymentRequest, DeploymentStatus.Value, Option[Operation.Kind])]] =
     dbBinding.findDeploymentRequestsWithStatuses(where, limit, offset)

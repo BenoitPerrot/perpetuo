@@ -32,7 +32,7 @@ class DbBinding @Inject()(val dbContext: DbContext)
   def executeInSerializableTransaction[T](q: DBIOAction[T, NoStream, _]): Future[T] =
     dbContext.db.run(q.transactionally.withTransactionIsolation(TransactionIsolation.Serializable))
 
-  def findDeepDeploymentRequestAndEffects(deploymentRequestId: Long): Future[Option[(DeploymentRequest, Seq[DeploymentPlanStep], Iterable[OperationEffect])]] = {
+  def findDeploymentRequestAndEffects(deploymentRequestId: Long): Future[Option[(DeploymentRequest, Seq[DeploymentPlanStep], Iterable[OperationEffect])]] = {
     val findingDeploymentRequest =
       deploymentRequestQuery
         .join(productQuery)
@@ -86,7 +86,7 @@ class DbBinding @Inject()(val dbContext: DbContext)
       deploymentIntent
         .headOption
         .map { case ((deploymentRequestRecord, product), _) =>
-          val deploymentRequest = deploymentRequestRecord.toDeepDeploymentRequest(product)
+          val deploymentRequest = deploymentRequestRecord.toDeploymentRequest(product)
           val deploymentPlanSteps = deploymentIntent.map { case (_, deploymentPlanStepRecord) => deploymentPlanStepRecord.toDeploymentPlanStep(deploymentRequest) }
           findingXref.flatMap { xrefs =>
             findingEffects.map { effects =>
@@ -184,7 +184,7 @@ class DbBinding @Inject()(val dbContext: DbContext)
             val (deploymentRequest, product, planStepId, lastEffect) = group.maxBy { case (_, _, _, effect) =>
               effect.map { case (op, executionState) => (op.id.get, executionState.isDefined) }.getOrElse((Long.MinValue, false))
             }
-            val depReq = deploymentRequest.toDeepDeploymentRequest(product)
+            val depReq = deploymentRequest.toDeploymentRequest(product)
             lastEffect
               .map { case (operationTrace, executionTraceState) =>
                 operationTrace.closingDate
@@ -245,7 +245,7 @@ class DbBinding @Inject()(val dbContext: DbContext)
       .map { case ((((executionTrace, _), operationTrace), deploymentRequest), product) => (executionTrace, operationTrace, deploymentRequest, product) }
       .result
       .map(_.headOption.map { case (executionTrace, operationTrace, deploymentRequest, product) =>
-        executionTrace.toExecutionTrace(operationTrace.toOperationTrace(deploymentRequest.toDeepDeploymentRequest(product)))
+        executionTrace.toExecutionTrace(operationTrace.toOperationTrace(deploymentRequest.toDeploymentRequest(product)))
       })
 
   private def findingDeploymentPlanStepAndLatestOperations(deploymentRequestId: Long) =

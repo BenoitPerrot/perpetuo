@@ -125,10 +125,10 @@ class CrankshaftSpec extends SimpleScenarioTesting {
 
         // fixme: one day, first deployment will be retryable:
         // But second one can't be, because it impacts `racing`, whose status changed in the meantime
-        secondDeploymentRequest <- crankshaft.dbBinding.findDeepDeploymentRequestById(secondDeploymentRequest.id).map(_.get)
+        secondDeploymentRequest <- crankshaft.dbBinding.findDeploymentRequestById(secondDeploymentRequest.id).map(_.get)
         rejectionOfSecond <- crankshaft.rejectIfCannotDeploy(secondDeploymentRequest).failed
         // The last one of course is retryable
-        thirdDeploymentRequest <- crankshaft.dbBinding.findDeepDeploymentRequestById(thirdDeploymentRequest.id).map(_.get)
+        thirdDeploymentRequest <- crankshaft.dbBinding.findDeploymentRequestById(thirdDeploymentRequest.id).map(_.get)
         _ <- crankshaft.rejectIfCannotDeploy(thirdDeploymentRequest)
       } yield rejectionOfSecond.getMessage.split(":")(1).trim
     ) shouldBe "a newer one has already been applied"
@@ -149,11 +149,11 @@ class CrankshaftSpec extends SimpleScenarioTesting {
         // Status = moon: mouse@69, mars: mouse@69?, venus: mouse@54
 
         // Can't revert as-is the first deployment request: we need to know the default revert version
-        firstDeploymentRequest <- crankshaft.dbBinding.findDeepDeploymentRequestById(firstDeploymentRequest.id).map(_.get)
+        firstDeploymentRequest <- crankshaft.dbBinding.findDeploymentRequestById(firstDeploymentRequest.id).map(_.get)
         (undeterminedSpecsFirst, determinedSpecsFirst) <- dbContext.db.run(crankshaft.dbBinding.findingExecutionSpecificationsForRevert(firstDeploymentRequest))
 
         // Can revert
-        thirdDeploymentRequest <- crankshaft.dbBinding.findDeepDeploymentRequestById(thirdDeploymentRequest.id).map(_.get)
+        thirdDeploymentRequest <- crankshaft.dbBinding.findDeploymentRequestById(thirdDeploymentRequest.id).map(_.get)
         (undeterminedSpecsThird, determinedSpecsThird) <- dbContext.db.run(crankshaft.dbBinding.findingExecutionSpecificationsForRevert(thirdDeploymentRequest))
 
       } yield {
@@ -188,27 +188,27 @@ class CrankshaftSpec extends SimpleScenarioTesting {
         // Status = orbit: monkey@69 + bonobo@215, venus: monkey@69 + bonobo@215
 
         // Second request can't be reverted
-        secondDeploymentRequest <- crankshaft.dbBinding.findDeepDeploymentRequestById(secondDeploymentRequest.id).map(_.get)
+        secondDeploymentRequest <- crankshaft.dbBinding.findDeploymentRequestById(secondDeploymentRequest.id).map(_.get)
         rejectionOfSecond <- crankshaft.rejectIfCannotRevert(secondDeploymentRequest).failed
         // Third one can be reverted, because it's the last one for its product
-        thirdDeploymentRequest <- crankshaft.dbBinding.findDeepDeploymentRequestById(thirdDeploymentRequest.id).map(_.get)
+        thirdDeploymentRequest <- crankshaft.dbBinding.findDeploymentRequestById(thirdDeploymentRequest.id).map(_.get)
         _ <- crankshaft.rejectIfCannotRevert(thirdDeploymentRequest)
         // Meanwhile the deployment on another product can be reverted (even when it's the first one for that product: it just requires a default revert version)
-        otherDeploymentRequest <- crankshaft.dbBinding.findDeepDeploymentRequestById(otherDeploymentRequest.id).map(_.get)
+        otherDeploymentRequest <- crankshaft.dbBinding.findDeploymentRequestById(otherDeploymentRequest.id).map(_.get)
         _ <- crankshaft.rejectIfCannotRevert(otherDeploymentRequest)
 
         (nothingDoneDeploymentRequest, _) <- mockDeployExecution(product.name, "51", Map("pluto" -> Status.notDone), initFailed = true, updateTargetStatuses = false)
         // Status = initFailed
 
         // Verify we can't revert a request if no targetStatuses exists
-        nothingDoneDeploymentRequest <- crankshaft.dbBinding.findDeepDeploymentRequestById(nothingDoneDeploymentRequest.id).map(_.get)
+        nothingDoneDeploymentRequest <- crankshaft.dbBinding.findDeploymentRequestById(nothingDoneDeploymentRequest.id).map(_.get)
         rejectionOfNothingDone <- crankshaft.rejectIfCannotRevert(nothingDoneDeploymentRequest).failed
 
         (notDoneDeploymentRequest, _) <- mockDeployExecution(product.name, "51", Map("planet x" -> Status.notDone), initFailed = true)
         // Status = initFailed
 
         // Verify we can't revert a request if it has no effect
-        notDoneDeploymentRequest <- crankshaft.dbBinding.findDeepDeploymentRequestById(notDoneDeploymentRequest.id).map(_.get)
+        notDoneDeploymentRequest <- crankshaft.dbBinding.findDeploymentRequestById(notDoneDeploymentRequest.id).map(_.get)
         rejectionOfNotDone <- crankshaft.rejectIfCannotRevert(notDoneDeploymentRequest).failed
 
       } yield List(rejectionOfSecond, rejectionOfNothingDone, rejectionOfNotDone).map(_.getMessage.split(":")(1).trim)
@@ -235,7 +235,7 @@ class CrankshaftSpec extends SimpleScenarioTesting {
         // Status = tic: pony@11, tac: pony@11
 
         (secondDeploymentRequest, secondExecSpecId) <- mockDeployExecution(product.name, "22", Map("tic" -> Status.success, "tac" -> Status.success))
-        secondDeploymentRequest <- crankshaft.dbBinding.findDeepDeploymentRequestById(secondDeploymentRequest.id).map(_.get)
+        secondDeploymentRequest <- crankshaft.dbBinding.findDeploymentRequestById(secondDeploymentRequest.id).map(_.get)
         // Status = tic: pony@22, tac: pony@22
 
         // Revert the last deployment request
@@ -552,7 +552,7 @@ class CrankshaftWithStopperSpec extends SimpleScenarioTesting {
       .flatMap(crankshaft.stopExecution(_, "joe")), 1.second) shouldBe true
     crankshaft.dbBinding.findExecutionTracesByOperationTrace(op.id).map(_.map(_.state).toSet) should
       become(Set(ExecutionState.stopped))
-    crankshaft.findDeepDeploymentRequestAndEffects(op.deploymentRequest.id).map(_.get._3.map(_.operationTrace.closingDate.isDefined)) should
+    crankshaft.findDeploymentRequestAndEffects(op.deploymentRequest.id).map(_.get._3.map(_.operationTrace.closingDate.isDefined)) should
       become(Iterable(true))
   }
 

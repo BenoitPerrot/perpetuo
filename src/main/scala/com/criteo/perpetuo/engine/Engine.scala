@@ -19,8 +19,8 @@ class Engine @Inject()(val crankshaft: Crankshaft,
     crankshaft.createDeploymentRequest(protoDeploymentRequest)
   }
 
-  private def withDeepDeploymentRequest[T](id: Long)(callback: DeploymentRequest => Future[T]): Future[Option[T]] =
-    crankshaft.findDeepDeploymentRequestById(id)
+  private def withDeploymentRequest[T](id: Long)(callback: DeploymentRequest => Future[T]): Future[Option[T]] =
+    crankshaft.findDeploymentRequestById(id)
       .flatMap(
         _.map(callback)
           .map(_.map(Some.apply))
@@ -28,7 +28,7 @@ class Engine @Inject()(val crankshaft: Crankshaft,
       )
 
   def step(user: User, deploymentRequestId: Long, operationCount: Option[Int]): Future[Option[OperationTrace]] =
-    withDeepDeploymentRequest(deploymentRequestId) { deploymentRequest =>
+    withDeploymentRequest(deploymentRequestId) { deploymentRequest =>
       if (!permissions.isAuthorized(user, DeploymentAction.applyOperation, Operation.deploy, deploymentRequest.product.name))
         throw PermissionDenied()
 
@@ -36,14 +36,14 @@ class Engine @Inject()(val crankshaft: Crankshaft,
     }
 
   def deviseRevertPlan(id: Long): Future[Option[(Select, Iterable[(ExecutionSpecification, Select)])]] =
-    withDeepDeploymentRequest(id) { deploymentRequest =>
+    withDeploymentRequest(id) { deploymentRequest =>
       crankshaft.rejectIfLocked(deploymentRequest)
         .flatMap(_ => crankshaft.rejectIfCannotRevert(deploymentRequest))
         .flatMap(_ => crankshaft.findExecutionSpecificationsForRevert(deploymentRequest))
     }
 
   def revert(user: User, deploymentRequestId: Long, operationCount: Option[Int], defaultVersion: Option[Version]): Future[Option[OperationTrace]] =
-    withDeepDeploymentRequest(deploymentRequestId) { deploymentRequest =>
+    withDeploymentRequest(deploymentRequestId) { deploymentRequest =>
       if (!permissions.isAuthorized(user, DeploymentAction.applyOperation, Operation.revert, deploymentRequest.product.name))
         throw PermissionDenied()
 
@@ -51,7 +51,7 @@ class Engine @Inject()(val crankshaft: Crankshaft,
     }
 
   def stop(user: User, deploymentRequestId: Long, operationCount: Option[Int]): Future[Option[(Int, Seq[String])]] =
-    withDeepDeploymentRequest(deploymentRequestId) { deploymentRequest =>
+    withDeploymentRequest(deploymentRequestId) { deploymentRequest =>
       def allowedTo(kind: Operation.Kind) =
         permissions.isAuthorized(user, DeploymentAction.applyOperation, kind, deploymentRequest.product.name)
 
@@ -66,7 +66,7 @@ class Engine @Inject()(val crankshaft: Crankshaft,
 
   def queryDeploymentRequestStatus(user: Option[User], id: Long): Future[Option[DeploymentRequestStatus]] =
     crankshaft
-      .findDeepDeploymentRequestAndEffects(id)
+      .findDeploymentRequestAndEffects(id)
       .flatMap(
         _.map { case (deploymentRequest, deploymentPlanSteps, effects) =>
           val isAdmin = user.exists(user =>
