@@ -25,9 +25,9 @@ class DbContextModule(val config: Config) extends TwitterModule {
   private def toHikariConfig(jdbcUrl: String, config: Config) = {
     val maxPoolSize = config.getIntOrElse("poolMaxSize", 10)
     val minimumIdle = config.getIntOrElse("poolMinSize", maxPoolSize)
-    val idleTimeout = config.getIntOrElse("idleTimeout", 600000)
-    val connectionTimeout = config.getIntOrElse("connectionTimeout", 30000)
-    val validationTimeout = config.getIntOrElse("validationTimeout", 5000)
+    val idleTimeout = config.getIntOrElse("idleTimeout", 600000).toLong
+    val connectionTimeout = config.getIntOrElse("connectionTimeout", 30000).toLong
+    val validationTimeout = config.getIntOrElse("validationTimeout", 5000).toLong
 
     val hikariConfig = new HikariConfig
     hikariConfig.setJdbcUrl(jdbcUrl)

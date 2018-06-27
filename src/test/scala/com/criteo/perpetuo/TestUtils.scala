@@ -50,7 +50,7 @@ trait SimpleScenarioTesting extends TestHelpers with TestDb with MockitoSugar {
   val plugins = new Plugins(loader)
   val executionFinder = new TriggeredExecutionFinder(loader)
   lazy val crankshaft: Crankshaft = {
-    when(executionTrigger.trigger(anyInt, anyString, any[Version], any[TargetExpr], anyString))
+    when(executionTrigger.trigger(anyLong, anyString, any[Version], any[TargetExpr], anyString))
       .thenReturn(Future(triggerMock))
     new Crankshaft(dbBinding, plugins.resolver, new SingleTargetDispatcher(executionTrigger), plugins.listeners, executionFinder)
   }

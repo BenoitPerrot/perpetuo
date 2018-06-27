@@ -93,6 +93,7 @@ tasks.withType(ScalaCompile) {
             "-feature",
             "-Xfatal-warnings",
             "-Ywarn-dead-code",
+            "-Ywarn-numeric-widen"
     ]
 }
 

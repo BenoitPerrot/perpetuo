@@ -177,7 +177,7 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
   def isDeploymentRequestStarted(deploymentRequestId: Long): Future[Option[(DeploymentRequest, Boolean)]] =
     dbBinding.isDeploymentRequestStarted(deploymentRequestId)
 
-  private def checkState(deploymentRequest: DeploymentRequest, currentState: Long, expectedState: Long): Unit =
+  private def checkState(deploymentRequest: DeploymentRequest, currentState: Int, expectedState: Int): Unit =
     if (currentState != expectedState)
       throw Conflict(s"${deploymentRequest.id}: the state of the deployment has just changed; have another look before choosing an action to trigger")
 
