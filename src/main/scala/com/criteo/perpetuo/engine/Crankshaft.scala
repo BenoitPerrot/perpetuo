@@ -247,10 +247,10 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
         Future.successful(())
     )
 
-  def canDeployDeploymentRequest(deploymentRequest: DeploymentRequest): Future[Unit] =
+  def rejectIfCannotDeploy(deploymentRequest: DeploymentRequest): Future[Unit] =
     rejectIfOutdated(deploymentRequest)
 
-  def canRevertDeploymentRequest(deploymentRequest: DeploymentRequest, isStarted: Boolean): Future[Unit] =
+  def rejectIfCannotRevert(deploymentRequest: DeploymentRequest, isStarted: Boolean): Future[Unit] =
     if (!isStarted)
       Future.failed(UnavailableAction(s"${deploymentRequest.id}: cannot revert: it has not yet been applied"))
     else {

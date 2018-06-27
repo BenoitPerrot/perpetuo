@@ -33,14 +33,14 @@ class Engine @Inject()(val crankshaft: Crankshaft,
         throw PermissionDenied()
 
       crankshaft
-        .canDeployDeploymentRequest(deploymentRequest)
+        .rejectIfCannotDeploy(deploymentRequest)
         .flatMap(_ => crankshaft.step(deploymentRequest, operationCount, user.name))
     }
 
   def deviseRevertPlan(id: Long): Future[Option[(Select, Iterable[(ExecutionSpecification, Select)])]] =
     withDeepDeploymentRequest(id) { (deploymentRequest, isStarted) =>
       crankshaft.rejectIfLocked(deploymentRequest)
-        .flatMap(_ => crankshaft.canRevertDeploymentRequest(deploymentRequest, isStarted))
+        .flatMap(_ => crankshaft.rejectIfCannotRevert(deploymentRequest, isStarted))
         .flatMap(_ => crankshaft.findExecutionSpecificationsForRevert(deploymentRequest))
     }
 
@@ -50,7 +50,7 @@ class Engine @Inject()(val crankshaft: Crankshaft,
         throw PermissionDenied()
 
       crankshaft
-        .canRevertDeploymentRequest(deploymentRequest, isStarted)
+        .rejectIfCannotRevert(deploymentRequest, isStarted)
         .flatMap(_ => crankshaft.revert(deploymentRequest, operationCount, user.name, defaultVersion))
     }
 
@@ -89,8 +89,8 @@ class Engine @Inject()(val crankshaft: Crankshaft,
                 .sequence(
                   Operation.values.toSeq.map { action =>
                     val canApply = action match {
-                      case Operation.deploy => crankshaft.canDeployDeploymentRequest(deploymentRequest)
-                      case Operation.revert => crankshaft.canRevertDeploymentRequest(deploymentRequest, effects.nonEmpty)
+                      case Operation.deploy => crankshaft.rejectIfCannotDeploy(deploymentRequest)
+                      case Operation.revert => crankshaft.rejectIfCannotRevert(deploymentRequest, effects.nonEmpty)
                     }
                     canApply
                       .map(_ => Some((action, authorized(action))))
