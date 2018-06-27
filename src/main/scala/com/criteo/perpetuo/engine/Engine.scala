@@ -39,8 +39,8 @@ class Engine @Inject()(val crankshaft: Crankshaft,
 
   def deviseRevertPlan(id: Long): Future[Option[(Select, Iterable[(ExecutionSpecification, Select)])]] =
     withDeepDeploymentRequest(id) { (deploymentRequest, isStarted) =>
-      crankshaft
-        .canRevertDeploymentRequest(deploymentRequest, isStarted)
+      crankshaft.rejectIfLocked(deploymentRequest)
+        .flatMap(_ => crankshaft.canRevertDeploymentRequest(deploymentRequest, isStarted))
         .flatMap(_ => crankshaft.findExecutionSpecificationsForRevert(deploymentRequest))
     }
 
@@ -83,18 +83,23 @@ class Engine @Inject()(val crankshaft: Crankshaft,
             permissions.isAuthorized(user, DeploymentAction.applyOperation, op, deploymentRequest.product.name)
           )
 
-          Future
-            .sequence(
-              Operation.values.toSeq.map { action =>
-                val canApply = action match {
-                  case Operation.deploy => crankshaft.canDeployDeploymentRequest(deploymentRequest)
-                  case Operation.revert => crankshaft.canRevertDeploymentRequest(deploymentRequest, effects.nonEmpty)
-                }
-                canApply
-                  .map(_ => Some((action, authorized(action))))
-                  .recover { case _ => None }
-              }
+          crankshaft.rejectIfLocked(deploymentRequest)
+            .flatMap(_ =>
+              Future
+                .sequence(
+                  Operation.values.toSeq.map { action =>
+                    val canApply = action match {
+                      case Operation.deploy => crankshaft.canDeployDeploymentRequest(deploymentRequest)
+                      case Operation.revert => crankshaft.canRevertDeploymentRequest(deploymentRequest, effects.nonEmpty)
+                    }
+                    canApply
+                      .map(_ => Some((action, authorized(action))))
+                      .recover { case _ => None }
+                  }
+                )
             )
+            // todo: add the stop action in the Seq:
+            .recover { case _ => Seq() }
             .map { authorizedActions =>
               val sortedEffects = effects.toSeq.sortBy(-_.operationTrace.id)
               Some(DeploymentRequestStatus(deploymentRequest, deploymentPlanSteps, sortedEffects, sortedEffects.headOption.map(crankshaft.computeState), authorizedActions.flatten, isAdmin || authorized(Operation.deploy)))

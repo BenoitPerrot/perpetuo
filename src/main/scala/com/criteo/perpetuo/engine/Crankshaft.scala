@@ -230,23 +230,25 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
         Future.failed(UnavailableAction(s"${deploymentRequest.id}: Nothing to revert"))
     )
 
-  private def rejectIfOutdatedOrLocked(deploymentRequest: DeploymentRequest): Future[Unit] =
+  def rejectIfLocked(deploymentRequest: DeploymentRequest): Future[Unit] =
     dbBinding.lockExists(getOperationLockName(deploymentRequest)).flatMap(
       if (_)
         Future.failed(Conflict(s"${deploymentRequest.id}: an operation is still running for it"))
       else
         Future.successful(())
-    ).zip(
-      dbBinding.isOutdated(deploymentRequest).flatMap(
-        if (_)
-          Future.failed(Conflict(s"${deploymentRequest.id}: a newer one has already been applied"))
-        else
-          Future.successful(())
-      )
-    ).map(_ => ())
+    )
+
+  // fixme: race condition
+  private def rejectIfOutdated(deploymentRequest: DeploymentRequest): Future[Unit] =
+    dbBinding.isOutdated(deploymentRequest).flatMap(
+      if (_)
+        Future.failed(Conflict(s"${deploymentRequest.id}: a newer one has already been applied"))
+      else
+        Future.successful(())
+    )
 
   def canDeployDeploymentRequest(deploymentRequest: DeploymentRequest): Future[Unit] =
-    rejectIfOutdatedOrLocked(deploymentRequest)
+    rejectIfOutdated(deploymentRequest)
 
   def canRevertDeploymentRequest(deploymentRequest: DeploymentRequest, isStarted: Boolean): Future[Unit] =
     if (!isStarted)
@@ -254,7 +256,7 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
     else {
       // todo: now we can allow successive rollbacks,
       // by using dbBinding.findTargetAtomNotActionableBy instead of `outdated` here
-      rejectIfOutdatedOrLocked(deploymentRequest)
+      rejectIfOutdated(deploymentRequest)
         .flatMap(_ => rejectIfNothingToRevert(deploymentRequest))
     }
 
