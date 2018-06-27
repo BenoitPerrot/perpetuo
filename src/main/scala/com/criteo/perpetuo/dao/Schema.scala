@@ -103,7 +103,7 @@ trait EffectInserter
                       operation: Operation.Kind,
                       userName: String,
                       specAndInvocations: Iterable[(ExecutionSpecification, Vector[(ExecutionTrigger, TargetExpr)])],
-                      createTargetStatuses: Boolean = false): DBIOAction[(DeepOperationTrace, Iterable[(Long, Version, TargetExpr, ExecutionTrigger)]), NoStream, Effect.Read with Effect.Write] =
+                      createTargetStatuses: Boolean = false): DBIOrw[(DeepOperationTrace, Iterable[(Long, Version, TargetExpr, ExecutionTrigger)])] =
     insertOperationTrace(deploymentRequest, operation, userName)
       .flatMap { newOp =>
         insertStepOperationXRefs(deploymentPlanSteps, newOp).andThen(

@@ -1,7 +1,7 @@
 package com.criteo.perpetuo.engine
 
 import com.criteo.perpetuo.config.AppConfigProvider
-import com.criteo.perpetuo.dao.DbBinding
+import com.criteo.perpetuo.dao.{DBIOrw, DbBinding}
 import com.criteo.perpetuo.engine.dispatchers.TargetDispatcher
 import com.criteo.perpetuo.engine.executors.TriggeredExecutionFinder
 import com.criteo.perpetuo.engine.resolvers.TargetResolver

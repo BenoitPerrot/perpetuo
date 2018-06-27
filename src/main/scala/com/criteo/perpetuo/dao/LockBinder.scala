@@ -1,6 +1,5 @@
 package com.criteo.perpetuo.dao
 
-import com.criteo.perpetuo.engine.DBIOrw
 import com.twitter.inject.Logging
 import slick.sql.FixedSqlAction
 

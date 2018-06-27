@@ -103,7 +103,7 @@ trait ExecutionTraceBinder extends TableBinder {
     * @return Some(id) if it has been successfully updated, None if it doesn't exist
     * @throws UnavailableAction if the transition is not allowed
     */
-  def updatingExecutionTrace(id: Long, state: ExecutionState, detail: String, logHref: Option[String] = None): DBIOAction[Option[Long], NoStream, Effect.Read with Effect.Write] =
+  def updatingExecutionTrace(id: Long, state: ExecutionState, detail: String, logHref: Option[String] = None): DBIOrw[Option[Long]] =
     logHref
       .map(_ => runningUpdate(id, state, _.map(r => (r.state, r.detail, r.logHref)).update((state, detail, logHref))))
       .getOrElse(runningUpdate(id, state, _.map(r => (r.state, r.detail)).update((state, detail))))

@@ -1,6 +1,5 @@
 package com.criteo.perpetuo.dao
 
-import com.criteo.perpetuo.engine.DBIOrw
 import com.criteo.perpetuo.model.{Status, TargetAtom, TargetAtomStatus, TargetStatus}
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -98,7 +97,7 @@ trait TargetStatusBinder extends TableBinder {
       .map(_ => ())
       .withPinnedSession
 
-  def closingTargetStatuses(operationTraceId: Long): DBIOAction[Int, NoStream, Effect.Read with Effect.Write] =
+  def closingTargetStatuses(operationTraceId: Long): DBIOrw[Int] =
     executionQuery.filter(_.operationTraceId === operationTraceId).map(_.id).result
       .flatMap(executionIds =>
         targetStatusQuery
