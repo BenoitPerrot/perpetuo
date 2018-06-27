@@ -32,9 +32,7 @@ class Engine @Inject()(val crankshaft: Crankshaft,
       if (!permissions.isAuthorized(user, DeploymentAction.applyOperation, Operation.deploy, deploymentRequest.product.name))
         throw PermissionDenied()
 
-      crankshaft
-        .rejectIfCannotDeploy(deploymentRequest)
-        .flatMap(_ => crankshaft.step(deploymentRequest, operationCount, user.name))
+      crankshaft.step(deploymentRequest, operationCount, user.name)
     }
 
   def deviseRevertPlan(id: Long): Future[Option[(Select, Iterable[(ExecutionSpecification, Select)])]] =
@@ -49,9 +47,7 @@ class Engine @Inject()(val crankshaft: Crankshaft,
       if (!permissions.isAuthorized(user, DeploymentAction.applyOperation, Operation.revert, deploymentRequest.product.name))
         throw PermissionDenied()
 
-      crankshaft
-        .rejectIfCannotRevert(deploymentRequest)
-        .flatMap(_ => crankshaft.revert(deploymentRequest, operationCount, user.name, defaultVersion))
+      crankshaft.revert(deploymentRequest, operationCount, user.name, defaultVersion)
     }
 
   def stop(user: User, deploymentRequestId: Long, operationCount: Option[Int]): Future[Option[(Int, Seq[String])]] =
@@ -62,8 +58,7 @@ class Engine @Inject()(val crankshaft: Crankshaft,
       if (!(allowedTo(Operation.deploy) || allowedTo(Operation.revert)))
         throw PermissionDenied()
 
-      crankshaft
-        .tryStopDeploymentRequest(deploymentRequest, operationCount, user.name)
+      crankshaft.tryStopDeploymentRequest(deploymentRequest, operationCount, user.name)
     }
 
   def findDeploymentRequestsWithStatuses(where: Seq[Map[String, Any]], limit: Int, offset: Int): Future[Seq[(DeploymentRequest, DeploymentStatus.Value, Option[Operation.Kind])]] =

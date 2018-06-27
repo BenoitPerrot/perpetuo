@@ -192,16 +192,18 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
     }
 
   def step(deploymentRequest: DeploymentRequest, operationCount: Option[Int], initiatorName: String, emitEvent: Boolean = true): Future[OperationTrace] = {
-    val getSpecifics = dbBinding.gettingPlanStepToOperateAndLastDoneStepId(deploymentRequest).flatMap {
-      case None =>
-        DBIOAction.failed(UnprocessableIntent(s"${deploymentRequest.id}: there is no next step, they have all been applied"))
+    val getSpecifics = rejectingIfCannotDeploy(deploymentRequest)
+      .andThen(dbBinding.gettingPlanStepToOperateAndLastDoneStepId(deploymentRequest))
+      .flatMap {
+        case None =>
+          DBIOAction.failed(UnprocessableIntent(s"${deploymentRequest.id}: there is no next step, they have all been applied"))
 
-      case Some((toDo, lastDoneId)) =>
-        val isRetry = lastDoneId.contains(toDo.id)
-        val getOperationSpecifics = if (isRetry) operationStarter.getRetrySpecifics _ else operationStarter.getStepSpecifics _
-        getOperationSpecifics(targetResolver, targetDispatcher, toDo)
-          .map(operationCreationSpecifics => ((Seq(toDo), operationCreationSpecifics), (lastDoneId, toDo)))
-    }
+        case Some((toDo, lastDoneId)) =>
+          val isRetry = lastDoneId.contains(toDo.id)
+          val getOperationSpecifics = if (isRetry) operationStarter.getRetrySpecifics _ else operationStarter.getStepSpecifics _
+          getOperationSpecifics(targetResolver, targetDispatcher, toDo)
+            .map(operationCreationSpecifics => ((Seq(toDo), operationCreationSpecifics), (lastDoneId, toDo)))
+      }
     act(deploymentRequest, operationCount, initiatorName, getSpecifics)
       .map { case ((operationTrace, started, failed), (lastDoneId, toDo)) =>
         if (emitEvent)
@@ -332,12 +334,16 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
         (nbStopped, errors)
       }
 
-  def revert(deploymentRequest: DeploymentRequest, operationCount: Option[Int], initiatorName: String, defaultVersion: Option[Version]): Future[OperationTrace] =
-    act(deploymentRequest, operationCount, initiatorName, operationStarter.getRevertSpecifics(targetDispatcher, deploymentRequest, initiatorName, defaultVersion).map((_, ())))
+  def revert(deploymentRequest: DeploymentRequest, operationCount: Option[Int], initiatorName: String, defaultVersion: Option[Version]): Future[OperationTrace] = {
+    val getSpecifics = rejectingIfCannotRevert(deploymentRequest)
+      .andThen(operationStarter.getRevertSpecifics(targetDispatcher, deploymentRequest, initiatorName, defaultVersion))
+      .map((_, ()))
+    act(deploymentRequest, operationCount, initiatorName, getSpecifics)
       .map { case ((operationTrace, started, failed), _) =>
         listeners.foreach(_.onDeploymentRequestReverted(deploymentRequest, started, failed))
         operationTrace
       }
+  }
 
   def findExecutionSpecificationsForRevert(deploymentRequest: DeploymentRequest): Future[(Select, Iterable[(ExecutionSpecification, Select)])] =
     dbBinding.dbContext.db.run(dbBinding.findingExecutionSpecificationsForRevert(deploymentRequest))
