@@ -36,7 +36,7 @@ class TargetStatusSpec
         deployOperationTrace <- dbContext.db.run(insertOperationTrace(request, Operation.deploy, "n.armstrong"))
         execSpec <- insertExecutionSpecification("{}", Version("\"456\""))
         execId <- dbContext.db.run(insertExecution(deployOperationTrace.id, execSpec.id))
-        _ <- dbContext.db.run(updateTargetStatuses(execId, Map(
+        _ <- dbContext.db.run(updatingTargetStatuses(execId, Map(
           "Moon" -> TargetAtomStatus(Status.hostFailure, "Houston, we've got a problem"))))
         targetStatuses <- readStatuses
         nbStatuses <- dbContext.db.run(targetStatusQuery.filter(_.executionId === execId).length.result)
@@ -57,14 +57,14 @@ class TargetStatusSpec
         execSpec <- insertExecutionSpecification("{}", Version("\"0\""))
         execId <- dbContext.db.run(insertExecution(deployOperationTrace.id, execSpec.id))
         statuses1 <- readStatuses
-        _ <- dbContext.db.run(updateTargetStatuses(execId, Map(
+        _ <- dbContext.db.run(updatingTargetStatuses(execId, Map(
           "West" -> TargetAtomStatus(Status.running, "confident"))))
         statuses2 <- readStatuses
-        _ <- dbContext.db.run(updateTargetStatuses(execId, Map(
+        _ <- dbContext.db.run(updatingTargetStatuses(execId, Map(
           "West" -> TargetAtomStatus(Status.productFailure, "crashing"),
           "East" -> TargetAtomStatus(Status.running, "starting"))))
         statuses3 <- readStatuses
-        _ <- dbContext.db.run(updateTargetStatuses(execId, Map(
+        _ <- dbContext.db.run(updatingTargetStatuses(execId, Map(
           "East" -> TargetAtomStatus(Status.running, "soaring"))))
         statuses4 <- readStatuses
       } yield {

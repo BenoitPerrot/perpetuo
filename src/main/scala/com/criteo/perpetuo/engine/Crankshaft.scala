@@ -367,7 +367,7 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
             .map(_.get)
             .flatMap { execTrace =>
               val op = execTrace.operationTrace
-              dbBinding.updateTargetStatuses(execTrace.executionId, statusMap)
+              dbBinding.updatingTargetStatuses(execTrace.executionId, statusMap)
                 .flatMap(_ => dbBinding.hasOpenExecutionTracesForOperation(op.id))
                 .flatMap(hasOpenExecutions =>
                   if (hasOpenExecutions)

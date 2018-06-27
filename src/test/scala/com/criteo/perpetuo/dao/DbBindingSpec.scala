@@ -108,11 +108,11 @@ class DbScenarios(dbBinding: DbBinding) extends DeploymentRequestInserter {
                   dbBinding
                     .insertExecution(newOp.id, specId)
                     .flatMap { executionId =>
-                      dbBinding.insertExecutionTraces(
+                      dbBinding.insertingExecutionTraces(
                         executionId,
                         execution.executionTraceStates.map(state => ExecutionTraceRecord(None, executionId, None, ExecutionState.withName(state)))
                       ).andThen(
-                        dbBinding.updateTargetStatuses(
+                        dbBinding.updatingTargetStatuses(
                           executionId,
                           execution.targetStatuses.map(status => dummyTargets.next() -> TargetAtomStatus(Status.withName(status), "")).toMap
                         )

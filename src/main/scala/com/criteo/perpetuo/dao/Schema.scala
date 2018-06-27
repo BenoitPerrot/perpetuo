@@ -113,9 +113,9 @@ trait EffectInserter
                 insertExecution(newOp.id, spec.id)
                   .flatMap { executionId =>
                     // create as many traces as needed, all at the same time
-                    val ret = insertExecutionTraces(executionId, invocations.length)
+                    val ret = insertingExecutionTraces(executionId, invocations.length)
                     if (createTargetStatuses)
-                      updateTargetStatuses(
+                      updatingTargetStatuses(
                         executionId,
                         invocations
                           .toStream

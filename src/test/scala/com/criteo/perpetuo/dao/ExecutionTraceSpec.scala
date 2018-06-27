@@ -32,7 +32,7 @@ class ExecutionTraceSpec
         deployOperationTrace <- dbContext.db.run(insertOperationTrace(request, Operation.deploy, "c.norris"))
         execSpec <- insertExecutionSpecification("{}", Version("\"456\""))
         execId <- dbContext.db.run(insertExecution(deployOperationTrace.id, execSpec.id))
-        execTraceIds <- dbContext.db.run(insertExecutionTraces(execId, 1))
+        execTraceIds <- dbContext.db.run(insertingExecutionTraces(execId, 1))
         execTraces <- dbContext.db.run(executionTraceQuery.result)
       } yield {
         execTraces.length shouldEqual 1
