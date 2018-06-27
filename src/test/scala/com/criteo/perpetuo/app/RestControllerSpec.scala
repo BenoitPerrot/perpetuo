@@ -174,8 +174,8 @@ class RestControllerSpec extends Test with TestDb {
   }
 
   private def updateExecutionTrace(execTraceId: Long, state: String,
-                                   logHref: Option[String] = None,
-                                   targetStatus: Option[Map[String, JsValue]] = None,
+                                   logHref: Option[String],
+                                   targetStatus: Option[Map[String, JsValue]],
                                    executionDetail: Option[String] = None,
                                    expectedRequestStatus: Status = NoContent): Unit = {
     val params = Map(
