@@ -142,21 +142,25 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
       .flatMap { case (trace, updated) =>
         dbBinding.gettingOperationEffect(trace)
           .flatMap { effect =>
-            val (kind, status) = computeState(effect) // todo: compute actual deployment status (with 'paused')
-            if (updated) {
-              val handler = if (status == DeploymentStatus.succeeded)
-                (_: AsyncListener).onOperationSucceeded _
-              else
-                (_: AsyncListener).onOperationFailed _
-              listeners.foreach(listener => handler(listener)(trace, deploymentRequest))
-            }
-            dbBinding.closingTargetStatuses(trace.id).andThen {
-              val transactionOngoing = kind == Operation.deploy && status == DeploymentStatus.failed
-              if (transactionOngoing && withTransactions)
-                dbBinding.releasingLock(getOperationLockName(deploymentRequest), deploymentRequest.id) // keep the locks per product/target
-              else
-                dbBinding.releasingLocks(deploymentRequest.id)
-            }
+            // todo: compute actual deployment status (with 'paused')
+            val (kind, status) = computeState(effect)
+            val transactionOngoing = kind == Operation.deploy && status == DeploymentStatus.failed
+            dbBinding.closingTargetStatuses(trace.id)
+              .andThen(
+                if (transactionOngoing && withTransactions)
+                  dbBinding.releasingLock(getOperationLockName(deploymentRequest), deploymentRequest.id) // keep the locks per product/target
+                else
+                  dbBinding.releasingLocks(deploymentRequest.id)
+              )
+              .map(_ =>
+                if (updated) { // if it's a successful close, let's notify
+                  val handler = if (status == DeploymentStatus.succeeded)
+                    (_: AsyncListener).onOperationSucceeded _
+                  else
+                    (_: AsyncListener).onOperationFailed _
+                  listeners.foreach(listener => handler(listener)(trace, deploymentRequest))
+                }
+              )
           }
           .map(_ => trace)
       }
