@@ -298,7 +298,7 @@ class RestControllerSpec extends Test with TestDb {
     createProduct("my new product")
     val id = requestDeployment("my new product", "789", "par".toJson)
     val respJson1 = getRespJson(actOnDeploymentRequest(id, "revert", JsObject(), UnprocessableEntity))
-    respJson1("error") should include("it has not yet been applied")
+    respJson1("error") should endWith("Nothing to revert")
     respJson1 shouldNot contain("required")
 
     startDeploymentRequest(id, Ok)

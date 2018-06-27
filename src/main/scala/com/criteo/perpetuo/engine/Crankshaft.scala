@@ -257,14 +257,8 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
     dbBinding.dbContext.db.run(rejectingIfCannotRevert(deploymentRequest, isStarted))
 
   def rejectingIfCannotRevert(deploymentRequest: DeploymentRequest, isStarted: Boolean): DBIOAction[Unit, NoStream, Effect.Read] =
-    if (!isStarted)
-      DBIOAction.failed(UnavailableAction(s"${deploymentRequest.id}: cannot revert: it has not yet been applied"))
-    else {
-      // todo: now we can allow successive rollbacks,
-      // by using dbBinding.findTargetAtomNotActionableBy instead of `outdated` here
-      rejectingIfOutdated(deploymentRequest)
-        .andThen(rejectingIfNothingToRevert(deploymentRequest))
-    }
+    rejectingIfOutdated(deploymentRequest) // todo: now we can allow successive rollbacks, by using dbBinding.findTargetAtomNotActionableBy instead of `outdated` here
+      .andThen(rejectingIfNothingToRevert(deploymentRequest))
 
   /**
     * Try to stop an execution from its trace
