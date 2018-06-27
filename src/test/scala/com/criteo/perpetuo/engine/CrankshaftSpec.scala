@@ -7,8 +7,8 @@ import org.mockito.Mockito.when
 import spray.json.DefaultJsonProtocol._
 import spray.json._
 
-import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}
 
 
@@ -18,7 +18,7 @@ class CrankshaftSpec extends SimpleScenarioTesting {
     dbContext.db.run(crankshaft.dbBinding.hasOpenExecutionTracesForOperation(operationTraceId))
 
   private def gettingPlanStepToOperateAndLastDoneStepId(deploymentRequest: DeploymentRequest) =
-    crankshaft.dbBinding.dbContext.db.run(crankshaft.dbBinding.gettingPlanStepToOperateAndLastDoneStepId(deploymentRequest))
+    dbContext.db.run(crankshaft.dbBinding.gettingPlanStepToOperateAndLastDoneStepId(deploymentRequest))
 
   test("A trivial execution triggers a job with no log href when there is no log href provided") {
     await(
