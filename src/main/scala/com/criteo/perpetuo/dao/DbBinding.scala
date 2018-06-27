@@ -248,18 +248,6 @@ class DbBinding @Inject()(val dbContext: DbContext)
         executionTrace.toExecutionTrace(operationTrace.toOperationTrace(deploymentRequest.toDeepDeploymentRequest(product)))
       })
 
-  // todo: will likely be deprecated by the introduction of the deployment_plan_step and step_operation_xref tables
-  def isDeploymentRequestStarted(deploymentRequestId: Long): Future[Option[(DeploymentRequest, Boolean)]] = {
-    dbContext.db.run(
-      deploymentRequestQuery
-        .join(productQuery)
-        .filter { case (deploymentRequest, product) => deploymentRequest.id === deploymentRequestId && deploymentRequest.productId === product.id }
-        .joinLeft(operationTraceQuery).on { case ((depReq, _), operation) => depReq.id === operation.deploymentRequestId }
-        .map { case (x, op) => (x, op.isDefined) }
-        .result
-    ).map(_.headOption.map { case ((depReq, product), started) => (depReq.toDeepDeploymentRequest(product), started) })
-  }
-
   private def findingDeploymentPlanStepAndLatestOperations(deploymentRequestId: Long) =
     deploymentPlanStepQuery
       .filter(_.deploymentRequestId === deploymentRequestId)

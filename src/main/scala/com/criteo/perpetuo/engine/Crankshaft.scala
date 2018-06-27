@@ -165,9 +165,6 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
           .map(_ => trace)
       }
 
-  def isDeploymentRequestStarted(deploymentRequestId: Long): Future[Option[(DeploymentRequest, Boolean)]] =
-    dbBinding.isDeploymentRequestStarted(deploymentRequestId)
-
   private def checkState(deploymentRequest: DeploymentRequest, currentState: Int, expectedState: Int): Unit =
     if (currentState != expectedState)
       throw Conflict(s"${deploymentRequest.id}: the state of the deployment has just changed; have another look before choosing an action to trigger")
@@ -253,10 +250,10 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
   def rejectingIfCannotDeploy(deploymentRequest: DeploymentRequest): DBIOAction[Unit, NoStream, Effect.Read] =
     rejectingIfOutdated(deploymentRequest)
 
-  def rejectIfCannotRevert(deploymentRequest: DeploymentRequest, isStarted: Boolean): Future[Unit] =
-    dbBinding.dbContext.db.run(rejectingIfCannotRevert(deploymentRequest, isStarted))
+  def rejectIfCannotRevert(deploymentRequest: DeploymentRequest): Future[Unit] =
+    dbBinding.dbContext.db.run(rejectingIfCannotRevert(deploymentRequest))
 
-  def rejectingIfCannotRevert(deploymentRequest: DeploymentRequest, isStarted: Boolean): DBIOAction[Unit, NoStream, Effect.Read] =
+  def rejectingIfCannotRevert(deploymentRequest: DeploymentRequest): DBIOAction[Unit, NoStream, Effect.Read] =
     rejectingIfOutdated(deploymentRequest) // todo: now we can allow successive rollbacks, by using dbBinding.findTargetAtomNotActionableBy instead of `outdated` here
       .andThen(rejectingIfNothingToRevert(deploymentRequest))
 

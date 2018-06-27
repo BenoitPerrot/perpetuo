@@ -19,16 +19,16 @@ class Engine @Inject()(val crankshaft: Crankshaft,
     crankshaft.createDeploymentRequest(protoDeploymentRequest)
   }
 
-  private def withDeepDeploymentRequest[T](id: Long)(callback: (DeploymentRequest, Boolean) => Future[T]): Future[Option[T]] =
-    crankshaft.isDeploymentRequestStarted(id)
+  private def withDeepDeploymentRequest[T](id: Long)(callback: DeploymentRequest => Future[T]): Future[Option[T]] =
+    crankshaft.findDeepDeploymentRequestById(id)
       .flatMap(
-        _.map(callback.tupled)
+        _.map(callback)
           .map(_.map(Some.apply))
           .getOrElse(Future.successful(None))
       )
 
   def step(user: User, deploymentRequestId: Long, operationCount: Option[Int]): Future[Option[OperationTrace]] =
-    withDeepDeploymentRequest(deploymentRequestId) { (deploymentRequest, _) =>
+    withDeepDeploymentRequest(deploymentRequestId) { deploymentRequest =>
       if (!permissions.isAuthorized(user, DeploymentAction.applyOperation, Operation.deploy, deploymentRequest.product.name))
         throw PermissionDenied()
 
@@ -38,24 +38,24 @@ class Engine @Inject()(val crankshaft: Crankshaft,
     }
 
   def deviseRevertPlan(id: Long): Future[Option[(Select, Iterable[(ExecutionSpecification, Select)])]] =
-    withDeepDeploymentRequest(id) { (deploymentRequest, isStarted) =>
+    withDeepDeploymentRequest(id) { deploymentRequest =>
       crankshaft.rejectIfLocked(deploymentRequest)
-        .flatMap(_ => crankshaft.rejectIfCannotRevert(deploymentRequest, isStarted))
+        .flatMap(_ => crankshaft.rejectIfCannotRevert(deploymentRequest))
         .flatMap(_ => crankshaft.findExecutionSpecificationsForRevert(deploymentRequest))
     }
 
   def revert(user: User, deploymentRequestId: Long, operationCount: Option[Int], defaultVersion: Option[Version]): Future[Option[OperationTrace]] =
-    withDeepDeploymentRequest(deploymentRequestId) { (deploymentRequest, isStarted) =>
+    withDeepDeploymentRequest(deploymentRequestId) { deploymentRequest =>
       if (!permissions.isAuthorized(user, DeploymentAction.applyOperation, Operation.revert, deploymentRequest.product.name))
         throw PermissionDenied()
 
       crankshaft
-        .rejectIfCannotRevert(deploymentRequest, isStarted)
+        .rejectIfCannotRevert(deploymentRequest)
         .flatMap(_ => crankshaft.revert(deploymentRequest, operationCount, user.name, defaultVersion))
     }
 
   def stop(user: User, deploymentRequestId: Long, operationCount: Option[Int]): Future[Option[(Int, Seq[String])]] =
-    withDeepDeploymentRequest(deploymentRequestId) { (deploymentRequest, _) =>
+    withDeepDeploymentRequest(deploymentRequestId) { deploymentRequest =>
       def allowedTo(kind: Operation.Kind) =
         permissions.isAuthorized(user, DeploymentAction.applyOperation, kind, deploymentRequest.product.name)
 
@@ -90,7 +90,7 @@ class Engine @Inject()(val crankshaft: Crankshaft,
                   Operation.values.toSeq.map { action =>
                     val canApply = action match {
                       case Operation.deploy => crankshaft.rejectIfCannotDeploy(deploymentRequest)
-                      case Operation.revert => crankshaft.rejectIfCannotRevert(deploymentRequest, effects.nonEmpty)
+                      case Operation.revert => crankshaft.rejectIfCannotRevert(deploymentRequest)
                     }
                     canApply
                       .map(_ => Some((action, authorized(action))))
