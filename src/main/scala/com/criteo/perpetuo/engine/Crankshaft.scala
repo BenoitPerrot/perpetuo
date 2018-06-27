@@ -222,12 +222,12 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
       }
   }
 
-  private def rejectIfNothingToRevert(deploymentRequest: DeploymentRequest): Future[Unit] =
+  private def rejectingIfNothingToRevert(deploymentRequest: DeploymentRequest): DBIOAction[Unit, NoStream, Effect.Read] =
     dbBinding.hasHadAnEffect(deploymentRequest.id).flatMap(
       if (_)
-        Future.successful(())
+        DBIOAction.successful(())
       else
-        Future.failed(UnavailableAction(s"${deploymentRequest.id}: Nothing to revert"))
+        DBIOAction.failed(UnavailableAction(s"${deploymentRequest.id}: Nothing to revert"))
     )
 
   def rejectIfLocked(deploymentRequest: DeploymentRequest): Future[Unit] =
@@ -239,25 +239,31 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
     )
 
   // fixme: race condition
-  private def rejectIfOutdated(deploymentRequest: DeploymentRequest): Future[Unit] =
+  private def rejectingIfOutdated(deploymentRequest: DeploymentRequest) =
     dbBinding.isOutdated(deploymentRequest).flatMap(
       if (_)
-        Future.failed(Conflict(s"${deploymentRequest.id}: a newer one has already been applied"))
+        DBIOAction.failed(Conflict(s"${deploymentRequest.id}: a newer one has already been applied"))
       else
-        Future.successful(())
+        DBIOAction.successful(())
     )
 
   def rejectIfCannotDeploy(deploymentRequest: DeploymentRequest): Future[Unit] =
-    rejectIfOutdated(deploymentRequest)
+    dbBinding.dbContext.db.run(rejectingIfCannotDeploy(deploymentRequest))
+
+  def rejectingIfCannotDeploy(deploymentRequest: DeploymentRequest): DBIOAction[Unit, NoStream, Effect.Read] =
+    rejectingIfOutdated(deploymentRequest)
 
   def rejectIfCannotRevert(deploymentRequest: DeploymentRequest, isStarted: Boolean): Future[Unit] =
+    dbBinding.dbContext.db.run(rejectingIfCannotRevert(deploymentRequest, isStarted))
+
+  def rejectingIfCannotRevert(deploymentRequest: DeploymentRequest, isStarted: Boolean): DBIOAction[Unit, NoStream, Effect.Read] =
     if (!isStarted)
-      Future.failed(UnavailableAction(s"${deploymentRequest.id}: cannot revert: it has not yet been applied"))
+      DBIOAction.failed(UnavailableAction(s"${deploymentRequest.id}: cannot revert: it has not yet been applied"))
     else {
       // todo: now we can allow successive rollbacks,
       // by using dbBinding.findTargetAtomNotActionableBy instead of `outdated` here
-      rejectIfOutdated(deploymentRequest)
-        .flatMap(_ => rejectIfNothingToRevert(deploymentRequest))
+      rejectingIfOutdated(deploymentRequest)
+        .andThen(rejectingIfNothingToRevert(deploymentRequest))
     }
 
   /**

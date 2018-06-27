@@ -4,6 +4,7 @@ import com.criteo.perpetuo.engine.{DeploymentStatus, Select}
 import com.criteo.perpetuo.model._
 import javax.inject.{Inject, Singleton}
 import slick.jdbc.TransactionIsolation
+import slick.sql.FixedSqlAction
 
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -338,16 +339,14 @@ class DbBinding @Inject()(val dbContext: DbContext)
   // if that is removed one day (with multi-step, out-dating a deployment request makes less sense),
   // a few functions must be changed to not rely on current request application order, for instance
   // findExecutionSpecificationsForRevert
-  def isOutdated(deploymentRequest: DeploymentRequest): Future[Boolean] = {
-    val outdatedByOperation =
-      deploymentRequestQuery
-        .join(operationTraceQuery)
-        .filter { case (depReq, operationTrace) =>
-          depReq.id > deploymentRequest.id && depReq.productId === deploymentRequest.productId && depReq.id === operationTrace.deploymentRequestId
-        }
-        .exists
-    dbContext.db.run(outdatedByOperation.result)
-  }
+  def isOutdated(deploymentRequest: DeploymentRequest): FixedSqlAction[Boolean, NoStream, Effect.Read] =
+    deploymentRequestQuery
+      .join(operationTraceQuery)
+      .filter { case (depReq, operationTrace) =>
+        depReq.id > deploymentRequest.id && depReq.productId === deploymentRequest.productId && depReq.id === operationTrace.deploymentRequestId
+      }
+      .exists
+      .result
 
   /**
     * @return the target atoms for which there is no previous execution specification on the same product,
@@ -528,16 +527,14 @@ class DbBinding @Inject()(val dbContext: DbContext)
     ).map(_.toMap)
   }
 
-  def hasHadAnEffect(deploymentRequestId: Long): Future[Boolean] =
-    dbContext.db.run(
-      targetStatusQuery
-        .join(executionQuery)
-        .join(operationTraceQuery)
-        .filter { case ((ts, ex), op) =>
-          ts.executionId === ex.id && ex.operationTraceId === op.id &&
-            op.deploymentRequestId === deploymentRequestId && ts.code =!= Status.notDone
-        }
-        .exists
-        .result
-    )
+  def hasHadAnEffect(deploymentRequestId: Long): FixedSqlAction[Boolean, NoStream, Effect.Read] =
+    targetStatusQuery
+      .join(executionQuery)
+      .join(operationTraceQuery)
+      .filter { case ((ts, ex), op) =>
+        ts.executionId === ex.id && ex.operationTraceId === op.id &&
+          op.deploymentRequestId === deploymentRequestId && ts.code =!= Status.notDone
+      }
+      .exists
+      .result
 }
