@@ -30,18 +30,18 @@ class RestControllerSpec extends Test with TestDb {
 
   private def makeUser(userName: String) = User(userName, Set("Users"))
 
-  val config = AppConfigProvider.config
-  val authModule = new AuthModule(config.getConfig("auth"))
-  val productUser = makeUser("bob.the.producer")
-  val productUserJWT = productUser.toJWT(authModule.jwtEncoder)
-  val deployUser = makeUser("r.eleaser")
-  val deployUserJWT = deployUser.toJWT(authModule.jwtEncoder)
-  val stdUser = makeUser("stdUser")
-  val stdUserJWT = stdUser.toJWT(authModule.jwtEncoder)
+  private val config = AppConfigProvider.config
+  private val authModule = new AuthModule(config.getConfig("auth"))
+  private val productUser = makeUser("bob.the.producer")
+  private val productUserJWT = productUser.toJWT(authModule.jwtEncoder)
+  private val deployUser = makeUser("r.eleaser")
+  private val deployUserJWT = deployUser.toJWT(authModule.jwtEncoder)
+  private val stdUser = makeUser("stdUser")
+  private val stdUserJWT = stdUser.toJWT(authModule.jwtEncoder)
 
-  var controller: RestController = _
+  private var controller: RestController = _
 
-  val server = new EmbeddedHttpServer(new HttpServer {
+  private val server = new EmbeddedHttpServer(new HttpServer {
 
     override protected def jacksonModule: FinatraJacksonModule = CustomServerModules.jackson
 
