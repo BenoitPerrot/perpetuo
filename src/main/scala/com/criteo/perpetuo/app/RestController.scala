@@ -36,9 +36,6 @@ private case class RequestWithId(@RouteParam @NotEmpty id: String,
 private case class RequestWithName(@NotEmpty name: String,
                                    @Inject request: Request) extends WithRequest
 
-private case class ProductPostWithVersion(@NotEmpty name: String,
-                                          @NotEmpty version: String)
-
 private case class DeploymentActionRequest(@RouteParam @NotEmpty id: String,
                                            operationCount: Option[Int],
                                            @Inject request: Request) extends WithId with WithRequest
