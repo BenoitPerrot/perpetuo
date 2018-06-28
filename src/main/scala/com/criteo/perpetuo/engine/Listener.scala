@@ -1,6 +1,6 @@
 package com.criteo.perpetuo.engine
 
-import com.criteo.perpetuo.model.{DeploymentRequest, OperationTrace, ProtoDeploymentRequest}
+import com.criteo.perpetuo.model.{DeploymentRequest, OperationTrace, ProtoDeploymentRequest, TargetAtomStatus}
 
 import scala.concurrent.Future
 
@@ -21,6 +21,8 @@ trait SyncListener {
   def onOperationFailed(operationTrace: OperationTrace, deploymentRequest: DeploymentRequest): Unit
 
   def onOperationSucceeded(operationTrace: OperationTrace, deploymentRequest: DeploymentRequest): Unit
+
+  def onTargetAtomStatusUpdate(operationTrace: OperationTrace, deploymentRequest: DeploymentRequest, target: String, status: TargetAtomStatus): Unit
 }
 
 trait AsyncListener {
@@ -39,4 +41,6 @@ trait AsyncListener {
   def onOperationFailed(operationTrace: OperationTrace, deploymentRequest: DeploymentRequest): Future[Unit]
 
   def onOperationSucceeded(operationTrace: OperationTrace, deploymentRequest: DeploymentRequest): Future[Unit]
+
+  def onTargetAtomStatusUpdate(operationTrace: OperationTrace, deploymentRequest: DeploymentRequest, target: String, status: TargetAtomStatus): Future[Unit]
 }

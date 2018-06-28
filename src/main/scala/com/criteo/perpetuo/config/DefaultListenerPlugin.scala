@@ -1,7 +1,7 @@
 package com.criteo.perpetuo.config
 
 import com.criteo.perpetuo.engine.{AsyncListener, SyncListener}
-import com.criteo.perpetuo.model.{DeploymentRequest, OperationTrace, ProtoDeploymentRequest}
+import com.criteo.perpetuo.model.{DeploymentRequest, OperationTrace, ProtoDeploymentRequest, TargetAtomStatus}
 
 import scala.concurrent.Future
 
@@ -22,6 +22,8 @@ class DefaultListenerPlugin extends SyncListener with Plugin {
   def onOperationFailed(operationTrace: OperationTrace, deploymentRequest: DeploymentRequest): Unit = {}
 
   def onOperationSucceeded(operationTrace: OperationTrace, deploymentRequest: DeploymentRequest): Unit = {}
+
+  def onTargetAtomStatusUpdate(operationTrace: OperationTrace, deploymentRequest: DeploymentRequest, target: String, status: TargetAtomStatus): Unit = {}
 
   val timeout_s = 30
 }
@@ -51,4 +53,7 @@ private[config] class ListenerPluginWrapper(implementation: DefaultListenerPlugi
 
   def onOperationSucceeded(operationTrace: OperationTrace, deploymentRequest: DeploymentRequest): Future[Unit] =
     wrap(_.onOperationSucceeded(operationTrace, deploymentRequest))
+
+  def onTargetAtomStatusUpdate(operationTrace: OperationTrace, deploymentRequest: DeploymentRequest, target: String, status: TargetAtomStatus): Future[Unit] =
+    wrap(_.onTargetAtomStatusUpdate(operationTrace, deploymentRequest, target, status))
 }
