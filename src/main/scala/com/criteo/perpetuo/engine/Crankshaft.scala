@@ -367,6 +367,7 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
             .map(_.get)
             .flatMap { execTrace =>
               val op = execTrace.operationTrace
+
               dbBinding.updatingTargetStatuses(execTrace.executionId, statusMap)
                 .flatMap(_ => dbBinding.hasOpenExecutionTracesForOperation(op.id))
                 .flatMap(hasOpenExecutions =>
@@ -376,6 +377,17 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
                     dbBinding.findingDeepDeploymentRequestById(op.deploymentRequestId)
                       .flatMap(depReq => closingOperation(op, depReq.get))
                 )
+                .map { result =>
+                  // Calls listener for target status update
+                  findDeepDeploymentRequestById(op.deploymentRequestId).foreach (deploymentRequest =>
+                    statusMap.foreach { case (target, value) =>
+                      // todo: check if already the target is in the same state and don't emit an annotation in this case
+                      if (value.code != Status.notDone)
+                        listeners.foreach(_.onTargetAtomStatusUpdate(op, deploymentRequest.get, target, value))
+                    }
+                  )
+                  result
+                }
             }
             .map(_ => Some(id))
         )
