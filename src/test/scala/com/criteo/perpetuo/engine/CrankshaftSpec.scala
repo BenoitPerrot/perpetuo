@@ -572,8 +572,10 @@ class CrankshaftWithStopperSpec extends SimpleScenarioTesting {
     Await.result(crankshaft.dbBinding.findExecutionTracesByOperationTrace(op.id)
       .map(_.head)
       .flatMap(crankshaft.stopExecution(_, "joe")), 1.second) shouldBe true
-    Await.result(crankshaft.dbBinding.findExecutionTracesByOperationTrace(op.id)
-      .map(_.head), 1.second).state shouldBe ExecutionState.stopped
+    crankshaft.dbBinding.findExecutionTracesByOperationTrace(op.id).map(_.map(_.state).toSet) should
+      become(Set(ExecutionState.stopped))
+    crankshaft.findDeepDeploymentRequestAndEffects(op.deploymentRequest.id).map(_.get._3.map(_.operationTrace.closingDate.isDefined)) should
+      become(Iterable(true))
   }
 
   test("Crankshaft tries to stop executions, which might terminate normally at the same time") {
