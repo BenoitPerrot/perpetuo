@@ -124,13 +124,13 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
       }
     )
 
-  private def acquireOperationLock(deploymentRequest: DeploymentRequest) =
+  private def acquiringOperationLock(deploymentRequest: DeploymentRequest) =
     dbBinding.tryAcquireLocks(Seq(getOperationLockName(deploymentRequest)), deploymentRequest.id, reentrant = false).map(alreadyRunning =>
       if (alreadyRunning.nonEmpty)
         throw Conflict("Cannot be processed for the moment because another operation is running for the same deployment request")
     )
 
-  private def acquireDeploymentTransactionLock(deploymentRequest: DeploymentRequest, atoms: Option[Select]) =
+  private def acquiringDeploymentTransactionLock(deploymentRequest: DeploymentRequest, atoms: Option[Select]) =
     dbBinding.tryAcquireLocks(getTransactionLockNames(deploymentRequest, atoms), deploymentRequest.id, reentrant = true).map(conflictingRequestIds =>
       if (conflictingRequestIds.nonEmpty)
         throw Conflict("Cannot be processed for the moment because a conflicting transaction is ongoing, which must first succeed or be reverted", conflictingRequestIds)
@@ -172,7 +172,7 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
   private def act[T](deploymentRequest: DeploymentRequest, expectedOperationCount: Option[Int], initiatorName: String,
                      getOperationSpecifics: DBIOrw[((Iterable[DeploymentPlanStep], OperationCreationParams), T)]) =
     dbBinding.executeInSerializableTransaction(
-      acquireOperationLock(deploymentRequest)
+      acquiringOperationLock(deploymentRequest)
         .andThen(
           expectedOperationCount
             .map(expectedCount =>
@@ -183,7 +183,7 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
         )
         .andThen(getOperationSpecifics)
         .flatMap { case ((deploymentPlanSteps, (operation, specAndInvocations, atoms)), actionSpecifics) =>
-          acquireDeploymentTransactionLock(deploymentRequest, atoms)
+          acquiringDeploymentTransactionLock(deploymentRequest, atoms)
             .andThen(dbBinding.insertingEffect(deploymentRequest, deploymentPlanSteps, operation, initiatorName, specAndInvocations, atoms.nonEmpty))
             .map((_, actionSpecifics))
         }
