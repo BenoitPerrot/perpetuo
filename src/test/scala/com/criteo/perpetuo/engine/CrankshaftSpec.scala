@@ -256,14 +256,6 @@ class CrankshaftSpec extends SimpleScenarioTesting {
 
         // Second request still can't be reverted
         rejectionOfSecondB <- crankshaft.rejectIfCannotRevert(secondDeploymentRequest).failed
-
-        // Can revert the first one now that the second one has been reverted, but it requires to specify to which version to revert
-        required <- crankshaft.revert(firstDeploymentRequest, None, "r.ollbacker", None).recover { case MissingInfo(_, required) => required }
-
-        revertOperationTraceC <- crankshaft.revert(firstDeploymentRequest, Some(1), "r.ollbacker", Some(defaultRevertVersion))
-        revertExecutionSpecIdsC <- crankshaft.dbBinding.findExecutionSpecIdsByOperationTrace(revertOperationTraceC.id)
-        revertExecutionSpecC <- crankshaft.dbBinding.findExecutionSpecificationById(revertExecutionSpecIdsC.head).map(_.get)
-
       } yield {
         revertExecutionSpecIdsA should have length 1
         revertExecutionSpecIdsA should contain(firstExecSpecId)
@@ -274,12 +266,6 @@ class CrankshaftSpec extends SimpleScenarioTesting {
         revertExecutionSpecIdsB should contain(firstExecSpecId)
 
         rejectionOfSecondB.getMessage should include("a newer one has already been applied")
-
-        required shouldEqual "defaultVersion"
-
-        revertOperationTraceC.deploymentRequest.id shouldEqual firstDeploymentRequest.id
-        revertExecutionSpecIdsC should have length 1
-        revertExecutionSpecC.version shouldEqual defaultRevertVersion
       }
     )
   }
