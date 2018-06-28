@@ -192,17 +192,12 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
     }
 
   def step(deploymentRequest: DeploymentRequest, operationCount: Option[Int], initiatorName: String, emitEvent: Boolean = true): Future[OperationTrace] = {
-    val getSpecifics = rejectingIfCannotDeploy(deploymentRequest)
-      .andThen(dbBinding.gettingPlanStepToOperateAndLastDoneStep(deploymentRequest))
-      .flatMap {
-        case None =>
-          DBIOAction.failed(UnprocessableIntent(s"${deploymentRequest.id}: there is no next step, they have all been applied"))
-
-        case Some((toDo, lastDone)) =>
-          val isRetry = lastDone.contains(toDo)
-          val getOperationSpecifics = if (isRetry) operationStarter.getRetrySpecifics _ else operationStarter.getStepSpecifics _
-          getOperationSpecifics(targetResolver, targetDispatcher, toDo)
-            .map(operationCreationSpecifics => ((Seq(toDo), operationCreationSpecifics), (lastDone, toDo)))
+    val getSpecifics = gettingPlanStepToOperateAndLastDoneStepOrRejectingIfCannotDeploy(deploymentRequest)
+      .flatMap { case (toDo, lastDone) =>
+        val isRetry = lastDone.contains(toDo)
+        val getOperationSpecifics = if (isRetry) operationStarter.getRetrySpecifics _ else operationStarter.getStepSpecifics _
+        getOperationSpecifics(targetResolver, targetDispatcher, toDo)
+          .map(operationCreationSpecifics => ((Seq(toDo), operationCreationSpecifics), (lastDone, toDo)))
       }
     act(deploymentRequest, operationCount, initiatorName, getSpecifics)
       .map { case ((operationTrace, started, failed), (lastDone, toDo)) =>
@@ -246,11 +241,13 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
         DBIOAction.successful(())
     )
 
-  def rejectIfCannotDeploy(deploymentRequest: DeploymentRequest): Future[Unit] =
-    dbBinding.dbContext.db.run(rejectingIfCannotDeploy(deploymentRequest))
-
-  def rejectingIfCannotDeploy(deploymentRequest: DeploymentRequest): DBIOAction[Unit, NoStream, Effect.Read] =
+  private def gettingPlanStepToOperateAndLastDoneStepOrRejectingIfCannotDeploy(deploymentRequest: DeploymentRequest): DBIOAction[(DeploymentPlanStep, Option[DeploymentPlanStep]), NoStream, Effect.Read] =
     rejectingIfOutdated(deploymentRequest)
+      .andThen(dbBinding.gettingPlanStepToOperateAndLastDoneStep(deploymentRequest))
+      .map(_.getOrElse(throw UnprocessableIntent(s"${deploymentRequest.id}: there is no next step, they have all been applied")))
+
+  def rejectIfCannotDeploy(deploymentRequest: DeploymentRequest): Future[Unit] =
+    dbBinding.dbContext.db.run(gettingPlanStepToOperateAndLastDoneStepOrRejectingIfCannotDeploy(deploymentRequest)).map(_ => ())
 
   def rejectIfCannotRevert(deploymentRequest: DeploymentRequest): Future[Unit] =
     dbBinding.dbContext.db.run(rejectingIfCannotRevert(deploymentRequest))
