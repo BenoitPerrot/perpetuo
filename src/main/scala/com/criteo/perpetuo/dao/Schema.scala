@@ -120,8 +120,7 @@ trait EffectInserter
                         invocations
                           .toStream
                           .flatMap { case (_, target) => target.toStream.flatMap(_.select) }
-                          .map(_ -> TargetAtomStatus(Status.notDone, "running..."))
-                          // todo: change detail to "pending" when all executors send `running` status codes: DREDD-725
+                          .map(_ -> TargetAtomStatus(Status.notDone, "pending"))
                           .toMap
                       )
                         .andThen(ret)
