@@ -264,30 +264,23 @@ class CrankshaftSpec extends SimpleScenarioTesting {
         revertExecutionSpecIdsC <- crankshaft.dbBinding.findExecutionSpecIdsByOperationTrace(revertOperationTraceC.id)
         revertExecutionSpecC <- crankshaft.dbBinding.findExecutionSpecificationById(revertExecutionSpecIdsC.head).map(_.get)
 
-      } yield (
-        revertExecutionSpecIdsA.length,
-        revertExecutionSpecIdsA.contains(firstExecSpecId),
+      } yield {
+        revertExecutionSpecIdsA should have length 1
+        revertExecutionSpecIdsA should contain(firstExecSpecId)
 
-        rejectionOfSecondA.getMessage.split(":")(1).trim,
+        rejectionOfSecondA.getMessage should include("a newer one has already been applied")
 
-        revertExecutionSpecIdsB.length,
-        revertExecutionSpecIdsB.contains(firstExecSpecId),
+        revertExecutionSpecIdsB should have length 1
+        revertExecutionSpecIdsB should contain(firstExecSpecId)
 
-        rejectionOfSecondB.getMessage.split(":")(1).trim,
+        rejectionOfSecondB.getMessage should include("a newer one has already been applied")
 
-        required,
+        required shouldEqual "defaultVersion"
 
-        revertOperationTraceC.deploymentRequest.id == firstDeploymentRequest.id,
-        revertExecutionSpecIdsC.length,
-        revertExecutionSpecC.version == defaultRevertVersion
-      )
-    ) shouldBe(
-      1, true,
-      "a newer one has already been applied",
-      1, true,
-      "a newer one has already been applied",
-      "defaultVersion",
-      true, 1, true
+        revertOperationTraceC.deploymentRequest.id shouldEqual firstDeploymentRequest.id
+        revertExecutionSpecIdsC should have length 1
+        revertExecutionSpecC.version shouldEqual defaultRevertVersion
+      }
     )
   }
 
