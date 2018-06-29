@@ -396,101 +396,7 @@ class CrankshaftWithFailingExecutorSpec extends SimpleScenarioTesting {
 }
 
 
-class CrankshaftWithNoLogHrefSpec extends SimpleScenarioTesting {
-  test("Cannot stop an execution that has no log href") {
-    val op = request("dusty-duck", "12345", Seq("thailand")).step()
-    crankshaft.dbBinding.findExecutionTracesByOperationTrace(op.id)
-      .map(_.head)
-      .flatMap(execTrace => crankshaft.stopExecution(execTrace, "joe")) should
-      asynchronouslyThrow[RuntimeException]("No log href for execution trace .+")
-  }
-}
-
-
-class CrankshaftWithUnknownLogHrefSpec extends SimpleScenarioTesting {
-  private val logHref = "now you can track me down"
-
-  override protected def triggerMock = Some(logHref)
-
-  test("A trivial execution triggers a job with a log href when a log href is provided") {
-    val op = request("product #2", "1000", Seq("*")).step()
-    crankshaft.dbBinding.findExecutionTracesByOperationTrace(op.id)
-      .map(_.flatMap(_.logHref).toSet) should eventually(be(Set(logHref)))
-  }
-
-  test("Cannot stop an execution of an unknown type") {
-    val op = request("dusty-duck", "123456", Seq("thailand")).step()
-    crankshaft.dbBinding.findExecutionTracesByOperationTrace(op.id)
-      .map(_.head)
-      .flatMap(crankshaft.stopExecution(_, "joe")) should
-      asynchronouslyThrow[RuntimeException]("Could not find an execution configuration for the type `unknown`")
-  }
-}
-
-
-class CrankshaftWithUncontrollableTriggeredExecutionSpec extends SimpleScenarioTesting {
-  private val logHref = "uncontrollable.executions.io/42"
-
-  override protected def triggerMock = Some(logHref)
-
-  override val executionFinder = new TriggeredExecutionFinder(null) {
-    override def apply[T](executionTrace: ShallowExecutionTrace): TriggeredExecution =
-      new UncontrollableTriggeredExecution(logHref)
-  }
-
-  test("Cannot stop an execution of an explicitly unstoppable type") {
-    val op = request("dusty-duck", "1234567", Seq("thailand")).step()
-    crankshaft.dbBinding.findExecutionTracesByOperationTrace(op.id)
-      .map(_.head)
-      .flatMap(crankshaft.stopExecution(_, "joe")) should
-      asynchronouslyThrow[RuntimeException](s"This kind of execution cannot be stopped: $logHref")
-  }
-
-  test("Crankshaft tries to stop executions, which might terminate normally at the same time") {
-    request("dusty-duck", "1", Seq("here")).step()
-    val lastOp = request("dusty-duck", "2", Seq("here", "there")).step()
-    val req = lastOp.deploymentRequest
-
-    // try to stop when everything is already terminated
-    crankshaft.tryStopDeploymentRequest(req, Some(1), "killer-guy") should
-      eventually(be((0, Seq())))
-
-    // try to stop when nothing has been terminated but it's impossible to stop
-    crankshaft.revert(req, Some(1), "r.everter", Some(Version("0".toJson))).flatMap(op =>
-      crankshaft.tryStopDeploymentRequest(req, Some(2), "killer-guy")
-        .flatMap { case (successes, failures) =>
-          tryCloseOperation(op).map(updates =>
-            (updates.length, updates.flatten.length, successes, failures.length)
-          )
-        }
-    ) should eventually(be((2, 2, 0, 2))) // i.e. 2 execution traces, 2 closed, 0 stopped, 2 failures
-
-    // try to stop when one execution is already terminated and the other one could not be stopped (so 0 success)
-    crankshaft.revert(req, Some(2), "r.everter", Some(Version("0".toJson))).flatMap(op =>
-      crankshaft.dbBinding.findExecutionIdsByOperationTrace(op.id)
-        .flatMap { executionIds =>
-          val executionId = executionIds.head // only update the first execution (out of the 2 triggered by the revert)
-          crankshaft.dbBinding.findTargetsByExecution(executionId).flatMap(atoms =>
-            crankshaft.dbBinding.findExecutionTraceIdsByExecution(executionId).flatMap(executionTraceIds =>
-              Future.traverse(executionTraceIds)(executionTraceId =>
-                crankshaft.updateExecutionTrace(
-                  executionTraceId, ExecutionState.aborted, "from the executor", None,
-                  atoms.map(_ -> TargetAtomStatus(Status.success, "")).toMap
-                ))
-            ))
-        }
-        .flatMap(_ => crankshaft.tryStopDeploymentRequest(req, Some(3), "killer-guy"))
-        .flatMap { case (successes, failures) =>
-          tryCloseOperation(op).map(updates =>
-            (updates.length, updates.flatten.length, successes, failures.map(_.split(":").head))
-          )
-        }
-    ) should eventually(be((2, 1, 0, Seq("This kind of execution cannot be stopped")))) // i.e. 2 execution traces, 1 closed, 0 stopped, 1 failure
-  }
-}
-
-
-class MultiStepCrankshaftSpec extends SimpleScenarioTesting {
+class CrankshaftWithMultiStepSpec extends SimpleScenarioTesting {
   private val step1 = Set("north", "south")
   private val step2 = Set("east", "west")
 
@@ -526,6 +432,17 @@ class MultiStepCrankshaftSpec extends SimpleScenarioTesting {
     r.revert("old", Status.hostFailure)
     r.revert("older")
     getDeployedVersions("giant-clam") should become(Map("north" -> "older", "south" -> "older"))
+  }
+}
+
+
+class CrankshaftWithNoLogHrefSpec extends SimpleScenarioTesting {
+  test("Cannot stop an execution that has no log href") {
+    val op = request("dusty-duck", "12345", Seq("thailand")).step()
+    crankshaft.dbBinding.findExecutionTracesByOperationTrace(op.id)
+      .map(_.head)
+      .flatMap(execTrace => crankshaft.stopExecution(execTrace, "joe")) should
+      asynchronouslyThrow[RuntimeException]("No log href for execution trace .+")
   }
 }
 
@@ -610,5 +527,89 @@ class CrankshaftWithStopperSpec extends SimpleScenarioTesting {
         }
     ) should eventually(be((2, 0, 0, Vector(s"Could not stop the execution $logHref (current state: unreachable)", s"Could not stop the execution $logHref (current state: unreachable)"))))
     // i.e. 2 execution traces, 0 closed, 0 stopped, 2 failures
+  }
+}
+
+
+class CrankshaftWithUncontrollableTriggeredExecutionSpec extends SimpleScenarioTesting {
+  private val logHref = "uncontrollable.executions.io/42"
+
+  override protected def triggerMock = Some(logHref)
+
+  override val executionFinder = new TriggeredExecutionFinder(null) {
+    override def apply[T](executionTrace: ShallowExecutionTrace): TriggeredExecution =
+      new UncontrollableTriggeredExecution(logHref)
+  }
+
+  test("Cannot stop an execution of an explicitly unstoppable type") {
+    val op = request("dusty-duck", "1234567", Seq("thailand")).step()
+    crankshaft.dbBinding.findExecutionTracesByOperationTrace(op.id)
+      .map(_.head)
+      .flatMap(crankshaft.stopExecution(_, "joe")) should
+      asynchronouslyThrow[RuntimeException](s"This kind of execution cannot be stopped: $logHref")
+  }
+
+  test("Crankshaft tries to stop executions, which might terminate normally at the same time") {
+    request("dusty-duck", "1", Seq("here")).step()
+    val lastOp = request("dusty-duck", "2", Seq("here", "there")).step()
+    val req = lastOp.deploymentRequest
+
+    // try to stop when everything is already terminated
+    crankshaft.tryStopDeploymentRequest(req, Some(1), "killer-guy") should
+      eventually(be((0, Seq())))
+
+    // try to stop when nothing has been terminated but it's impossible to stop
+    crankshaft.revert(req, Some(1), "r.everter", Some(Version("0".toJson))).flatMap(op =>
+      crankshaft.tryStopDeploymentRequest(req, Some(2), "killer-guy")
+        .flatMap { case (successes, failures) =>
+          tryCloseOperation(op).map { updates =>
+            Await.result(closeOperation(op), 2.second) // fixme: ugly fix
+            (updates.length, updates.flatten.length, successes, failures.length)
+          }
+        }
+    ) should eventually(be((2, 2, 0, 2))) // i.e. 2 execution traces, 2 closed, 0 stopped, 2 failures
+
+    // try to stop when one execution is already terminated and the other one could not be stopped (so 0 success)
+    crankshaft.revert(req, Some(2), "r.everter", Some(Version("0".toJson))).flatMap(op =>
+      crankshaft.dbBinding.findExecutionIdsByOperationTrace(op.id)
+        .flatMap { executionIds =>
+          val executionId = executionIds.head // only update the first execution (out of the 2 triggered by the revert)
+          crankshaft.dbBinding.findTargetsByExecution(executionId).flatMap(atoms =>
+            crankshaft.dbBinding.findExecutionTraceIdsByExecution(executionId).flatMap(executionTraceIds =>
+              Future.traverse(executionTraceIds)(executionTraceId =>
+                crankshaft.updateExecutionTrace(
+                  executionTraceId, ExecutionState.aborted, "from the executor", None,
+                  atoms.map(_ -> TargetAtomStatus(Status.success, "")).toMap
+                ))
+            ))
+        }
+        .flatMap(_ => crankshaft.tryStopDeploymentRequest(req, Some(3), "killer-guy"))
+        .flatMap { case (successes, failures) =>
+          tryCloseOperation(op).map(updates =>
+            (updates.length, updates.flatten.length, successes, failures.map(_.split(":").head))
+          )
+        }
+    ) should eventually(be((2, 1, 0, Seq("This kind of execution cannot be stopped")))) // i.e. 2 execution traces, 1 closed, 0 stopped, 1 failure
+  }
+}
+
+
+class CrankshaftWithUnknownLogHrefSpec extends SimpleScenarioTesting {
+  private val logHref = "now you can track me down"
+
+  override protected def triggerMock = Some(logHref)
+
+  test("A trivial execution triggers a job with a log href when a log href is provided") {
+    val op = request("product #2", "1000", Seq("*")).step()
+    crankshaft.dbBinding.findExecutionTracesByOperationTrace(op.id)
+      .map(_.flatMap(_.logHref).toSet) should eventually(be(Set(logHref)))
+  }
+
+  test("Cannot stop an execution of an unknown type") {
+    val op = request("dusty-duck", "123456", Seq("thailand")).step()
+    crankshaft.dbBinding.findExecutionTracesByOperationTrace(op.id)
+      .map(_.head)
+      .flatMap(crankshaft.stopExecution(_, "joe")) should
+      asynchronouslyThrow[RuntimeException]("Could not find an execution configuration for the type `unknown`")
   }
 }
