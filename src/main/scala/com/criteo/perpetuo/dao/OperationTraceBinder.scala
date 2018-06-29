@@ -5,7 +5,6 @@ import com.criteo.perpetuo.model._
 import slick.sql.FixedSqlAction
 
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.Future
 
 
 private[dao] case class OperationTraceRecord(id: Option[Long],
@@ -64,14 +63,6 @@ trait OperationTraceBinder extends TableBinder {
   def countingOperationTraces(deploymentRequest: DeploymentRequest): FixedSqlAction[Int, dbContext.profile.api.NoStream, Effect.Read] =
     operationTraceQuery.filter(_.deploymentRequestId === deploymentRequest.id).length.result
 
-  def closeOperationTrace(operationTraceId: Long, now: java.sql.Timestamp = new java.sql.Timestamp(System.currentTimeMillis)): Future[Int] =
-    dbContext.db.run(
-      operationTraceQuery
-        .filter(op => op.id === operationTraceId && op.startingDate.nonEmpty && op.closingDate.isEmpty)
-        .map(_.closingDate)
-        .update(Some(now))
-    )
-
   def closingOperationTrace(operationTrace: OperationTrace): DBIOAction[Option[ShallowOperationTrace], NoStream, Effect.Write] = {
     val now = Some(new java.sql.Timestamp(System.currentTimeMillis))
     operationTraceQuery
@@ -86,7 +77,4 @@ trait OperationTraceBinder extends TableBinder {
           None
       })
   }
-
-  def closeOperationTrace(operationTrace: OperationTrace): Future[Option[ShallowOperationTrace]] =
-    dbContext.db.run(closingOperationTrace(operationTrace))
 }

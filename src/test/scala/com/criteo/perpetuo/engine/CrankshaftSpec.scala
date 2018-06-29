@@ -20,6 +20,9 @@ class CrankshaftSpec extends SimpleScenarioTesting {
   private def gettingPlanStepToOperateAndLastDoneStepId(deploymentRequest: DeploymentRequest) =
     dbContext.db.run(crankshaft.dbBinding.gettingPlanStepToOperateAndLastDoneStepId(deploymentRequest))
 
+  private def closeOperationTrace(operationTrace: OperationTrace): Future[Option[OperationTrace]] =
+    dbContext.db.run(crankshaft.dbBinding.closingOperationTrace(operationTrace))
+
   test("A trivial execution triggers a job with no log href when there is no log href provided") {
     await(
       for {
@@ -50,7 +53,7 @@ class CrankshaftSpec extends SimpleScenarioTesting {
         hasOpenExecutionBefore <- hasOpenExecutionTracesForOperation(operationTrace.id)
         _ <- closeOperation(operationTrace, Map("moon" -> Status.success, "mars" -> Status.hostFailure))
         hasOpenExecutionAfter <- hasOpenExecutionTracesForOperation(operationTrace.id)
-        operationReClosingSucceeded <- crankshaft.dbBinding.closeOperationTrace(operationTrace)
+        operationReClosingSucceeded <- closeOperationTrace(operationTrace)
       } yield (hasOpenExecutionBefore, hasOpenExecutionAfter, operationReClosingSucceeded.isDefined)
     ) shouldBe(true, false, false)
   }
@@ -299,7 +302,7 @@ class CrankshaftSpec extends SimpleScenarioTesting {
         secondExecutionTraces <- closeOperation(retriedOperation, Map("moon" -> Status.success, "mars" -> Status.success))
         raceConditionError <- crankshaft.step(deploymentRequest, Some(1), "b.lightning").failed
         hasOpenExecutionAfter <- hasOpenExecutionTracesForOperation(retriedOperation.id)
-        operationReClosingSucceeded <- crankshaft.dbBinding.closeOperationTrace(retriedOperation)
+        operationReClosingSucceeded <- closeOperationTrace(retriedOperation)
         initialExecutionSpecIds <- crankshaft.dbBinding.findExecutionSpecIdsByOperationTrace(operationTrace.id)
         retriedExecutionSpecIds <- crankshaft.dbBinding.findExecutionSpecIdsByOperationTrace(retriedOperation.id)
       } yield {

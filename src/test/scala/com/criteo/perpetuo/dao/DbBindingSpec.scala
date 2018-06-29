@@ -39,7 +39,7 @@ class DbBindingSpec extends TestHelpers with TestDb {
           val depReq = op.deploymentRequest
           getStatus(depReq).flatMap { case (runningStatus, kind) =>
             kind shouldEqual Some(effect.kind)
-            dbBinding.closeOperationTrace(op)
+            dbBinding.dbContext.db.run(dbBinding.closingOperationTrace(op))
               .flatMap(_ => getStatus(depReq))
               .map { case (closedStatus, k) =>
                 k shouldEqual kind
