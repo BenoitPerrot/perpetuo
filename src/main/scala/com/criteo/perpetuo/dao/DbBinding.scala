@@ -251,19 +251,15 @@ class DbBinding @Inject()(val dbContext: DbContext)
       .map { case (deploymentPlanStepId, q) =>
         (deploymentPlanStepId, q.map { case (_, xref) => xref.map(_.operationTraceId) }.max)
       }
-      .joinLeft(operationTraceQuery)
-      .on { case ((_, lastOpId), operationTrace) => lastOpId === operationTrace.id }
-      .map { case ((deploymentPlanStepId, _), operationTrace) => (deploymentPlanStepId, operationTrace) }
       .result
-      .map(_.map { case (deploymentPlanStepId, operationTrace) => (deploymentPlanStepId, operationTrace.map(_.toOperationTrace)) })
 
-  private def getLastDoneStepAndOperation(planStepsAndLatestOperations: Seq[(Long, Option[OperationTrace])]) =
-    planStepsAndLatestOperations.reduce[(Long, Option[OperationTrace])] {
+  private def getLastDoneStepAndOperation(planStepsAndLatestOperations: Seq[(Long, Option[Long])]) =
+    planStepsAndLatestOperations.reduce[(Long, Option[Long])] {
       case ((latestPlanStepId, None), current@(planStepId, None)) if planStepId < latestPlanStepId =>
         // When comparing two steps, both with no operation, the oldest one is the latest one
         current
 
-      case ((_, Some(latestOperation)), current@(_, Some(operation))) if latestOperation.id < operation.id =>
+      case ((_, Some(latestOperationId)), current@(_, Some(operationId))) if latestOperationId < operationId =>
         // When comparing two steps, both with operations, the step with the youngest operation is the latest one
         current
 
@@ -306,13 +302,13 @@ class DbBinding @Inject()(val dbContext: DbContext)
           )
         )
 
-  private def gettingPlanStepIdToOperateAndLastDoneStepId(planStepsAndLatestOperations: Seq[(Long, Option[OperationTrace])]): DBIOAction[Option[(Long, Option[Long])], NoStream, Effect.Read] =
+  private def gettingLastDoneAndToDoPlanStepId(planStepsAndLatestOperations: Seq[(Long, Option[Long])]): DBIOAction[Option[(Long, Option[Long])], NoStream, Effect.Read] =
     getLastDoneStepAndOperation(planStepsAndLatestOperations) match {
       case (latestPlanStepId, None) =>
         DBIO.successful(Some((latestPlanStepId, None)))
 
-      case (latestPlanStepId, Some(operation)) =>
-        computingOperationStatus(operation.id, isRunning = false)
+      case (latestPlanStepId, Some(operationId)) =>
+        computingOperationStatus(operationId, isRunning = false)
           .map(operationStatus =>
             if (operationStatus == DeploymentStatus.flopped || operationStatus == DeploymentStatus.failed)
               Some(latestPlanStepId)
@@ -328,7 +324,7 @@ class DbBinding @Inject()(val dbContext: DbContext)
         if (planStepsAndLatestOperations.isEmpty)
           DBIO.failed(new RuntimeException(s"${deploymentRequest.id}: should not be there: deployment plan is empty"))
         else
-          gettingPlanStepIdToOperateAndLastDoneStepId(planStepsAndLatestOperations).flatMap {
+          gettingLastDoneAndToDoPlanStepId(planStepsAndLatestOperations).flatMap {
             case Some((toDoId, lastDoneId)) =>
               findingDeploymentPlanStep(deploymentRequest, toDoId).map(_.map((_, lastDoneId)))
             case None =>
