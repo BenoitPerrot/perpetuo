@@ -390,7 +390,9 @@ class DbBinding @Inject()(val dbContext: DbContext)
 
     val execSpecIds = lastExecutionIdPerTarget
       .joinLeft(
-        executionQuery.join(executionSpecificationQuery).on(_.executionSpecificationId === _.id)
+        executionQuery
+          .join(executionSpecificationQuery)
+          .on(_.executionSpecificationId === _.id)
           .map { case (execution, execSpec) => (execution.id, execSpec) }
       )
       .on { case ((_, targetExecutionId), (anyExecutionId, _)) => targetExecutionId === anyExecutionId }
