@@ -18,11 +18,11 @@ trait SyncListener {
 
   def onDeploymentRequestStopped(deploymentRequest: DeploymentRequest, stopped: Int, failed: Int): Unit
 
-  def onOperationFailed(operationTrace: OperationTrace, deploymentRequest: DeploymentRequest): Unit
+  def onOperationFailed(operationTrace: OperationTrace): Unit
 
-  def onOperationSucceeded(operationTrace: OperationTrace, deploymentRequest: DeploymentRequest): Unit
+  def onOperationSucceeded(operationTrace: OperationTrace): Unit
 
-  def onTargetAtomStatusUpdate(operationTrace: OperationTrace, deploymentRequest: DeploymentRequest, target: String, status: TargetAtomStatus): Unit
+  def onTargetAtomStatusUpdate(operationTrace: OperationTrace, target: String, status: TargetAtomStatus): Unit
 }
 
 trait AsyncListener {
@@ -38,9 +38,9 @@ trait AsyncListener {
 
   def onDeploymentRequestStopped(deploymentRequest: DeploymentRequest, stopped: Int, failed: Int): Future[Unit]
 
-  def onOperationFailed(operationTrace: OperationTrace, deploymentRequest: DeploymentRequest): Future[Unit]
+  def onOperationFailed(operationTrace: OperationTrace): Future[Unit]
 
-  def onOperationSucceeded(operationTrace: OperationTrace, deploymentRequest: DeploymentRequest): Future[Unit]
+  def onOperationSucceeded(operationTrace: OperationTrace): Future[Unit]
 
-  def onTargetAtomStatusUpdate(operationTrace: OperationTrace, deploymentRequest: DeploymentRequest, target: String, status: TargetAtomStatus): Future[Unit]
+  def onTargetAtomStatusUpdate(operationTrace: OperationTrace, target: String, status: TargetAtomStatus): Future[Unit]
 }

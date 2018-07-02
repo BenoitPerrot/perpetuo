@@ -102,7 +102,7 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
       .getOrElse(Seq("P_" + deploymentRequest.product.name))
 
   private def triggerExecutions(deploymentRequest: DeploymentRequest,
-                                operationTrace: DeepOperationTrace,
+                                operationTrace: OperationTrace,
                                 executionsToTrigger: ExecutionsToTrigger) =
     operationStarter.triggerExecutions(deploymentRequest, executionsToTrigger).flatMap(effects =>
       Future.traverse(effects) { case (status, execTraceId, executionUpdate) =>
@@ -136,7 +136,7 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
         throw Conflict("Cannot be processed for the moment because a conflicting transaction is ongoing, which must first succeed or be reverted", conflictingRequestIds)
     )
 
-  private def closingOperation(operationTrace: DeepOperationTrace): DBIOAction[DeepOperationTrace, NoStream, Effect.Read with Effect.Write with Effect.Transactional] =
+  private def closingOperation(operationTrace: OperationTrace): DBIOAction[OperationTrace, NoStream, Effect.Read with Effect.Write with Effect.Transactional] =
     dbBinding.closingOperationTrace(operationTrace)
       .map(_.map((_, true)).getOrElse((operationTrace, false)))
       .flatMap { case (trace, updated) =>
@@ -158,7 +158,7 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
                     (_: AsyncListener).onOperationSucceeded _
                   else
                     (_: AsyncListener).onOperationFailed _
-                  listeners.foreach(listener => handler(listener)(trace, operationTrace.deploymentRequest))
+                  listeners.foreach(listener => handler(listener)(trace))
                 }
               )
           }
@@ -194,7 +194,7 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
       triggerExecutions(deploymentRequest, createdOperation, executionsToTrigger).map((_, actionSpecifics))
     }
 
-  def step(deploymentRequest: DeploymentRequest, operationCount: Option[Int], initiatorName: String, emitEvent: Boolean = true): Future[DeepOperationTrace] = {
+  def step(deploymentRequest: DeploymentRequest, operationCount: Option[Int], initiatorName: String, emitEvent: Boolean = true): Future[OperationTrace] = {
     val getSpecifics = dbBinding.gettingPlanStepToOperateAndLastDoneStepId(deploymentRequest).flatMap {
       case None =>
         DBIOAction.failed(UnprocessableIntent(s"${deploymentRequest.id}: there is no next step, they have all been applied"))
@@ -341,7 +341,7 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
         (nbStopped, errors)
       }
 
-  def revert(deploymentRequest: DeploymentRequest, operationCount: Option[Int], initiatorName: String, defaultVersion: Option[Version]): Future[DeepOperationTrace] =
+  def revert(deploymentRequest: DeploymentRequest, operationCount: Option[Int], initiatorName: String, defaultVersion: Option[Version]): Future[OperationTrace] =
     act(deploymentRequest, operationCount, initiatorName, operationStarter.getRevertSpecifics(targetDispatcher, deploymentRequest, initiatorName, defaultVersion).map((_, ())))
       .map { case ((operationTrace, started, failed), _) =>
         listeners.foreach(_.onDeploymentRequestReverted(deploymentRequest, started, failed))
@@ -384,7 +384,7 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
                   statusMap.foreach { case (target, value) =>
                     // todo: check if already the target is in the same state and don't emit an annotation in this case
                     if (value.code != Status.notDone)
-                      listeners.foreach(_.onTargetAtomStatusUpdate(op, op.deploymentRequest, target, value))
+                      listeners.foreach(_.onTargetAtomStatusUpdate(op, target, value))
                   }
                   result
                 }

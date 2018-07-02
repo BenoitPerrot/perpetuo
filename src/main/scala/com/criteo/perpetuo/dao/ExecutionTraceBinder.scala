@@ -18,7 +18,7 @@ private[dao] case class ExecutionTraceRecord(id: Option[Long],
   def toExecutionTrace: ShallowExecutionTrace =
     ShallowExecutionTrace(id.get, logHref, state, detail)
 
-  def toExecutionTrace(operationTrace: DeepOperationTrace): ExecutionTraceBranch =
+  def toExecutionTrace(operationTrace: OperationTrace): ExecutionTraceBranch =
     ExecutionTraceBranch(id.get, executionId, operationTrace, logHref, state, detail)
 }
 
@@ -66,7 +66,7 @@ trait ExecutionTraceBinder extends TableBinder {
         .result
     ).map(_.map(_.toExecutionTrace))
 
-  def findingOperationTracesByDeploymentRequest(deploymentRequest: DeploymentRequest): DBIOAction[Seq[DeepOperationTrace], NoStream, Effect.Read] =
+  def findingOperationTracesByDeploymentRequest(deploymentRequest: DeploymentRequest): DBIOAction[Seq[OperationTrace], NoStream, Effect.Read] =
     operationTraceQuery.filter(_.deploymentRequestId === deploymentRequest.id).result.map(_.map(_.toOperationTrace(deploymentRequest)))
 
   private def openExecutionTracesQuery(operationTraceId: Long) =

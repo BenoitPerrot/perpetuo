@@ -20,7 +20,7 @@ class CrankshaftSpec extends SimpleScenarioTesting {
   private def gettingPlanStepToOperateAndLastDoneStepId(deploymentRequest: DeploymentRequest) =
     dbContext.db.run(crankshaft.dbBinding.gettingPlanStepToOperateAndLastDoneStepId(deploymentRequest))
 
-  private def closeOperationTrace(operationTrace: DeepOperationTrace): Future[Option[DeepOperationTrace]] =
+  private def closeOperationTrace(operationTrace: OperationTrace): Future[Option[OperationTrace]] =
     dbContext.db.run(crankshaft.dbBinding.closingOperationTrace(operationTrace))
 
   test("A trivial execution triggers a job with no log href when there is no log href provided") {
@@ -277,7 +277,7 @@ class CrankshaftSpec extends SimpleScenarioTesting {
 
         required,
 
-        revertOperationTraceC.deploymentRequestId == firstDeploymentRequest.id,
+        revertOperationTraceC.deploymentRequest.id == firstDeploymentRequest.id,
         revertExecutionSpecIdsC.length,
         revertExecutionSpecC.version == defaultRevertVersion
       )

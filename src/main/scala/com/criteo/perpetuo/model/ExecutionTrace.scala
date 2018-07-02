@@ -14,7 +14,7 @@ case class ShallowExecutionTrace(id: Long,
 
 case class ExecutionTraceBranch(id: Long,
                                 executionId: Long,
-                                operationTrace: DeepOperationTrace,
+                                operationTrace: OperationTrace,
                                 logHref: Option[String],
                                 state: ExecutionState,
                                 detail: String)

@@ -14,8 +14,8 @@ private[dao] case class OperationTraceRecord(id: Option[Long],
                                              creationDate: java.sql.Timestamp,
                                              startingDate: Option[java.sql.Timestamp] = None,
                                              closingDate: Option[java.sql.Timestamp] = None) {
-  def toOperationTrace(deploymentRequest: DeploymentRequest): DeepOperationTrace =
-    DeepOperationTrace(id.get, deploymentRequest, operation, creator, creationDate, closingDate)
+  def toOperationTrace(deploymentRequest: DeploymentRequest): OperationTrace =
+    OperationTrace(id.get, deploymentRequest, operation, creator, creationDate, closingDate)
 }
 
 
@@ -51,18 +51,18 @@ trait OperationTraceBinder extends TableBinder {
 
   val operationTraceQuery = TableQuery[OperationTraceTable]
 
-  def insertOperationTrace(deploymentRequest: DeploymentRequest, operation: Operation.Kind, creator: String): DBIOAction[DeepOperationTrace, NoStream, Effect.Write] = {
+  def insertOperationTrace(deploymentRequest: DeploymentRequest, operation: Operation.Kind, creator: String): DBIOAction[OperationTrace, NoStream, Effect.Write] = {
     val date = new java.sql.Timestamp(System.currentTimeMillis)
     val operationTrace = OperationTraceRecord(None, deploymentRequest.id, operation, creator, date, Some(date))
     ((operationTraceQuery returning operationTraceQuery.map(_.id)) += operationTrace).map { id =>
-      DeepOperationTrace(id, deploymentRequest, operation, creator, operationTrace.creationDate, operationTrace.closingDate)
+      OperationTrace(id, deploymentRequest, operation, creator, operationTrace.creationDate, operationTrace.closingDate)
     }
   }
 
   def countingOperationTraces(deploymentRequest: DeploymentRequest): FixedSqlAction[Int, dbContext.profile.api.NoStream, Effect.Read] =
     operationTraceQuery.filter(_.deploymentRequestId === deploymentRequest.id).length.result
 
-  def closingOperationTrace(operationTrace: DeepOperationTrace): DBIOAction[Option[DeepOperationTrace], NoStream, Effect.Write] = {
+  def closingOperationTrace(operationTrace: OperationTrace): DBIOAction[Option[OperationTrace], NoStream, Effect.Write] = {
     val now = Some(new java.sql.Timestamp(System.currentTimeMillis))
     operationTraceQuery
       .filter(op => op.id === operationTrace.id && op.startingDate.nonEmpty && op.closingDate.isEmpty)
@@ -71,7 +71,7 @@ trait OperationTraceBinder extends TableBinder {
       .map(count => {
         assert(count <= 1)
         if (count == 1)
-          Some(DeepOperationTrace(operationTrace.id, operationTrace.deploymentRequest, operationTrace.kind, operationTrace.creator, operationTrace.creationDate, closingDate = now))
+          Some(OperationTrace(operationTrace.id, operationTrace.deploymentRequest, operationTrace.kind, operationTrace.creator, operationTrace.creationDate, closingDate = now))
         else
           None
       })

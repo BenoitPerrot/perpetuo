@@ -27,7 +27,7 @@ class Engine @Inject()(val crankshaft: Crankshaft,
           .getOrElse(Future.successful(None))
       )
 
-  def step(user: User, deploymentRequestId: Long, operationCount: Option[Int]): Future[Option[DeepOperationTrace]] =
+  def step(user: User, deploymentRequestId: Long, operationCount: Option[Int]): Future[Option[OperationTrace]] =
     withDeepDeploymentRequest(deploymentRequestId) { (deploymentRequest, _) =>
       if (!permissions.isAuthorized(user, DeploymentAction.applyOperation, Operation.deploy, deploymentRequest.product.name))
         throw PermissionDenied()
@@ -44,7 +44,7 @@ class Engine @Inject()(val crankshaft: Crankshaft,
         .flatMap(_ => crankshaft.findExecutionSpecificationsForRevert(deploymentRequest))
     }
 
-  def revert(user: User, deploymentRequestId: Long, operationCount: Option[Int], defaultVersion: Option[Version]): Future[Option[DeepOperationTrace]] =
+  def revert(user: User, deploymentRequestId: Long, operationCount: Option[Int], defaultVersion: Option[Version]): Future[Option[OperationTrace]] =
     withDeepDeploymentRequest(deploymentRequestId) { (deploymentRequest, isStarted) =>
       if (!permissions.isAuthorized(user, DeploymentAction.applyOperation, Operation.revert, deploymentRequest.product.name))
         throw PermissionDenied()

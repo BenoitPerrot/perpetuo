@@ -19,11 +19,11 @@ class DefaultListenerPlugin extends SyncListener with Plugin {
 
   def onDeploymentRequestStopped(deploymentRequest: DeploymentRequest, stopped: Int, failed: Int): Unit = {}
 
-  def onOperationFailed(operationTrace: OperationTrace, deploymentRequest: DeploymentRequest): Unit = {}
+  def onOperationFailed(operationTrace: OperationTrace): Unit = {}
 
-  def onOperationSucceeded(operationTrace: OperationTrace, deploymentRequest: DeploymentRequest): Unit = {}
+  def onOperationSucceeded(operationTrace: OperationTrace): Unit = {}
 
-  def onTargetAtomStatusUpdate(operationTrace: OperationTrace, deploymentRequest: DeploymentRequest, target: String, status: TargetAtomStatus): Unit = {}
+  def onTargetAtomStatusUpdate(operationTrace: OperationTrace, target: String, status: TargetAtomStatus): Unit = {}
 
   val timeout_s = 30
 }
@@ -48,12 +48,12 @@ private[config] class ListenerPluginWrapper(implementation: DefaultListenerPlugi
   def onDeploymentRequestStopped(deploymentRequest: DeploymentRequest, stopped: Int, failed: Int): Future[Unit] =
     wrap(_.onDeploymentRequestStopped(deploymentRequest, stopped, failed))
 
-  def onOperationFailed(operationTrace: OperationTrace, deploymentRequest: DeploymentRequest): Future[Unit] =
-    wrap(_.onOperationFailed(operationTrace, deploymentRequest))
+  def onOperationFailed(operationTrace: OperationTrace): Future[Unit] =
+    wrap(_.onOperationFailed(operationTrace))
 
-  def onOperationSucceeded(operationTrace: OperationTrace, deploymentRequest: DeploymentRequest): Future[Unit] =
-    wrap(_.onOperationSucceeded(operationTrace, deploymentRequest))
+  def onOperationSucceeded(operationTrace: OperationTrace): Future[Unit] =
+    wrap(_.onOperationSucceeded(operationTrace))
 
-  def onTargetAtomStatusUpdate(operationTrace: OperationTrace, deploymentRequest: DeploymentRequest, target: String, status: TargetAtomStatus): Future[Unit] =
-    wrap(_.onTargetAtomStatusUpdate(operationTrace, deploymentRequest, target, status))
+  def onTargetAtomStatusUpdate(operationTrace: OperationTrace, target: String, status: TargetAtomStatus): Future[Unit] =
+    wrap(_.onTargetAtomStatusUpdate(operationTrace, target, status))
 }

@@ -89,7 +89,7 @@ class DbScenarios(dbBinding: DbBinding) extends DeploymentRequestInserter {
   )
   private val dummyTargets = Iterator.from(100).map(n => s"target-$n")
 
-  def insertEffect(effect: OperationEffect): Future[DeepOperationTrace] =
+  def insertEffect(effect: OperationEffect): Future[OperationTrace] =
     Future
       .traverse(dummySpecIds.zip(effect.executions)) { case (specId, execution) => specId.map((_, execution)) }
       .zip(steps)

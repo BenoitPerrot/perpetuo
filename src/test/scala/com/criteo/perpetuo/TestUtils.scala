@@ -110,11 +110,11 @@ trait SimpleScenarioTesting extends TestHelpers with TestDb with MockitoSugar {
     private val currentState = Iterator.from(0)
     private var currentStep = 0
 
-    def startStep(): DeepOperationTrace = {
+    def startStep(): OperationTrace = {
       await(crankshaft.step(deploymentRequest, Some(currentState.next()), "s.tarter"))
     }
 
-    def step(finalStatus: Status.Code = Status.success): DeepOperationTrace = {
+    def step(finalStatus: Status.Code = Status.success): OperationTrace = {
       val operationTrace = startStep()
       val targetStatus = stepsTargets(currentStep).map(_ -> finalStatus).toMap
       if (finalStatus == Status.success)
@@ -123,7 +123,7 @@ trait SimpleScenarioTesting extends TestHelpers with TestDb with MockitoSugar {
       operationTrace
     }
 
-    def revert(defaultVersion: String = "", finalStatus: Status.Code = Status.success): DeepOperationTrace = {
+    def revert(defaultVersion: String = "", finalStatus: Status.Code = Status.success): OperationTrace = {
       val targetStatus = stepsTargets.zipWithIndex.collect { case (target, index) if index < currentStep => target.map(_ -> finalStatus) }.flatten.toMap
       await(
         for {
