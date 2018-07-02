@@ -372,7 +372,7 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
           dbBinding.updatingExecutionTrace(id, executionState, detail, logHref)
             .andThen(
               dbBinding.updatingTargetStatuses(executionTraceBranch.executionId, statusMap)
-                .flatMap(_ => dbBinding.hasOpenExecutionTracesForOperation(op.id))
+                .andThen(dbBinding.hasOpenExecutionTracesForOperation(op.id))
                 .flatMap(hasOpenExecutions =>
                   if (hasOpenExecutions)
                     DBIOAction.successful(())
