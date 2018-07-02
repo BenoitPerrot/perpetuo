@@ -136,7 +136,7 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
         throw Conflict("Cannot be processed for the moment because a conflicting transaction is ongoing, which must first succeed or be reverted", conflictingRequestIds)
     )
 
-  private def closingOperation(operationTrace: ShallowOperationTrace, deploymentRequest: DeploymentRequest): DBIOAction[ShallowOperationTrace, NoStream, Effect.Read with Effect.Write with Effect.Transactional] =
+  private def closingOperation(operationTrace: OperationTrace, deploymentRequest: DeploymentRequest): DBIOAction[OperationTrace, NoStream, Effect.Read with Effect.Write with Effect.Transactional] =
     dbBinding.closingOperationTrace(operationTrace)
       .map(_.map((_, true)).getOrElse((operationTrace, false)))
       .flatMap { case (trace, updated) =>

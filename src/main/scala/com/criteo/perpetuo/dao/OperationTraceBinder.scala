@@ -63,7 +63,7 @@ trait OperationTraceBinder extends TableBinder {
   def countingOperationTraces(deploymentRequest: DeploymentRequest): FixedSqlAction[Int, dbContext.profile.api.NoStream, Effect.Read] =
     operationTraceQuery.filter(_.deploymentRequestId === deploymentRequest.id).length.result
 
-  def closingOperationTrace(operationTrace: OperationTrace): DBIOAction[Option[ShallowOperationTrace], NoStream, Effect.Write] = {
+  def closingOperationTrace(operationTrace: OperationTrace): DBIOAction[Option[OperationTrace], NoStream, Effect.Write] = {
     val now = Some(new java.sql.Timestamp(System.currentTimeMillis))
     operationTraceQuery
       .filter(op => op.id === operationTrace.id && op.startingDate.nonEmpty && op.closingDate.isEmpty)
