@@ -366,36 +366,31 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
 
   def tryUpdateExecutionTrace(id: Long, executionState: ExecutionState, detail: String, logHref: Option[String], statusMap: Map[String, TargetAtomStatus] = Map()): Future[Option[Long]] =
     dbBinding.dbContext.db.run(
-      dbBinding.updatingExecutionTrace(id, executionState, detail, logHref).flatMap(_
-        .map(_ => // the execution trace exists
-          dbBinding.findingExecutionTraceById(id)
-            .map(_.get)
-            .flatMap { execTrace =>
-              val op = execTrace.operationTrace
-
-              dbBinding.updatingTargetStatuses(execTrace.executionId, statusMap)
+      dbBinding.findingBranchFromExecutionTraceId(id).flatMap(_
+        .map { executionTraceBranch =>
+          val op = executionTraceBranch.operationTrace
+          dbBinding.updatingExecutionTrace(id, executionState, detail, logHref)
+            .andThen(
+              dbBinding.updatingTargetStatuses(executionTraceBranch.executionId, statusMap)
                 .flatMap(_ => dbBinding.hasOpenExecutionTracesForOperation(op.id))
                 .flatMap(hasOpenExecutions =>
                   if (hasOpenExecutions)
                     DBIOAction.successful(())
                   else
-                    dbBinding.findingDeepDeploymentRequestById(op.deploymentRequestId)
-                      .flatMap(depReq => closingOperation(op, depReq.get))
+                    closingOperation(op, op.deploymentRequest)
                 )
                 .map { result =>
                   // Calls listener for target status update
-                  findDeepDeploymentRequestById(op.deploymentRequestId).foreach (deploymentRequest =>
-                    statusMap.foreach { case (target, value) =>
-                      // todo: check if already the target is in the same state and don't emit an annotation in this case
-                      if (value.code != Status.notDone)
-                        listeners.foreach(_.onTargetAtomStatusUpdate(op, deploymentRequest.get, target, value))
-                    }
-                  )
+                  statusMap.foreach { case (target, value) =>
+                    // todo: check if already the target is in the same state and don't emit an annotation in this case
+                    if (value.code != Status.notDone)
+                      listeners.foreach(_.onTargetAtomStatusUpdate(op, op.deploymentRequest, target, value))
+                  }
                   result
                 }
-            }
+            )
             .map(_ => Some(id))
-        )
+        }
         .getOrElse(DBIOAction.successful(None))
       )
     )

@@ -12,9 +12,9 @@ case class ShallowExecutionTrace(id: Long,
                                  detail: String)
 
 
-case class DeepExecutionTrace(id: Long,
-                              executionId: Long,
-                              operationTrace: ShallowOperationTrace,
-                              logHref: Option[String],
-                              state: ExecutionState,
-                              detail: String)
+case class ExecutionTraceBranch(id: Long,
+                                executionId: Long,
+                                operationTrace: DeepOperationTrace,
+                                logHref: Option[String],
+                                state: ExecutionState,
+                                detail: String)

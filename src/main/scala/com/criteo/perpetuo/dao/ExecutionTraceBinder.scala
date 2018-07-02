@@ -18,8 +18,8 @@ private[dao] case class ExecutionTraceRecord(id: Option[Long],
   def toExecutionTrace: ShallowExecutionTrace =
     ShallowExecutionTrace(id.get, logHref, state, detail)
 
-  def toExecutionTrace(operationTrace: ShallowOperationTrace): DeepExecutionTrace =
-    DeepExecutionTrace(id.get, executionId, operationTrace, logHref, state, detail)
+  def toExecutionTrace(operationTrace: DeepOperationTrace): ExecutionTraceBranch =
+    ExecutionTraceBranch(id.get, executionId, operationTrace, logHref, state, detail)
 }
 
 
@@ -65,19 +65,6 @@ trait ExecutionTraceBinder extends TableBinder {
         .map { case (_, executionTrace) => executionTrace }
         .result
     ).map(_.map(_.toExecutionTrace))
-
-  def findingExecutionTraceById(executionTraceId: Long): DBIOAction[Option[DeepExecutionTrace], NoStream, Effect.Read] =
-    executionTraceQuery
-      .join(executionQuery)
-      .join(operationTraceQuery)
-      .filter { case ((executionTrace, execution), operationTrace) =>
-        executionTrace.id === executionTraceId && executionTrace.executionId === execution.id && execution.operationTraceId === operationTrace.id
-      }
-      .map { case ((executionTrace, _), operationTrace) => (executionTrace, operationTrace) }
-      .result
-      .map(_.headOption.map { case (exec, op) =>
-        exec.toExecutionTrace(op.toOperationTrace)
-      })
 
   def findingOperationTracesByDeploymentRequest(deploymentRequestId: Long): DBIOAction[Seq[ShallowOperationTrace], NoStream, Effect.Read] =
     operationTraceQuery.filter(_.deploymentRequestId === deploymentRequestId).result.map(_.map(_.toOperationTrace))

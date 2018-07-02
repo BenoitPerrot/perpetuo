@@ -230,6 +230,23 @@ class DbBinding @Inject()(val dbContext: DbContext)
     dbContext.db.run(q.map(_.sortBy { case (depReq, _, _) => -depReq.id }))
   }
 
+  def findingBranchFromExecutionTraceId(executionTraceId: Long): DBIOAction[Option[ExecutionTraceBranch], NoStream, Effect.Read] =
+    executionTraceQuery
+      .join(executionQuery)
+      .join(operationTraceQuery)
+      .join(deploymentRequestQuery)
+      .join(productQuery)
+      .filter { case ((((executionTrace, execution), operationTrace), deploymentRequest), product) =>
+        executionTrace.id === executionTraceId &&
+          executionTrace.executionId === execution.id && execution.operationTraceId === operationTrace.id &&
+          operationTrace.deploymentRequestId === deploymentRequest.id && deploymentRequest.productId === product.id
+      }
+      .map { case ((((executionTrace, _), operationTrace), deploymentRequest), product) => (executionTrace, operationTrace, deploymentRequest, product) }
+      .result
+      .map(_.headOption.map { case (executionTrace, operationTrace, deploymentRequest, product) =>
+        executionTrace.toExecutionTrace(operationTrace.toOperationTrace(deploymentRequest.toDeepDeploymentRequest(product)))
+      })
+
   // todo: will likely be deprecated by the introduction of the deployment_plan_step and step_operation_xref tables
   def isDeploymentRequestStarted(deploymentRequestId: Long): Future[Option[(DeploymentRequest, Boolean)]] = {
     dbContext.db.run(

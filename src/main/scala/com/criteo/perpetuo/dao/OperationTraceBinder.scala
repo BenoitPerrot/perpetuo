@@ -17,6 +17,9 @@ private[dao] case class OperationTraceRecord(id: Option[Long],
   def toOperationTrace: ShallowOperationTrace = {
     ShallowOperationTrace(id.get, deploymentRequestId, operation, creator, creationDate, closingDate)
   }
+
+  def toOperationTrace(deploymentRequest: DeploymentRequest): DeepOperationTrace =
+    DeepOperationTrace(id.get, deploymentRequest, operation, creator, creationDate, closingDate)
 }
 
 
