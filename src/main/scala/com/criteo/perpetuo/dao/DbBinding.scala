@@ -77,7 +77,7 @@ class DbBinding @Inject()(val dbContext: DbContext)
                   val (operationTrace, _) = operationGroup.head
                   val executionTraces = operationGroup.flatMap { case (_, executionTrace) => executionTrace.map(_.toExecutionTrace) }
                   val targetStatuses = operationIdToTargetStatuses.getOrElse(operationTrace.id.get, Seq()).map(_.toTargetStatus)
-                  (operationTrace.toOperationTrace, executionTraces, targetStatuses)
+                  (operationTrace, executionTraces, targetStatuses)
                 }
             }
         }
@@ -95,7 +95,8 @@ class DbBinding @Inject()(val dbContext: DbContext)
                 deploymentRequest,
                 deploymentPlanSteps,
                 effects.map { case (operationTrace, executionTraces, targetStatuses) =>
-                  OperationEffect(operationTrace, operationTraceIdToPlanStepId(operationTrace.id), executionTraces, targetStatuses)
+                  val op = operationTrace.toOperationTrace(deploymentRequest)
+                  OperationEffect(op, operationTraceIdToPlanStepId(op.id), executionTraces, targetStatuses)
                 }
               ))
             }

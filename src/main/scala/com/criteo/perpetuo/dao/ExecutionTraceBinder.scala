@@ -66,8 +66,8 @@ trait ExecutionTraceBinder extends TableBinder {
         .result
     ).map(_.map(_.toExecutionTrace))
 
-  def findingOperationTracesByDeploymentRequest(deploymentRequestId: Long): DBIOAction[Seq[ShallowOperationTrace], NoStream, Effect.Read] =
-    operationTraceQuery.filter(_.deploymentRequestId === deploymentRequestId).result.map(_.map(_.toOperationTrace))
+  def findingOperationTracesByDeploymentRequest(deploymentRequest: DeploymentRequest): DBIOAction[Seq[DeepOperationTrace], NoStream, Effect.Read] =
+    operationTraceQuery.filter(_.deploymentRequestId === deploymentRequest.id).result.map(_.map(_.toOperationTrace(deploymentRequest)))
 
   private def openExecutionTracesQuery(operationTraceId: Long) =
     executionQuery

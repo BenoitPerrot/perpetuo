@@ -136,7 +136,7 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
         throw Conflict("Cannot be processed for the moment because a conflicting transaction is ongoing, which must first succeed or be reverted", conflictingRequestIds)
     )
 
-  private def closingOperation(operationTrace: OperationTrace, deploymentRequest: DeploymentRequest): DBIOAction[OperationTrace, NoStream, Effect.Read with Effect.Write with Effect.Transactional] =
+  private def closingOperation(operationTrace: DeepOperationTrace): DBIOAction[DeepOperationTrace, NoStream, Effect.Read with Effect.Write with Effect.Transactional] =
     dbBinding.closingOperationTrace(operationTrace)
       .map(_.map((_, true)).getOrElse((operationTrace, false)))
       .flatMap { case (trace, updated) =>
@@ -148,9 +148,9 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
             dbBinding.closingTargetStatuses(trace.id)
               .andThen(
                 if (transactionOngoing && withTransactions)
-                  dbBinding.releasingLock(getOperationLockName(deploymentRequest), deploymentRequest.id) // keep the locks per product/target
+                  dbBinding.releasingLock(getOperationLockName(operationTrace.deploymentRequest), operationTrace.deploymentRequest.id) // keep the locks per product/target
                 else
-                  dbBinding.releasingLocks(deploymentRequest.id)
+                  dbBinding.releasingLocks(operationTrace.deploymentRequest.id)
               )
               .map(_ =>
                 if (updated) { // if it's a successful close, let's notify
@@ -158,7 +158,7 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
                     (_: AsyncListener).onOperationSucceeded _
                   else
                     (_: AsyncListener).onOperationFailed _
-                  listeners.foreach(listener => handler(listener)(trace, deploymentRequest))
+                  listeners.foreach(listener => handler(listener)(trace, operationTrace.deploymentRequest))
                 }
               )
           }
@@ -311,7 +311,7 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
     dbBinding.dbContext.db
       .run(
         // validate the expected state and find the operation to close from the same request, for consistency yet without any lock
-        dbBinding.findingOperationTracesByDeploymentRequest(deploymentRequest.id).flatMap { operationTraces =>
+        dbBinding.findingOperationTracesByDeploymentRequest(deploymentRequest).flatMap { operationTraces =>
           operationCount.foreach(checkState(deploymentRequest, operationTraces.length, _))
           val operationTrace = operationTraces.maxBy(_.id)
           dbBinding.findingOpenExecutionTracesByOperationTrace(operationTrace.id)
@@ -331,7 +331,7 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
             }
           }
         else // todo: maybe a better way would be to possibly close the operation each time the user is querying the status of this operation
-          dbBinding.dbContext.db.run(closingOperation(operationTrace, deploymentRequest))
+          dbBinding.dbContext.db.run(closingOperation(operationTrace))
             .map(_ => Seq())
       }
       .map { results =>
@@ -377,7 +377,7 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
                   if (hasOpenExecutions)
                     DBIOAction.successful(())
                   else
-                    closingOperation(op, op.deploymentRequest)
+                    closingOperation(op)
                 )
                 .map { result =>
                   // Calls listener for target status update
