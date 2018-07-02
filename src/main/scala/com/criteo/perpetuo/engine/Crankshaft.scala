@@ -311,23 +311,28 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
     dbBinding.dbContext.db
       .run(
         // validate the expected state and find the operation to close from the same request, for consistency yet without any lock
-        dbBinding.findingOperationTraceIdsByDeploymentRequest(deploymentRequest.id).flatMap { operationTraceIds =>
-          operationCount.foreach(checkState(deploymentRequest, operationTraceIds.length, _))
-          val operationTraceId = operationTraceIds.max
-          dbBinding.findingOpenExecutionTracesByOperationTrace(operationTraceId)
+        dbBinding.findingOperationTracesByDeploymentRequest(deploymentRequest.id).flatMap { operationTraces =>
+          operationCount.foreach(checkState(deploymentRequest, operationTraces.length, _))
+          val operationTrace = operationTraces.maxBy(_.id)
+          dbBinding.findingOpenExecutionTracesByOperationTrace(operationTrace.id)
+            .map((operationTrace, _))
         }
       )
-      .flatMap { openExecutionTraces =>
-        Future.traverse(openExecutionTraces) { openExecutionTrace =>
-          try {
-            stopExecution(openExecutionTrace, initiatorName).map(Left(_)).recover { case e => Right(e.getMessage) }
+      .flatMap { case (operationTrace, openExecutionTraces) =>
+        if (openExecutionTraces.nonEmpty)
+          Future.traverse(openExecutionTraces) { openExecutionTrace =>
+            try {
+              stopExecution(openExecutionTrace, initiatorName).map(Left(_)).recover { case e => Right(e.getMessage) }
+            }
+            catch {
+              case e: Throwable =>
+                logger.error(s"While trying to stop execution #${openExecutionTrace.id} (${openExecutionTrace.logHref})", e)
+                Future.successful(Right(e.getMessage))
+            }
           }
-          catch {
-            case e: Throwable =>
-              logger.error(s"While trying to stop execution #${openExecutionTrace.id} (${openExecutionTrace.logHref})", e)
-              Future.successful(Right(e.getMessage))
-          }
-        }
+        else // todo: maybe a better way would be to possibly close the operation each time the user is querying the status of this operation
+          dbBinding.dbContext.db.run(closingOperation(operationTrace, deploymentRequest))
+            .map(_ => Seq())
       }
       .map { results =>
         val nbStopped = results.count(_.left.getOrElse(false))
