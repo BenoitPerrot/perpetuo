@@ -193,26 +193,26 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
 
   def step(deploymentRequest: DeploymentRequest, operationCount: Option[Int], initiatorName: String, emitEvent: Boolean = true): Future[OperationTrace] = {
     val getSpecifics = rejectingIfCannotDeploy(deploymentRequest)
-      .andThen(dbBinding.gettingPlanStepToOperateAndLastDoneStepId(deploymentRequest))
+      .andThen(dbBinding.gettingPlanStepToOperateAndLastDoneStep(deploymentRequest))
       .flatMap {
         case None =>
           DBIOAction.failed(UnprocessableIntent(s"${deploymentRequest.id}: there is no next step, they have all been applied"))
 
-        case Some((toDo, lastDoneId)) =>
-          val isRetry = lastDoneId.contains(toDo.id)
+        case Some((toDo, lastDone)) =>
+          val isRetry = lastDone.contains(toDo)
           val getOperationSpecifics = if (isRetry) operationStarter.getRetrySpecifics _ else operationStarter.getStepSpecifics _
           getOperationSpecifics(targetResolver, targetDispatcher, toDo)
-            .map(operationCreationSpecifics => ((Seq(toDo), operationCreationSpecifics), (lastDoneId, toDo)))
+            .map(operationCreationSpecifics => ((Seq(toDo), operationCreationSpecifics), (lastDone, toDo)))
       }
     act(deploymentRequest, operationCount, initiatorName, getSpecifics)
-      .map { case ((operationTrace, started, failed), (lastDoneId, toDo)) =>
+      .map { case ((operationTrace, started, failed), (lastDone, toDo)) =>
         if (emitEvent)
-          if (lastDoneId.contains(toDo.id)) {
+          if (lastDone.contains(toDo)) {
             // TODO: rename onDeploymentRequestRetried to onDeploymentStepRetried(toDo)
             listeners.foreach(_.onDeploymentRequestRetried(deploymentRequest, started, failed))
           }
           else {
-            if (lastDoneId.isEmpty) {
+            if (lastDone.isEmpty) {
               listeners.foreach(_.onDeploymentRequestStarted(deploymentRequest, started, failed))
             }
             // TODO: fire onDeploymentStepStarted(toDo)

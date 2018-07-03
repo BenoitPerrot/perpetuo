@@ -17,8 +17,8 @@ class CrankshaftSpec extends SimpleScenarioTesting {
   private def hasOpenExecutionTracesForOperation(operationTraceId: Long) =
     dbContext.db.run(crankshaft.dbBinding.hasOpenExecutionTracesForOperation(operationTraceId))
 
-  private def gettingPlanStepToOperateAndLastDoneStepId(deploymentRequest: DeploymentRequest) =
-    dbContext.db.run(crankshaft.dbBinding.gettingPlanStepToOperateAndLastDoneStepId(deploymentRequest))
+  private def gettingPlanStepToOperateAndLastDoneStep(deploymentRequest: DeploymentRequest) =
+    dbContext.db.run(crankshaft.dbBinding.gettingPlanStepToOperateAndLastDoneStep(deploymentRequest))
 
   private def closeOperationTrace(operationTrace: OperationTrace): Future[Option[OperationTrace]] =
     dbContext.db.run(crankshaft.dbBinding.closingOperationTrace(operationTrace))
@@ -28,14 +28,14 @@ class CrankshaftSpec extends SimpleScenarioTesting {
       for {
         product <- crankshaft.insertProductIfNotExists("product #1")
         depPlan <- crankshaft.dbBinding.insertDeploymentRequest(ProtoDeploymentRequest(product.name, Version("\"1000\""), Seq(ProtoDeploymentPlanStep("", JsString("*"), "")), "", "s.omeone"))
-        beforeStart <- gettingPlanStepToOperateAndLastDoneStepId(depPlan.deploymentRequest)
+        beforeStart <- gettingPlanStepToOperateAndLastDoneStep(depPlan.deploymentRequest)
         _ <- crankshaft.step(depPlan.deploymentRequest, Some(0), "s.tarter")
-        afterStart <- gettingPlanStepToOperateAndLastDoneStepId(depPlan.deploymentRequest)
+        afterStart <- gettingPlanStepToOperateAndLastDoneStep(depPlan.deploymentRequest)
         traces <- crankshaft.findExecutionTracesByDeploymentRequest(depPlan.deploymentRequest.id)
       } yield (
         traces.get.map(trace => (trace.id, trace.logHref)),
         beforeStart.exists(_._2.isEmpty),
-        afterStart.exists(_._2.exists(lastDoneId => beforeStart.exists(_._1.id == lastDoneId))),
+        afterStart.exists(_._2.exists(lastDone => beforeStart.exists(_._1 == lastDone))),
         beforeStart.map(_._1) == afterStart.map(_._1) // Deployment flopped, so the next step remains the same
       )
     ) shouldEqual(
