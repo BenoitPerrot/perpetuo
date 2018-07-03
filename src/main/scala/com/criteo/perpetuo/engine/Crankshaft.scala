@@ -364,26 +364,23 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
         .map { executionTraceBranch =>
           val op = executionTraceBranch.operationTrace
           dbBinding.updatingExecutionTrace(id, executionState, detail, logHref)
-            .andThen(
-              dbBinding.updatingTargetStatuses(executionTraceBranch.executionId, statusMap)
-                .andThen(dbBinding.hasOpenExecutionTracesForOperation(op.id))
-                .flatMap(hasOpenExecutions =>
-                  if (hasOpenExecutions)
-                    DBIOAction.successful(())
-                  else
-                    closingOperation(op)
-                )
-                .map { result =>
-                  // Calls listener for target status update
-                  statusMap.foreach { case (target, value) =>
-                    // todo: check if already the target is in the same state and don't emit an annotation in this case
-                    if (value.code != Status.notDone)
-                      listeners.foreach(_.onTargetAtomStatusUpdate(op, target, value))
-                  }
-                  result
-                }
+            .andThen(dbBinding.updatingTargetStatuses(executionTraceBranch.executionId, statusMap))
+            .andThen(dbBinding.hasOpenExecutionTracesForOperation(op.id))
+            .flatMap(hasOpenExecutions =>
+              if (hasOpenExecutions)
+                DBIOAction.successful(op)
+              else
+                closingOperation(op)
             )
-            .map(_ => Some(id))
+            .map { _ =>
+              // Calls listener for target status update
+              statusMap.foreach { case (target, value) =>
+                // todo: check if already the target is in the same state and don't emit an annotation in this case
+                if (value.code != Status.notDone)
+                  listeners.foreach(_.onTargetAtomStatusUpdate(op, target, value))
+              }
+              Some(op.id)
+            }
         }
         .getOrElse(DBIOAction.successful(None))
       )
