@@ -226,7 +226,6 @@ class CrankshaftSpec extends SimpleScenarioTesting {
   }
 
   test("Crankshaft performs a revert") {
-    val defaultRevertVersion = Version(JsString("00"))
     await(
       for {
         product <- crankshaft.insertProductIfNotExists("pony")
