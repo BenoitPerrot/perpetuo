@@ -215,6 +215,20 @@ class CrankshaftSpec extends SimpleScenarioTesting {
     ) shouldBe List("a newer one has already been applied", "Nothing to revert", "Nothing to revert")
   }
 
+  test("Crankshaft rejects reverts of outdated deployment requests") {
+    val dr1 = request("zealous-zebu", "Zzz", Seq("asia", "africa")).step().deploymentRequest
+    val dr2 = request("zealous-zebu", "xXx", Seq("asia")).step().deploymentRequest
+    val dr3 = request("zestful-zebra", "not-related", Seq("unknown-desert")).step().deploymentRequest
+    request("zestful-zebra", "newer", Seq("unknown-desert"))
+    await(
+      for {
+        msg <- crankshaft.revert(dr1, Some(1), "foo", None).failed.map(_.getMessage) // outdated by dr2
+        _ <- crankshaft.revert(dr2, Some(1), "foo", None) // revert the last request for this product
+        _ <- crankshaft.revert(dr3, Some(1), "foo", Some(Version(JsString("older")))) // not outdated because the following one is not started
+      } yield msg
+    ) should endWith("a newer one has already been applied")
+  }
+
   test("Crankshaft rejects outdated revert intents before devising the plan") {
     val deploymentRequest = request("ocelot", "awesome-version", Seq("norway", "peru")).step().deploymentRequest
     await(
