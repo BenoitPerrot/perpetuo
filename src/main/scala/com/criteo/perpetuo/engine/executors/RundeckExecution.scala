@@ -4,7 +4,6 @@ import java.util.regex.Pattern
 
 import com.criteo.perpetuo.model.ExecutionState
 import com.criteo.perpetuo.model.ExecutionState.ExecutionState
-import com.twitter.conversions.time._
 import com.twitter.util.{Await, Future}
 
 
@@ -27,7 +26,7 @@ class RundeckExecution(val logHref: String) extends TriggeredExecution {
     }
 
   override val stopper: Option[() => Option[ExecutionState]] = Some(() =>
-    Await.result(abortJob(executionNumber.toString), 2.seconds)
+    Await.result(abortJob(executionNumber.toString), client.maxAbortDuration)
   )
 }
 

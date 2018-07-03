@@ -10,7 +10,7 @@ import com.twitter.finagle.builder.ClientBuilder
 import com.twitter.finagle.http.Status.{NotFound, Ok}
 import com.twitter.finagle.http.{Message, Method, Request, Response}
 import com.twitter.finagle.service.{Backoff, RetryPolicy}
-import com.twitter.util.{Await, Duration, Future => TwitterFuture, Try => TwitterTry}
+import com.twitter.util.{Duration, Future => TwitterFuture, Try => TwitterTry}
 import spray.json.DefaultJsonProtocol._
 import spray.json._
 
@@ -22,14 +22,16 @@ class RundeckClient(val host: String) {
   val port: Int = config.getIntOrElse("port", 80)
   val authToken: Option[String] = config.tryGetString("token")
 
-  // Timeout
-  val waitInterval: Duration = 100.milliseconds
-  val jobTerminationTimeout: Duration = 2.seconds
-  val baseTimeout: Duration = 1.second
+  // Timeouts
+  protected val requestTimeout: Duration = 5.seconds
+  protected val baseWaitInterval: Duration = 100.milliseconds
+  protected val jobTerminationTimeout: Duration = 5.seconds
+
+  def maxAbortDuration: Duration = requestTimeout * 2 + jobTerminationTimeout
 
   // HTTP client
   protected def ssl: Boolean = port == 443
-  protected val requestTimeout: Duration = 20.seconds
+
   protected val maxConnectionsPerHost: Int = 10
   protected val backoffDurations: Stream[Duration] = Backoff.exponentialJittered(1.seconds, 5.seconds)
   protected val backoffPolicy: RetryPolicy[TwitterTry[Nothing]] = RetryPolicy.backoff(backoffDurations)(RetryPolicy.TimeoutAndWriteExceptionsOnly)
@@ -83,16 +85,16 @@ class RundeckClient(val host: String) {
     parsedContent.fields("execution").asJsObject.fields("status").asInstanceOf[JsString].value == "running"
 
   def abortJob(jobId: String): TwitterFuture[RundeckJobState.ExecState] =
-    fetch(apiPath(s"execution/$jobId/abort")).map(resp =>
+    fetch(apiPath(s"execution/$jobId/abort")).flatMap(resp =>
       resp.status match {
         case NotFound =>
-          RundeckJobState.notFound
+          TwitterFuture(RundeckJobState.notFound)
         case Ok =>
           val body = resp.contentString.parseJson.asJsObject
           body match {
-            case s if !isJobRunning(s) => RundeckJobState.terminated
+            case s if !isJobRunning(s) => TwitterFuture(RundeckJobState.terminated)
             case s if isAbortFailed(s) => throw new RuntimeException(body.fields("abort").asJsObject.fields("reason").asInstanceOf[JsString].value)
-            case _ => fetchJobFinalState(jobId)
+            case _ => waitForJobFinalState(jobId)
           }
         case error =>
           // todo: return a status and a reason from the stopper
@@ -111,18 +113,24 @@ class RundeckClient(val host: String) {
       }
     )
 
-  private def fetchJobFinalState(jobId: String): RundeckJobState.ExecState = {
-    var totalWaited: Duration = 0.millisecond
-    var incrementalWaitInterval: Duration = waitInterval
+  private def waitForJobFinalState(jobId: String): TwitterFuture[RundeckJobState.ExecState] = {
+    val deadlineInNs = System.nanoTime() + jobTerminationTimeout.inNanoseconds
 
-    var execState = RundeckJobState.running
-    while (execState == RundeckJobState.running && totalWaited < jobTerminationTimeout) {
-      Thread.sleep(incrementalWaitInterval.inMilliseconds)
-      execState = Await.result(fetchJobState(jobId), baseTimeout)
-      totalWaited += incrementalWaitInterval
-      incrementalWaitInterval += waitInterval
+    def loopWhileRunning(sleepTime: Duration): TwitterFuture[RundeckJobState.ExecState] = {
+      if (System.nanoTime() < deadlineInNs) {
+        Thread.sleep(sleepTime.inMilliseconds)
+        fetchJobState(jobId).flatMap(status =>
+          if (status == RundeckJobState.running)
+            loopWhileRunning(sleepTime + baseWaitInterval)
+          else
+            TwitterFuture(status)
+        )
+      }
+      else
+        TwitterFuture(RundeckJobState.running)
     }
-    execState
+
+    loopWhileRunning(baseWaitInterval)
   }
 }
 

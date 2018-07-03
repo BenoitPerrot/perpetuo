@@ -1,19 +1,22 @@
 package com.criteo.perpetuo.engine.executors
 
 import com.criteo.perpetuo.model.ExecutionState
+import com.twitter.conversions.time._
 import com.twitter.finagle.http.{Request, Response, Status}
 import com.twitter.inject.Test
-import com.twitter.util.Future
+import com.twitter.util.{Duration, Future}
 import org.scalatest.mockito.MockitoSugar
 import spray.json.JsonParser.ParsingException
+
 
 class RundeckExecutionSpec extends Test with MockitoSugar {
 
   private class RundeckClientMock(contentMock: String, statusMock: Int) extends RundeckClient("localhost") {
-
     def this(abortStatus: String, executionStatus: String, eventuallyCompleted: Boolean = false) =
       this(s"""{"abort": {"status": "$abortStatus"}, "execution": {"status": "$executionStatus"}, "execCompleted": $eventuallyCompleted}""", 200)
 
+    override protected val baseWaitInterval: Duration = 1.millisecond
+    override protected val jobTerminationTimeout: Duration = 10.milliseconds
     override protected lazy val client: Request => Future[Response] = (_: Request) => {
       val resp = Response(Status(statusMock))
       resp.write(contentMock)
