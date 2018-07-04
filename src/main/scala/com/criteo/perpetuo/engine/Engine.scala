@@ -36,11 +36,7 @@ class Engine @Inject()(val crankshaft: Crankshaft,
     }
 
   def deviseRevertPlan(id: Long): Future[Option[(Select, Iterable[(ExecutionSpecification, Select)])]] =
-    withDeploymentRequest(id) { deploymentRequest =>
-      crankshaft.rejectIfLocked(deploymentRequest)
-        .flatMap(_ => crankshaft.rejectIfCannotRevert(deploymentRequest))
-        .flatMap(_ => crankshaft.findExecutionSpecificationsForRevert(deploymentRequest))
-    }
+    withDeploymentRequest(id)(crankshaft.deviseRevertPlan)
 
   def revert(user: User, deploymentRequestId: Long, operationCount: Option[Int], defaultVersion: Option[Version]): Future[Option[OperationTrace]] =
     withDeploymentRequest(deploymentRequestId) { deploymentRequest =>

@@ -342,7 +342,12 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
       }
   }
 
-  def findExecutionSpecificationsForRevert(deploymentRequest: DeploymentRequest): Future[(Select, Iterable[(ExecutionSpecification, Select)])] =
+  def deviseRevertPlan(deploymentRequest: DeploymentRequest): Future[(Select, Iterable[(ExecutionSpecification, Select)])] =
+    rejectIfLocked(deploymentRequest)
+      .flatMap(_ => rejectIfCannotRevert(deploymentRequest))
+      .flatMap(_ => findExecutionSpecificationsForRevert(deploymentRequest))
+
+  private def findExecutionSpecificationsForRevert(deploymentRequest: DeploymentRequest): Future[(Select, Iterable[(ExecutionSpecification, Select)])] =
     dbBinding.dbContext.db.run(dbBinding.findingExecutionSpecificationsForRevert(deploymentRequest))
 
   def findExecutionTracesByDeploymentRequest(deploymentRequestId: Long): Future[Option[Seq[ShallowExecutionTrace]]] =
