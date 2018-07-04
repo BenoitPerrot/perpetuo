@@ -248,7 +248,7 @@ class DbBinding @Inject()(val dbContext: DbContext)
         executionTrace.toExecutionTrace(operationTrace.toOperationTrace(deploymentRequest.toDeploymentRequest(product)))
       })
 
-  private def findingDeploymentPlanStepAndLatestOperations(deploymentRequest: DeploymentRequest) =
+  private def findingDeploymentPlanAndLatestOperations(deploymentRequest: DeploymentRequest) =
     deploymentPlanStepQuery
       .filter(_.deploymentRequestId === deploymentRequest.id)
       .joinLeft(stepOperationXRefQuery)
@@ -334,7 +334,7 @@ class DbBinding @Inject()(val dbContext: DbContext)
     }
 
   def gettingPlanStepToOperateAndLastDoneStep(deploymentRequest: DeploymentRequest): DBIOAction[Option[(DeploymentPlanStep, Option[DeploymentPlanStep])], NoStream, Effect.Read] =
-    findingDeploymentPlanStepAndLatestOperations(deploymentRequest)
+    findingDeploymentPlanAndLatestOperations(deploymentRequest)
       .flatMap(planStepsAndLatestOperations =>
         if (planStepsAndLatestOperations.isEmpty)
           DBIO.failed(new RuntimeException(s"${deploymentRequest.id}: should not be there: deployment plan is empty"))
