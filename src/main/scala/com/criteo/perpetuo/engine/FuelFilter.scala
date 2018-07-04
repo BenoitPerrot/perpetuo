@@ -44,7 +44,6 @@ class FuelFilter @Inject()(val dbBinding: DbBinding) {
   def gettingPlanStepToOperateAndLastDoneStepOrRejectingIfCannotDeploy(deploymentRequest: DeploymentRequest): DBIOAction[(DeploymentPlanStep, Option[DeploymentPlanStep]), NoStream, Effect.Read] =
     rejectingIfOutdated(deploymentRequest)
       .andThen(gettingPlanStepToOperateAndLastDoneStep(deploymentRequest, Operation.deploy))
-      .map(_.getOrElse(throw UnprocessableIntent(s"${deploymentRequest.id}: there is no next step, they have all been applied")))
 
   def rejectingIfCannotDeploy(deploymentRequest: DeploymentRequest): DBIOAction[Unit, NoStream, Effect.Read] =
     gettingPlanStepToOperateAndLastDoneStepOrRejectingIfCannotDeploy(deploymentRequest).map(_ => ())
@@ -57,7 +56,7 @@ class FuelFilter @Inject()(val dbBinding: DbBinding) {
   // PRIVATE METHODS:
 
   @VisibleForTesting
-  def gettingPlanStepToOperateAndLastDoneStep(deploymentRequest: DeploymentRequest, operation: Operation.Kind): DBIOAction[Option[(DeploymentPlanStep, Option[DeploymentPlanStep])], NoStream, Effect.Read] =
+  def gettingPlanStepToOperateAndLastDoneStep(deploymentRequest: DeploymentRequest, operation: Operation.Kind): DBIOAction[(DeploymentPlanStep, Option[DeploymentPlanStep]), NoStream, Effect.Read] =
     dbBinding.findingDeploymentPlanAndLatestOperations(deploymentRequest)
       .flatMap(planStepsAndLatestOperations =>
         if (planStepsAndLatestOperations.isEmpty)
@@ -96,18 +95,19 @@ class FuelFilter @Inject()(val dbBinding: DbBinding) {
   private def gettingPlanStepToOperateAndLastDoneStep(planStepsAndLatestOperations: Seq[(DeploymentPlanStep, Option[(Long, Operation.Kind)])], operationToDo: Operation.Kind) =
     getLastDoneStepAndOperation(planStepsAndLatestOperations) match {
       case (latestPlanStep, None) =>
-        DBIOAction.successful(Some((latestPlanStep, None)))
+        DBIOAction.successful((latestPlanStep, None))
 
       case (latestPlanStep, Some((lastOperationId, lastOperationKind))) =>
         assert(lastOperationKind == operationToDo)
         dbBinding.computingOperationStatus(lastOperationId, isRunning = false)
           .map(operationStatus =>
             if (operationStatus == DeploymentStatus.flopped || operationStatus == DeploymentStatus.failed)
-              Some(latestPlanStep)
+              latestPlanStep
             else
               findNextPlanStep(planStepsAndLatestOperations.map(_._1), latestPlanStep)
+                .getOrElse(throw UnprocessableIntent(s"${latestPlanStep.deploymentRequest.id}: there is no next step, they have all been applied"))
           )
-          .map(_.map((_, Some(latestPlanStep))))
+          .map((_, Some(latestPlanStep)))
     }
 
   private def rejectingIfNothingToRevert(deploymentRequest: DeploymentRequest): DBIOAction[Unit, NoStream, Effect.Read] =

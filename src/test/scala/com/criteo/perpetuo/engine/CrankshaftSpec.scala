@@ -34,15 +34,15 @@ class CrankshaftSpec extends SimpleScenarioTesting {
       for {
         product <- crankshaft.insertProductIfNotExists("product #1")
         depPlan <- crankshaft.dbBinding.insertDeploymentRequest(ProtoDeploymentRequest(product.name, Version("\"1000\""), Seq(ProtoDeploymentPlanStep("", JsString("*"), "")), "", "s.omeone"))
-        beforeStart <- gettingPlanStepToOperateAndLastDoneStep(depPlan.deploymentRequest, Operation.deploy)
+        (toDoBeforeStart, lastDoneBeforeStart) <- gettingPlanStepToOperateAndLastDoneStep(depPlan.deploymentRequest, Operation.deploy)
         _ <- crankshaft.step(depPlan.deploymentRequest, Some(0), "s.tarter")
-        afterStart <- gettingPlanStepToOperateAndLastDoneStep(depPlan.deploymentRequest, Operation.deploy)
+        (toDoAfterStart, lastDoneAfterStart) <- gettingPlanStepToOperateAndLastDoneStep(depPlan.deploymentRequest, Operation.deploy)
         traces <- crankshaft.findExecutionTracesByDeploymentRequest(depPlan.deploymentRequest.id)
       } yield (
         traces.get.map(trace => (trace.id, trace.logHref)),
-        beforeStart.exists(_._2.isEmpty),
-        afterStart.exists(_._2.exists(lastDone => beforeStart.exists(_._1 == lastDone))),
-        beforeStart.map(_._1) == afterStart.map(_._1) // Deployment flopped, so the next step remains the same
+        lastDoneBeforeStart.isEmpty,
+        lastDoneAfterStart.contains(toDoBeforeStart),
+        toDoBeforeStart == toDoAfterStart // Deployment flopped, so the next step remains the same
       )
     ) shouldEqual(
       Seq((1, None)),
