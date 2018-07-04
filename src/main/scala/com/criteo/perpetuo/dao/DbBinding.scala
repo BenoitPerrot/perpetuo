@@ -259,19 +259,21 @@ class DbBinding @Inject()(val dbContext: DbContext)
       }
       .join(deploymentPlanStepQuery)
       .filter { case ((stepId, _), step) => stepId === step.id }
-      .map { case ((stepId, lastOperationId), step) => (step, lastOperationId) }
+      .joinLeft(operationTraceQuery)
+      .on { case (((_, lastOperationId), _), operationTrace) => lastOperationId === operationTrace.id }
+      .map { case ((_, step), operationTrace) => (step, operationTrace.map(op => (op.id, op.operation))) }
       .result
-      .map(_.map { case (step, lastOperationId) =>
-        (step.toDeploymentPlanStep(deploymentRequest), lastOperationId)
+      .map(_.map { case (step, lastOperation) =>
+        (step.toDeploymentPlanStep(deploymentRequest), lastOperation)
       })
 
-  private def getLastDoneStepAndOperation(planStepsAndLatestOperations: Seq[(DeploymentPlanStep, Option[Long])]) =
-    planStepsAndLatestOperations.reduce[(DeploymentPlanStep, Option[Long])] {
+  private def getLastDoneStepAndOperation(planStepsAndLatestOperations: Seq[(DeploymentPlanStep, Option[(Long, Operation.Kind)])]) =
+    planStepsAndLatestOperations.reduce[(DeploymentPlanStep, Option[(Long, Operation.Kind)])] {
       case ((latestPlanStep, None), current@(planStep, None)) if planStep.id < latestPlanStep.id =>
         // When comparing two steps, both with no operation, the oldest one is the latest one
         current
 
-      case ((_, Some(latestOperationId)), current@(_, Some(operationId))) if latestOperationId < operationId =>
+      case ((_, Some((latestOperationId, _))), current@(_, Some((operationId, _)))) if latestOperationId < operationId =>
         // When comparing two steps, both with operations, the step with the youngest operation is the latest one
         current
 
@@ -317,13 +319,14 @@ class DbBinding @Inject()(val dbContext: DbContext)
           )
         )
 
-  private def gettingPlanStepToOperateAndLastDoneStep(planStepsAndLatestOperations: Seq[(DeploymentPlanStep, Option[Long])]) =
+  private def gettingPlanStepToOperateAndLastDoneStep(planStepsAndLatestOperations: Seq[(DeploymentPlanStep, Option[(Long, Operation.Kind)])], operationToDo: Operation.Kind) =
     getLastDoneStepAndOperation(planStepsAndLatestOperations) match {
       case (latestPlanStep, None) =>
         DBIO.successful(Some((latestPlanStep, None)))
 
-      case (latestPlanStep, Some(operationId)) =>
-        computingOperationStatus(operationId, isRunning = false)
+      case (latestPlanStep, Some((lastOperationId, lastOperationKind))) =>
+        assert(lastOperationKind == operationToDo)
+        computingOperationStatus(lastOperationId, isRunning = false)
           .map(operationStatus =>
             if (operationStatus == DeploymentStatus.flopped || operationStatus == DeploymentStatus.failed)
               Some(latestPlanStep)
@@ -333,13 +336,13 @@ class DbBinding @Inject()(val dbContext: DbContext)
           .map(_.map((_, Some(latestPlanStep))))
     }
 
-  def gettingPlanStepToOperateAndLastDoneStep(deploymentRequest: DeploymentRequest): DBIOAction[Option[(DeploymentPlanStep, Option[DeploymentPlanStep])], NoStream, Effect.Read] =
+  def gettingPlanStepToOperateAndLastDoneStep(deploymentRequest: DeploymentRequest, operation: Operation.Kind): DBIOAction[Option[(DeploymentPlanStep, Option[DeploymentPlanStep])], NoStream, Effect.Read] =
     findingDeploymentPlanAndLatestOperations(deploymentRequest)
       .flatMap(planStepsAndLatestOperations =>
         if (planStepsAndLatestOperations.isEmpty)
           DBIO.failed(new RuntimeException(s"${deploymentRequest.id}: should not be there: deployment plan is empty"))
         else
-          gettingPlanStepToOperateAndLastDoneStep(planStepsAndLatestOperations)
+          gettingPlanStepToOperateAndLastDoneStep(planStepsAndLatestOperations, operation)
       )
 
   // if that is removed one day (with multi-step, out-dating a deployment request makes less sense),

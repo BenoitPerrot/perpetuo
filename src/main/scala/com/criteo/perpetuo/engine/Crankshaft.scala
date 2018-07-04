@@ -243,7 +243,7 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
 
   private def gettingPlanStepToOperateAndLastDoneStepOrRejectingIfCannotDeploy(deploymentRequest: DeploymentRequest): DBIOAction[(DeploymentPlanStep, Option[DeploymentPlanStep]), NoStream, Effect.Read] =
     rejectingIfOutdated(deploymentRequest)
-      .andThen(dbBinding.gettingPlanStepToOperateAndLastDoneStep(deploymentRequest))
+      .andThen(dbBinding.gettingPlanStepToOperateAndLastDoneStep(deploymentRequest, Operation.deploy))
       .map(_.getOrElse(throw UnprocessableIntent(s"${deploymentRequest.id}: there is no next step, they have all been applied")))
 
   def rejectIfCannotDeploy(deploymentRequest: DeploymentRequest): Future[Unit] =

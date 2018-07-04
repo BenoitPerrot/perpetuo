@@ -17,8 +17,8 @@ class CrankshaftSpec extends SimpleScenarioTesting {
   private def hasOpenExecutionTracesForOperation(operationTraceId: Long) =
     dbContext.db.run(crankshaft.dbBinding.hasOpenExecutionTracesForOperation(operationTraceId))
 
-  private def gettingPlanStepToOperateAndLastDoneStep(deploymentRequest: DeploymentRequest) =
-    dbContext.db.run(crankshaft.dbBinding.gettingPlanStepToOperateAndLastDoneStep(deploymentRequest))
+  private def gettingPlanStepToOperateAndLastDoneStep(deploymentRequest: DeploymentRequest, operation: Operation.Kind) =
+    dbContext.db.run(crankshaft.dbBinding.gettingPlanStepToOperateAndLastDoneStep(deploymentRequest, operation))
 
   private def closeOperationTrace(operationTrace: OperationTrace): Future[Option[OperationTrace]] =
     dbContext.db.run(crankshaft.dbBinding.closingOperationTrace(operationTrace))
@@ -28,9 +28,9 @@ class CrankshaftSpec extends SimpleScenarioTesting {
       for {
         product <- crankshaft.insertProductIfNotExists("product #1")
         depPlan <- crankshaft.dbBinding.insertDeploymentRequest(ProtoDeploymentRequest(product.name, Version("\"1000\""), Seq(ProtoDeploymentPlanStep("", JsString("*"), "")), "", "s.omeone"))
-        beforeStart <- gettingPlanStepToOperateAndLastDoneStep(depPlan.deploymentRequest)
+        beforeStart <- gettingPlanStepToOperateAndLastDoneStep(depPlan.deploymentRequest, Operation.deploy)
         _ <- crankshaft.step(depPlan.deploymentRequest, Some(0), "s.tarter")
-        afterStart <- gettingPlanStepToOperateAndLastDoneStep(depPlan.deploymentRequest)
+        afterStart <- gettingPlanStepToOperateAndLastDoneStep(depPlan.deploymentRequest, Operation.deploy)
         traces <- crankshaft.findExecutionTracesByDeploymentRequest(depPlan.deploymentRequest.id)
       } yield (
         traces.get.map(trace => (trace.id, trace.logHref)),
