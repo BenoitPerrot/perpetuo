@@ -39,7 +39,7 @@ class OpenAmIdentityProvider(authorize: URL, tokeninfo: URL, localUserNames: Set
   override def identify(token: String): Future[User] = {
     request(token).flatMap(r => {
       r.status match {
-        case Status.Ok => Future.value(new User(r.contentString.parseJson.asJsObject.fields("uid").asInstanceOf[JsString].value, Set("Users")))
+        case Status.Ok => Future.value(User(r.contentString.parseJson.asJsObject.fields("uid").asInstanceOf[JsString].value, Set("Users")))
         case _ => Future.exception(new Exception("Authentication failed"))
       }
     })
