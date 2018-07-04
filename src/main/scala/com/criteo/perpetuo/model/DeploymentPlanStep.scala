@@ -5,7 +5,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import spray.json.JsValue
 
 // TODO: rename to ParsedTarget once removed from DeploymentRequest (DREDD-982)
-trait ParsedTarget_ {
+trait ParsedTarget {
   val targetExpression: JsValue
 
   def parsedTarget: TargetExpr = // TODO: once the target is removed from DeploymentRequest (DREDD-982), check whether a cache is needed here too
@@ -14,14 +14,14 @@ trait ParsedTarget_ {
 
 case class ProtoDeploymentPlanStep(name: String,
                                    targetExpression: JsValue,
-                                   comment: String) extends ParsedTarget_
+                                   comment: String) extends ParsedTarget
 
 @JsonIgnoreProperties(Array("deploymentRequest"))
 case class DeploymentPlanStep(id: Long,
                               deploymentRequest: DeploymentRequest,
                               name: String,
                               targetExpression: JsValue,
-                              comment: String) extends ParsedTarget_
+                              comment: String) extends ParsedTarget
 
 case class DeploymentPlan(deploymentRequest: DeploymentRequest,
                           steps: Iterable[DeploymentPlanStep]) {
