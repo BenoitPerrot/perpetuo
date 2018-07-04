@@ -61,23 +61,23 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
   private val operationStarter = new OperationStarter(dbBinding)
 
   def getEligibleActions(deploymentRequest: DeploymentRequest): Future[Seq[Operation.Kind]] =
-    fuelFilter.rejectIfLocked(deploymentRequest)
-      .flatMap(_ =>
-        Future.sequence(
-          Operation.values.toSeq.map { action =>
-            val canApply = action match {
-              case Operation.deploy => fuelFilter.rejectIfCannotDeploy(deploymentRequest)
-              case Operation.revert => fuelFilter.rejectIfCannotRevert(deploymentRequest)
+    dbBinding.dbContext.db.run(
+      fuelFilter.rejectingIfLocked(deploymentRequest)
+        .andThen(
+          DBIOAction.sequence(
+            Operation.values.toSeq.map { action =>
+              val canApply = action match {
+                case Operation.deploy => fuelFilter.rejectingIfCannotDeploy(deploymentRequest)
+                case Operation.revert => fuelFilter.rejectingIfCannotRevert(deploymentRequest)
+              }
+              canApply.asTry.map(_.toOption.map(_ => action))
             }
-            canApply
-              .map(_ => Some(action))
-              .recover { case _ => None }
-          }
+          )
         )
-      )
-      .map(_.flatten)
-      // todo: add the stop action in the Seq:
-      .recover { case _ => Seq() }
+        .map(_.flatten)
+        // todo: add the stop action in the Seq:
+        .asTry.map(_.getOrElse(Seq()))
+    )
 
   def getProductNames: Future[Seq[String]] =
     dbBinding.getProductNames
@@ -291,12 +291,11 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
   }
 
   def deviseRevertPlan(deploymentRequest: DeploymentRequest): Future[(Select, Iterable[(ExecutionSpecification, Select)])] =
-    fuelFilter.rejectIfLocked(deploymentRequest)
-      .flatMap(_ => fuelFilter.rejectIfCannotRevert(deploymentRequest))
-      .flatMap(_ => findExecutionSpecificationsForRevert(deploymentRequest))
-
-  private def findExecutionSpecificationsForRevert(deploymentRequest: DeploymentRequest): Future[(Select, Iterable[(ExecutionSpecification, Select)])] =
-    dbBinding.dbContext.db.run(dbBinding.findingExecutionSpecificationsForRevert(deploymentRequest))
+    dbBinding.dbContext.db.run(
+      fuelFilter.rejectingIfLocked(deploymentRequest)
+        .andThen(fuelFilter.rejectingIfCannotRevert(deploymentRequest))
+        .andThen(dbBinding.findingExecutionSpecificationsForRevert(deploymentRequest))
+    )
 
   def findExecutionTracesByDeploymentRequest(deploymentRequestId: Long): Future[Option[Seq[ShallowExecutionTrace]]] =
     dbBinding.findExecutionTracesByDeploymentRequest(deploymentRequestId).flatMap { traces =>

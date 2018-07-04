@@ -9,7 +9,6 @@ import javax.inject.{Inject, Singleton}
 import slick.dbio.{DBIOAction, Effect, NoStream}
 
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.Future
 
 
 @Singleton
@@ -34,12 +33,12 @@ class FuelFilter @Inject()(val dbBinding: DbBinding) {
     else
       dbBinding.releasingLocks(deploymentRequest.id)
 
-  def rejectIfLocked(deploymentRequest: DeploymentRequest): Future[Unit] =
+  def rejectingIfLocked(deploymentRequest: DeploymentRequest): DBIOAction[Unit, NoStream, Effect.Read] =
     dbBinding.lockExists(getOperationLockName(deploymentRequest)).flatMap(
       if (_)
-        Future.failed(Conflict(s"${deploymentRequest.id}: an operation is still running for it"))
+        DBIOAction.failed(Conflict(s"${deploymentRequest.id}: an operation is still running for it"))
       else
-        Future.successful(())
+        DBIOAction.successful(())
     )
 
   def gettingPlanStepToOperateAndLastDoneStepOrRejectingIfCannotDeploy(deploymentRequest: DeploymentRequest): DBIOAction[(DeploymentPlanStep, Option[DeploymentPlanStep]), NoStream, Effect.Read] =
@@ -47,11 +46,8 @@ class FuelFilter @Inject()(val dbBinding: DbBinding) {
       .andThen(gettingPlanStepToOperateAndLastDoneStep(deploymentRequest, Operation.deploy))
       .map(_.getOrElse(throw UnprocessableIntent(s"${deploymentRequest.id}: there is no next step, they have all been applied")))
 
-  def rejectIfCannotDeploy(deploymentRequest: DeploymentRequest): Future[Unit] =
-    dbBinding.dbContext.db.run(gettingPlanStepToOperateAndLastDoneStepOrRejectingIfCannotDeploy(deploymentRequest)).map(_ => ())
-
-  def rejectIfCannotRevert(deploymentRequest: DeploymentRequest): Future[Unit] =
-    dbBinding.dbContext.db.run(rejectingIfCannotRevert(deploymentRequest))
+  def rejectingIfCannotDeploy(deploymentRequest: DeploymentRequest): DBIOAction[Unit, NoStream, Effect.Read] =
+    gettingPlanStepToOperateAndLastDoneStepOrRejectingIfCannotDeploy(deploymentRequest).map(_ => ())
 
   def rejectingIfCannotRevert(deploymentRequest: DeploymentRequest): DBIOAction[Unit, NoStream, Effect.Read] =
     rejectingIfOutdated(deploymentRequest) // todo: now we can allow successive rollbacks, by using dbBinding.findTargetAtomNotActionableBy instead of `outdated` here

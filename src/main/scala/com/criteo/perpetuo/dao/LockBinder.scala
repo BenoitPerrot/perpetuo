@@ -76,8 +76,8 @@ trait LockBinder extends TableBinder with Logging {
   def releasingLock(name: String, owningDeploymentRequestId: DeploymentRequestId): FixedSqlAction[Int, NoStream, Effect.Write] =
     lockQuery.filter(lock => lock.name === name && lock.deploymentRequestId === owningDeploymentRequestId).delete
 
-  def lockExists(name: String): Future[Boolean] =
-    dbContext.db.run(lockQuery.filter(_.name === name).exists.result)
+  def lockExists(name: String): FixedSqlAction[Boolean, NoStream, Effect.Read] =
+    lockQuery.filter(_.name === name).exists.result
 
   // fixme: for maintenance only; that should not be necessary
   def releaseAllLocks(): Future[Int] =
