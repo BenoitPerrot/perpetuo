@@ -66,6 +66,25 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
 
   private val operationStarter = new OperationStarter(dbBinding)
 
+  def getEligibleActions(deploymentRequest: DeploymentRequest): Future[Seq[Operation.Kind]] =
+    rejectIfLocked(deploymentRequest)
+      .flatMap(_ =>
+        Future.sequence(
+          Operation.values.toSeq.map { action =>
+            val canApply = action match {
+              case Operation.deploy => rejectIfCannotDeploy(deploymentRequest)
+              case Operation.revert => rejectIfCannotRevert(deploymentRequest)
+            }
+            canApply
+              .map(_ => Some(action))
+              .recover { case _ => None }
+          }
+        )
+      )
+      .map(_.flatten)
+      // todo: add the stop action in the Seq:
+      .recover { case _ => Seq() }
+
   def getProductNames: Future[Seq[String]] =
     dbBinding.getProductNames
 

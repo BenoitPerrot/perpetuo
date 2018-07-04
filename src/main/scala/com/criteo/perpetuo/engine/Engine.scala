@@ -74,29 +74,11 @@ class Engine @Inject()(val crankshaft: Crankshaft,
             permissions.isAuthorized(user, DeploymentAction.applyOperation, op, deploymentRequest.product.name)
           )
 
-          crankshaft.rejectIfLocked(deploymentRequest)
-            .flatMap(_ =>
-              Future
-                .sequence(
-                  Operation.values.toSeq.map { action =>
-                    val canApply = action match {
-                      case Operation.deploy => crankshaft.rejectIfCannotDeploy(deploymentRequest)
-                      case Operation.revert => crankshaft.rejectIfCannotRevert(deploymentRequest)
-                    }
-                    canApply
-                      .map(_ => Some(action))
-                      .recover { case _ => None }
-                  }
-                )
-            )
-            .map(_.flatten)
-            // todo: add the stop action in the Seq:
-            .recover { case _ => Seq() }
-            .map { actions =>
-              val authorizedActions = actions.map(action => (action, authorized(action)))
-              val sortedEffects = effects.toSeq.sortBy(-_.operationTrace.id)
-              Some(DeploymentRequestStatus(deploymentRequest, deploymentPlanSteps, sortedEffects, sortedEffects.headOption.map(crankshaft.computeState), authorizedActions, isAdmin || authorized(Operation.deploy)))
-            }
+          crankshaft.getEligibleActions(deploymentRequest).map { actions =>
+            val authorizedActions = actions.map(action => (action, authorized(action)))
+            val sortedEffects = effects.toSeq.sortBy(-_.operationTrace.id)
+            Some(DeploymentRequestStatus(deploymentRequest, deploymentPlanSteps, sortedEffects, sortedEffects.headOption.map(crankshaft.computeState), authorizedActions, isAdmin || authorized(Operation.deploy)))
+          }
 
         }.getOrElse(Future.successful(None))
       )
