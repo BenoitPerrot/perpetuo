@@ -18,7 +18,7 @@ class CrankshaftSpec extends SimpleScenarioTesting {
     dbContext.db.run(crankshaft.dbBinding.hasOpenExecutionTracesForOperation(operationTraceId))
 
   private def gettingPlanStepToOperateAndLastDoneStep(deploymentRequest: DeploymentRequest, operation: Operation.Kind) =
-    dbContext.db.run(crankshaft.dbBinding.gettingPlanStepToOperateAndLastDoneStep(deploymentRequest, operation))
+    dbContext.db.run(crankshaft.fuelFilter.gettingPlanStepToOperateAndLastDoneStep(deploymentRequest, operation))
 
   private def closeOperationTrace(operationTrace: OperationTrace): Future[Option[OperationTrace]] =
     dbContext.db.run(crankshaft.dbBinding.closingOperationTrace(operationTrace))
@@ -126,10 +126,10 @@ class CrankshaftSpec extends SimpleScenarioTesting {
         // fixme: one day, first deployment will be retryable:
         // But second one can't be, because it impacts `racing`, whose status changed in the meantime
         secondDeploymentRequest <- crankshaft.dbBinding.findDeploymentRequestById(secondDeploymentRequest.id).map(_.get)
-        rejectionOfSecond <- crankshaft.rejectIfCannotDeploy(secondDeploymentRequest).failed
+        rejectionOfSecond <- crankshaft.fuelFilter.rejectIfCannotDeploy(secondDeploymentRequest).failed
         // The last one of course is retryable
         thirdDeploymentRequest <- crankshaft.dbBinding.findDeploymentRequestById(thirdDeploymentRequest.id).map(_.get)
-        _ <- crankshaft.rejectIfCannotDeploy(thirdDeploymentRequest)
+        _ <- crankshaft.fuelFilter.rejectIfCannotDeploy(thirdDeploymentRequest)
       } yield rejectionOfSecond.getMessage.split(":")(1).trim
     ) shouldBe "a newer one has already been applied"
   }
@@ -189,27 +189,27 @@ class CrankshaftSpec extends SimpleScenarioTesting {
 
         // Second request can't be reverted
         secondDeploymentRequest <- crankshaft.dbBinding.findDeploymentRequestById(secondDeploymentRequest.id).map(_.get)
-        rejectionOfSecond <- crankshaft.rejectIfCannotRevert(secondDeploymentRequest).failed
+        rejectionOfSecond <- crankshaft.fuelFilter.rejectIfCannotRevert(secondDeploymentRequest).failed
         // Third one can be reverted, because it's the last one for its product
         thirdDeploymentRequest <- crankshaft.dbBinding.findDeploymentRequestById(thirdDeploymentRequest.id).map(_.get)
-        _ <- crankshaft.rejectIfCannotRevert(thirdDeploymentRequest)
+        _ <- crankshaft.fuelFilter.rejectIfCannotRevert(thirdDeploymentRequest)
         // Meanwhile the deployment on another product can be reverted (even when it's the first one for that product: it just requires a default revert version)
         otherDeploymentRequest <- crankshaft.dbBinding.findDeploymentRequestById(otherDeploymentRequest.id).map(_.get)
-        _ <- crankshaft.rejectIfCannotRevert(otherDeploymentRequest)
+        _ <- crankshaft.fuelFilter.rejectIfCannotRevert(otherDeploymentRequest)
 
         (nothingDoneDeploymentRequest, _) <- mockDeployExecution(product.name, "51", Map("pluto" -> Status.notDone), initFailed = true, updateTargetStatuses = false)
         // Status = initFailed
 
         // Verify we can't revert a request if no targetStatuses exists
         nothingDoneDeploymentRequest <- crankshaft.dbBinding.findDeploymentRequestById(nothingDoneDeploymentRequest.id).map(_.get)
-        rejectionOfNothingDone <- crankshaft.rejectIfCannotRevert(nothingDoneDeploymentRequest).failed
+        rejectionOfNothingDone <- crankshaft.fuelFilter.rejectIfCannotRevert(nothingDoneDeploymentRequest).failed
 
         (notDoneDeploymentRequest, _) <- mockDeployExecution(product.name, "51", Map("planet x" -> Status.notDone), initFailed = true)
         // Status = initFailed
 
         // Verify we can't revert a request if it has no effect
         notDoneDeploymentRequest <- crankshaft.dbBinding.findDeploymentRequestById(notDoneDeploymentRequest.id).map(_.get)
-        rejectionOfNotDone <- crankshaft.rejectIfCannotRevert(notDoneDeploymentRequest).failed
+        rejectionOfNotDone <- crankshaft.fuelFilter.rejectIfCannotRevert(notDoneDeploymentRequest).failed
 
       } yield List(rejectionOfSecond, rejectionOfNothingDone, rejectionOfNotDone).map(_.getMessage.split(":")(1).trim)
     ) shouldBe List("a newer one has already been applied", "Nothing to revert", "Nothing to revert")
@@ -260,7 +260,7 @@ class CrankshaftSpec extends SimpleScenarioTesting {
         // Status = tic: pony@33, tac: pony@33
 
         // Second request can't be reverted anymore
-        rejectionOfSecondA <- crankshaft.rejectIfCannotRevert(secondDeploymentRequest).failed
+        rejectionOfSecondA <- crankshaft.fuelFilter.rejectIfCannotRevert(secondDeploymentRequest).failed
 
         // Revert the last deployment request
         revertOperationTraceIdB <- mockRevertExecution(thirdDeploymentRequest, Map("tic" -> Status.success, "tac" -> Status.success), None)
@@ -268,7 +268,7 @@ class CrankshaftSpec extends SimpleScenarioTesting {
         // Status = tic: pony@11, tac: pony@11
 
         // Second request still can't be reverted
-        rejectionOfSecondB <- crankshaft.rejectIfCannotRevert(secondDeploymentRequest).failed
+        rejectionOfSecondB <- crankshaft.fuelFilter.rejectIfCannotRevert(secondDeploymentRequest).failed
       } yield {
         revertExecutionSpecIdsA should have length 1
         revertExecutionSpecIdsA should contain(firstExecSpecId)

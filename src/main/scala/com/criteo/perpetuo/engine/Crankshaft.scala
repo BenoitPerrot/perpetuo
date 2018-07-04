@@ -1,6 +1,5 @@
 package com.criteo.perpetuo.engine
 
-import com.criteo.perpetuo.config.AppConfigProvider
 import com.criteo.perpetuo.dao.{DBIOrw, DbBinding}
 import com.criteo.perpetuo.engine.dispatchers.TargetDispatcher
 import com.criteo.perpetuo.engine.executors.TriggeredExecutionFinder
@@ -14,7 +13,6 @@ import slick.dbio.{DBIOAction, Effect, NoStream}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
-import scala.util.Try
 
 
 object DeploymentStatus extends Enumeration {
@@ -59,21 +57,17 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
                            val listeners: Seq[AsyncListener],
                            val findTriggeredExecution: TriggeredExecutionFinder) extends Logging {
 
-  // todo: cosmetics in attributes
-  val config = AppConfigProvider.config
-
-  private val withTransactions = !Try(config.getBoolean("noTransactions")).getOrElse(false)
-
+  val fuelFilter = new FuelFilter(dbBinding)
   private val operationStarter = new OperationStarter(dbBinding)
 
   def getEligibleActions(deploymentRequest: DeploymentRequest): Future[Seq[Operation.Kind]] =
-    rejectIfLocked(deploymentRequest)
+    fuelFilter.rejectIfLocked(deploymentRequest)
       .flatMap(_ =>
         Future.sequence(
           Operation.values.toSeq.map { action =>
             val canApply = action match {
-              case Operation.deploy => rejectIfCannotDeploy(deploymentRequest)
-              case Operation.revert => rejectIfCannotRevert(deploymentRequest)
+              case Operation.deploy => fuelFilter.rejectIfCannotDeploy(deploymentRequest)
+              case Operation.revert => fuelFilter.rejectIfCannotRevert(deploymentRequest)
             }
             canApply
               .map(_ => Some(action))
@@ -112,14 +106,6 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
           }
       }
 
-  private def getOperationLockName(deploymentRequest: DeploymentRequest) =
-    s"Operating on ${deploymentRequest.id}"
-
-  private def getTransactionLockNames(deploymentRequest: DeploymentRequest, atoms: Option[Select]): Iterable[String] =
-    atoms
-      .map(_.map(atom => s"${atom.hashCode.toHexString}_${deploymentRequest.product.name}"))
-      .getOrElse(Seq("P_" + deploymentRequest.product.name))
-
   private def triggerExecutions(deploymentRequest: DeploymentRequest,
                                 operationTrace: OperationTrace,
                                 executionsToTrigger: ExecutionsToTrigger) =
@@ -143,18 +129,6 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
       }
     )
 
-  private def acquiringOperationLock(deploymentRequest: DeploymentRequest) =
-    dbBinding.tryAcquireLocks(Seq(getOperationLockName(deploymentRequest)), deploymentRequest.id, reentrant = false).map(alreadyRunning =>
-      if (alreadyRunning.nonEmpty)
-        throw Conflict("Cannot be processed for the moment because another operation is running for the same deployment request")
-    )
-
-  private def acquiringDeploymentTransactionLock(deploymentRequest: DeploymentRequest, atoms: Option[Select]) =
-    dbBinding.tryAcquireLocks(getTransactionLockNames(deploymentRequest, atoms), deploymentRequest.id, reentrant = true).map(conflictingRequestIds =>
-      if (conflictingRequestIds.nonEmpty)
-        throw Conflict("Cannot be processed for the moment because a conflicting transaction is ongoing, which must first succeed or be reverted", conflictingRequestIds)
-    )
-
   private def closingOperation(operationTrace: OperationTrace): DBIOAction[OperationTrace, NoStream, Effect.Read with Effect.Write with Effect.Transactional] =
     dbBinding.closingOperationTrace(operationTrace)
       .map(_.map((_, true)).getOrElse((operationTrace, false)))
@@ -165,12 +139,7 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
             val (kind, status) = computeState(effect)
             val transactionOngoing = kind == Operation.deploy && status == DeploymentStatus.failed
             dbBinding.closingTargetStatuses(trace.id)
-              .andThen(
-                if (transactionOngoing && withTransactions)
-                  dbBinding.releasingLock(getOperationLockName(operationTrace.deploymentRequest), operationTrace.deploymentRequest.id) // keep the locks per product/target
-                else
-                  dbBinding.releasingLocks(operationTrace.deploymentRequest.id)
-              )
+              .andThen(fuelFilter.releasingLocks(operationTrace.deploymentRequest, transactionOngoing))
               .map(_ =>
                 if (updated) { // if it's a successful close, let's notify
                   val handler = if (status == DeploymentStatus.succeeded)
@@ -191,7 +160,7 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
   private def act[T](deploymentRequest: DeploymentRequest, expectedOperationCount: Option[Int], initiatorName: String,
                      getOperationSpecifics: DBIOrw[((Iterable[DeploymentPlanStep], OperationCreationParams), T)]) =
     dbBinding.executeInSerializableTransaction(
-      acquiringOperationLock(deploymentRequest)
+      fuelFilter.acquiringOperationLock(deploymentRequest)
         .andThen(
           expectedOperationCount
             .map(expectedCount =>
@@ -202,7 +171,7 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
         )
         .andThen(getOperationSpecifics)
         .flatMap { case ((deploymentPlanSteps, (operation, specAndInvocations, atoms)), actionSpecifics) =>
-          acquiringDeploymentTransactionLock(deploymentRequest, atoms)
+          fuelFilter.acquiringDeploymentTransactionLock(deploymentRequest, atoms)
             .andThen(dbBinding.insertingEffect(deploymentRequest, deploymentPlanSteps, operation, initiatorName, specAndInvocations, atoms.nonEmpty))
             .map((_, actionSpecifics))
         }
@@ -211,7 +180,7 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
     }
 
   def step(deploymentRequest: DeploymentRequest, operationCount: Option[Int], initiatorName: String, emitEvent: Boolean = true): Future[OperationTrace] = {
-    val getSpecifics = gettingPlanStepToOperateAndLastDoneStepOrRejectingIfCannotDeploy(deploymentRequest)
+    val getSpecifics = fuelFilter.gettingPlanStepToOperateAndLastDoneStepOrRejectingIfCannotDeploy(deploymentRequest)
       .flatMap { case (toDo, lastDone) =>
         val isRetry = lastDone.contains(toDo)
         val getOperationSpecifics = if (isRetry) operationStarter.getRetrySpecifics _ else operationStarter.getStepSpecifics _
@@ -234,46 +203,6 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
         operationTrace
       }
   }
-
-  private def rejectingIfNothingToRevert(deploymentRequest: DeploymentRequest): DBIOAction[Unit, NoStream, Effect.Read] =
-    dbBinding.hasHadAnEffect(deploymentRequest.id).flatMap(
-      if (_)
-        DBIOAction.successful(())
-      else
-        DBIOAction.failed(UnavailableAction(s"${deploymentRequest.id}: Nothing to revert"))
-    )
-
-  def rejectIfLocked(deploymentRequest: DeploymentRequest): Future[Unit] =
-    dbBinding.lockExists(getOperationLockName(deploymentRequest)).flatMap(
-      if (_)
-        Future.failed(Conflict(s"${deploymentRequest.id}: an operation is still running for it"))
-      else
-        Future.successful(())
-    )
-
-  // fixme: race condition
-  private def rejectingIfOutdated(deploymentRequest: DeploymentRequest) =
-    dbBinding.isOutdated(deploymentRequest).flatMap(
-      if (_)
-        DBIOAction.failed(Conflict(s"${deploymentRequest.id}: a newer one has already been applied"))
-      else
-        DBIOAction.successful(())
-    )
-
-  private def gettingPlanStepToOperateAndLastDoneStepOrRejectingIfCannotDeploy(deploymentRequest: DeploymentRequest): DBIOAction[(DeploymentPlanStep, Option[DeploymentPlanStep]), NoStream, Effect.Read] =
-    rejectingIfOutdated(deploymentRequest)
-      .andThen(dbBinding.gettingPlanStepToOperateAndLastDoneStep(deploymentRequest, Operation.deploy))
-      .map(_.getOrElse(throw UnprocessableIntent(s"${deploymentRequest.id}: there is no next step, they have all been applied")))
-
-  def rejectIfCannotDeploy(deploymentRequest: DeploymentRequest): Future[Unit] =
-    dbBinding.dbContext.db.run(gettingPlanStepToOperateAndLastDoneStepOrRejectingIfCannotDeploy(deploymentRequest)).map(_ => ())
-
-  def rejectIfCannotRevert(deploymentRequest: DeploymentRequest): Future[Unit] =
-    dbBinding.dbContext.db.run(rejectingIfCannotRevert(deploymentRequest))
-
-  def rejectingIfCannotRevert(deploymentRequest: DeploymentRequest): DBIOAction[Unit, NoStream, Effect.Read] =
-    rejectingIfOutdated(deploymentRequest) // todo: now we can allow successive rollbacks, by using dbBinding.findTargetAtomNotActionableBy instead of `outdated` here
-      .andThen(rejectingIfNothingToRevert(deploymentRequest))
 
   /**
     * Try to stop an execution from its trace
@@ -351,7 +280,7 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
       }
 
   def revert(deploymentRequest: DeploymentRequest, operationCount: Option[Int], initiatorName: String, defaultVersion: Option[Version]): Future[OperationTrace] = {
-    val getSpecifics = rejectingIfCannotRevert(deploymentRequest)
+    val getSpecifics = fuelFilter.rejectingIfCannotRevert(deploymentRequest)
       .andThen(operationStarter.getRevertSpecifics(targetDispatcher, deploymentRequest, initiatorName, defaultVersion))
       .map((_, ()))
     act(deploymentRequest, operationCount, initiatorName, getSpecifics)
@@ -362,8 +291,8 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
   }
 
   def deviseRevertPlan(deploymentRequest: DeploymentRequest): Future[(Select, Iterable[(ExecutionSpecification, Select)])] =
-    rejectIfLocked(deploymentRequest)
-      .flatMap(_ => rejectIfCannotRevert(deploymentRequest))
+    fuelFilter.rejectIfLocked(deploymentRequest)
+      .flatMap(_ => fuelFilter.rejectIfCannotRevert(deploymentRequest))
       .flatMap(_ => findExecutionSpecificationsForRevert(deploymentRequest))
 
   private def findExecutionSpecificationsForRevert(deploymentRequest: DeploymentRequest): Future[(Select, Iterable[(ExecutionSpecification, Select)])] =
