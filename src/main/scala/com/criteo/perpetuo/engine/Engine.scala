@@ -84,16 +84,18 @@ class Engine @Inject()(val crankshaft: Crankshaft,
                       case Operation.revert => crankshaft.rejectIfCannotRevert(deploymentRequest)
                     }
                     canApply
-                      .map(_ => Some((action, authorized(action))))
+                      .map(_ => Some(action))
                       .recover { case _ => None }
                   }
                 )
             )
+            .map(_.flatten)
             // todo: add the stop action in the Seq:
             .recover { case _ => Seq() }
-            .map { authorizedActions =>
+            .map { actions =>
+              val authorizedActions = actions.map(action => (action, authorized(action)))
               val sortedEffects = effects.toSeq.sortBy(-_.operationTrace.id)
-              Some(DeploymentRequestStatus(deploymentRequest, deploymentPlanSteps, sortedEffects, sortedEffects.headOption.map(crankshaft.computeState), authorizedActions.flatten, isAdmin || authorized(Operation.deploy)))
+              Some(DeploymentRequestStatus(deploymentRequest, deploymentPlanSteps, sortedEffects, sortedEffects.headOption.map(crankshaft.computeState), authorizedActions, isAdmin || authorized(Operation.deploy)))
             }
 
         }.getOrElse(Future.successful(None))
