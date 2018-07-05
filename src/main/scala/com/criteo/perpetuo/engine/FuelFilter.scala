@@ -96,7 +96,9 @@ class FuelFilter @Inject()(val dbBinding: DbBinding) {
       case (latestPlanStep, Some((lastOperationId, lastOperationKind))) =>
         dbBinding.computingOperationStatus(lastOperationId, isRunning = false)
           .map(operationStatus =>
-            if (lastOperationKind != operationToDo || operationStatus == DeploymentStatus.flopped || operationStatus == DeploymentStatus.failed)
+            if (lastOperationKind == Operation.revert && operationToDo == Operation.deploy)
+              throw UnprocessableIntent(s"${latestPlanStep.deploymentRequest.id}: deploying after a revert is not supported")
+            else if (lastOperationKind != operationToDo || operationStatus == DeploymentStatus.flopped || operationStatus == DeploymentStatus.failed)
               latestPlanStep
             else if (operationToDo == Operation.revert) // ONLY AS LONG AS REVERT OPERATIONS ARE ALWAYS FULL REVERTS (fixme: consider all the steps related to the last operation)
               throw UnprocessableIntent(s"${latestPlanStep.deploymentRequest.id}: there is no next step, they have all been successfully reverted")

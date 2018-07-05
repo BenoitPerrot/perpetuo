@@ -459,6 +459,13 @@ class CrankshaftWithMultiStepSpec extends SimpleScenarioTesting {
     r.revert("old")
     the[Exception] thrownBy r.revert("older") should beLike[UnprocessableIntent](".+: there is no next step, they have all been successfully reverted")
   }
+
+  test("Crankshaft cannot deploy anymore once it has been tentatively reverted") {
+    val r = request("immense-impala", "new", step1, step2)
+    r.step()
+    r.revert("old")
+    the[Exception] thrownBy r.step() should beLike[UnprocessableIntent](".+: deploying after a revert is not supported")
+  }
 }
 
 
