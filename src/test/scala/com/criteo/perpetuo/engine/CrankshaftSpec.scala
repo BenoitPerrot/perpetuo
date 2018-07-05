@@ -581,10 +581,9 @@ class CrankshaftWithUncontrollableTriggeredExecutionSpec extends SimpleScenarioT
     crankshaft.revert(req, Some(1), "r.everter", Some(Version("0".toJson))).flatMap(op =>
       crankshaft.tryStopDeploymentRequest(req, Some(2), "killer-guy")
         .flatMap { case (successes, failures) =>
-          tryCloseOperation(op).map { updates =>
-            Await.result(closeOperation(op), 2.second) // fixme: ugly fix
+          tryCloseOperation(op).map(updates =>
             (updates.length, updates.flatten.length, successes, failures.length)
-          }
+          )
         }
     ) should eventually(be((2, 2, 0, 2))) // i.e. 2 execution traces, 2 closed, 0 stopped, 2 failures
 
