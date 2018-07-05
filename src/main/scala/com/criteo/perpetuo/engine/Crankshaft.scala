@@ -180,7 +180,7 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
     }
 
   def step(deploymentRequest: DeploymentRequest, operationCount: Option[Int], initiatorName: String, emitEvent: Boolean = true): Future[OperationTrace] = {
-    val getSpecifics = fuelFilter.gettingPlanStepToOperateAndLastDoneStepOrRejectingIfCannotDeploy(deploymentRequest)
+    val getSpecifics = fuelFilter.gettingPlanStepToOperateAndLastDoneStep(deploymentRequest, Operation.deploy)
       .flatMap { case (toDo, lastDone) =>
         val isRetry = lastDone.contains(toDo)
         val getOperationSpecifics = if (isRetry) operationStarter.getRetrySpecifics _ else operationStarter.getStepSpecifics _

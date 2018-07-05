@@ -4,7 +4,6 @@ import com.criteo.perpetuo.config.AppConfigProvider
 import com.criteo.perpetuo.config.ConfigSyntacticSugar._
 import com.criteo.perpetuo.dao.{DBIOrw, DbBinding}
 import com.criteo.perpetuo.model.{DeploymentPlanStep, DeploymentRequest, Operation}
-import com.google.common.annotations.VisibleForTesting
 import javax.inject.{Inject, Singleton}
 import slick.dbio.{DBIOAction, Effect, NoStream}
 
@@ -41,12 +40,18 @@ class FuelFilter @Inject()(val dbBinding: DbBinding) {
         DBIOAction.successful(())
     )
 
-  def gettingPlanStepToOperateAndLastDoneStepOrRejectingIfCannotDeploy(deploymentRequest: DeploymentRequest): DBIOAction[(DeploymentPlanStep, Option[DeploymentPlanStep]), NoStream, Effect.Read] =
+  def gettingPlanStepToOperateAndLastDoneStep(deploymentRequest: DeploymentRequest, operationToDo: Operation.Kind): DBIOAction[(DeploymentPlanStep, Option[DeploymentPlanStep]), NoStream, Effect.Read] =
     rejectingIfOutdated(deploymentRequest)
-      .andThen(gettingPlanStepToOperateAndLastDoneStep(deploymentRequest, Operation.deploy))
+      .andThen(dbBinding.findingDeploymentPlanAndLatestOperations(deploymentRequest))
+      .flatMap(planStepsAndLatestOperations =>
+        if (planStepsAndLatestOperations.isEmpty)
+          DBIOAction.failed(new RuntimeException(s"${deploymentRequest.id}: should not be there: deployment plan is empty"))
+        else
+          gettingPlanStepToOperateAndLastDoneStep(planStepsAndLatestOperations, operationToDo)
+      )
 
   def rejectingIfCannotDeploy(deploymentRequest: DeploymentRequest): DBIOAction[Unit, NoStream, Effect.Read] =
-    gettingPlanStepToOperateAndLastDoneStepOrRejectingIfCannotDeploy(deploymentRequest).map(_ => ())
+    gettingPlanStepToOperateAndLastDoneStep(deploymentRequest, Operation.deploy).map(_ => ())
 
   def rejectingIfCannotRevert(deploymentRequest: DeploymentRequest): DBIOAction[Unit, NoStream, Effect.Read] =
     rejectingIfOutdated(deploymentRequest) // todo: now we can allow successive rollbacks, by using dbBinding.findTargetAtomNotActionableBy instead of `outdated` here
@@ -54,16 +59,6 @@ class FuelFilter @Inject()(val dbBinding: DbBinding) {
 
   //
   // PRIVATE METHODS:
-
-  @VisibleForTesting
-  def gettingPlanStepToOperateAndLastDoneStep(deploymentRequest: DeploymentRequest, operation: Operation.Kind): DBIOAction[(DeploymentPlanStep, Option[DeploymentPlanStep]), NoStream, Effect.Read] =
-    dbBinding.findingDeploymentPlanAndLatestOperations(deploymentRequest)
-      .flatMap(planStepsAndLatestOperations =>
-        if (planStepsAndLatestOperations.isEmpty)
-          DBIOAction.failed(new RuntimeException(s"${deploymentRequest.id}: should not be there: deployment plan is empty"))
-        else
-          gettingPlanStepToOperateAndLastDoneStep(planStepsAndLatestOperations, operation)
-      )
 
   private def getLastDoneStepAndOperation(planStepsAndLatestOperations: Seq[(DeploymentPlanStep, Option[(Long, Operation.Kind)])]) =
     planStepsAndLatestOperations.reduce[(DeploymentPlanStep, Option[(Long, Operation.Kind)])] {
