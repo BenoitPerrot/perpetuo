@@ -53,8 +53,9 @@ class FuelFilter @Inject()(val dbBinding: DbBinding) {
   def rejectingIfCannotDeploy(deploymentRequest: DeploymentRequest): DBIOAction[Unit, NoStream, Effect.Read] =
     gettingPlanStepToOperateAndLastDoneStep(deploymentRequest, Operation.deploy).map(_ => ())
 
+  // todo: now we can allow successive rollbacks, by using dbBinding.findTargetAtomNotActionableBy instead of `outdated` here
   def rejectingIfCannotRevert(deploymentRequest: DeploymentRequest): DBIOAction[Unit, NoStream, Effect.Read] =
-    rejectingIfOutdated(deploymentRequest) // todo: now we can allow successive rollbacks, by using dbBinding.findTargetAtomNotActionableBy instead of `outdated` here
+    gettingPlanStepToOperateAndLastDoneStep(deploymentRequest, Operation.revert)
       .andThen(rejectingIfNothingToRevert(deploymentRequest))
 
   //
@@ -93,14 +94,15 @@ class FuelFilter @Inject()(val dbBinding: DbBinding) {
         DBIOAction.successful((latestPlanStep, None))
 
       case (latestPlanStep, Some((lastOperationId, lastOperationKind))) =>
-        assert(lastOperationKind == operationToDo)
         dbBinding.computingOperationStatus(lastOperationId, isRunning = false)
           .map(operationStatus =>
-            if (operationStatus == DeploymentStatus.flopped || operationStatus == DeploymentStatus.failed)
+            if (lastOperationKind != operationToDo || operationStatus == DeploymentStatus.flopped || operationStatus == DeploymentStatus.failed)
               latestPlanStep
+            else if (operationToDo == Operation.revert) // ONLY AS LONG AS REVERT OPERATIONS ARE ALWAYS FULL REVERTS (fixme: consider all the steps related to the last operation)
+              throw UnprocessableIntent(s"${latestPlanStep.deploymentRequest.id}: there is no next step, they have all been successfully reverted")
             else
               findNextPlanStep(planStepsAndLatestOperations.map(_._1), latestPlanStep)
-                .getOrElse(throw UnprocessableIntent(s"${latestPlanStep.deploymentRequest.id}: there is no next step, they have all been applied"))
+                .getOrElse(throw UnprocessableIntent(s"${latestPlanStep.deploymentRequest.id}: there is no next step, they have all been successfully deployed"))
           )
           .map((_, Some(latestPlanStep)))
     }

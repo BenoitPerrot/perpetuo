@@ -452,6 +452,13 @@ class CrankshaftWithMultiStepSpec extends SimpleScenarioTesting {
     r.revert("older")
     getDeployedVersions("giant-clam") should become(Map("north" -> "older", "south" -> "older"))
   }
+
+  test("Crankshaft cannot retry a successful revert") {
+    val r = request("huge-human", "new", step1, step2)
+    r.step()
+    r.revert("old")
+    the[Exception] thrownBy r.revert("older") should beLike[UnprocessableIntent](".+: there is no next step, they have all been successfully reverted")
+  }
 }
 
 
@@ -581,7 +588,7 @@ class CrankshaftWithUncontrollableTriggeredExecutionSpec extends SimpleScenarioT
     crankshaft.revert(req, Some(1), "r.everter", Some(Version("0".toJson))).flatMap(op =>
       crankshaft.tryStopDeploymentRequest(req, Some(2), "killer-guy")
         .flatMap { case (successes, failures) =>
-          tryCloseOperation(op).map(updates =>
+          tryCloseOperation(op, initFailed = true).map(updates =>
             (updates.length, updates.flatten.length, successes, failures.length)
           )
         }
