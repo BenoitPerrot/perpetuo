@@ -180,8 +180,8 @@
       </paper-card>
       <template is="dom-repeat" items="[[operationGroups]]" as="operationGroup">
         <paper-card class="operations">
-          <template is="dom-repeat" items="[[operationGroup]]">
-            <perpetuo-deployment-operation index="[[sub(operationGroup.length, index)]]" data="[[item]]" opened="[[isOperationOpened(item.id)]]" on-opened-changed="onOperationOpenedChanged" show-execution-logs="[[data.showExecutionLogs]]"></perpetuo-deployment-operation>
+          <template is="dom-repeat" items="[[operationGroup.operations]]">
+            <perpetuo-deployment-operation index="[[sub(operationGroup.operations.length, index)]]" data="[[item]]" opened="[[isOperationOpened(item.id)]]" on-opened-changed="onOperationOpenedChanged" show-execution-logs="[[data.showExecutionLogs]]"></perpetuo-deployment-operation>
           </template>
         </paper-card>
       </template>
@@ -233,6 +233,13 @@
   </template>
   <script>
   (function () {
+    function computeOperationGroupLabel(planStepIds, plan) {
+      return planStepIds
+        .map(id => plan.find(_ => _.id === id))
+        .map(planStep => planStep.name ? planStep.name : planStep.targetExpression)
+        .join(', ');
+    }
+
     class PerpetuoDeploymentRequest extends Polymer.Element {
       static get is() { return 'perpetuo-deployment-request'; }
 
@@ -424,7 +431,11 @@
                   }
                   lastOperationGroup.push(op);
                   return operationGroups;
-                }, []);
+                }, [])
+                 .map(operations => ({
+                   operations: operations,
+                   label: computeOperationGroupLabel(operations[0].planStepIds, data.plan)
+                 }));
 
               this.noData = false;
             }
