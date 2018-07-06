@@ -82,7 +82,7 @@
       color: #555;
     }
 
-    #target, #operations {
+    #target, .operations {
       padding: 24px 16px;
     }
 
@@ -178,11 +178,13 @@
         <h1>Deployment Target</h1>
         <p>[[data.target]]</p>
       </paper-card>
-      <paper-card id="operations" hidden="[[isEmpty(data.operations)]]">
-        <template is="dom-repeat" items="[[data.operations]]">
-          <perpetuo-deployment-operation index="[[sub(data.operations.length, index)]]" data="[[item]]" opened="[[isOperationOpened(item.id)]]" on-opened-changed="onOperationOpenedChanged" show-execution-logs="[[data.showExecutionLogs]]"></perpetuo-deployment-operation>
-        </template>
-      </paper-card>
+      <template is="dom-repeat" items="[[operationGroups]]" as="operationGroup">
+        <paper-card class="operations">
+          <template is="dom-repeat" items="[[operationGroup]]">
+            <perpetuo-deployment-operation index="[[sub(operationGroup.length, index)]]" data="[[item]]" opened="[[isOperationOpened(item.id)]]" on-opened-changed="onOperationOpenedChanged" show-execution-logs="[[data.showExecutionLogs]]"></perpetuo-deployment-operation>
+          </template>
+        </paper-card>
+      </template>
     </div>
 
     <paper-dialog id="revertPlan" with-backdrop>
@@ -240,6 +242,7 @@
           noData: {type: Boolean, value: true},
           active: {type: Boolean, observer: 'onActiveChanged'},
           data: Object,
+          operationGroups: Array,
           version: {type: Array, computed: 'computeVersion(data)'},
           isInAction: Boolean,
           revertPlan: Object,
@@ -274,6 +277,7 @@
           creationDate: '',
           operations: []
         };
+        this.operationGroups = [];
         this.operationIdToOpened = new Map(); // A Map is required to distinguish inexistence and closed-by-user
         this.refresh();
       }
@@ -408,6 +412,20 @@
               if (!this.operationIdToOpened.has(maxOperationId)) {
                 this.operationIdToOpened.set(maxOperationId, true);
               }
+
+              this.operationGroups =
+                _.operations.reduce((operationGroups, op) => {
+                  let lastOperationGroup = 0 < operationGroups.length ? operationGroups[operationGroups.length - 1] : null;
+                  if (!lastOperationGroup ||
+                      !(op.kind === lastOperationGroup[0].kind &&
+                        op.planStepIds.length === lastOperationGroup[0].planStepIds.length && op.planStepIds.every(id => lastOperationGroup[0].planStepIds.includes(id)))) {
+                    lastOperationGroup = [];
+                    operationGroups.push(lastOperationGroup);
+                  }
+                  lastOperationGroup.push(op);
+                  return operationGroups;
+                }, []);
+
               this.noData = false;
             }
           });
