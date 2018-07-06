@@ -312,7 +312,8 @@ class CrankshaftSpec extends SimpleScenarioTesting {
         operationReClosingSucceeded.isDefined shouldBe false
         initialExecutionSpecIds.length == retriedExecutionSpecIds.length shouldBe true
         initialExecutionSpecIds == retriedExecutionSpecIds shouldBe true
-        raceConditionError should beLike[Conflict]("[0-9]+: the state of the deployment has just changed.+")
+        raceConditionError should be(a[Conflict])
+        raceConditionError.getMessage should include("the state of the deployment has just changed")
       }
     )
   }
@@ -442,7 +443,8 @@ class CrankshaftWithMultiStepSpec extends SimpleScenarioTesting {
     r.step()
     getDeployedVersions("fat-falcon") should become(Map("north" -> "new", "south" -> "new", "east" -> "new", "west" -> "new"))
 
-    an[UnprocessableIntent] shouldBe thrownBy(r.step())
+    (the[UnprocessableIntent] thrownBy r.step()).message should
+      endWith("there is no next step, they have all been successfully deployed")
   }
 
   test("Crankshaft can retry a failed revert") {
@@ -457,14 +459,16 @@ class CrankshaftWithMultiStepSpec extends SimpleScenarioTesting {
     val r = request("huge-human", "new", step1, step2)
     r.step()
     r.revert("old")
-    the[Exception] thrownBy r.revert("older") should beLike[UnprocessableIntent](".+: there is no next step, they have all been successfully reverted")
+    (the[UnprocessableIntent] thrownBy r.revert("older")).message should
+      endWith("there is no next step, they have all been successfully reverted")
   }
 
   test("Crankshaft cannot deploy anymore once it has been tentatively reverted") {
     val r = request("immense-impala", "new", step1, step2)
     r.step()
     r.revert("old")
-    the[Exception] thrownBy r.step() should beLike[UnprocessableIntent](".+: deploying after a revert is not supported")
+    (the[UnprocessableIntent] thrownBy r.step()).message should
+      endWith("deploying after a revert is not supported")
   }
 }
 
