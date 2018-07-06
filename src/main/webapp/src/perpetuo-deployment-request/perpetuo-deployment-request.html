@@ -90,6 +90,11 @@
       margin-top: 16px;
     }
 
+    .operations h1 {
+      margin: 0;
+      font-weight: normal;
+    }
+
     paper-card {
       margin-bottom: 1em;
     }
@@ -180,6 +185,7 @@
       </paper-card>
       <template is="dom-repeat" items="[[operationGroups]]" as="operationGroup">
         <paper-card class="operations">
+          <h1>[[operationGroup.label]]</h1>
           <template is="dom-repeat" items="[[operationGroup.operations]]">
             <perpetuo-deployment-operation index="[[sub(operationGroup.operations.length, index)]]" data="[[item]]" opened="[[isOperationOpened(item.id)]]" on-opened-changed="onOperationOpenedChanged" show-execution-logs="[[data.showExecutionLogs]]"></perpetuo-deployment-operation>
           </template>
