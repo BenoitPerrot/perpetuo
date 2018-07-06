@@ -107,6 +107,8 @@ trait SimpleScenarioTesting extends TestHelpers with TestDb with MockitoSugar {
     private val currentState = Iterator.from(0)
     private var currentStep = 0
 
+    def eligibleActions: Future[Seq[Operation.Kind]] = crankshaft.getEligibleActions(deploymentRequest)
+
     def startStep(): OperationTrace = {
       await(crankshaft.step(deploymentRequest, Some(currentState.next()), "s.tarter"))
     }

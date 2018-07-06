@@ -425,48 +425,74 @@ class CrankshaftWithMultiStepSpec extends SimpleScenarioTesting {
 
   test("Crankshaft can retry the first step if it's failing and revert it") {
     val r = request("enormous-elephant", "new", step1, step2)
+
+    r.eligibleActions should become(Seq(Operation.deploy))
     r.step(Status.productFailure)
     getDeployedVersions("enormous-elephant") should become(Map("north" -> "new", "south" -> "new"))
 
+    r.eligibleActions should become(Seq(Operation.deploy, Operation.revert))
     r.step()
     getDeployedVersions("enormous-elephant") should become(Map("north" -> "new", "south" -> "new"))
 
+    r.eligibleActions should become(Seq(Operation.deploy, Operation.revert))
     r.revert("old")
     getDeployedVersions("enormous-elephant") should become(Map("north" -> "old", "south" -> "old"))
   }
 
   test("Crankshaft cannot retry a successful deploy") {
     val r = request("fat-falcon", "new", step1, step2)
+
+    r.eligibleActions should become(Seq(Operation.deploy))
     r.step()
     getDeployedVersions("fat-falcon") should become(Map("north" -> "new", "south" -> "new"))
 
+    r.eligibleActions should become(Seq(Operation.deploy, Operation.revert))
     r.step()
     getDeployedVersions("fat-falcon") should become(Map("north" -> "new", "south" -> "new", "east" -> "new", "west" -> "new"))
 
+    r.eligibleActions should become(Seq(Operation.revert))
     (the[UnprocessableIntent] thrownBy r.step()).message should
       endWith("there is no next step, they have all been successfully deployed")
   }
 
   test("Crankshaft can retry a failed revert") {
     val r = request("giant-clam", "new", step1, step2)
+
+    r.eligibleActions should become(Seq(Operation.deploy))
     r.step()
+
+    r.eligibleActions should become(Seq(Operation.deploy, Operation.revert))
     r.revert("old", Status.hostFailure)
+
+    r.eligibleActions should become(Seq(Operation.revert))
     r.revert("older")
     getDeployedVersions("giant-clam") should become(Map("north" -> "older", "south" -> "older"))
   }
 
   test("Crankshaft cannot retry a successful revert") {
     val r = request("huge-human", "new", step1, step2)
+
+    r.eligibleActions should become(Seq(Operation.deploy))
     r.step()
+
+    r.eligibleActions should become(Seq(Operation.deploy, Operation.revert))
     r.revert("old")
+
+    r.eligibleActions should become(Seq[Operation.Kind]())
     (the[UnprocessableIntent] thrownBy r.revert("older")).message should
       endWith("there is no next step, they have all been successfully reverted")
   }
 
   test("Crankshaft cannot deploy anymore once it has been tentatively reverted") {
     val r = request("immense-impala", "new", step1, step2)
+
+    r.eligibleActions should become(Seq[Operation.Kind](Operation.deploy))
     r.step()
+
+    r.eligibleActions should become(Seq[Operation.Kind](Operation.deploy, Operation.revert))
     r.revert("old")
+
+    r.eligibleActions should become(Seq[Operation.Kind]())
     (the[UnprocessableIntent] thrownBy r.step()).message should
       endWith("deploying after a revert is not supported")
   }
