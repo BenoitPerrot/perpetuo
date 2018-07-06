@@ -514,8 +514,7 @@ class CrankshaftWithStopperSpec extends SimpleScenarioTesting {
     when(executionMock.stopper).thenReturn(Some(() => None))
 
     request("dusty-duck", "1", Seq("here")).step()
-    val lastOp = request("dusty-duck", "2", Seq("here", "there")).step()
-    val req = lastOp.deploymentRequest
+    val req = request("dusty-duck", "2", Seq("here", "there")).step().deploymentRequest
 
     // try to stop when everything is already terminated
     crankshaft.tryStopDeploymentRequest(req, Some(1), "killer-guy") should
@@ -588,8 +587,7 @@ class CrankshaftWithUncontrollableTriggeredExecutionSpec extends SimpleScenarioT
 
   test("Crankshaft tries to stop executions, which might terminate normally at the same time") {
     request("dusty-duck", "1", Seq("here")).step()
-    val lastOp = request("dusty-duck", "2", Seq("here", "there")).step()
-    val req = lastOp.deploymentRequest
+    val req = request("dusty-duck", "2", Seq("here", "there")).step().deploymentRequest
 
     // try to stop when everything is already terminated
     crankshaft.tryStopDeploymentRequest(req, Some(1), "killer-guy") should
