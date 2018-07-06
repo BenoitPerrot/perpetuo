@@ -109,7 +109,7 @@
             [[item.value]]<template is="dom-if" if="[[item.ratio]]">&nbsp;<span class="ratio">[[asPercentage(item.ratio)]]%</span></template><br/>
           </template>
         </span>
-        <span class="target"><span>[[data.target]]</span></span>
+        <span class="target"><span>[[computePlanLabel(data.plan)]]</span></span>
         <span class="creation-date">[[data.dateString]]</span>
         <div class="state">
           <span data-status$="[[data.status]]" data-last-operation-kind$="[[data.lastOperationKind]]">[[computeDeploymentRequestStatusLabel(data.status, data.lastOperationKind)]]</span>
@@ -135,6 +135,12 @@
           value: (expr => expr.length > 10 ? expr.slice(0, 7) + "..." : expr)(version.value.toString()),
           ratio: version.ratio
         }));
+      }
+
+      computePlanLabel(plan) {
+        return plan
+          .map(planStep => planStep.name ? planStep.name : planStep.targetExpression)
+          .join(', ');
       }
 
       asPercentage(ratio) {
