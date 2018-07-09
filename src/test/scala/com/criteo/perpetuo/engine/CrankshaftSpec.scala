@@ -540,15 +540,15 @@ class CrankshaftWithStopperSpec extends SimpleScenarioTesting {
     when(executionMock.stopper).thenReturn(Some(() => None))
 
     request("dusty-duck", "1", Seq("here")).step()
-    val req = request("dusty-duck", "2", Seq("here", "there")).step().deploymentRequest
+    val dep = request("dusty-duck", "2", Seq("here", "there")).step()
 
     // try to stop when everything is already terminated
-    crankshaft.tryStopDeploymentRequest(req, Some(1), "killer-guy") should
+    crankshaft.tryStopOperation(dep, "killer-guy") should
       eventually(be((0, Seq())))
 
     // try to stop when nothing has been terminated
-    crankshaft.revert(req, Some(1), "r.everter", Some(Version("0".toJson))).flatMap(op =>
-      crankshaft.tryStopDeploymentRequest(req, Some(2), "killer-guy")
+    crankshaft.revert(dep.deploymentRequest, Some(1), "r.everter", Some(Version("0".toJson))).flatMap(op =>
+      crankshaft.tryStopOperation(op, "killer-guy")
         .flatMap { case (successes, failures) =>
           tryCloseOperation(op).map(updates =>
             (updates.length, updates.flatten.length, successes, failures.length)
@@ -557,7 +557,7 @@ class CrankshaftWithStopperSpec extends SimpleScenarioTesting {
     ) should eventually(be((2, 0, 2, 0))) // i.e. 2 execution traces, 0 closed, 2 stopped, 0 failures
 
     // try to stop when one execution is already terminated
-    crankshaft.revert(req, Some(2), "r.everter", Some(Version("0".toJson))).flatMap(op =>
+    crankshaft.revert(dep.deploymentRequest, Some(2), "r.everter", Some(Version("0".toJson))).flatMap(op =>
       crankshaft.dbBinding.findExecutionIdsByOperationTrace(op.id)
         .flatMap { executionIds =>
           val executionId = executionIds.head // only update the first execution (out of the 2 triggered by the revert)
@@ -570,7 +570,7 @@ class CrankshaftWithStopperSpec extends SimpleScenarioTesting {
                 ))
             ))
         }
-        .flatMap(_ => crankshaft.tryStopDeploymentRequest(req, Some(3), "killer-guy"))
+        .flatMap(_ => crankshaft.tryStopOperation(op, "killer-guy"))
         .flatMap { case (successes, failures) =>
           tryCloseOperation(op).map(updates =>
             (updates.length, updates.flatten.length, successes, failures.length)
@@ -580,8 +580,8 @@ class CrankshaftWithStopperSpec extends SimpleScenarioTesting {
 
     when(executionMock.stopper).thenReturn(Some(() => Some(ExecutionState.unreachable)))
     // try to stop when the job cannot be stopped
-    crankshaft.revert(req, None, "r.everter", Some(Version("0".toJson))).flatMap(op =>
-      crankshaft.tryStopDeploymentRequest(req, Some(4), "killer-guy")
+    crankshaft.revert(dep.deploymentRequest, None, "r.everter", Some(Version("0".toJson))).flatMap(op =>
+      crankshaft.tryStopOperation(op, "killer-guy")
         .flatMap { case (successes, failures) =>
           tryCloseOperation(op).map(updates =>
             (updates.length, updates.flatten.length, successes, failures)
@@ -613,15 +613,15 @@ class CrankshaftWithUncontrollableTriggeredExecutionSpec extends SimpleScenarioT
 
   test("Crankshaft tries to stop executions, which might terminate normally at the same time") {
     request("dusty-duck", "1", Seq("here")).step()
-    val req = request("dusty-duck", "2", Seq("here", "there")).step().deploymentRequest
+    val dep = request("dusty-duck", "2", Seq("here", "there")).step()
 
     // try to stop when everything is already terminated
-    crankshaft.tryStopDeploymentRequest(req, Some(1), "killer-guy") should
+    crankshaft.tryStopOperation(dep, "killer-guy") should
       eventually(be((0, Seq())))
 
     // try to stop when nothing has been terminated but it's impossible to stop
-    crankshaft.revert(req, Some(1), "r.everter", Some(Version("0".toJson))).flatMap(op =>
-      crankshaft.tryStopDeploymentRequest(req, Some(2), "killer-guy")
+    crankshaft.revert(dep.deploymentRequest, Some(1), "r.everter", Some(Version("0".toJson))).flatMap(op =>
+      crankshaft.tryStopOperation(op, "killer-guy")
         .flatMap { case (successes, failures) =>
           tryCloseOperation(op, initFailed = true).map(updates =>
             (updates.length, updates.flatten.length, successes, failures.length)
@@ -630,7 +630,7 @@ class CrankshaftWithUncontrollableTriggeredExecutionSpec extends SimpleScenarioT
     ) should eventually(be((2, 2, 0, 2))) // i.e. 2 execution traces, 2 closed, 0 stopped, 2 failures
 
     // try to stop when one execution is already terminated and the other one could not be stopped (so 0 success)
-    crankshaft.revert(req, Some(2), "r.everter", Some(Version("0".toJson))).flatMap(op =>
+    crankshaft.revert(dep.deploymentRequest, Some(2), "r.everter", Some(Version("0".toJson))).flatMap(op =>
       crankshaft.dbBinding.findExecutionIdsByOperationTrace(op.id)
         .flatMap { executionIds =>
           val executionId = executionIds.head // only update the first execution (out of the 2 triggered by the revert)
@@ -643,7 +643,7 @@ class CrankshaftWithUncontrollableTriggeredExecutionSpec extends SimpleScenarioT
                 ))
             ))
         }
-        .flatMap(_ => crankshaft.tryStopDeploymentRequest(req, Some(3), "killer-guy"))
+        .flatMap(_ => crankshaft.tryStopOperation(op, "killer-guy"))
         .flatMap { case (successes, failures) =>
           tryCloseOperation(op).map(updates =>
             (updates.length, updates.flatten.length, successes, failures.map(_.split(":").head))

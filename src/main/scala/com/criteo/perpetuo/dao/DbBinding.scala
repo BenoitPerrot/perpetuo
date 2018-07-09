@@ -232,6 +232,23 @@ class DbBinding @Inject()(val dbContext: DbContext)
     dbContext.db.run(q.map(_.sortBy { case (depReq, _, _) => -depReq.id }))
   }
 
+  def findingLastOperationTraceAndCurrentCountByDeploymentRequestId(deploymentRequestId: Long): DBIOAction[Option[(OperationTrace, Int)], NoStream, Effect.Read] =
+    operationTraceQuery
+      .join(deploymentRequestQuery)
+      .join(productQuery)
+      .filter { case ((op, depReq), product) =>
+        op.deploymentRequestId === deploymentRequestId && depReq.id === deploymentRequestId && depReq.productId === product.id
+      }
+      .result
+      .map(results =>
+        results
+          .headOption
+          .map { _ =>
+            val ((operationTrace, depReq), product) = results.maxBy { case ((op, _), _) => op.id.get }
+            (operationTrace.toOperationTrace(depReq.toDeploymentRequest(product)), results.length)
+          }
+      )
+
   def findingBranchFromExecutionTraceId(executionTraceId: Long): DBIOAction[Option[ExecutionTraceBranch], NoStream, Effect.Read] =
     executionTraceQuery
       .join(executionQuery)

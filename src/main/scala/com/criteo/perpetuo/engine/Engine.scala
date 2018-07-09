@@ -47,15 +47,20 @@ class Engine @Inject()(val crankshaft: Crankshaft,
     }
 
   def stop(user: User, deploymentRequestId: Long, operationCount: Option[Int]): Future[Option[(Int, Seq[String])]] =
-    withDeploymentRequest(deploymentRequestId) { deploymentRequest =>
-      def allowedTo(kind: Operation.Kind) =
-        permissions.isAuthorized(user, DeploymentAction.applyOperation, kind, deploymentRequest.product.name)
+    crankshaft.findLastOperationTrace(deploymentRequestId, operationCount)
+      .flatMap(_
+        .map { operationTrace =>
+          def allowedTo(kind: Operation.Kind) =
+            permissions.isAuthorized(user, DeploymentAction.applyOperation, kind, operationTrace.deploymentRequest.product.name)
 
-      if (!(allowedTo(Operation.deploy) || allowedTo(Operation.revert)))
-        throw PermissionDenied()
+          if (!(allowedTo(Operation.deploy) || allowedTo(Operation.revert)))
+            throw PermissionDenied()
 
-      crankshaft.tryStopDeploymentRequest(deploymentRequest, operationCount, user.name)
-    }
+          crankshaft.tryStopOperation(operationTrace, user.name)
+        }
+        .map(_.map(Some.apply))
+        .getOrElse(Future.successful(None))
+      )
 
   def findDeploymentRequestsWithStatuses(where: Seq[Map[String, Any]], limit: Int, offset: Int): Future[Seq[(DeploymentRequest, DeploymentStatus.Value, Option[Operation.Kind])]] =
     crankshaft.findDeploymentRequestsWithStatuses(where, limit, offset)

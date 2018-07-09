@@ -4,7 +4,7 @@ import com.criteo.perpetuo.engine.UnavailableAction
 import com.criteo.perpetuo.model.ExecutionState.ExecutionState
 import com.criteo.perpetuo.model._
 import com.google.common.annotations.VisibleForTesting
-import slick.sql.{FixedSqlAction, FixedSqlStreamingAction}
+import slick.sql.FixedSqlAction
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
@@ -65,9 +65,6 @@ trait ExecutionTraceBinder extends TableBinder {
         .map { case (_, executionTrace) => executionTrace }
         .result
     ).map(_.map(_.toExecutionTrace))
-
-  def findingOperationTracesByDeploymentRequest(deploymentRequest: DeploymentRequest): DBIOAction[Seq[OperationTrace], NoStream, Effect.Read] =
-    operationTraceQuery.filter(_.deploymentRequestId === deploymentRequest.id).result.map(_.map(_.toOperationTrace(deploymentRequest)))
 
   private def openExecutionTracesQuery(operationTraceId: Long) =
     executionQuery

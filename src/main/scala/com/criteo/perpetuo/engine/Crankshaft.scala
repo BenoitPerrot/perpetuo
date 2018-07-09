@@ -243,6 +243,18 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
       )
   }
 
+  def findLastOperationTrace(deploymentRequestId: Long, operationCount: Option[Int]): Future[Option[OperationTrace]] =
+    dbBinding.dbContext.db.run(findingLastOperationTrace(deploymentRequestId, operationCount))
+
+  // validate the expected state and find the operation to close from the same request, for consistency yet without any lock
+  def findingLastOperationTrace(deploymentRequestId: Long, operationCount: Option[Int]): DBIOAction[Option[OperationTrace], NoStream, Effect.Read] =
+    dbBinding.findingLastOperationTraceAndCurrentCountByDeploymentRequestId(deploymentRequestId).map(
+      _.map { case (operationTrace, currentCount) =>
+        operationCount.foreach(checkState(operationTrace.deploymentRequest, currentCount, _))
+        operationTrace
+      }
+    )
+
   /**
     * Try to stop all underlying executions in parallel: each one can failed for various predictable reasons.
     *
@@ -250,18 +262,9 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
     *         for each execution that could not be stopped and is presumably still running).
     *         Executions that were already stopped are not included in the response.
     */
-  def tryStopDeploymentRequest(deploymentRequest: DeploymentRequest, operationCount: Option[Int], initiatorName: String): Future[(Int, Seq[String])] =
-    dbBinding.dbContext.db
-      .run(
-        // validate the expected state and find the operation to close from the same request, for consistency yet without any lock
-        dbBinding.findingOperationTracesByDeploymentRequest(deploymentRequest).flatMap { operationTraces =>
-          operationCount.foreach(checkState(deploymentRequest, operationTraces.length, _))
-          val operationTrace = operationTraces.maxBy(_.id)
-          dbBinding.findingOpenExecutionTracesByOperationTrace(operationTrace.id)
-            .map((operationTrace, _))
-        }
-      )
-      .flatMap { case (operationTrace, openExecutionTraces) =>
+  def tryStopOperation(operationTrace: OperationTrace, initiatorName: String): Future[(Int, Seq[String])] =
+    dbBinding.dbContext.db.run(dbBinding.findingOpenExecutionTracesByOperationTrace(operationTrace.id))
+      .flatMap(openExecutionTraces =>
         if (openExecutionTraces.nonEmpty)
           Future.traverse(openExecutionTraces) { openExecutionTrace =>
             try {
@@ -276,11 +279,11 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
         else // todo: maybe a better way would be to possibly close the operation each time the user is querying the status of this operation
           dbBinding.dbContext.db.run(closingOperation(operationTrace))
             .map(_ => Seq())
-      }
+      )
       .map { results =>
         val nbStopped = results.count(_.left.getOrElse(false))
         val errors = results.collect { case Right(message) => message }
-        listeners.foreach(_.onDeploymentRequestStopped(deploymentRequest, nbStopped, errors.length))
+        listeners.foreach(_.onDeploymentRequestStopped(operationTrace.deploymentRequest, nbStopped, errors.length))
         (nbStopped, errors)
       }
 
