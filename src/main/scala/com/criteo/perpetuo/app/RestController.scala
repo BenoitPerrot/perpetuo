@@ -229,11 +229,8 @@ class RestController @Inject()(val engine: Engine)
       "version" -> depReq.version,
       "target" -> RawJson(depReq.target),
       "productName" -> depReq.product.name,
-      "state" -> (deploymentStatus match { // todo: move those conversions to the UI: below is what will be displayed (and it must match css classes)
-        case DeploymentStatus.notStarted | DeploymentStatus.paused => deploymentStatus
-        case DeploymentStatus.succeeded => s"${lastOperationKind.get}ed"
-        case state => s"${lastOperationKind.get} $state"
-      })
+      "status" -> deploymentStatus,
+      "lastOperationKind" -> lastOperationKind
     )
 
   private def serialize(status: DeploymentRequestStatus): Map[String, Any] =
