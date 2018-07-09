@@ -69,7 +69,6 @@ class Engine @Inject()(val crankshaft: Crankshaft,
             permissions.isAuthorized(user, GeneralAction.administrate)
           )
 
-          // todo: a future workflow will differentiate requests and applies
           def authorized(op: Operation.Kind) = user.exists(user =>
             permissions.isAuthorized(user, DeploymentAction.applyOperation, op, deploymentRequest.product.name)
           )
