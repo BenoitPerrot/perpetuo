@@ -40,14 +40,9 @@ case class ProtoDeploymentRequest(productName: String,
 case class DeploymentRequest(id: Long,
                              product: Product,
                              version: Version,
-                             target: String,
                              comment: String,
                              creator: String,
-                             creationDate: java.sql.Timestamp) extends ParsedTarget {
+                             creationDate: java.sql.Timestamp) {
 
   val productId: Int = product.id
-
-  def copyParsedTargetCacheFrom(obj: ParsedTarget): Unit = {
-    parsedTargetCache = obj.parsedTargetCache
-  }
 }

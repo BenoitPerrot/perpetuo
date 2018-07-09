@@ -15,7 +15,7 @@ private[dao] case class DeploymentRequestRecord(id: Option[Long],
                                                 creator: String,
                                                 creationDate: java.sql.Timestamp) {
   def toDeploymentRequest(product: ProductRecord) =
-    DeploymentRequest(id.get, product.toProduct, version, target, comment, creator, creationDate)
+    DeploymentRequest(id.get, product.toProduct, version, comment, creator, creationDate)
 }
 
 

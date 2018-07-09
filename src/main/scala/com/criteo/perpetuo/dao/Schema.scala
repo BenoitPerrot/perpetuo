@@ -60,7 +60,7 @@ trait DeploymentRequestInserter
         deploymentRequest <-
           deploymentRequestQuery
             .returning(deploymentRequestQuery.map(_.id))
-            .into((_, id) => DeploymentRequest(id, product, r.version, r.target, r.comment, r.creator, r.creationDate))
+            .into((_, id) => DeploymentRequest(id, product, r.version, r.comment, r.creator, r.creationDate))
             .+=(
               DeploymentRequestRecord(None, product.id, r.version, r.target, r.comment, r.creator, r.creationDate)
             )
@@ -74,7 +74,6 @@ trait DeploymentRequestInserter
       } yield (deploymentRequest, planSteps)).transactionally
 
       dbContext.db.run(q).map { case (depReq, planSteps) =>
-        depReq.copyParsedTargetCacheFrom(r)
         DeploymentPlan(depReq, planSteps)
       }
     }
