@@ -86,6 +86,20 @@
       padding: 24px 16px;
     }
 
+    .operations {
+      border: solid 1px;
+      border-left: solid 24px;
+    }
+    .operations.succeeded {
+      border-color: #0f9d58;
+    }
+    .operations.failed, .operations.flopped {
+      border-color: #f44336;
+    }
+    .operations.in-progress {
+      border-color: #0086b2;
+    }
+
     perpetuo-deployment-operation:not(:first-of-type) {
       margin-top: 16px;
     }
@@ -184,7 +198,7 @@
         <p>[[data.target]]</p>
       </paper-card>
       <template is="dom-repeat" items="[[operationGroups]]" as="operationGroup">
-        <paper-card class="operations">
+        <paper-card class$="operations [[toCssClasses(operationGroup.status)]]">
           <h1>[[operationGroup.label]]</h1>
           <template is="dom-repeat" items="[[operationGroup.operations]]">
             <perpetuo-deployment-operation index="[[sub(operationGroup.operations.length, index)]]" data="[[item]]" opened="[[isOperationOpened(item.id)]]" on-opened-changed="onOperationOpenedChanged" show-execution-logs="[[data.showExecutionLogs]]"></perpetuo-deployment-operation>
