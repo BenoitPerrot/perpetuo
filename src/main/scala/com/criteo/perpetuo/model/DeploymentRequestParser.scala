@@ -27,7 +27,6 @@ object DeploymentRequestParser {
           scanner.getString("comment", Some("")),
           userName
         )
-        protoDeploymentRequest.parsedTarget // validate the target
 
         protoDeploymentRequest
 
@@ -84,6 +83,7 @@ object DeploymentRequestParser {
     val name = step.getString("name", Some(""))
     val targetExpr = step.get("target")
     val comment = step.getString("comment", Some(""))
+    parseTargetExpression(targetExpr) // validate the target
     ProtoDeploymentPlanStep(name, targetExpr, comment)
   }
 }
