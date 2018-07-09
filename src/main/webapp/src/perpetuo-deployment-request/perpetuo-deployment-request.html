@@ -405,16 +405,16 @@
       refresh() {
         return this.deploymentRequestId === undefined ?
                Promise.resolve(false)
-          : this.client.fetchDeploymentRequest(this.deploymentRequestId).then(_ => {
-            if (_.id == this.deploymentRequestId) { // Support out-of-order responses
-              this.data = _;
+          : this.client.fetchDeploymentRequest(this.deploymentRequestId).then(data => {
+            if (data.id == this.deploymentRequestId) { // Support out-of-order responses
+              this.data = data;
               const maxOperationId = this.data.operations.reduce((max, op) => max < op.id ? op.id : max, -1);
               if (!this.operationIdToOpened.has(maxOperationId)) {
                 this.operationIdToOpened.set(maxOperationId, true);
               }
 
               this.operationGroups =
-                _.operations.reduce((operationGroups, op) => {
+                data.operations.reduce((operationGroups, op) => {
                   let lastOperationGroup = 0 < operationGroups.length ? operationGroups[operationGroups.length - 1] : null;
                   if (!lastOperationGroup ||
                       !(op.kind === lastOperationGroup[0].kind &&
