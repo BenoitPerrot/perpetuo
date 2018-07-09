@@ -440,6 +440,7 @@
                 }, [])
                  .map(operations => ({
                    operations: operations,
+                   status: operations[0].status,
                    label: computeOperationGroupLabel(operations[0].planStepIds, data.plan)
                  }));
 
