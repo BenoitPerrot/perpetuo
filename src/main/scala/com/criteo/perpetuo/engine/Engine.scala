@@ -50,10 +50,7 @@ class Engine @Inject()(val crankshaft: Crankshaft,
     crankshaft.findLastOperationTrace(deploymentRequestId, operationCount)
       .flatMap(_
         .map { operationTrace =>
-          def allowedTo(kind: Operation.Kind) =
-            permissions.isAuthorized(user, DeploymentAction.applyOperation, kind, operationTrace.deploymentRequest.product.name)
-
-          if (!(allowedTo(Operation.deploy) || allowedTo(Operation.revert)))
+          if (!permissions.isAuthorized(user, DeploymentAction.stopOperation, operationTrace.kind, operationTrace.deploymentRequest.product.name))
             throw PermissionDenied()
 
           crankshaft.tryStopOperation(operationTrace, user.name)
