@@ -35,7 +35,7 @@ class DeploymentRequestParserSpec extends Test {
     ) shouldBe DeploymentRequestParser.parse(ToJsonAlias.deepToJson(Map(
       "productName" -> "rejex",
       "version" -> "1",
-      "target" -> "*"
+      "plan" -> Seq(Map("target" -> "*"))
     )).compactPrint, "u.ser")
   }
 

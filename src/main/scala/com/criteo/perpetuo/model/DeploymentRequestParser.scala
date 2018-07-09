@@ -15,14 +15,9 @@ object DeploymentRequestParser {
         if (productName.contains("'")) // fixme: as long as we have Rundeck API 16, but maybe we should configure a validator in plugins
           throw new ParsingException("Single quotes are not supported in product names")
         val version = Version(scanner.get("version"))
-        val plan =
-          // TODO: remove once clients have migrated <<
-          body.fields
-            .get("target")
-            .map(targetExpr => Seq(ProtoDeploymentPlanStep("", targetExpr, "")))
-            .getOrElse( // >>
-              scanner.getArray("plan").map(parsePlanStep)
-            )
+        val plan = scanner.getArray("plan").map(parsePlanStep)
+        if (plan.isEmpty)
+          throw new ParsingException("Plan shall be non-empty")
         // TODO: remove once migration complete:
         assert(plan.size == 1)
         val protoDeploymentRequest = ProtoDeploymentRequest(
