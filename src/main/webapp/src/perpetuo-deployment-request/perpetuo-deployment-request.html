@@ -82,7 +82,7 @@
       color: #555;
     }
 
-    #target, .operations {
+    .operations {
       padding: 24px 16px;
     }
 
@@ -127,6 +127,53 @@
     .revert {
       background: #26a69a;
       color: #fff;
+    }
+
+    #plan {
+      margin: 24px auto;
+      border-collapse: collapse;
+      table-layout: fixed;
+    }
+    #plan th {
+      padding: 8px 32px;
+      text-align: center;
+      font-weight: normal;
+    }
+    #plan td {
+      position: relative;
+      text-align: center;
+      padding: 0;
+    }
+    #plan td .round {
+      position: relative;
+      display: inline-flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      border-radius: 50%;
+      border-left: solid 5px #fff;
+      border-right: solid 5px #fff;
+      min-height: 32px;
+      min-width: 32px;
+      font-size: 16px;
+
+      background-color: hsl(0,0%,57%);
+      color: #fff;
+    }
+    #plan .bar {
+      border: solid 1px #bdbdbd;
+      margin: 16px 0;
+    }
+    #plan td:first-of-type .bar {
+      width: 50%;
+      align-self: flex-end;
+    }
+    #plan td:last-of-type .bar {
+      width: 50%;
+      align-self: flex-start;
+    }
+    #plan td:last-of-type:first-of-type .bar {
+      visibility: hidden;
     }
 
     #revertPlan table {
@@ -176,6 +223,25 @@
               </template>
             </span>
           </h1>
+          <table id="plan">
+            <tr>
+              <template is="dom-repeat" items="[[steps]]">
+                <th>[[item.label]]</th>
+              </template>
+            </tr>
+            <tr>
+              <template is="dom-repeat" items="[[steps]]">
+                <td>
+                  <div style="display: flex; flex-direction: column;">
+                    <div class="bar"></div>
+                  </div>
+                  <div style="position: absolute; top: 0; left: 0; width: 100%">
+                    <div class="round">[[inc(index)]]</div>
+                  </div>
+                </td>
+              </template>
+            </tr>
+          </table>
           <div>
             <p>Requested by [[data.creator]] on [[timestampToDates(data.creationDate)]]</p>
             <template is="dom-if" if="[[data.comment]]"><p><perpetuo-markdown-viewer md="[[data.comment]]"></perpetuo-markdown-viewer></p></template>
@@ -193,10 +259,6 @@
           </div>
         </div>
       </div>
-      <paper-card id="target">
-        <h1>Deployment Target</h1>
-        <p>[[data.target]]</p>
-      </paper-card>
       <template is="dom-repeat" items="[[operationGroups]]" as="operationGroup">
         <paper-card class$="operations [[toCssClasses(operationGroup.status)]]">
           <h1>[[operationGroup.label]]</h1>
@@ -458,6 +520,9 @@
                    label: computeOperationGroupLabel(operations[0].planStepIds, data.plan)
                  }));
 
+              this.steps =
+                data.plan.map(step => ({label: step.name || step.targetExpression}));
+
               this.noData = false;
             }
           });
@@ -476,6 +541,10 @@
 
       sub(a, b) {
         return a - b;
+      }
+
+      inc(i) {
+        return i + 1;
       }
     }
 
