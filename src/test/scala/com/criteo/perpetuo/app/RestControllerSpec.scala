@@ -209,22 +209,19 @@ class RestControllerSpec extends Test with TestDb {
     val depReq = deepGetDepReq(deploymentRequestId)
     val operations = depReq.fields("operations").asInstanceOf[JsArray].elements.map(_.asJsObject.fields)
     operations.size shouldEqual 1
-    Map(
-      "id" -> T,
-      "planStepIds" -> JsArray(T),
-      "kind" -> "deploy".toJson,
-      "creator" -> "r.eleaser".toJson,
-      "creationDate" -> T,
-      "targetStatus" -> expectedTargetStatus.mapValues { case (s, d) => Map("code" -> s, "detail" -> d) }.toJson,
-      "executions" -> JsArray(
-        JsObject(
-          "id" -> execTraceId.toJson,
-          "logHref" -> expectedLogHrefJson,
-          "state" -> state.toJson,
-          "detail" -> executionDetail.getOrElse("").toJson
-        )
+
+    expectedTargetStatus.mapValues { case (s, d) => Map("code" -> s, "detail" -> d) }.toJson shouldEqual operations.head("targetStatus")
+
+    JsArray(
+      JsObject(
+        "id" -> execTraceId.toJson,
+        "logHref" -> expectedLogHrefJson,
+        "state" -> state.toJson,
+        "detail" -> executionDetail.getOrElse("").toJson
       )
-    ) ++ (if (expectedClosed) Map("closingDate" -> T) else Map()) shouldEqual operations.head
+    ) shouldEqual operations.head("executions")
+
+    expectedClosed shouldEqual operations.head.get("closingDate").nonEmpty
   }
 
   test("The Product's entry-point returns 201 when creating a Product") {
