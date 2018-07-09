@@ -10,7 +10,6 @@ import scala.concurrent.Future
 private[dao] case class DeploymentRequestRecord(id: Option[Long],
                                                 productId: Int,
                                                 version: Version,
-                                                target: Option[String],
                                                 comment: String, // Not an `Option` because it's easier to consider that no comment <=> empty
                                                 creator: String,
                                                 creationDate: java.sql.Timestamp) {
@@ -32,7 +31,6 @@ trait DeploymentRequestBinder extends TableBinder {
     def productId = column[Int]("product_id")
     protected def fk = foreignKey(productId, productQuery)(_.id)
     def version = column[Version]("version", O.SqlType(s"nvarchar(${Version.maxSize})"))
-    def target = column[Option[String]]("target", O.SqlType("nvarchar(8000)")) // TODO: remove after migrating to deployment-plan-step
 
     // The details
     def comment = column[String]("comment", O.SqlType("nvarchar(4000)"))
@@ -40,7 +38,7 @@ trait DeploymentRequestBinder extends TableBinder {
     def creationDate = column[java.sql.Timestamp]("creation_date")
     protected def creationIdx = index(creationDate)
 
-    def * = (id.?, productId, version, target, comment, creator, creationDate) <> (DeploymentRequestRecord.tupled, DeploymentRequestRecord.unapply)
+    def * = (id.?, productId, version, comment, creator, creationDate) <> (DeploymentRequestRecord.tupled, DeploymentRequestRecord.unapply)
   }
 
   val deploymentRequestQuery = TableQuery[DeploymentRequestTable]
