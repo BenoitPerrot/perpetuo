@@ -339,7 +339,6 @@ class RestControllerSpec extends Test with TestDb {
       "id" -> JsNumber(depReqId),
       "productName" -> JsString("my product"),
       "version" -> JsString("v2097"),
-      "target" -> JsString("to everywhere"),
       "plan" -> JsArray(
         JsObject("id" -> T, "name" -> JsString(""), "targetExpression" -> JsString("to everywhere"), "comment" -> JsString(""))
       ),

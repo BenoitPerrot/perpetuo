@@ -228,7 +228,6 @@ class RestController @Inject()(val engine: Engine)
       "creationDate" -> deploymentPlan.deploymentRequest.creationDate,
       "creator" -> deploymentPlan.deploymentRequest.creator,
       "version" -> deploymentPlan.deploymentRequest.version,
-      "target" -> RawJson(deploymentPlan.deploymentRequest.target),
       "plan" -> deploymentPlan.steps,
       "productName" -> deploymentPlan.deploymentRequest.product.name,
       "status" -> deploymentStatus,
