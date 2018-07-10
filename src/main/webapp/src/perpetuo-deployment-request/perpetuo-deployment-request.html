@@ -444,26 +444,22 @@
         });
       }
 
-      revert() {
-        return this.client.deviseRevertPlan(this.deploymentRequestId)
-                   .then(r => {
-                     if (r.status === 200)
-                       return r.json()
-                               .then(body => {
-                                 this.revertPlan = body;
-                                 this.defaultVersion = undefined;
-                                 this.showRevertPlan().then(_ => {
-                                   const body = this.defaultVersion ? {defaultVersion: this.defaultVersion} : {};
-                                   this.client.revertDeploymentRequest(this.deploymentRequestId, body);
-                                 });
-                               });
-                     return this.refresh();
-                   });
-      }
-
       onRevertTap(e) {
         this.actionLock(() =>
-          this.revert()
+          this.client.deviseRevertPlan(this.deploymentRequestId)
+              .then(r => {
+                if (r.status === 200)
+                  return r.json()
+                          .then(body => {
+                            this.revertPlan = body;
+                            this.defaultVersion = undefined;
+                            this.showRevertPlan().then(_ => {
+                              const body = this.defaultVersion ? {defaultVersion: this.defaultVersion} : {};
+                              this.client.revertDeploymentRequest(this.deploymentRequestId, body);
+                            });
+                          });
+                return this.refresh();
+              })
         );
       }
 
