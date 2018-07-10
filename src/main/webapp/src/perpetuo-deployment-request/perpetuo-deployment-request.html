@@ -75,9 +75,6 @@
       color: #0086b2;
     }
 
-    .actions {
-      margin: 0 1em 1em 0;
-    }
     .action {
       margin-top: 1em;
     }
@@ -119,6 +116,16 @@
     paper-card h1, paper-card h2 {
       margin: 0;
       font-weight: normal;
+    }
+
+    paper-card.intent {
+      margin-right: 8px;
+      padding: 8px 16px;
+    }
+
+    paper-card.actions {
+      margin-left: 8px;
+      padding: 8px 16px;
     }
 
     .cancel {
@@ -214,7 +221,7 @@
 
     <div class="body" hidden$="[[noData]]">
       <div class="columns">
-        <div class="intent">
+        <paper-card class="intent">
           <h1>
             <span class="product-name">[[data.productName]]</span>
             <span class="version">
@@ -247,10 +254,10 @@
             <p>Requested by [[data.creator]] on [[timestampToDates(data.creationDate)]]</p>
             <template is="dom-if" if="[[data.comment]]"><p><perpetuo-markdown-viewer md="[[data.comment]]"></perpetuo-markdown-viewer></p></template>
           </div>
-        </div>
-        <div>
+        </paper-card>
+        <paper-card class="actions">
           <div class="state" data-status$="[[data.status]]" data-last-operation-kind$="[[data.lastOperationKind]]">[[computeDeploymentRequestStatusLabel(data.status, data.lastOperationKind)]]</div>
-          <div class="actions">
+          <div>
             <template is="dom-repeat" items="[[data.actions]]">
               <div class="action">
                 <paper-button disabled="[[computeDisabled(isInAction, item.rejected)]]" on-tap="onActionTap" raised>[[humanReadable(item.type)]]</paper-button>
@@ -258,7 +265,7 @@
               </div>
             </template>
           </div>
-        </div>
+        </paper-card>
       </div>
       <template is="dom-repeat" items="[[operationGroups]]" as="operationGroup">
         <paper-card class="operations" data-status$="[[operationGroup.status]]">
