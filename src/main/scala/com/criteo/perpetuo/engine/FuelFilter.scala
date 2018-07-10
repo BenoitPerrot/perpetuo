@@ -4,14 +4,12 @@ import com.criteo.perpetuo.config.AppConfigProvider
 import com.criteo.perpetuo.config.ConfigSyntacticSugar._
 import com.criteo.perpetuo.dao.{DBIOrw, DbBinding}
 import com.criteo.perpetuo.model.{DeploymentPlanStep, DeploymentRequest, Operation}
-import javax.inject.{Inject, Singleton}
 import slick.dbio.{DBIOAction, Effect, NoStream}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 
 
-@Singleton
-class FuelFilter @Inject()(val dbBinding: DbBinding) {
+class FuelFilter(dbBinding: DbBinding) {
   private val withTransactions = !AppConfigProvider.config.tryGetBoolean("noTransactions").getOrElse(false)
 
   def acquiringOperationLock(deploymentRequest: DeploymentRequest): DBIOrw[Unit] =
