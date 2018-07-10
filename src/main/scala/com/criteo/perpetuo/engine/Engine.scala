@@ -71,14 +71,15 @@ class Engine @Inject()(val crankshaft: Crankshaft,
             permissions.isAuthorized(user, GeneralAction.administrate)
           )
 
-          def authorized(op: Operation.Kind) = user.exists(user =>
-            permissions.isAuthorized(user, DeploymentAction.applyOperation, op, deploymentRequest.product.name)
-          )
-
           crankshaft.getEligibleActions(deploymentRequest).map { actions =>
-            val authorizedActions = actions.map { case (action, message) =>
-              val isAuthorized = authorized(action)
-              (action, message.orElse(if (isAuthorized) None else Some("permission denied")))
+            val authorizedActions = actions.map { case (deploymentAction, operationKind, message) =>
+              val rejectionCause = message.orElse(
+                if (user.exists(permissions.isAuthorized(_, deploymentAction, operationKind, deploymentRequest.product.name)))
+                  None
+                else
+                  Some("permission denied")
+              )
+              (operationKind, rejectionCause)
             }
             val sortedEffects = effects.toSeq.sortBy(-_.operationTrace.id)
             val showLogs = isAdmin || authorizedActions.exists { case (_, rejected) => rejected.isEmpty }

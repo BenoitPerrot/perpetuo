@@ -1,5 +1,6 @@
 package com.criteo.perpetuo.engine
 
+import com.criteo.perpetuo.auth.DeploymentAction
 import com.criteo.perpetuo.dao.{DBIOrw, DbBinding}
 import com.criteo.perpetuo.engine.dispatchers.TargetDispatcher
 import com.criteo.perpetuo.engine.executors.TriggeredExecutionFinder
@@ -61,21 +62,21 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
   val fuelFilter = new FuelFilter(dbBinding)
   private val operationStarter = new OperationStarter(dbBinding)
 
-  def getEligibleActions(deploymentRequest: DeploymentRequest): Future[Seq[(Operation.Kind, Option[String])]] =
+  def getEligibleActions(deploymentRequest: DeploymentRequest): Future[Seq[(DeploymentAction.Value, Operation.Kind, Option[String])]] =
     dbBinding.dbContext.db.run(
       fuelFilter.rejectingIfLocked(deploymentRequest)
         .andThen(
           DBIOAction.sequence(
-            Operation.values.toSeq.map { action =>
-              val canApply = action match {
+            Operation.values.toSeq.map { operation =>
+              val canApply = operation match {
                 case Operation.deploy => fuelFilter.rejectingIfCannotDeploy(deploymentRequest)
                 case Operation.revert => fuelFilter.rejectingIfCannotRevert(deploymentRequest)
               }
               canApply.asTry.collect {
                 case Success(_) =>
-                  (action, None)
+                  (DeploymentAction.applyOperation, operation, None)
                 case Failure(e) =>
-                  (action, Some(e.getMessage))
+                  (DeploymentAction.applyOperation, operation, Some(e.getMessage))
               }
             }
           )
