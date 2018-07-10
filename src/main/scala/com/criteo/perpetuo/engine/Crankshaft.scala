@@ -62,7 +62,7 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
   val fuelFilter = new FuelFilter(dbBinding)
   private val operationStarter = new OperationStarter(dbBinding)
 
-  def getEligibleActions(deploymentRequest: DeploymentRequest): Future[Seq[(DeploymentAction.Value, Operation.Kind, Option[String])]] =
+  def getEligibleActions(deploymentRequest: DeploymentRequest): Future[Seq[(DeploymentAction.Value, Operation.Kind, String, Option[String])]] =
     dbBinding.dbContext.db.run(
       fuelFilter.rejectingIfLocked(deploymentRequest)
         .andThen(
@@ -74,9 +74,9 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
               }
               canApply.asTry.collect {
                 case Success(_) =>
-                  (DeploymentAction.applyOperation, operation, None)
+                  (DeploymentAction.applyOperation, operation, operation.toString, None)
                 case Failure(e) =>
-                  (DeploymentAction.applyOperation, operation, Some(e.getMessage))
+                  (DeploymentAction.applyOperation, operation, operation.toString, Some(e.getMessage))
               }
             }
           )

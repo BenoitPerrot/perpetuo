@@ -6,5 +6,5 @@ case class DeploymentRequestStatus(deploymentRequest: DeploymentRequest,
                                    deploymentPlanSteps: Seq[DeploymentPlanStep],
                                    operationEffects: Iterable[OperationEffect],
                                    lastOperationStatus: Option[(Operation.Kind, DeploymentStatus.Value)], // fixme
-                                   eligibleActions: Seq[(Operation.Kind, Option[String])],
+                                   eligibleActions: Seq[(String, Option[String])],
                                    canAccessLogs: Boolean)

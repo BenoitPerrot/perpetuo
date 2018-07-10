@@ -109,7 +109,7 @@ trait SimpleScenarioTesting extends TestHelpers with TestDb with MockitoSugar {
 
     def eligibleOperations: Future[Seq[Operation.Kind]] =
       crankshaft.getEligibleActions(deploymentRequest).map(
-        _.flatMap { case (_, operation, rejectionCause) => rejectionCause.map(_ => None).getOrElse(Some(operation)) }
+        _.flatMap { case (_, operation, _, rejectionCause) => rejectionCause.map(_ => None).getOrElse(Some(operation)) }
       )
 
     def startStep(): OperationTrace = {
