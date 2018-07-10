@@ -256,6 +256,11 @@ class RestController @Inject()(val engine: Engine)
     ) ++
       Map("operations" ->
         status.operationEffects.map { case effect@OperationEffect(op, planStepIds, executionTraces, targetStatus) =>
+          val getTargetDetail = if (effect.state == DeploymentStatus.inProgress)
+            (ts: TargetStatus) => if (ts.code == Status.notDone && ts.detail.isEmpty) "pending" else ts.detail
+          else
+            (_: TargetStatus).detail
+
           Map(
             "id" -> op.id,
             "planStepIds" -> planStepIds,
@@ -264,7 +269,7 @@ class RestController @Inject()(val engine: Engine)
             "creationDate" -> op.creationDate,
             "targetStatus" -> {
               targetStatus
-                .map(ts => ts.targetAtom -> Map("code" -> ts.code.toString, "detail" -> ts.detail))
+                .map(ts => ts.targetAtom -> Map("code" -> ts.code.toString, "detail" -> getTargetDetail(ts)))
                 .toMap
             },
             "status" -> effect.state,

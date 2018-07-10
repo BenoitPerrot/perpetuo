@@ -426,7 +426,7 @@ class RestControllerSpec extends Test with TestDb {
     checkExecutionTraceUpdate(
       depReqId, execTraceId, "running", None,
       Some(Map("amsterdam" -> Map("code" -> "notDone", "detail" -> "").toJson)),
-      None, Map("amsterdam" -> ("notDone", "")),
+      None, Map("amsterdam" -> ("notDone", "pending")),
       expectedClosed = false
     )
     checkExecutionTraceUpdate(
