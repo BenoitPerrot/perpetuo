@@ -252,8 +252,8 @@
           <div class="actions">
             <template is="dom-repeat" items="[[data.actions]]">
               <div class="action">
-                <paper-button disabled="[[computeDisabled(isInAction, item.authorized)]]" on-tap="onActionTap" raised>[[humanReadable(item.type)]]</paper-button>
-                <span>[[item.comment]]</span>
+                <paper-button disabled="[[computeDisabled(isInAction, item.rejected)]]" on-tap="onActionTap" raised>[[humanReadable(item.type)]]</paper-button>
+                <span>[[item.rejected]]</span>
               </div>
             </template>
           </div>
@@ -463,8 +463,8 @@
         );
       }
 
-      computeDisabled(isInAction, isAuthorized) {
-        return isInAction || !isAuthorized;
+      computeDisabled(isInAction, rejected) {
+        return isInAction || rejected;
       }
 
       computeVersion(data) {
