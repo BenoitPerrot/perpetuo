@@ -148,7 +148,18 @@
     #plan th {
       padding: 8px 32px;
       text-align: center;
-      font-weight: normal;
+      font-weight: 100;
+      color: hsl(0,0%,87%);
+    }
+    #plan th[data-active] {
+      color: hsl(0,0%,38%);
+      font-weight: 500;
+    }
+    :host(:not([last-operation-kind=revert][status=succeeded])) #plan th:not([data-status=future]) {
+      color: hsl(0,0%,38%);
+    }
+    :host([last-operation-kind=revert][status=succeeded]) #plan th {
+      color: #555;
     }
     #plan td {
       position: relative;
@@ -250,7 +261,7 @@
           <table id="plan">
             <tr>
               <template is="dom-repeat" items="[[steps]]">
-                <th>[[item.label]]</th>
+                <th data-active$="[[item.active]]" data-status$="[[item.status]]">[[item.label]]</th>
               </template>
             </tr>
             <tr>
@@ -563,12 +574,16 @@
                   data.operations.filter(op => op.planStepIds.includes(planStep.id))[0]
                 ]);
               this.steps =
-                planStepsAndLastOperations.map((planStepsAndLastOperation, i) => {
-                  const planStep = planStepsAndLastOperation[0];
-                  const lastOperation = planStepsAndLastOperation[1];
+                planStepsAndLastOperations.map((planStepsAndLastOperations, i) => {
+                  const planStep = planStepsAndLastOperations[0];
+                  const lastOperation = planStepsAndLastOperations[1];
                   return {
                     label: planStep.name || planStep.targetExpression,
-                    status: lastOperation ? lastOperation.status : 'future'
+                    status: lastOperation ? lastOperation.status : 'future',
+                    active: (
+                      !(data.lastOperationKind === 'revert' && data.status === 'succeeded') &&
+                      (lastOperation ? lastOperation.status !== 'succeeded' : (i === 0 || planStepsAndLastOperations[i - 1][1].status === 'succeeded'))
+                    )
                   }
                 });
 
