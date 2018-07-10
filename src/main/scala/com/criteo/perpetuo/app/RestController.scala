@@ -221,26 +221,26 @@ class RestController @Inject()(val engine: Engine)
     )
   }
 
-  private def serialize(depReq: DeploymentRequest, deploymentStatus: DeploymentStatus.Value, lastOperationKind: Option[Operation.Kind]): Map[String, Any] =
+  private def serialize(deploymentPlan: DeploymentPlan, deploymentStatus: DeploymentStatus.Value, lastOperationKind: Option[Operation.Kind]): Map[String, Any] =
     Map(
-      "id" -> depReq.id,
-      "comment" -> depReq.comment,
-      "creationDate" -> depReq.creationDate,
-      "creator" -> depReq.creator,
-      "version" -> depReq.version,
-      "target" -> RawJson(depReq.target),
-      "productName" -> depReq.product.name,
+      "id" -> deploymentPlan.deploymentRequest.id,
+      "comment" -> deploymentPlan.deploymentRequest.comment,
+      "creationDate" -> deploymentPlan.deploymentRequest.creationDate,
+      "creator" -> deploymentPlan.deploymentRequest.creator,
+      "version" -> deploymentPlan.deploymentRequest.version,
+      "target" -> RawJson(deploymentPlan.deploymentRequest.target),
+      "plan" -> deploymentPlan.steps,
+      "productName" -> deploymentPlan.deploymentRequest.product.name,
       "status" -> deploymentStatus,
       "lastOperationKind" -> lastOperationKind
     )
 
   private def serialize(status: DeploymentRequestStatus): Map[String, Any] =
     serialize(
-      status.deploymentRequest,
+      DeploymentPlan(status.deploymentRequest, status.deploymentPlanSteps),
       status.lastOperationStatus.map { case (_, opStatus) => opStatus }.getOrElse(DeploymentStatus.notStarted),
       status.lastOperationStatus.map { case (kind, _) => kind }
     ) ++
-      Map("plan" -> status.deploymentPlanSteps) ++
       Map("operations" ->
         status.operationEffects.map { case effect@OperationEffect(op, planStepIds, executionTraces, targetStatus) =>
           Map(
@@ -279,7 +279,7 @@ class RestController @Inject()(val engine: Engine)
         try {
           engine.findDeploymentRequestsWithStatuses(r.where, r.limit, r.offset)
             .map(_.map { case (deploymentPlan, deploymentStatus, lastOperationKind) =>
-              serialize(deploymentPlan.deploymentRequest, deploymentStatus, lastOperationKind)
+              serialize(deploymentPlan, deploymentStatus, lastOperationKind)
             })
         } catch {
           case e: IllegalArgumentException => throw BadRequestException(e.getMessage)

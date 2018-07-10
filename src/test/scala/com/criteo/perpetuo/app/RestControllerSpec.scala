@@ -98,7 +98,7 @@ class RestControllerSpec extends Test with TestDb {
         Map(
           "productName" -> JsString(productName),
           "version" -> JsString(version),
-          "target" -> target
+          "plan" -> JsArray(JsObject("target" -> target))
         ) ++ (if (comment.isDefined) Map("comment" -> JsString(comment.get)) else Map())
       ).compactPrint,
       expectsMessage
@@ -247,7 +247,7 @@ class RestControllerSpec extends Test with TestDb {
     requestDeployment("{", Some("Unexpected end-of-input at input"))
     requestDeployment("""{"productName": "abc"}""", Some("no field named `version`"))
     requestDeployment("""{"productName": "abc", "version": "42"}""", Some("no field named `plan`"))
-    requestDeployment("""{"productName": "abc", "target": "*", "version": "2"}""", Some("Unknown product `abc`"))
+    requestDeployment("""{"productName": "abc", "plan": [{"target": "*"}], "version": "2"}""", Some("Unknown product `abc`"))
   }
 
   test("The DeploymentRequest's POST entry-point handles a complex target expression") {
@@ -352,14 +352,14 @@ class RestControllerSpec extends Test with TestDb {
   }
 
   test("The DeploymentRequest's GET entry-point returns 200 and a JSON with the same target expression as provided") {
-    val target = deepGetDepReq(3).fields("target")
-    target shouldBe a[JsArray]
-    target.asInstanceOf[JsArray].elements.map(
-      el => {
-        el shouldBe a[JsString]
-        el.asInstanceOf[JsString].value
-      }
-    ) shouldEqual Vector("here", "and", "there")
+    val plan = deepGetDepReq(3).fields("plan")
+    plan.asInstanceOf[JsArray].elements
+      .map { step =>
+        step.asInstanceOf[JsObject].fields("targetExpression").asInstanceOf[JsArray].elements
+          .map { el =>
+            el.asInstanceOf[JsString].value
+          }
+      } shouldEqual Vector(Vector("here", "and", "there"))
   }
 
   test("The ExecutionTrace's entry-point returns 404 when trying to access a non-existing DeploymentRequest") {
@@ -712,11 +712,11 @@ class RestControllerSpec extends Test with TestDb {
       path = s"/api/deployment-requests",
       headers = Map("Cookie" -> s"jwt=$longUserJWT"),
       andExpect = Created,
-      postBody = Map(
-        "productName" -> "my product",
-        "version" -> "v2097",
-        "target" -> "to everywhere"
-      ).toJson.compactPrint
+      postBody = JsObject(
+        "productName" -> JsString("my product"),
+        "version" -> JsString("v2097"),
+        "plan" -> JsArray(JsObject("target" -> JsString("to everywhere")))
+      ).compactPrint
     ).contentString.parseJson.idAsLong
 
     deepGetDepReq(id).fields("creator").asInstanceOf[JsString].value shouldEqual
