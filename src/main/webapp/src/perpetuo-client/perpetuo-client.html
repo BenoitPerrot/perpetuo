@@ -99,6 +99,10 @@ this.Perpetuo.Client = this.Perpetuo.Client || (function () {
       return this.actOnDeploymentRequest(deploymentRequestId, 'revert', body);
     }
 
+    stopDeploymentRequest(deploymentRequestId) {
+      return this.actOnDeploymentRequest(deploymentRequestId, 'stop', {});
+    }
+
     actOnDeploymentRequest(deploymentRequestId, actionName, body) {
       return jsonFetch(`/api/deployment-requests/${deploymentRequestId}/actions/${actionName}`, {method: 'POST', body: JSON.stringify(body)});
     }

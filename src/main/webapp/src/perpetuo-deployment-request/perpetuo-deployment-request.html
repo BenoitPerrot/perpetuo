@@ -394,6 +394,8 @@
             return this.onDeployTap(e);
           case 'revert':
             return this.onRevertTap(e);
+          case 'stop':
+            return this.onStopTap(e);
         }
       }
 
@@ -460,6 +462,12 @@
                           });
                 return this.refresh();
               })
+        );
+      }
+
+      onStopTap(e) {
+        this.actionLock(() =>
+          this.client.stopDeploymentRequest(this.deploymentRequestId)
         );
       }
 
