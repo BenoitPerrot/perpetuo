@@ -171,6 +171,19 @@
       background-color: hsl(0,0%,57%);
       color: #fff;
     }
+    #plan td .round[data-status=succeeded] {
+      background-color: #0f9d58;
+    }
+    #plan td .round[data-status=failed],
+    #plan td .round[data-status=flopped] {
+      background-color: #f44336;
+    }
+    #plan td .round[data-status=inProgress] {
+      background-color: #0086b2;
+    }
+    :host([last-operation-kind=revert][status=succeeded]) #plan td .round {
+      background-color: #555;
+    }
     #plan .bar {
       border: solid 1px #bdbdbd;
       margin: 16px 0;
@@ -247,7 +260,7 @@
                     <div class="bar"></div>
                   </div>
                   <div style="position: absolute; top: 0; left: 0; width: 100%">
-                    <div class="round">[[inc(index)]]</div>
+                    <div class="round" data-status$="[[item.status]]">[[inc(index)]]</div>
                   </div>
                 </td>
               </template>
@@ -544,8 +557,20 @@
                    label: computeOperationGroupLabel(operations[0].planStepIds, data.plan)
                  }));
 
+              const planStepsAndLastOperations =
+                data.plan.map(planStep => [
+                  planStep,
+                  data.operations.filter(op => op.planStepIds.includes(planStep.id))[0]
+                ]);
               this.steps =
-                data.plan.map(step => ({label: step.name || step.targetExpression}));
+                planStepsAndLastOperations.map((planStepsAndLastOperation, i) => {
+                  const planStep = planStepsAndLastOperation[0];
+                  const lastOperation = planStepsAndLastOperation[1];
+                  return {
+                    label: planStep.name || planStep.targetExpression,
+                    status: lastOperation ? lastOperation.status : 'future'
+                  }
+                });
 
               this.noData = false;
             }
