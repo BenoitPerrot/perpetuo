@@ -81,7 +81,8 @@ class Engine @Inject()(val crankshaft: Crankshaft,
               (action, isAuthorized && message.isEmpty, message.orElse(if (isAuthorized) None else Some("permission denied")))
             }
             val sortedEffects = effects.toSeq.sortBy(-_.operationTrace.id)
-            Some(DeploymentRequestStatus(deploymentRequest, deploymentPlanSteps, sortedEffects, sortedEffects.headOption.map(crankshaft.computeState), authorizedActions, isAdmin || authorized(Operation.deploy)))
+            val showLogs = isAdmin || authorizedActions.exists { case (_, enabled, _) => enabled }
+            Some(DeploymentRequestStatus(deploymentRequest, deploymentPlanSteps, sortedEffects, sortedEffects.headOption.map(crankshaft.computeState), authorizedActions, showLogs))
           }
 
         }.getOrElse(Future.successful(None))
