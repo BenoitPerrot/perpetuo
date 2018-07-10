@@ -277,8 +277,8 @@ class RestController @Inject()(val engine: Engine)
         }
         try {
           engine.findDeploymentRequestsWithStatuses(r.where, r.limit, r.offset)
-            .map(_.map { case (deploymentRequest, deploymentStatus, lastOperationKind) =>
-              serialize(deploymentRequest, deploymentStatus, lastOperationKind)
+            .map(_.map { case (deploymentPlan, deploymentStatus, lastOperationKind) =>
+              serialize(deploymentPlan.deploymentRequest, deploymentStatus, lastOperationKind)
             })
         } catch {
           case e: IllegalArgumentException => throw BadRequestException(e.getMessage)

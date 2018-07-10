@@ -136,7 +136,7 @@ class DbBinding @Inject()(val dbContext: DbContext)
       .result
       .map(_.map(_.toDeploymentPlanStep(deploymentRequest)))
 
-  def findDeploymentRequestsWithStatuses(where: Seq[Map[String, Any]], limit: Int, offset: Int): Future[Seq[(DeploymentRequest, DeploymentStatus.Value, Option[Operation.Kind])]] = {
+  def findDeploymentRequestsWithStatuses(where: Seq[Map[String, Any]], limit: Int, offset: Int): Future[Seq[(DeploymentPlan, DeploymentStatus.Value, Option[Operation.Kind])]] = {
     val filtered = where.foldLeft(this.deploymentRequestQuery join this.productQuery on (_.productId === _.id)) { (queries, spec) =>
       val value = spec.getOrElse("equals", throw new IllegalArgumentException(s"Filters tests must be `equals`"))
       val fieldName = spec.getOrElse("field", throw new IllegalArgumentException(s"Filters must specify ̀`field`"))
@@ -169,38 +169,39 @@ class DbBinding @Inject()(val dbContext: DbContext)
       .joinLeft(executionTraceQuery)
       .on { case ((_, execution), executionTrace) => execution.map(_.id) === executionTrace.executionId && executionTrace.state =!= ExecutionState.completed }
       .map { case ((((((deploymentRequest, product), planStep), _), operationTrace), _), executionTrace) =>
-        (deploymentRequest, product, planStep.id, operationTrace.map((_, executionTrace.map(_.state))))
+        (deploymentRequest, product, planStep, operationTrace.map((_, executionTrace.map(_.state))))
       }
       .result
 
       .flatMap { executionTraceBranches =>
         // in a separate request to not create huge joins between two orthogonal tables: ExecutionTrace and TargetStatus, and to only request the latter when necessary
 
-        val deploymentStatuses = Seq.newBuilder[(DeploymentRequest, DeploymentStatus.Value, Option[Operation.Kind])]
+        val deploymentStatuses = Seq.newBuilder[(DeploymentPlan, DeploymentStatus.Value, Option[Operation.Kind])]
 
         val dependingOnTargetStatuses = executionTraceBranches
           .groupBy { case (deploymentRequest, _, _, _) => deploymentRequest.id.get }
           .values
           .map { group =>
-            val (deploymentRequest, product, planStepId, lastEffect) = group.maxBy { case (_, _, _, effect) =>
+            val (deploymentRequest, product, planStep, lastEffect) = group.maxBy { case (_, _, _, effect) =>
               effect.map { case (op, executionState) => (op.id.get, executionState.isDefined) }.getOrElse((Long.MinValue, false))
             }
             val depReq = deploymentRequest.toDeploymentRequest(product)
+            val planSteps = group.map { case (_, _, step, _) => step }.distinct.map(_.toDeploymentPlanStep(depReq)).sortBy(_.id)
             lastEffect
               .map { case (operationTrace, executionTraceState) =>
                 operationTrace.closingDate
                   .map { _ =>
                     val forward = operationTrace.operation == Operation.deploy
-                    val notFinished = group.exists { case (_, _, stepId, _) => if (forward) planStepId < stepId else stepId < planStepId }
-                    Some(operationTrace.id.get -> (depReq, operationTrace.operation, notFinished, executionTraceState))
+                    val notFinished = group.exists { case (_, _, step, _) => if (forward) planStep.id.get < step.id.get else step.id.get < planStep.id.get }
+                    Some(operationTrace.id.get -> (DeploymentPlan(depReq, planSteps), operationTrace.operation, notFinished, executionTraceState))
                   }
                   .getOrElse {
-                    deploymentStatuses.+=((depReq, DeploymentStatus.inProgress, Some(operationTrace.operation)))
+                    deploymentStatuses.+=((DeploymentPlan(depReq, planSteps), DeploymentStatus.inProgress, Some(operationTrace.operation)))
                     None
                   }
               }
               .getOrElse {
-                deploymentStatuses.+=((depReq, DeploymentStatus.notStarted, None))
+                deploymentStatuses.+=((DeploymentPlan(depReq, planSteps), DeploymentStatus.notStarted, None))
                 None
               }
           }
@@ -217,11 +218,11 @@ class DbBinding @Inject()(val dbContext: DbContext)
               val targetStatuses = statuses
                 .groupBy { case (operationTraceId, _) => operationTraceId }
                 .map { case (operationTraceId, group) => (operationTraceId, group.map { case (_, status) => status }) }
-              dependingOnTargetStatuses.foreach { case (operationTraceId, (deploymentRequest, kind, notFinished, executionState)) =>
+              dependingOnTargetStatuses.foreach { case (operationTraceId, (deploymentPlan, kind, notFinished, executionState)) =>
                 val statuses = targetStatuses.getOrElse(operationTraceId, Seq())
                 val state = computeOperationState(isRunning = false, executionState, statuses)
                 val deploymentStatus = if (notFinished && (state == DeploymentStatus.succeeded || kind == Operation.revert)) DeploymentStatus.paused else state
-                deploymentStatuses.+=((deploymentRequest, deploymentStatus, Some(kind)))
+                deploymentStatuses.+=((deploymentPlan, deploymentStatus, Some(kind)))
               }
               deploymentStatuses.result
             }
@@ -229,7 +230,7 @@ class DbBinding @Inject()(val dbContext: DbContext)
           DBIO.successful(deploymentStatuses.result)
       }
 
-    dbContext.db.run(q.map(_.sortBy { case (depReq, _, _) => -depReq.id }))
+    dbContext.db.run(q.map(_.sortBy { case (depPlan, _, _) => -depPlan.deploymentRequest.id }))
   }
 
   def findingLastOperationTraceAndCurrentCountByDeploymentRequestId(deploymentRequestId: Long): DBIOAction[Option[(OperationTrace, Int)], NoStream, Effect.Read] =

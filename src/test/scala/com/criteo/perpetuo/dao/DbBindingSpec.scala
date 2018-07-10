@@ -18,8 +18,8 @@ class DbBindingSpec extends TestHelpers with TestDb {
       .findDeploymentRequestsWithStatuses(Seq(Map("field" -> "id", "equals" -> deploymentRequest.id)), 10, 0)
       .map { seq =>
         seq.size shouldEqual 1
-        val (depReq, status, kind) = seq.head
-        depReq shouldEqual deploymentRequest
+        val (depPlan, status, kind) = seq.head
+        depPlan.deploymentRequest shouldEqual deploymentRequest
         (status, kind)
       }
 
