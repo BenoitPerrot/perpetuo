@@ -48,9 +48,10 @@ class RundeckClient(val host: String) {
     .failFast(false)
     .build()
 
-  protected def apiPath(apiSubPath: String): String = {
+  protected def apiPath(apiSubPath: String, queryParameters: Map[String, String] = Map()): String = {
     val path = s"/api/$apiVersion/$apiSubPath"
-    authToken.map(t => s"$path?authtoken=$t").getOrElse(path)
+    val q = authToken.map(t => Map("authtoken" -> t)).getOrElse(Map()) ++ queryParameters
+    if (q.nonEmpty) s"$path?${q.map { case (k, v) => s"$k=$v" }.mkString("&")}" else path
   }
 
   protected def buildRequest(apiSubPath: String, parameters: Map[String, String] = Map()): Request = {
@@ -103,7 +104,7 @@ class RundeckClient(val host: String) {
     )
 
   def fetchJobState(jobId: String): TwitterFuture[RundeckJobState.ExecState] =
-    fetch(apiPath(s"execution/$jobId/output/state?stateOnly=true")).map(resp =>
+    fetch(apiPath(s"execution/$jobId/output/state", Map("stateOnly" -> "true"))).map(resp =>
       resp.status match {
         case NotFound => RundeckJobState.notFound
         case Ok if isJobCompleted(resp.contentString.parseJson.asJsObject) => RundeckJobState.terminated
