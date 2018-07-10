@@ -93,13 +93,14 @@
       border: solid 1px;
       border-left: solid 24px;
     }
-    .operations.succeeded {
+    .operations[data-status=succeeded] {
       border-color: #0f9d58;
     }
-    .operations.failed, .operations.flopped {
+    .operations[data-status=failed],
+    .operations[data-status=flopped] {
       border-color: #f44336;
     }
-    .operations.in-progress {
+    .operations[data-status=inProgress] {
       border-color: #0086b2;
     }
 
@@ -263,7 +264,7 @@
         </div>
       </div>
       <template is="dom-repeat" items="[[operationGroups]]" as="operationGroup">
-        <paper-card class$="operations [[toCssClasses(operationGroup.status)]]">
+        <paper-card class="operations" data-status$="[[operationGroup.status]]">
           <h1>[[operationGroup.label]]</h1>
           <template is="dom-repeat" items="[[operationGroup.operations]]">
             <perpetuo-deployment-operation index="[[sub(operationGroup.operations.length, index)]]" data="[[item]]" opened="[[isOperationOpened(item.id)]]" on-opened-changed="onOperationOpenedChanged" show-execution-logs="[[data.showExecutionLogs]]"></perpetuo-deployment-operation>
@@ -489,10 +490,6 @@
 
       humanReadable(actionName) {
         return actionName.replace(/([A-Z])/g, ' $1');
-      }
-
-      toCssClasses(actionName) {
-        return actionName.replace(/([A-Z])/g, '-$1').toLowerCase();
       }
 
       sumUpArray(arr) {
