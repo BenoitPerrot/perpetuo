@@ -81,8 +81,15 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
             }
           )
         )
-        // todo: add the stop action in the Seq:
-        .asTry.map(_.getOrElse(Seq()))
+        .asTry
+        .flatMap(_
+          .map(DBIOAction.successful)
+          .getOrElse(
+            findingLastOperationTrace(deploymentRequest.id, None).map(
+              _.map(op => (DeploymentAction.stopOperation, op.kind, "stop", None)).toSeq
+            )
+          )
+        )
     )
 
   def getProductNames: Future[Seq[String]] =
