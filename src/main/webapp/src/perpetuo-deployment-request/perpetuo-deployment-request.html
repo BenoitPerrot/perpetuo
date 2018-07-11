@@ -353,7 +353,11 @@
     function computeOperationGroupLabel(planStepIds, plan) {
       return planStepIds
         .map(id => plan.find(_ => _.id === id))
-        .map(planStep => planStep.name ? planStep.name : planStep.targetExpression)
+        .map(planStep => planStep.name ||
+                       // TODO: remove once data in the DB gets rewritten <<
+                       planStep.targetExpression === '*' ? 'All configured targets' :
+                       // >>
+                       planStep.targetExpression)
         .join(', ');
     }
 
@@ -578,7 +582,11 @@
                   const planStep = planStepsAndLastOperations[0];
                   const lastOperation = planStepsAndLastOperations[1];
                   return {
-                    label: planStep.name || planStep.targetExpression,
+                    label: planStep.name ||
+                           // TODO: remove once data in the DB gets rewritten <<
+                           planStep.targetExpression === '*' ? 'All configured targets' :
+                           // >>
+                           planStep.targetExpression,
                     status: lastOperation ? lastOperation.status : 'future',
                     active: (
                       !(data.lastOperationKind === 'revert' && data.status === 'succeeded') &&
