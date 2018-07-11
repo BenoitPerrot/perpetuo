@@ -11,6 +11,7 @@
 <link rel="import" href="../perpetuo-client/perpetuo-client.html">
 <link rel="import" href="../perpetuo-deployment-request/perpetuo-conflicting-deployment-requests.html">
 <link rel="import" href="../perpetuo-deployment-request/perpetuo-deployment-operation.html">
+<link rel="import" href="../perpetuo-deployment-request/perpetuo-revert-plan-dialog.html">
 <link rel="import" href="../perpetuo-markdown/perpetuo-markdown-viewer.html">
 
 <dom-module id="perpetuo-deployment-request">
@@ -216,32 +217,6 @@
       visibility: hidden;
     }
 
-    #revertPlanDialog table {
-      width: 100%;
-      border-collapse: collapse;
-    }
-    #revertPlanDialog table th {
-      font-weight: 500;
-      color: #757575;
-      text-align: left;
-    }
-    #revertPlanDialog table td {
-      color: hsl(0, 0%, 13%);
-    }
-    #revertPlanDialog table tr {
-      height: 42px;
-      border-bottom: solid 1px #ddd;
-    }
-    #revertPlanDialog table tbody tr:last-of-type {
-      border: 0;
-    }
-    #revertPlanDialog table td:not(:last-child) {
-      padding-right: 56px;
-    }
-    #revertPlanDialog table tbody tr:hover {
-      background-color: #eee;
-    }
-
     paper-progress {
       width: auto;
       --paper-progress-active-color: #0086b2;
@@ -309,47 +284,7 @@
       </template>
     </div>
 
-    <paper-dialog id="revertPlanDialog" with-backdrop>
-      <h2>Revert plan</h2>
-      <template is="dom-if" if="[[revertPlan.determined.length]]">
-        <p>The following versions will be applied:</p>
-        <paper-dialog-scrollable>
-          <table>
-            <thead>
-              <tr>
-                <th>Version</th>
-                <th>Targets</th>
-              </tr>
-            </thead>
-            <tbody>
-              <template is="dom-repeat" items="[[revertPlan.determined]]">
-                <tr>
-                  <td>
-                    <template is="dom-repeat" items="[[computeVersion(item)]]">
-                      <template is="dom-if" if="[[index]]">+</template>
-                      [[item.value]]
-                      <template is="dom-if" if="[[item.ratio]]">&nbsp;<span class="ratio">[[asPercentage(item.ratio)]]%</span></template>
-                    </template>
-                  </td>
-                  <td>[[sumUpArray(item.targetAtoms)]]</td>
-                </tr>
-              </template>
-            </tbody>
-          </table>
-        </paper-dialog-scrollable>
-      </template>
-      <template is="dom-if" if="[[revertPlan.undetermined.length]]">
-        <p>Some impacted targets have no previous version ([[sumUpArray(revertPlan.undetermined)]]).</p>
-        <p>Please specify the version to use for them:
-          <paper-input label="Default version" value="{{defaultVersion}}"></paper-input>
-        </p>
-      </template>
-      <div class="buttons">
-        <paper-button dialog-dismiss class="cancel" raised>Cancel</paper-button>
-        <paper-button dialog-confirm class="revert" raised>Revert</paper-button>
-      </div>
-    </paper-dialog>
-
+    <perpetuo-revert-plan-dialog id="revertPlanDialog"></perpetuo-revert-plan-dialog>
     <perpetuo-conflicting-deployment-requests id="conflictPanel"></perpetuo-conflicting-deployment-requests>
 
   </template>
@@ -472,20 +407,18 @@
       showRevertPlan(revertPlan) {
         return new Promise((resolve, reject) => {
           const dialog = this.$.revertPlanDialog;
-          this.defaultVersion = undefined;
-          this.revertPlan = revertPlan;
           const onOpenedChanged = (e) => {
             if (!e.detail.value) {
               dialog.removeEventListener('opened-changed', onOpenedChanged);
               if (dialog.closingReason.confirmed) {
-                resolve(this.defaultVersion);
+                resolve(dialog.defaultVersion);
               } else {
                 reject();
               }
             }
           };
           dialog.addEventListener('opened-changed', onOpenedChanged);
-          dialog.open();
+          dialog.open(revertPlan);
         });
       }
 
@@ -537,14 +470,6 @@
 
       humanReadable(actionName) {
         return actionName.replace(/([A-Z])/g, ' $1');
-      }
-
-      sumUpArray(arr) {
-        const sorted = arr.sort();
-        return (sorted.length < 8 ?
-                sorted :
-                sorted.slice(0, 3).concat(["..."], sorted.slice(-3))
-        ).join(", ");
       }
 
       refresh() {
@@ -609,10 +534,6 @@
       }
       onOperationOpenedChanged(e) {
         this.operationIdToOpened.set(e.model.item.id, e.detail.value);
-      }
-
-      isEmpty(a) {
-        return a.length === 0;
       }
 
       sub(a, b) {
