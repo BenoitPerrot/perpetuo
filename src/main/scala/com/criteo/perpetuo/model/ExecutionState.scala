@@ -10,7 +10,6 @@ object ExecutionState extends Enumeration {
   val initFailed = Value(3, "initFailed") // todo: obsolete: migrate clients and remove
   val conflicting = Value(4, "conflicting") // no need to try with another executor: abort everything and revert
   val aborted = Value(5, "aborted") // the job terminated too early (everything has not been done), sending a [partial] result
-  val unresolved = Value(6, "unresolved") // the job has terminated without sending the completion status to Perpetuo (should be considered as aborted)
   val completed = Value(7, "completed") // the completion status has been received, either succeeded or failed (per target)
   val unreachable = Value(8, "unreachable") // it's impossible to get information about the execution state (assumed permanently lost)
   val stopped = Value(9, "stopped") // todo: remove
@@ -23,7 +22,6 @@ object ExecutionState extends Enumeration {
     initFailed -> allOpenStates, // todo: remove
     conflicting -> allOpenStates,
     aborted -> allOpenStates,
-    unresolved -> allOpenStates,
     stopped -> allOpenStates,
     completed -> List(pending, running) // todo: remove pending once DREDD-725 is implemented
   )
