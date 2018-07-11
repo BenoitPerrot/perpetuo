@@ -61,15 +61,15 @@
       font-weight: 500;
       font-size: 32px;
     }
-    .state[data-last-operation-kind=deploy][data-status=succeeded] {
+    :host([last-operation-kind=deploy][status=succeeded]) .state {
       color: #0f9d58;
     }
-    .state[data-status=failed],
-    .state[data-status=flopped],
-    .state[data-last-operation-kind=revert][data-status=succeeded] {
+    :host([status=failed]) .state,
+    :host([status=flopped]) .state,
+    :host([last-operation-kind=revert][status=succeeded]) .state {
       color: #f44336;
     }
-    .state[data-status=inProgress] {
+    :host([status=inProgress]) .state {
       color: #0086b2;
     }
 
@@ -254,7 +254,7 @@
           </div>
         </paper-card>
         <paper-card class="actions">
-          <div class="state" data-status$="[[data.status]]" data-last-operation-kind$="[[data.lastOperationKind]]">[[computeDeploymentRequestStatusLabel(data.status, data.lastOperationKind)]]</div>
+          <div class="state">[[computeDeploymentRequestStatusLabel(data.status, data.lastOperationKind)]]</div>
           <div>
             <template is="dom-repeat" items="[[data.actions]]">
               <div class="action">
@@ -337,6 +337,8 @@
           noData: {type: Boolean, value: true},
           active: {type: Boolean, observer: 'onActiveChanged'},
           data: Object,
+          lastOperationKind: {type: String, reflectToAttribute: true, computed: 'computeLastOperationKind(data)'},
+          status: {type: String, reflectToAttribute: true, computed: 'computeStatus(data)'},
           operationGroups: Array,
           version: {type: Array, computed: 'computeVersion(data)'},
           isInAction: Boolean,
@@ -368,8 +370,6 @@
         // TODO: have a dedicated view-model instead:
         this.noData = true;
         this.data = {
-          status: '',
-          lastOperationKind: '',
           creationDate: '',
           operations: []
         };
@@ -478,6 +478,14 @@
         return isInAction || rejected;
       }
 
+      computeLastOperationKind(data) {
+        return data.lastOperationKind;
+      }
+
+      computeStatus(data) {
+        return data.status;
+      }
+
       computeVersion(data) {
         return Array.isArray(data.version) ? data.version : [{value: data.version}];
       }
@@ -487,7 +495,7 @@
       }
 
       computeDeploymentRequestStatusLabel(status, lastOperationKind) {
-        return Perpetuo.Client.computeDeploymentRequestStatusLabel(status, lastOperationKind);
+        return status ? Perpetuo.Client.computeDeploymentRequestStatusLabel(status, lastOperationKind) : '';
       }
 
       humanReadable(actionName) {
