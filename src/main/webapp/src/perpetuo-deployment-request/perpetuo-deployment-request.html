@@ -216,29 +216,29 @@
       visibility: hidden;
     }
 
-    #revertPlan table {
+    #revertPlanDialog table {
       width: 100%;
       border-collapse: collapse;
     }
-    #revertPlan table th {
+    #revertPlanDialog table th {
       font-weight: 500;
       color: #757575;
       text-align: left;
     }
-    #revertPlan table td {
+    #revertPlanDialog table td {
       color: hsl(0, 0%, 13%);
     }
-    #revertPlan table tr {
+    #revertPlanDialog table tr {
       height: 42px;
       border-bottom: solid 1px #ddd;
     }
-    #revertPlan table tbody tr:last-of-type {
+    #revertPlanDialog table tbody tr:last-of-type {
       border: 0;
     }
-    #revertPlan table td:not(:last-child) {
+    #revertPlanDialog table td:not(:last-child) {
       padding-right: 56px;
     }
-    #revertPlan table tbody tr:hover {
+    #revertPlanDialog table tbody tr:hover {
       background-color: #eee;
     }
 
@@ -309,7 +309,7 @@
       </template>
     </div>
 
-    <paper-dialog id="revertPlan" with-backdrop>
+    <paper-dialog id="revertPlanDialog" with-backdrop>
       <h2>Revert plan</h2>
       <template is="dom-if" if="[[revertPlan.determined.length]]">
         <p>The following versions will be applied:</p>
@@ -471,19 +471,19 @@
 
       showRevertPlan() {
         return new Promise((resolve, reject) => {
-          const panel = this.$.revertPlan;
+          const dialog = this.$.revertPlanDialog;
           const onOpenedChanged = (e) => {
             if (!e.detail.value) {
-              panel.removeEventListener('opened-changed', onOpenedChanged);
-              if (panel.closingReason.confirmed) {
+              dialog.removeEventListener('opened-changed', onOpenedChanged);
+              if (dialog.closingReason.confirmed) {
                 resolve();
               } else {
                 reject();
               }
             }
           };
-          panel.addEventListener('opened-changed', onOpenedChanged);
-          panel.open();
+          dialog.addEventListener('opened-changed', onOpenedChanged);
+          dialog.open();
         });
       }
 
