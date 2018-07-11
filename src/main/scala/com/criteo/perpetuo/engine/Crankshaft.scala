@@ -238,7 +238,7 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
           ret
       }
       .getOrElse(
-        updateExecutionTrace(executionTrace.id, ExecutionState.stopped, s"by $initiatorName", None)
+        updateExecutionTrace(executionTrace.id, ExecutionState.aborted, s"stopped by $initiatorName", None)
           .map { _ =>
             logger.info(s"Execution successfully stopped: ${triggeredExecution.logHref}")
             true
