@@ -428,11 +428,12 @@
               .then(r => {
                 if (r.status === 200)
                   return r.json()
-                          .then(revertPlan => {
-                            this.showRevertPlan(revertPlan).then(defaultVersion => {
-                              this.client.revertDeploymentRequest(this.deploymentRequestId, defaultVersion ? {defaultVersion: defaultVersion} : {});
-                            });
-                          });
+                          .then(revertPlan =>
+                            this.showRevertPlan(revertPlan)
+                          )
+                          .then(defaultVersion =>
+                            this.client.revertDeploymentRequest(this.deploymentRequestId, defaultVersion ? {defaultVersion: defaultVersion} : {})
+                          );
                 return this.refresh();
               })
         );
