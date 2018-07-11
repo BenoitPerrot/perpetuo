@@ -64,9 +64,11 @@
     :host([last-operation-kind=deploy][status=succeeded]) .state {
       color: #0f9d58;
     }
-    :host([status=failed]) .state,
-    :host([status=flopped]) .state,
     :host([last-operation-kind=revert][status=succeeded]) .state {
+      color: #555;
+    }
+    :host([status=failed]) .state,
+    :host([status=flopped]) .state {
       color: #f44336;
     }
     :host([status=inProgress]) .state {
@@ -97,6 +99,9 @@
     }
     .operations[data-status=inProgress] {
       border-color: #0086b2;
+    }
+    :host([last-operation-kind=revert][status=succeeded]) .operations {
+      border-color: #555;
     }
 
     perpetuo-deployment-operation:not(:first-of-type) {
