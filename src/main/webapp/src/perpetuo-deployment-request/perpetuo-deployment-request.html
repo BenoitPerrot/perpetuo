@@ -469,10 +469,11 @@
         );
       }
 
-      showRevertPlan() {
+      showRevertPlan(revertPlan) {
         return new Promise((resolve, reject) => {
           const dialog = this.$.revertPlanDialog;
           this.defaultVersion = undefined;
+          this.revertPlan = revertPlan;
           const onOpenedChanged = (e) => {
             if (!e.detail.value) {
               dialog.removeEventListener('opened-changed', onOpenedChanged);
@@ -494,9 +495,8 @@
               .then(r => {
                 if (r.status === 200)
                   return r.json()
-                          .then(body => {
-                            this.revertPlan = body;
-                            this.showRevertPlan().then(defaultVersion => {
+                          .then(revertPlan => {
+                            this.showRevertPlan(revertPlan).then(defaultVersion => {
                               this.client.revertDeploymentRequest(this.deploymentRequestId, defaultVersion ? {defaultVersion: defaultVersion} : {});
                             });
                           });
