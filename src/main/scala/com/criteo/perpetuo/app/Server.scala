@@ -1,6 +1,5 @@
 package com.criteo.perpetuo.app
 
-import ch.qos.logback.classic.util.ContextInitializer
 import com.criteo.perpetuo.auth.{UserFilter, Controller => AuthenticationController}
 import com.criteo.perpetuo.config.AppConfigProvider
 import com.criteo.perpetuo.config.ConfigSyntacticSugar._
@@ -20,8 +19,8 @@ object CustomServerModules {
 trait ServerConfigurator {
   val config: Config = AppConfigProvider.config
 
-  config.tryGetString("logback.configurationFile").foreach(
-    System.setProperty(ContextInitializer.CONFIG_FILE_PROPERTY, _)
+  config.tryGetString("log4j.configurationFile").foreach(
+    System.setProperty("log4j.configurationFile", _)
   )
 }
 
