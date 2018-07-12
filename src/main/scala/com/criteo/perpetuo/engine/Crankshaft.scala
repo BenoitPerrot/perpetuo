@@ -44,8 +44,10 @@ case class MissingInfo(msg: String, required: String) extends RejectingError {
   val detail: Map[String, String] = Map("required" -> required)
 }
 
-case class Conflict(msg: String, conflicts: Iterable[_] = Seq()) extends RejectingError {
-  val detail: Map[String, Iterable[_]] = if (conflicts.nonEmpty) Map("conflicts" -> conflicts) else Map()
+case class Conflict(msg: String, deploymentRequestId: Long, conflicts: Iterable[_] = Seq()) extends RejectingError {
+  val detail: Map[String, _] =
+    Map("deploymentRequestId" -> deploymentRequestId) ++
+      (if (conflicts.nonEmpty) Map("conflicts" -> conflicts) else Map())
 }
 
 case class Veto(msg: String, reason: String) extends RejectingError {
@@ -168,7 +170,7 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
 
   private def checkState(deploymentRequest: DeploymentRequest, currentState: Int, expectedState: Int): Unit =
     if (currentState != expectedState)
-      throw Conflict(s"${deploymentRequest.id}: the state of the deployment has just changed; have another look before choosing an action to trigger")
+      throw Conflict("the state of the deployment has just changed; have another look before choosing an action to trigger", deploymentRequest.id)
 
   private def act[T](deploymentRequest: DeploymentRequest, expectedOperationCount: Option[Int], initiatorName: String,
                      getOperationSpecifics: DBIOrw[((Iterable[DeploymentPlanStep], OperationCreationParams), T)]) =

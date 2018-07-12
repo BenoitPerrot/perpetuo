@@ -15,13 +15,13 @@ class FuelFilter(dbBinding: DbBinding) {
   def acquiringOperationLock(deploymentRequest: DeploymentRequest): DBIOrw[Unit] =
     dbBinding.tryAcquireLocks(Seq(getOperationLockName(deploymentRequest)), deploymentRequest.id, reentrant = false).map(alreadyRunning =>
       if (alreadyRunning.nonEmpty)
-        throw Conflict("Cannot be processed for the moment because another operation is running for the same deployment request")
+        throw Conflict("Cannot be processed for the moment because another operation is running for the same deployment request", deploymentRequest.id)
     )
 
   def acquiringDeploymentTransactionLock(deploymentRequest: DeploymentRequest, atoms: Option[Select]): DBIOrw[Unit] =
     dbBinding.tryAcquireLocks(getTransactionLockNames(deploymentRequest, atoms), deploymentRequest.id, reentrant = true).map(conflictingRequestIds =>
       if (conflictingRequestIds.nonEmpty)
-        throw Conflict("Cannot be processed for the moment because a conflicting transaction is ongoing, which must first succeed or be reverted", conflictingRequestIds)
+        throw Conflict("Cannot be processed for the moment because a conflicting transaction is ongoing, which must first succeed or be reverted", deploymentRequest.id, conflictingRequestIds)
     )
 
   def releasingLocks(deploymentRequest: DeploymentRequest, transactionOngoing: Boolean): DBIOAction[Int, NoStream, Effect.Write with Effect.Transactional] =
@@ -33,7 +33,7 @@ class FuelFilter(dbBinding: DbBinding) {
   def rejectingIfLocked(deploymentRequest: DeploymentRequest): DBIOAction[Unit, NoStream, Effect.Read] =
     dbBinding.lockExists(getOperationLockName(deploymentRequest)).flatMap(
       if (_)
-        DBIOAction.failed(Conflict(s"${deploymentRequest.id}: an operation is still running for it"))
+        DBIOAction.failed(Conflict("an operation is still running for it", deploymentRequest.id))
       else
         DBIOAction.successful(())
     )
@@ -119,7 +119,7 @@ class FuelFilter(dbBinding: DbBinding) {
   private def rejectingIfOutdated(deploymentRequest: DeploymentRequest) =
     dbBinding.isOutdated(deploymentRequest).flatMap(
       if (_)
-        DBIOAction.failed(Conflict(s"${deploymentRequest.id}: a newer one has already been applied"))
+        DBIOAction.failed(Conflict("a newer one has already been applied", deploymentRequest.id))
       else
         DBIOAction.successful(())
     )

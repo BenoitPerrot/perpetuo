@@ -93,7 +93,7 @@ class CrankshaftSpec extends SimpleScenarioTesting {
 
         // not OK if it's after a deployment failure
         conflictMsg <- mockDeployExecution(product.name, "101", Map("racing" -> Status.success))
-          .map(_ => "unrejected").recover { case Conflict(msg, _) => msg }
+          .map(_ => "unrejected").recover { case Conflict(msg, _, _) => msg }
 
         // the failing one must be reverted first
         _ <- mockRevertExecution(second, Map("corn-field" -> Status.hostFailure), Some(Version(JsString("big-bang"))))
@@ -136,7 +136,7 @@ class CrankshaftSpec extends SimpleScenarioTesting {
         // The last one of course is retryable
         thirdDeploymentRequest <- crankshaft.dbBinding.findDeploymentRequestById(thirdDeploymentRequest.id).map(_.get)
         _ <- rejectIfCannot(Operation.deploy, thirdDeploymentRequest)
-      } yield rejectionOfSecond.getMessage.split(":")(1).trim
+      } yield rejectionOfSecond.asInstanceOf[RejectingError].msg
     ) shouldBe "a newer one has already been applied"
   }
 
@@ -217,7 +217,7 @@ class CrankshaftSpec extends SimpleScenarioTesting {
         notDoneDeploymentRequest <- crankshaft.dbBinding.findDeploymentRequestById(notDoneDeploymentRequest.id).map(_.get)
         rejectionOfNotDone <- rejectIfCannot(Operation.revert, notDoneDeploymentRequest).failed
 
-      } yield List(rejectionOfSecond, rejectionOfNothingDone, rejectionOfNotDone).map(_.getMessage.split(":")(1).trim)
+      } yield List(rejectionOfSecond.asInstanceOf[RejectingError].msg, rejectionOfNothingDone.getMessage.split(":")(1), rejectionOfNotDone.getMessage.split(":")(1)).map(_.trim)
     ) shouldBe List("a newer one has already been applied", "Nothing to revert", "Nothing to revert")
   }
 
@@ -228,11 +228,11 @@ class CrankshaftSpec extends SimpleScenarioTesting {
     request("zestful-zebra", "newer", Seq("unknown-desert"))
     await(
       for {
-        msg <- crankshaft.revert(dr1, Some(1), "foo", None).failed.map(_.getMessage) // outdated by dr2
+        msg <- crankshaft.revert(dr1, Some(1), "foo", None).failed.map(_.asInstanceOf[RejectingError].msg) // outdated by dr2
         _ <- crankshaft.revert(dr2, Some(1), "foo", None) // revert the last request for this product
         _ <- crankshaft.revert(dr3, Some(1), "foo", Some(Version(JsString("older")))) // not outdated because the following one is not started
       } yield msg
-    ) should endWith("a newer one has already been applied")
+    ) shouldBe "a newer one has already been applied"
   }
 
   test("Crankshaft rejects outdated revert intents before devising the plan") {
