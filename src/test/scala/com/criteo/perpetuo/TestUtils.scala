@@ -54,16 +54,13 @@ trait SimpleScenarioTesting extends TestHelpers with TestDb with MockitoSugar {
 
   protected def triggerMock: Option[String] = None
 
-  def closeOperation(operationTrace: OperationTrace,
-                     targetFinalStatus: Map[String, Status.Code] = Map(),
-                     initFailed: Boolean = false): Future[Seq[Long]] =
-    tryCloseOperation(operationTrace, targetFinalStatus, initFailed).map(
+  def closeOperation(operationTrace: OperationTrace, targetFinalStatus: Map[String, Status.Code] = Map()): Future[Seq[Long]] =
+    tryCloseOperation(operationTrace, targetFinalStatus).map(
       _.map(_.getOrElse(throw new AssertionError("An execution could not be updated: impossible transition")))
     )
 
   def tryCloseOperation(operationTrace: OperationTrace,
-                        targetFinalStatus: Map[String, Status.Code] = Map(),
-                        initFailed: Boolean = false): Future[Seq[Option[Long]]] =
+                        targetFinalStatus: Map[String, Status.Code] = Map()): Future[Seq[Option[Long]]] =
     crankshaft.dbBinding.findExecutionIdsByOperationTrace(operationTrace.id)
       .flatMap(executionIds =>
         Future.traverse(executionIds)(executionId =>
@@ -76,7 +73,7 @@ trait SimpleScenarioTesting extends TestHelpers with TestDb with MockitoSugar {
             .zip(crankshaft.dbBinding.findExecutionTraceIdsByExecution(executionId))
             .flatMap { case (statuses, executionTraceIds) =>
               val finalStatusMap = statuses.mapValues(TargetAtomStatus(_, ""))
-              val executionState = if (initFailed) ExecutionState.initFailed else ExecutionState.completed
+              val executionState = ExecutionState.completed
               Future.traverse(executionTraceIds)(
                 crankshaft.updateExecutionTrace(_, executionState, "", None, finalStatusMap)
                   .map(Some(_))

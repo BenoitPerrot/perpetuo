@@ -64,12 +64,12 @@ class CrankshaftSpec extends SimpleScenarioTesting {
     ) shouldBe(true, false, false)
   }
 
-  def mockDeployExecution(productName: String, v: String, targetAtomToStatus: Map[String, Status.Code], initFailed: Boolean = false, updateTargetStatuses: Boolean = true): Future[(DeploymentRequest, Long)] = {
+  def mockDeployExecution(productName: String, v: String, targetAtomToStatus: Map[String, Status.Code], updateTargetStatuses: Boolean = true): Future[(DeploymentRequest, Long)] = {
     for {
       deploymentRequest <- crankshaft.createDeploymentRequest(ProtoDeploymentRequest(productName, Version(JsString(v).compactPrint), Seq(ProtoDeploymentPlanStep("", targetAtomToStatus.keys.toJson, "")), "", "r.equestor"))
       operationTrace <- crankshaft.step(deploymentRequest, Some(0), "s.tarter")
       executionSpecIds <- crankshaft.dbBinding.findExecutionSpecIdsByOperationTrace(operationTrace.id)
-      _ <- closeOperation(operationTrace, if (updateTargetStatuses) targetAtomToStatus else Map(), initFailed)
+      _ <- closeOperation(operationTrace, if (updateTargetStatuses) targetAtomToStatus else Map())
     } yield (deploymentRequest, executionSpecIds.head)
   }
 
@@ -105,7 +105,7 @@ class CrankshaftSpec extends SimpleScenarioTesting {
         _ <- mockRevertExecution(third, Map("racing" -> Status.success))
 
         // OK after a revert of a successful operation
-        _ <- mockDeployExecution(product.name, "102", Map("corn-field" -> Status.notDone), initFailed = true)
+        _ <- mockDeployExecution(product.name, "102", Map("corn-field" -> Status.notDone))
 
         // OK after a init failure
         _ <- mockDeployExecution(product.name, "103", Map("racing" -> Status.success))
@@ -203,15 +203,15 @@ class CrankshaftSpec extends SimpleScenarioTesting {
         otherDeploymentRequest <- crankshaft.dbBinding.findDeploymentRequestById(otherDeploymentRequest.id).map(_.get)
         _ <- rejectIfCannot(Operation.revert, otherDeploymentRequest)
 
-        (nothingDoneDeploymentRequest, _) <- mockDeployExecution(product.name, "51", Map("pluto" -> Status.notDone), initFailed = true, updateTargetStatuses = false)
-        // Status = initFailed
+        (nothingDoneDeploymentRequest, _) <- mockDeployExecution(product.name, "51", Map("pluto" -> Status.notDone), updateTargetStatuses = false)
+        // Status = early failure
 
         // Verify we can't revert a request if no targetStatuses exists
         nothingDoneDeploymentRequest <- crankshaft.dbBinding.findDeploymentRequestById(nothingDoneDeploymentRequest.id).map(_.get)
         rejectionOfNothingDone <- rejectIfCannot(Operation.revert, nothingDoneDeploymentRequest).failed
 
-        (notDoneDeploymentRequest, _) <- mockDeployExecution(product.name, "51", Map("planet x" -> Status.notDone), initFailed = true)
-        // Status = initFailed
+        (notDoneDeploymentRequest, _) <- mockDeployExecution(product.name, "51", Map("planet x" -> Status.notDone))
+        // Status = early failure
 
         // Verify we can't revert a request if it has no effect
         notDoneDeploymentRequest <- crankshaft.dbBinding.findDeploymentRequestById(notDoneDeploymentRequest.id).map(_.get)
@@ -623,7 +623,7 @@ class CrankshaftWithUncontrollableTriggeredExecutionSpec extends SimpleScenarioT
     crankshaft.revert(dep.deploymentRequest, Some(1), "r.everter", Some(Version("0".toJson))).flatMap(op =>
       crankshaft.tryStopOperation(op, "killer-guy")
         .flatMap { case (successes, failures) =>
-          tryCloseOperation(op, initFailed = true).map(updates =>
+          tryCloseOperation(op, Map("here" -> Status.notDone)).map(updates =>
             (updates.length, updates.flatten.length, successes, failures.length)
           )
         }
