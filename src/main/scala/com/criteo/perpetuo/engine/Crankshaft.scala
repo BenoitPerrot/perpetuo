@@ -26,8 +26,6 @@ object DeploymentStatus extends Enumeration {
   val paused = Value("paused")
 }
 
-case class UnprocessableIntent(message: String) extends IllegalArgumentException(message)
-
 abstract class RejectingError extends RuntimeException {
   val msg: String
   val detail: Map[String, _]
@@ -37,6 +35,8 @@ abstract class RejectingError extends RuntimeException {
     case (k, v) => s"; $k: $v"
   }.mkString("")
 }
+
+case class UnprocessableIntent(msg: String, detail: Map[String, _] = Map()) extends RejectingError
 
 case class UnavailableAction(msg: String, detail: Map[String, _] = Map()) extends RejectingError
 
