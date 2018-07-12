@@ -112,7 +112,7 @@ class FuelFilter(dbBinding: DbBinding) {
       if (_)
         DBIOAction.successful(())
       else
-        DBIOAction.failed(UnavailableAction(s"${deploymentRequest.id}: Nothing to revert"))
+        DBIOAction.failed(UnavailableAction("Nothing to revert", Map("deploymentRequestId" -> deploymentRequest.id)))
     )
 
   // fixme: race condition

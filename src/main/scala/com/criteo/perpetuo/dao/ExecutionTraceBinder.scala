@@ -100,7 +100,7 @@ trait ExecutionTraceBinder extends TableBinder {
       // only in the case no record matched the filter (which is an error from the user, so exceptional...), we check whether the execution trace exists
       if (updatedCount == 0)
         executionTraceQuery.filter(_.id === id).result.map(_.headOption.map(executionTrace =>
-          throw UnavailableAction(s"Cannot transition an execution from `${executionTrace.state}` to `$state`")
+          throw UnavailableAction(s"Cannot transition an execution from `${executionTrace.state}` to `$state`", Map("executionTraceId" -> id))
         ))
       else
         DBIO.successful(Some(id))

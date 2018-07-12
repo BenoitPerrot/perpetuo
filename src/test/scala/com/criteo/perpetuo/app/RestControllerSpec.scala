@@ -290,13 +290,14 @@ class RestControllerSpec extends Test with TestDb {
   test("The DeploymentRequest's actions entry-point returns 422 when trying to revert new targets") {
     val getRespJson = (_: Response).contentString.parseJson.asJsObject.fields.map {
       case ("errors", v: JsArray) => ("error", v.elements.head.asInstanceOf[JsString].value)
+      case (k, n: JsNumber) => (k, n.prettyPrint)
       case (k, v) => (k, v.asInstanceOf[JsString].value)
     }
 
     createProduct("my new product")
     val id = requestDeployment("my new product", "789", "par".toJson)
     val respJson1 = getRespJson(actOnDeploymentRequest(id, "revert", JsObject(), UnprocessableEntity))
-    respJson1("error") should endWith("Nothing to revert")
+    respJson1("error") shouldEqual "Nothing to revert"
     respJson1 shouldNot contain("required")
 
     startDeploymentRequest(id, Ok)
@@ -308,7 +309,7 @@ class RestControllerSpec extends Test with TestDb {
       None, Map("targetA" -> ("success", ""), "targetB" -> ("productFailure", ""))
     )
     val respJson2 = getRespJson(actOnDeploymentRequest(id, "revert", JsObject(), UnprocessableEntity))
-    respJson2("error") should include("a default rollback version is required")
+    respJson2("error") should startWith("a default rollback version is required")
     respJson2("required") shouldEqual "defaultVersion"
 
     actOnDeploymentRequest(id, "revert", JsObject("defaultVersion" -> JsString("42"), "operationCount" -> JsNumber(1)), Ok)

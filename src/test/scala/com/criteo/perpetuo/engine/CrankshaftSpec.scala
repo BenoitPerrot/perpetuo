@@ -217,7 +217,7 @@ class CrankshaftSpec extends SimpleScenarioTesting {
         notDoneDeploymentRequest <- crankshaft.dbBinding.findDeploymentRequestById(notDoneDeploymentRequest.id).map(_.get)
         rejectionOfNotDone <- rejectIfCannot(Operation.revert, notDoneDeploymentRequest).failed
 
-      } yield List(rejectionOfSecond.asInstanceOf[RejectingError].msg, rejectionOfNothingDone.getMessage.split(":")(1), rejectionOfNotDone.getMessage.split(":")(1)).map(_.trim)
+      } yield List(rejectionOfSecond, rejectionOfNothingDone, rejectionOfNotDone).map(_.asInstanceOf[RejectingError].msg)
     ) shouldBe List("a newer one has already been applied", "Nothing to revert", "Nothing to revert")
   }
 
