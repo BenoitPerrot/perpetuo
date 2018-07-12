@@ -8,7 +8,6 @@ import com.twitter.finatra.http.filters.{ExceptionMappingFilter, HttpResponseFil
 import com.twitter.inject.Logging
 import com.twitter.util.{Future, Stopwatch}
 import javax.inject.{Inject, Singleton}
-import net.logstash.logback.marker.Markers
 
 import scala.collection.JavaConverters._
 
@@ -36,25 +35,7 @@ class AccessLoggingFilter[R <: Request] @Inject()(logFormatter: LogFormatter[R, 
         .onSuccess { response =>
           if (response.statusCode != 200 || request.method.toString == "PUT") {
             val elapsed_time = elapsed()
-            val map = Map(
-              "method" -> request.method.toString,
-              "remote_port" -> request.remotePort,
-              "remote_ip" -> request.remoteAddress,
-              "remote_host" -> request.remoteHost.toString,
-              "x_forwarded_for" -> response.xForwardedFor.getOrElse(""),
-              "user_agent" -> request.userAgent.getOrElse(""),
-              "response_content_type" -> response.contentType.getOrElse(""),
-              "response_size_b" -> response.length,
-              "request_size_b" -> request.length,
-              "request_content_length_b" -> request.contentLength.getOrElse("unknown"),
-              "request_content_length_b" -> response.contentLength.getOrElse("unknown"),
-              "protocol" -> request.version.toString,
-              "requested_uri" -> request.uri,
-              "referer" -> response.referer.getOrElse(""),
-              "response_status" -> response.statusCode,
-              "response_time_s" -> elapsed_time.inMilliseconds / 1000.0
-            ).asJava
-            logger.info(Markers.appendEntries(map), logFormatter.format(request, response, elapsed_time))
+            logger.info(logFormatter.format(request, response, elapsed_time))
           }
         }
         .onFailure { e =>
