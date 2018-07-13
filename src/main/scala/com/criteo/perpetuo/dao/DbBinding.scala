@@ -1,6 +1,6 @@
 package com.criteo.perpetuo.dao
 
-import com.criteo.perpetuo.engine.{DeploymentStatus, Select}
+import com.criteo.perpetuo.engine.{DeploymentStatus, Select, computeDeploymentStatus}
 import com.criteo.perpetuo.model.Operation.Kind
 import com.criteo.perpetuo.model._
 import javax.inject.{Inject, Singleton}
@@ -430,8 +430,7 @@ class DbBinding @Inject()(val dbContext: DbContext)
       .map(_.collectFirst { case (targetAtom, actionable) if !actionable => targetAtom })
   }
 
-  /** retrieve the "effect" (the leaves of the model tree) of an *existing* operation trace */
-  def gettingOperationEffect(operationTrace: OperationTrace): DBIOAction[OperationEffect, NoStream, Effect.Read] =
+  def gettingDeploymentStatus(operationTrace: OperationTrace): DBIOAction[DeploymentStatus.Value, NoStream, Effect.Read] =
     executionQuery
       .joinLeft(executionTraceQuery)
       .filter { case (execution, executionTrace) =>
@@ -453,14 +452,20 @@ class DbBinding @Inject()(val dbContext: DbContext)
           }
       }
       .flatMap { case (et, ts) =>
-        stepOperationXRefQuery
-          .filter(_.operationTraceId === operationTrace.id)
-          .map(_.deploymentPlanStepId)
+        deploymentRequestQuery
+          .join(deploymentPlanStepQuery)
+          .filter { case (req, step) => req.id === operationTrace.deploymentRequest.id && req.id === step.deploymentRequestId }
+          .joinLeft(stepOperationXRefQuery)
+          .on { case ((_, step), xref) => xref.deploymentPlanStepId === step.id && xref.operationTraceId === operationTrace.id }
+          .groupBy { case ((_, step), _) => step.id }
+          .map { case (stepId, q) => (stepId, q.map { case (_, xref) => xref.map(_.operationTraceId) }.max.isDefined) }
           .result
 
-          .map(planStepIds =>
-            OperationEffect(operationTrace, planStepIds, et, ts)
-          )
+          .map { result =>
+            val planStepIds = result.map { case (stepId, _) => stepId }
+            val impactedStepIds = result.collect { case (stepId, isImpacted) if isImpacted => stepId }
+            computeDeploymentStatus(planStepIds, Some(OperationEffect(operationTrace, impactedStepIds, et, ts)))
+          }
       }
 
   private def latestExecutions(targetStatuses: Query[TargetStatusTable, TargetStatusRecord, Seq]) =

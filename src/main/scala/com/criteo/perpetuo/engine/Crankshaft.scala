@@ -148,11 +148,9 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
     dbBinding.closingOperationTrace(operationTrace)
       .map(_.map((_, true)).getOrElse((operationTrace, false)))
       .flatMap { case (trace, updated) =>
-        dbBinding.gettingOperationEffect(trace)
-          .flatMap { effect =>
-            // todo: compute actual deployment status (with 'paused')
-            val (kind, status) = computeState(effect)
-            val transactionOngoing = kind == Operation.deploy && status == DeploymentStatus.failed
+        dbBinding.gettingDeploymentStatus(trace)
+          .flatMap { status =>
+            val transactionOngoing = status == DeploymentStatus.paused || (status == DeploymentStatus.failed && operationTrace.kind == Operation.deploy)
             dbBinding.closingTargetStatuses(trace.id)
               .andThen(fuelFilter.releasingLocks(operationTrace.deploymentRequest, transactionOngoing))
               .map(_ =>
