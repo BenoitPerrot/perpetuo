@@ -45,8 +45,8 @@ trait ProductBinder extends TableBinder {
     dbContext.db.run(q.transactionally.withTransactionIsolation(TransactionIsolation.Serializable))
   }
 
-  def getProductNames: Future[Seq[String]] = {
-    dbContext.db.run(productQuery.result).map(_.map(_.name))
+  def getProducts: Future[Seq[Product]] = {
+    dbContext.db.run(productQuery.result).map(_.map(_.toProduct))
   }
 
   def findProductByName(name: String): Future[Option[Product]] = {

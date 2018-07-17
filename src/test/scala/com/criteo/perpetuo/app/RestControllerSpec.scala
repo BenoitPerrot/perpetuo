@@ -233,7 +233,8 @@ class RestControllerSpec extends Test with TestDb {
     val products = server.httpGet(
       path = "/api/products",
       andExpect = Ok
-    ).contentString.parseJson.asInstanceOf[JsArray].elements.map(_.asInstanceOf[JsString].value)
+    ).contentString.parseJson.asInstanceOf[JsArray].elements.map(_.asInstanceOf[JsObject].fields("name")
+      .asInstanceOf[JsString].value)
     products should contain theSameElementsAs Seq("my product", "my other product")
   }
 

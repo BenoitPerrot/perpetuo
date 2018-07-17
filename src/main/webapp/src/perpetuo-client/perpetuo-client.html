@@ -109,7 +109,7 @@ this.Perpetuo.Client = this.Perpetuo.Client || (function () {
 
     fetchProducts() {
       return jsonFetch('/api/products').then(_ => _.json()).then(products => products.map(_ => {
-        return {name: _}
+        return {name: _.name}
       }));
     }
 
