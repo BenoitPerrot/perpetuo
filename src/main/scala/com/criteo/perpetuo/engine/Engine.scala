@@ -89,10 +89,10 @@ class Engine @Inject()(val crankshaft: Crankshaft,
         }.getOrElse(Future.successful(None))
       )
 
-  def insertProductIfNotExists(user: User, name: String): Future[Product] = {
+  def upsertProduct(user: User, name: String, active: Boolean = true): Future[Product] = {
     if (!permissions.isAuthorized(user, GeneralAction.addProduct))
       throw PermissionDenied()
 
-    crankshaft.insertProductIfNotExists(name)
+    crankshaft.upsertProduct(name, active)
   }
 }

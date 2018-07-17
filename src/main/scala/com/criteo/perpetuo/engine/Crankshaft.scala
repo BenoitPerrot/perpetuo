@@ -95,8 +95,8 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
   def getProducts: Future[Seq[Product]] =
     dbBinding.getProducts
 
-  def insertProductIfNotExists(productName: String): Future[Product] =
-    dbBinding.insertProductIfNotExists(productName)
+  def upsertProduct(productName: String, active: Boolean = true): Future[Product] =
+    dbBinding.upsertProduct(productName, active)
 
   def findDeploymentRequestById(deploymentRequestId: Long): Future[Option[DeploymentRequest]] =
     dbBinding.findDeploymentRequestById(deploymentRequestId)

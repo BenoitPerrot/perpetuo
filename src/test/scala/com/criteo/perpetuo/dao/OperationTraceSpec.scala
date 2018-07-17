@@ -28,7 +28,7 @@ class OperationTraceSpec
   test("Operation traces can be bound to deployment requests, and retrieved") {
     await(
       for {
-        product <- insertProductIfNotExists("perpetuo-app")
+        product <- upsertProduct("perpetuo-app")
         request <- insertDeploymentRequest(ProtoDeploymentRequest(product.name, Version("\"v42\""), Seq(ProtoDeploymentPlanStep("", JsString("*"), "")), "No fear", "c.norris")).map(_.deploymentRequest)
         deployOperationTrace <- dbContext.db.run(insertOperationTrace(request, Operation.deploy, "c.norris"))
         revertOperationTrace <- dbContext.db.run(insertOperationTrace(request, Operation.revert, "c.norris"))

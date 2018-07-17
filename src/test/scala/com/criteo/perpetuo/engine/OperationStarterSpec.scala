@@ -51,7 +51,7 @@ class OperationStarterSpec extends Test with TestDb {
     }
   }
 
-  private val product: Product = Await.result(operationStarter.dbBinding.insertProductIfNotExists("perpetuo-app"), 1.second)
+  private val product: Product = Await.result(operationStarter.dbBinding.upsertProduct("perpetuo-app"), 1.second)
 
   implicit class SimpleDispatchTest(private val select: Select) {
     def dispatchedAs(that: Map[ExecutionTrigger, Select]): Unit = {

@@ -89,7 +89,7 @@ trait SimpleScenarioTesting extends TestHelpers with TestDb with MockitoSugar {
 
   def request(productName: String, version: String, stepsTargets: Iterable[String]*): RequestTesting = {
     if (!knownProducts.contains(productName)) {
-      await(crankshaft.insertProductIfNotExists(productName))
+      await(crankshaft.upsertProduct(productName))
       knownProducts += productName
     }
 

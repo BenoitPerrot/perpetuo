@@ -33,8 +33,9 @@ trait WithRequest {
 private case class RequestWithId(@RouteParam @NotEmpty id: String,
                                  @Inject request: Request) extends WithId with WithRequest
 
-private case class RequestWithName(@NotEmpty name: String,
-                                   @Inject request: Request) extends WithRequest
+private case class RequestWithNameAndActive(@NotEmpty name: String,
+                                            active: Boolean = true,
+                                            @Inject request: Request) extends WithRequest
 
 private case class DeploymentActionRequest(@RouteParam @NotEmpty id: String,
                                            operationCount: Option[Int],
@@ -97,11 +98,11 @@ class RestController @Inject()(val engine: Engine)
     )
   }
 
-  put("/api/products") { r: RequestWithName =>
+  put("/api/products") { r: RequestWithNameAndActive =>
     authenticate(r.request) { case user =>
       timeBoxed(
         engine
-          .insertProductIfNotExists(user, r.name)
+          .upsertProduct(user, r.name, r.active)
           .map(_ => Some(response.created.nothing)),
         5.seconds
       )

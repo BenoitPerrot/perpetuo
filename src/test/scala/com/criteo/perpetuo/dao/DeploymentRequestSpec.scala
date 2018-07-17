@@ -19,7 +19,7 @@ class DeploymentRequestSpec
   test("Deployment requests can be inserted and retrieved") {
     await(
       for {
-        product <- insertProductIfNotExists("perpetuo-app")
+        product <- upsertProduct("perpetuo-app")
         request <- insertDeploymentRequest(ProtoDeploymentRequest(product.name, Version("\"v42\""), Seq(ProtoDeploymentPlanStep("", JsString("*"), "")), "No fear", "c.norris")).map(_.deploymentRequest)
         requests <- dbContext.db.run(deploymentRequestQuery.result)
         lookup <- findDeploymentRequestById(request.id)
