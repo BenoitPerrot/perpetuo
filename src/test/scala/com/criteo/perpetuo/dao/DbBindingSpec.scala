@@ -128,7 +128,7 @@ class DbScenarios(dbBinding: DbBinding) extends DeploymentRequestInserter {
   private def insertIntent(): Future[Iterable[DeploymentPlan]] =
     Future
       .traverse(scenarios.intents) { case (productName, deploymentRequests) =>
-        dbContext.db.run(productQuery += ProductRecord(None, productName)).flatMap(_ =>
+        dbContext.db.run(productQuery += ProductRecord(None, productName, true)).flatMap(_ =>
           Future.traverse(deploymentRequests) { deploymentRequest =>
             val steps = deploymentRequest.map(ProtoDeploymentPlanStep(_, JsString("worldwide"), ""))
             insertDeploymentRequest(ProtoDeploymentRequest(productName, Version(JsString("42.0.1")), steps, "", "a.nonymous"))

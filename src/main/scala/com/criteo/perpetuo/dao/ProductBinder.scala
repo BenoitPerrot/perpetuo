@@ -7,10 +7,10 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
 
-private[dao] case class ProductRecord(id: Option[Int], name: String) {
+private[dao] case class ProductRecord(id: Option[Int], name: String, active: Boolean) {
   def toProduct: Product = {
     assert(id.isDefined)
-    Product(id.get, name)
+    Product(id.get, name, active)
   }
 }
 
@@ -27,7 +27,9 @@ trait ProductBinder extends TableBinder {
     def name = column[String]("name", O.SqlType("nvarchar(128)")) // the name is not the pk, in order to easily support renaming without losing history
     protected def nameIdx = index(name, unique = true)
 
-    def * = (id.?, name) <> (ProductRecord.tupled, ProductRecord.unapply)
+    def active = column[Boolean]("active")
+
+    def * = (id.?, name, active) <> (ProductRecord.tupled, ProductRecord.unapply)
   }
 
   val productQuery = TableQuery[ProductTable]
@@ -37,7 +39,7 @@ trait ProductBinder extends TableBinder {
       existing.headOption.map(product =>
         DBIO.successful(product.toProduct)
       ).getOrElse(
-        (productQuery.returning(productQuery.map(_.id)) += ProductRecord(None, name)).map(Product(_, name))
+        (productQuery.returning(productQuery.map(_.id)) += ProductRecord(None, name, true)).map(Product(_, name, true))
       )
     )
     dbContext.db.run(q.transactionally.withTransactionIsolation(TransactionIsolation.Serializable))

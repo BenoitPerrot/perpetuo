@@ -1,6 +1,7 @@
 CREATE TABLE "product" (
   "id"   INTEGER       NOT NULL IDENTITY,
-  "name" NVARCHAR(128) NOT NULL
+  "name" NVARCHAR(128) NOT NULL,
+  "active" BIT NOT NULL
 )
 ALTER TABLE "product"
   ADD CONSTRAINT "pk_product" PRIMARY KEY ("id")
