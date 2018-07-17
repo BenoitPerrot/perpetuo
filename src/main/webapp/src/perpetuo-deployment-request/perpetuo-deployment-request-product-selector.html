@@ -23,7 +23,7 @@
       }
 
       computeProductNames(products) {
-        return products.map(_ => _.name);
+        return products.filter(_ => _.active).map(_ => _.name);
       }
 
       clear() {
