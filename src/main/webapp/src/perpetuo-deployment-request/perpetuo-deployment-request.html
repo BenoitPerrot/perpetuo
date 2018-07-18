@@ -290,14 +290,18 @@
   </template>
   <script>
   (function () {
+    function computePlanStepLabel(planStep) {
+      return planStep.name ||
+             // TODO: remove once data in the DB gets rewritten <<
+             planStep.targetExpression === '*' ? 'All configured targets' :
+             // >>
+             planStep.targetExpression;
+    }
+
     function computeOperationGroupLabel(planStepIds, plan) {
       return planStepIds
         .map(id => plan.find(_ => _.id === id))
-        .map(planStep => planStep.name ||
-                       // TODO: remove once data in the DB gets rewritten <<
-                       planStep.targetExpression === '*' ? 'All configured targets' :
-                       // >>
-                       planStep.targetExpression)
+        .map(planStep => computePlanStepLabel(planStep))
         .join(', ');
     }
 
@@ -512,11 +516,7 @@
                   const planStep = planStepsAndLastOperations[0];
                   const lastOperation = planStepsAndLastOperations[1];
                   return {
-                    label: planStep.name ||
-                           // TODO: remove once data in the DB gets rewritten <<
-                           planStep.targetExpression === '*' ? 'All configured targets' :
-                           // >>
-                           planStep.targetExpression,
+                    label: computePlanStepLabel(planStep),
                     status: lastOperation ? lastOperation.status : 'future',
                     active: (
                       !(data.lastOperationKind === 'revert' && data.status === 'succeeded') &&
