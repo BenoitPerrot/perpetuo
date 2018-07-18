@@ -37,6 +37,9 @@ private case class RequestWithNameAndActive(@NotEmpty name: String,
                                             active: Boolean = true,
                                             @Inject request: Request) extends WithRequest
 
+private case class RequestWithNames(names: Seq[String],
+                                    @Inject request: Request) extends WithRequest
+
 private case class DeploymentActionRequest(@RouteParam @NotEmpty id: String,
                                            operationCount: Option[Int],
                                            @Inject request: Request) extends WithId with WithRequest
@@ -104,6 +107,17 @@ class RestController @Inject()(val engine: Engine)
         engine
           .upsertProduct(user, r.name, r.active)
           .map(_ => Some(response.created.nothing)),
+        5.seconds
+      )
+    }
+  }
+
+  post("/api/products") { r: RequestWithNames =>
+    authenticate(r.request) { case user =>
+      timeBoxed(
+        engine
+          .setActiveProducts(user, r.names)
+          .map(products => Some(products)),
         5.seconds
       )
     }

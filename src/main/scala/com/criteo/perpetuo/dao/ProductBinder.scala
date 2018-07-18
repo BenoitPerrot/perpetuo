@@ -60,4 +60,23 @@ trait ProductBinder extends TableBinder {
   def findProductByName(name: String): Future[Option[Product]] = {
     dbContext.db.run(productQuery.filter(_.name === name).result).map(_.headOption.map(_.toProduct))
   }
+
+  /**
+    * - Insert new products to DB with active status.
+    * - Activate products in the given list and that were previously deactivated.
+    * - Deactivate those that already exist in DB but not on this list.
+    *
+    * @return the list of updated products.
+    */
+  def setActiveProducts(names: Seq[String]): Future[Set[Product]] = {
+    val activeNames = names.toSet
+
+    getProducts.flatMap { products =>
+      val previouslyActiveNames = products.collect { case p if p.active => p.name }.toSet
+
+      val updatedProducts = (activeNames -- previouslyActiveNames).map(upsertProduct(_))
+        .union((previouslyActiveNames -- activeNames).map(upsertProduct(_, active = false)))
+      Future.sequence(updatedProducts)
+    }
+  }
 }

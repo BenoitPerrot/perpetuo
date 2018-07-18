@@ -49,4 +49,19 @@ class ProductBinderSpec
       )
     })
   }
+
+  test("Bulk update the status of products") {
+    val existingProductNames = List("app1", "app2", "app3")
+    val postedProductNames = List("app3", "app4")
+
+    await({
+      for {
+        _ <- dbContext.db.run(productQuery.delete)
+        _ <- Future.sequence(existingProductNames.map(name => upsertProduct(name)))
+        products <- setActiveProducts(postedProductNames)
+      } yield {
+        products.map(product => (product.name, product.active)).toSet
+      }
+    }) shouldBe Set(("app1", false), ("app2", false), ("app4", true))
+  }
 }
