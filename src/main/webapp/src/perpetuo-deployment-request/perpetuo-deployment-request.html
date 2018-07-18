@@ -293,7 +293,9 @@
     function computePlanStepLabel(planStep) {
       return planStep.name ||
              // TODO: remove once data in the DB gets rewritten <<
-             planStep.targetExpression === '*' ? 'All configured targets' :
+             planStep.targetExpression === '*' || (
+               Array.isArray(planStep.targetExpression) && planStep.targetExpression.length === 1 && planStep.targetExpression[0] === '*'
+             ) ? 'All configured targets' :
              // >>
              planStep.targetExpression;
     }
