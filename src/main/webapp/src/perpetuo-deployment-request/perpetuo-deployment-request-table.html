@@ -135,7 +135,11 @@
         if (active) {
           this.deploymentRequestFilter = decodeURIComponent(this.queryParams['q'] || '');
           this.client.fetchProducts().then(products => {
-            this.productNames = products.map(_ => _.name);
+            this.productNames = products.sort((a, b) => {
+              if (a.active === b.active) { return 0; }
+              if (a.active) { return -1; }
+              return 1;
+            }).map(_ => _.name);
             this.$.productFilter.select(this.deploymentRequestFilter);
           });
           const page = parseInt(this.queryParams['page']);
