@@ -4,7 +4,7 @@
 
 <dom-module id="perpetuo-deployment-request-target-selector">
   <template>
-    <paper-input id="main" label="Target" disabled="[[disabled]]"></paper-input>
+    <paper-input id="main" label="Target" disabled="[[disabled]]" on-value-changed="updateSelectedTargets"></paper-input>
   </template>
   <script>
   (function () {
@@ -14,11 +14,12 @@
       static get properties() {
         return {
           disabled: Boolean,
+          selectedTargets: {type: Array, value: () => [], notify: true},
         }
       }
 
-      get selectedTargets() {
-        return this.$.main.value;
+      updateSelectedTargets() {
+        this.selectedTargets = this.$.main.value;
       }
 
       clear() {
