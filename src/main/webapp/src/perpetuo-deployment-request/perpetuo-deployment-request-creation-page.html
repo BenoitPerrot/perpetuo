@@ -135,7 +135,7 @@
         new Perpetuo.DeploymentRequestCreator()
                     .create(this.selectedProductName,
                             this.selectedVersion,
-                            [{name: '', target: this.$.targetSelector.value}],
+                            [{name: '', target: this.$.targetSelector.selectedTargets}],
                             this.$.commentEditor.value)
                     .then(r => {
                       if (r.ok) {
