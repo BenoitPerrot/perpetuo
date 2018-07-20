@@ -125,6 +125,13 @@ this.Perpetuo.Client = this.Perpetuo.Client || (function () {
         r.ok ? r : r.json().then(o => Promise.reject({status: r.status, detail: o}))
       );
     }
+
+    updateProduct(name, active) {
+      return Perpetuo.Client.fetch('/api/products', {
+        method: 'PUT',
+        body: JSON.stringify({name: name, active: active})
+      });
+    }
   };
 }());
 </script>

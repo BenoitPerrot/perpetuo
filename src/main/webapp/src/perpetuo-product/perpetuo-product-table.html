@@ -1,5 +1,7 @@
 <link rel="import" href="../../bower_components/polymer/polymer.html">
 
+<link rel="import" href="../../bower_components/paper-toggle-button/paper-toggle-button.html">
+
 <dom-module id="perpetuo-product-table">
   <template>
     <style>
@@ -31,14 +33,25 @@
     span.product-name {
       flex: 1;
     }
+    span.active-status {
+      flex: 1;
+    }
+    paper-toggle-button {
+      pointer-events: none;
+    }
+
     </style>
     <div class="table">
       <div class="row heading">
         <span class="product-name">Product Name</span>
+        <span class="active-status">Active</span>
       </div>
       <template is="dom-repeat" items="[[data]]">
         <div class="row">
           <span class="product-name">[[item.name]]</span>
+          <span class="active-status">
+            <paper-toggle-button checked="{{item.active}}" on-tap="updateProduct"></paper-toggle-button>
+          </span>
         </div>
       </template>
     </div>
@@ -52,6 +65,16 @@
         return {
           data: { type: Array, value: () => [] }
         };
+      }
+
+      updateProduct(e) {
+        this.client.updateProduct(e.model.item.name, e.model.item.active);
+      }
+
+      constructor() {
+        super();
+
+        this.client = new Perpetuo.Client();
       }
     }
 
