@@ -62,7 +62,7 @@ trait DeploymentRequestInserter
             .returning(deploymentRequestQuery.map(_.id))
             .into((_, id) => DeploymentRequest(id, product, r.version, r.comment, r.creator, r.creationDate))
             .+=(
-              DeploymentRequestRecord(None, product.id, r.version, Some(r.target), r.comment, r.creator, r.creationDate)
+              DeploymentRequestRecord(None, product.id, r.version, None, r.comment, r.creator, r.creationDate)
             )
         planSteps <-
           deploymentPlanStepQuery
