@@ -116,7 +116,7 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
         dbBinding
           .insertDeploymentRequest(protoDeploymentRequest)
           .map { deploymentPlan =>
-            Future.sequence(listeners.map(_.onDeploymentRequestCreated(deploymentPlan.deploymentRequest)))
+            Future.sequence(listeners.map(_.onDeploymentRequestCreated(deploymentPlan)))
             deploymentPlan.deploymentRequest
           }
       }

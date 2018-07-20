@@ -1,7 +1,7 @@
 package com.criteo.perpetuo.config
 
 import com.criteo.perpetuo.engine.{AsyncListener, SyncListener}
-import com.criteo.perpetuo.model.{DeploymentRequest, OperationTrace, ProtoDeploymentRequest, TargetAtomStatus}
+import com.criteo.perpetuo.model._
 
 import scala.concurrent.Future
 
@@ -9,7 +9,7 @@ import scala.concurrent.Future
 class DefaultListenerPlugin extends SyncListener with Plugin {
   def onCreatingDeploymentRequest(protoDeploymentRequest: ProtoDeploymentRequest): Unit = {}
 
-  def onDeploymentRequestCreated(deploymentRequest: DeploymentRequest): Unit = {}
+  def onDeploymentRequestCreated(deploymentPlan: DeploymentPlan): Unit = {}
 
   def onDeploymentRequestStarted(deploymentRequest: DeploymentRequest, startedExecutions: Int, failedToStart: Int): Unit = {}
 
@@ -33,8 +33,8 @@ private[config] class ListenerPluginWrapper(implementation: DefaultListenerPlugi
   def onCreatingDeploymentRequest(protoDeploymentRequest: ProtoDeploymentRequest): Future[Unit] =
     wrap(_.onCreatingDeploymentRequest(protoDeploymentRequest))
 
-  def onDeploymentRequestCreated(deploymentRequest: DeploymentRequest): Future[Unit] =
-    wrap(_.onDeploymentRequestCreated(deploymentRequest))
+  def onDeploymentRequestCreated(deploymentPlan: DeploymentPlan): Future[Unit] =
+    wrap(_.onDeploymentRequestCreated(deploymentPlan))
 
   def onDeploymentRequestStarted(deploymentRequest: DeploymentRequest, startedExecutions: Int, failedToStart: Int): Future[Unit] =
     wrap(_.onDeploymentRequestStarted(deploymentRequest, startedExecutions, failedToStart))
