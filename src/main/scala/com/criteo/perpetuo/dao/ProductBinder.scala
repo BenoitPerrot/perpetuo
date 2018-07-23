@@ -7,7 +7,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
 
-private[dao] case class ProductRecord(id: Option[Int], name: String, active: Boolean) {
+private[dao] case class ProductRecord(id: Option[Int], name: String, active: Boolean = true) {
   def toProduct: Product = {
     assert(id.isDefined)
     Product(id.get, name, active)

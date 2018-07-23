@@ -17,7 +17,7 @@ class ProductBinderSpec
       dbContext.db.run(productQuery.delete)
       for {
         product1 <- upsertProduct("product1")
-        product2 <- upsertProduct("product2", false)
+        product2 <- upsertProduct("product2", active = false)
       } yield {
         (product1.active, product2.active)
       }
@@ -29,7 +29,7 @@ class ProductBinderSpec
       dbContext.db.run(productQuery.delete)
       for {
         _ <- upsertProduct("product1")
-        product <- upsertProduct("product1", false)
+        product <- upsertProduct("product1", active = false)
       } yield {
         product.active
       }
