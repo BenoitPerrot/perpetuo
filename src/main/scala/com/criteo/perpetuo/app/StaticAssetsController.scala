@@ -45,7 +45,7 @@ class StaticAssetsController(rootPaths: Seq[String]) extends Controller {
         }).headOption
       }
 
-    def getContentType(file: String) =
+    def getContentType(file: String): String =
       extMap.getContentType('.' + FilenameUtils.getExtension(file))
 
     private def tryGetFileInputStream(root: File, path: String): Option[BufferedInputStream] = {
