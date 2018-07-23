@@ -13,7 +13,7 @@ case class Version(serialized: String) extends MappedTo[String] {
   lazy val structured: Iterable[PartialVersion] = serialized.parseJson match {
     case JsArray(arr) => arr.map(Version.parseVersion)
     case JsString(v) => Seq(PartialVersion(v))
-    case unknown => throw new ParsingException("Should not be there")
+    case _ => throw new ParsingException("Should not be there")
   }
 
   override def toString: String = serialized

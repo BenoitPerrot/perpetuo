@@ -40,10 +40,10 @@ class UserFilterSpec extends Test {
     }
   })
 
-  val knownUser = User("knownUser")
-  val longUser = User("too-long-name-" * 42)
-  val knownUserJWT = knownUser.toJWT(authModule.jwtEncoder)
-  val longUserJWT = longUser.toJWT(authModule.jwtEncoder)
+  private val knownUser = User("knownUser")
+  private val longUser = User("too-long-name-" * 42)
+  private val knownUserJWT = knownUser.toJWT(authModule.jwtEncoder)
+  private val longUserJWT = longUser.toJWT(authModule.jwtEncoder)
 
   test("The UserFilter decorates requests with a known user when the JWT cookie is valid") {
     server.httpGet("/username-from-jwt-cookie",

@@ -9,6 +9,7 @@ import com.twitter.finatra.http.filters.{CommonFilters, LoggingMDCFilter, TraceI
 import com.twitter.finatra.http.routing.HttpRouter
 import com.twitter.finatra.http.{EmbeddedHttpServer, HttpServer}
 import com.twitter.inject.{Test, TwitterModule}
+import com.typesafe.config.Config
 
 
 /**
@@ -19,7 +20,7 @@ import com.twitter.inject.{Test, TwitterModule}
   */
 class ControllerSpec extends Test {
 
-  val config = AppConfigProvider.config
+  val config: Config = AppConfigProvider.config
   val authModule = new AuthModule(config.getConfig("auth"))
 
   val server = new EmbeddedHttpServer(new HttpServer {
@@ -47,8 +48,8 @@ class ControllerSpec extends Test {
     }
   })
 
-  val knownUser = User("knownUser")
-  val knownUserJWT = knownUser.toJWT(authModule.jwtEncoder)
+  private val knownUser = User("knownUser")
+  private val knownUserJWT = knownUser.toJWT(authModule.jwtEncoder)
 
   test("The auth controller serves the authorizer url") {
     server.httpGet("/api/auth/authorize-url",

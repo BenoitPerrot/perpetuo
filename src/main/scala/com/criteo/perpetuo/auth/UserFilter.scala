@@ -1,13 +1,14 @@
 package com.criteo.perpetuo.auth
 
 import com.google.inject.Inject
+import com.twitter.finagle.http.Request.Schema
 import com.twitter.finagle.http.{Request, Response}
 import com.twitter.finagle.{Service, SimpleFilter}
 import com.twitter.util.Future
 import javax.inject.Singleton
 
 object UserFilter {
-  val UserField = Request.Schema.newField[Option[User]]()
+  val UserField: Schema.Field[Option[User]] = Schema.newField[Option[User]]()
 
   implicit class SyntacticSugar(val request: Request) {
     def user: Option[User] = request.ctx(UserField)
