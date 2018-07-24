@@ -67,9 +67,6 @@ class Engine @Inject()(val crankshaft: Crankshaft,
       .findDeploymentRequestAndEffects(id)
       .flatMap(
         _.map { case (deploymentRequest, deploymentPlanSteps, effects) =>
-          val isAdmin = user.exists(user =>
-            permissions.isAuthorized(user, GeneralAction.administrate)
-          )
 
           crankshaft.getEligibleActions(deploymentRequest).map { actions =>
             val authorizedActions = actions.map { case (deploymentAction, operationKind, actionName, message) =>
@@ -82,8 +79,7 @@ class Engine @Inject()(val crankshaft: Crankshaft,
               (actionName, rejectionCause)
             }
             val sortedEffects = effects.toSeq.sortBy(-_.operationTrace.id)
-            val showLogs = isAdmin || authorizedActions.exists { case (_, rejected) => rejected.isEmpty }
-            Some(DeploymentRequestStatus(deploymentRequest, deploymentPlanSteps, sortedEffects, sortedEffects.headOption.map(crankshaft.computeState), authorizedActions, showLogs))
+            Some(DeploymentRequestStatus(deploymentRequest, deploymentPlanSteps, sortedEffects, sortedEffects.headOption.map(crankshaft.computeState), authorizedActions))
           }
 
         }.getOrElse(Future.successful(None))
