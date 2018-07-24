@@ -74,12 +74,12 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
                 case Operation.deploy => fuelFilter.rejectingIfCannotDeploy(deploymentRequest)
                 case Operation.revert => fuelFilter.rejectingIfCannotRevert(deploymentRequest)
               }
-              canApply.asTry.collect {
-                case Success(_) =>
-                  (DeploymentAction.applyOperation, operation, operation.toString, None)
-                case Failure(e) =>
-                  (DeploymentAction.applyOperation, operation, operation.toString, Some(e.getMessage))
+              val getRejectionReason = canApply.asTry.collect {
+                case Success(_) => None
+                case Failure(e: RejectingError) => Some(e.msg) // don't show the details
+                case Failure(e) => Some(e.getMessage)
               }
+              getRejectionReason.map((DeploymentAction.applyOperation, operation, operation.toString, _))
             }
           )
         )
