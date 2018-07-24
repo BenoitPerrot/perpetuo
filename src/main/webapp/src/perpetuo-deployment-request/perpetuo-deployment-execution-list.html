@@ -51,7 +51,7 @@
           <tr>
             <td>
               [[humanReadable(item.state)]]
-              <template is="dom-if" if="[[showLog(item.logHref)]]">
+              <template is="dom-if" if="[[item.logHref]]">
                 (<a href$="[[item.logHref]]">technical logs</a>)
               </template>
             </td>
@@ -72,16 +72,11 @@
       static get properties() {
         return {
           data: { type: Array, value: () => [] },
-          showLogs: Boolean
         }
       }
 
       humanReadable(actionName) {
         return actionName.replace('initFailed', 'nothing happened').replace(/([A-Z])/g, ' $1').toLowerCase();
-      }
-
-      showLog(logHref) {
-        return this.showLogs && logHref;
       }
     }
 

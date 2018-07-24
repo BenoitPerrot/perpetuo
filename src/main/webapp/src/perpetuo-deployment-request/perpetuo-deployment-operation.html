@@ -30,7 +30,7 @@
     <iron-collapse id="detail" opened="{{opened}}">
       <p>Started by [[data.creator]] on [[timestampToDates(data.creationDate)]]</p>
       <perpetuo-target-status-table data="[[arrayifyTargetStatus(data.targetStatus)]]"></perpetuo-target-status-table>
-      <perpetuo-deployment-execution-list data="[[data.executions]]" show-logs="[[showExecutionLogs]]"></perpetuo-deployment-execution-list>
+      <perpetuo-deployment-execution-list data="[[data.executions]]"></perpetuo-deployment-execution-list>
     </iron-collapse>
   </template>
   <script>
@@ -43,7 +43,6 @@
           index: { type: Number },
           data: Object,
           opened: {type: Boolean, notify: true, reflectToAttribute: true},
-          showExecutionLogs: Boolean
         };
       }
 

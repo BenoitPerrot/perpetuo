@@ -279,8 +279,7 @@ class RestController @Inject()(val engine: Engine)
       ) ++
       Map("actions" -> status.eligibleActions.map { case (actionName, rejectionCause) =>
         Map("type" -> actionName) ++ rejectionCause.map("rejected" -> _)
-      }) ++
-      Map("showExecutionLogs" -> status.canAccessLogs) // fixme: only as long as we can't show the logs to anyone
+      })
 
   get("/api/unstable/deployment-requests/:id") { r: RequestWithId =>
     withLongId(

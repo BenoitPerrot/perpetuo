@@ -278,7 +278,7 @@
         <paper-card class="operations" data-status$="[[operationGroup.status]]">
           <h1>[[operationGroup.label]]</h1>
           <template is="dom-repeat" items="[[operationGroup.operations]]">
-            <perpetuo-deployment-operation index="[[sub(operationGroup.operations.length, index)]]" data="[[item]]" opened="[[isOperationOpened(item.id)]]" on-opened-changed="onOperationOpenedChanged" show-execution-logs="[[data.showExecutionLogs]]"></perpetuo-deployment-operation>
+            <perpetuo-deployment-operation index="[[sub(operationGroup.operations.length, index)]]" data="[[item]]" opened="[[isOperationOpened(item.id)]]" on-opened-changed="onOperationOpenedChanged"></perpetuo-deployment-operation>
           </template>
         </paper-card>
       </template>
