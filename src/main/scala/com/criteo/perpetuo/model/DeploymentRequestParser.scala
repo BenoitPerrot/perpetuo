@@ -18,8 +18,6 @@ object DeploymentRequestParser {
         val plan = scanner.getArray("plan").map(parsePlanStep)
         if (plan.isEmpty)
           throw new ParsingException("Plan shall be non-empty")
-        // TODO: remove once migration complete:
-        assert(plan.size == 1)
         val protoDeploymentRequest = ProtoDeploymentRequest(
           productName,
           version,
