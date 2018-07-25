@@ -46,7 +46,7 @@ class RundeckExecutionSpec extends Test with MockitoSugar {
     executionAborted.stopper.get() shouldEqual None
   }
 
-  test("When an abortion is pending, wait for its completion") {
+  test("When an abort is pending, wait for its completion") {
     val executionAborting = new RundeckExecutionWithClientMock(new RundeckClientMock("pending", "running", eventuallyCompleted = true))
     executionAborting.stopper.get() shouldEqual None
   }
