@@ -78,7 +78,7 @@
       color: #f44336;
     }
     :host([status=inProgress]) .state {
-      color: #0086b2;
+      color: var(--perpetuo-blue);
     }
 
     .action {
@@ -104,7 +104,7 @@
       border-color: #f44336;
     }
     .operations[data-status=inProgress] {
-      border-color: #0086b2;
+      border-color: var(--perpetuo-blue);
     }
     :host([last-operation-kind=revert][status=succeeded]) .operations {
       border-color: #555;
@@ -196,7 +196,7 @@
       background-color: #f44336;
     }
     #plan td .round[data-status=inProgress] {
-      background-color: #0086b2;
+      background-color: var(--perpetuo-blue);
     }
     :host([last-operation-kind=revert][status=succeeded]) #plan td .round {
       background-color: #555;
@@ -219,7 +219,7 @@
 
     paper-progress {
       width: auto;
-      --paper-progress-active-color: #0086b2;
+      --paper-progress-active-color: var(--perpetuo-blue);
       --paper-progress-container-color: #fff;
     }
     </style>
