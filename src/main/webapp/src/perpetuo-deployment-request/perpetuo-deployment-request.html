@@ -514,15 +514,15 @@
                   data.operations.filter(op => op.planStepIds.includes(planStep.id))[0]
                 ]);
               this.steps =
-                planStepsAndLastOperations.map((planStepsAndLastOperations, i) => {
-                  const planStep = planStepsAndLastOperations[0];
-                  const lastOperation = planStepsAndLastOperations[1];
+                planStepsAndLastOperations.map((planStepAndLastOperations, i) => {
+                  const planStep = planStepAndLastOperations[0];
+                  const lastOperation = planStepAndLastOperations[1];
                   return {
                     label: computePlanStepLabel(planStep),
                     status: lastOperation ? lastOperation.status : 'future',
                     active: (
                       !(data.lastOperationKind === 'revert' && data.status === 'succeeded') &&
-                      (lastOperation ? lastOperation.status !== 'succeeded' : (i === 0 || planStepsAndLastOperations[i - 1][1].status === 'succeeded'))
+                      (lastOperation ? lastOperation.status !== 'succeeded' : (i === 0 || (planStepsAndLastOperations[i - 1][1] && planStepsAndLastOperations[i - 1][1].status === 'succeeded')))
                     )
                   }
                 });
