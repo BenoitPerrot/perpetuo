@@ -40,10 +40,10 @@ trait ExceptionsToHttpStatusTranslation extends Logging {
         logger.error(e.getMessage, e)
         throw HttpException(Status.GatewayTimeout, e.getMessage)
       case e: UnavailableAction => throw toHttpResponseException(e, Status.UnprocessableEntity)
-      case e: UnprocessableIntent => throw BadRequestException(e.getMessage)
+      case e: UnprocessableIntent => throw toHttpResponseException(e, Status.BadRequest)
       case e: Veto => throw toHttpResponseException(e, Status.UnprocessableEntity)
       case e: RejectingError => // should not happen: every subclass of RejectingError should be covered above
         logger.error(e.getMessage, e)
-        throw BadRequestException(e.msg)
+        throw toHttpResponseException(e, Status.BadRequest)
     }
 }
