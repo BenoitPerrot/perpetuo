@@ -20,6 +20,10 @@ trait SyncListener {
 
   def onDeploymentRequestStopped(deploymentRequest: DeploymentRequest, stopped: Int, failed: Int): Unit
 
+  def onDeploymentTransactionCanceled(deploymentRequest: DeploymentRequest): Unit
+
+  def onDeploymentTransactionComplete(deploymentRequest: DeploymentRequest): Unit
+
   def onOperationFailed(operationTrace: OperationTrace): Unit
 
   def onOperationSucceeded(operationTrace: OperationTrace): Unit
@@ -41,6 +45,10 @@ trait AsyncListener {
   def onDeploymentRequestReverted(deploymentRequest: DeploymentRequest, startedExecutions: Int, failedToStart: Int): Future[Unit]
 
   def onDeploymentRequestStopped(deploymentRequest: DeploymentRequest, stopped: Int, failed: Int): Future[Unit]
+
+  def onDeploymentTransactionCanceled(deploymentRequest: DeploymentRequest): Future[Unit]
+
+  def onDeploymentTransactionComplete(deploymentRequest: DeploymentRequest): Future[Unit]
 
   def onOperationFailed(operationTrace: OperationTrace): Future[Unit]
 

@@ -153,16 +153,33 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
       .flatMap { case (trace, updated) =>
         dbBinding.gettingDeploymentStatus(trace)
           .flatMap { status =>
-            val transactionOngoing = status == DeploymentStatus.paused || (status == DeploymentStatus.failed && operationTrace.kind == Operation.deploy)
+            val transactionFinalSuccess = if (status == DeploymentStatus.paused)
+              None
+            else if (operationTrace.kind == Operation.revert || status == DeploymentStatus.flopped)
+              Some(false)
+            else if (status == DeploymentStatus.succeeded)
+              Some(true)
+            else
+              None
+
             dbBinding.closingTargetStatuses(trace.id)
-              .andThen(fuelFilter.releasingLocks(operationTrace.deploymentRequest, transactionOngoing))
+              .andThen(fuelFilter.releasingLocks(operationTrace.deploymentRequest, transactionFinalSuccess.isEmpty))
               .map(_ =>
                 if (updated) { // if it's a successful close, let's notify
-                  val handler = if (status == DeploymentStatus.succeeded)
-                    (_: AsyncListener).onOperationSucceeded _
-                  else
-                    (_: AsyncListener).onOperationFailed _
-                  listeners.foreach(listener => handler(listener)(trace))
+                  val operationSucceeded = status == DeploymentStatus.succeeded
+                  listeners.foreach { listener =>
+                    if (operationSucceeded)
+                      listener.onOperationSucceeded(operationTrace)
+                    else
+                      listener.onOperationFailed(operationTrace)
+
+                    transactionFinalSuccess.foreach(transactionSucceeded =>
+                      if (transactionSucceeded)
+                        listener.onDeploymentTransactionComplete(operationTrace.deploymentRequest)
+                      else
+                        listener.onDeploymentTransactionCanceled(operationTrace.deploymentRequest)
+                    )
+                  }
                 }
               )
           }

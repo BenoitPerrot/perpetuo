@@ -21,6 +21,10 @@ class DefaultListenerPlugin extends SyncListener with Plugin {
 
   def onDeploymentRequestStopped(deploymentRequest: DeploymentRequest, stopped: Int, failed: Int): Unit = {}
 
+  def onDeploymentTransactionCanceled(deploymentRequest: DeploymentRequest): Unit = {}
+
+  def onDeploymentTransactionComplete(deploymentRequest: DeploymentRequest): Unit = {}
+
   def onOperationFailed(operationTrace: OperationTrace): Unit = {}
 
   def onOperationSucceeded(operationTrace: OperationTrace): Unit = {}
@@ -52,6 +56,12 @@ private[config] class ListenerPluginWrapper(implementation: DefaultListenerPlugi
 
   def onDeploymentRequestStopped(deploymentRequest: DeploymentRequest, stopped: Int, failed: Int): Future[Unit] =
     wrap(_.onDeploymentRequestStopped(deploymentRequest, stopped, failed))
+
+  def onDeploymentTransactionCanceled(deploymentRequest: DeploymentRequest): Future[Unit] =
+    wrap(_.onDeploymentTransactionCanceled(deploymentRequest))
+
+  def onDeploymentTransactionComplete(deploymentRequest: DeploymentRequest): Future[Unit] =
+    wrap(_.onDeploymentTransactionComplete(deploymentRequest))
 
   def onOperationFailed(operationTrace: OperationTrace): Future[Unit] =
     wrap(_.onOperationFailed(operationTrace))
