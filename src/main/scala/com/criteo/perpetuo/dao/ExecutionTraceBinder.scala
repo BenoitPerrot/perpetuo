@@ -87,10 +87,13 @@ trait ExecutionTraceBinder extends TableBinder {
     * @return Some(id) if it has been successfully updated, None if it doesn't exist
     * @throws UnavailableAction if the transition is not allowed
     */
-  def updatingExecutionTrace(id: Long, state: ExecutionState, detail: String, logHref: Option[String] = None): DBIOrw[Option[Long]] =
+  def updatingExecutionTrace(id: Long, state: ExecutionState, detail: String, logHref: Option[String] = None): DBIOrw[Option[Long]] = {
+    // fixme: it's a quick fix, but a generic way of dealing with truncatable string columns is coming
+    val truncatedDetail = if (1024 < detail.length) s"${detail.take(1021)}..." else detail
     logHref
-      .map(_ => runningUpdate(id, state, _.map(r => (r.state, r.detail, r.logHref)).update((state, detail, logHref))))
-      .getOrElse(runningUpdate(id, state, _.map(r => (r.state, r.detail)).update((state, detail))))
+      .map(_ => runningUpdate(id, state, _.map(r => (r.state, r.detail, r.logHref)).update((state, truncatedDetail, logHref))))
+      .getOrElse(runningUpdate(id, state, _.map(r => (r.state, r.detail)).update((state, truncatedDetail))))
+  }
 
   private def runningUpdate(id: Long, state: ExecutionState, updateQuery: Query[ExecutionTraceTable, ExecutionTraceRecord, Seq] => DBIOAction[Int, NoStream, Effect.Write]) = {
     val filterQuery = executionTraceQuery.filter(executionTrace =>
