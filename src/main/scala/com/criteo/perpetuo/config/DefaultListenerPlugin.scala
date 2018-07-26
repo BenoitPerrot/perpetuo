@@ -13,6 +13,8 @@ class DefaultListenerPlugin extends SyncListener with Plugin {
 
   def onDeploymentRequestStarted(deploymentRequest: DeploymentRequest, startedExecutions: Int, failedToStart: Int): Unit = {}
 
+  def onDeploymentRequestResumed(deploymentPlanStep: DeploymentPlanStep, startedExecutions: Int, failedToStart: Int): Unit = {}
+
   def onDeploymentRequestRetried(deploymentPlanStep: DeploymentPlanStep, startedExecutions: Int, failedToStart: Int): Unit = {}
 
   def onDeploymentRequestReverted(deploymentRequest: DeploymentRequest, startedExecutions: Int, failedToStart: Int): Unit = {}
@@ -38,6 +40,9 @@ private[config] class ListenerPluginWrapper(implementation: DefaultListenerPlugi
 
   def onDeploymentRequestStarted(deploymentRequest: DeploymentRequest, startedExecutions: Int, failedToStart: Int): Future[Unit] =
     wrap(_.onDeploymentRequestStarted(deploymentRequest, startedExecutions, failedToStart))
+
+  def onDeploymentRequestResumed(deploymentPlanStep: DeploymentPlanStep, startedExecutions: Int, failedToStart: Int): Future[Unit] =
+    wrap(_.onDeploymentRequestResumed(deploymentPlanStep, startedExecutions, failedToStart))
 
   def onDeploymentRequestRetried(deploymentPlanStep: DeploymentPlanStep, startedExecutions: Int, failedToStart: Int): Future[Unit] =
     wrap(_.onDeploymentRequestRetried(deploymentPlanStep, startedExecutions, failedToStart))
