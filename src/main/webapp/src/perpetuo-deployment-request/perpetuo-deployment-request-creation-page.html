@@ -9,7 +9,7 @@
 <link rel="import" href="../perpetuo-deployment-request/perpetuo-deployment-request-creation-error.html">
 <link rel="import" href="../perpetuo-deployment-request/perpetuo-deployment-request-creator.html">
 <link rel="import" href="../perpetuo-deployment-request/perpetuo-deployment-request-product-selector.html">
-<link rel="import" href="../perpetuo-deployment-request/perpetuo-deployment-request-target-selector.html">
+<link rel="import" href="../perpetuo-deployment-request/perpetuo-deployment-request-strategy-selector.html">
 <link rel="import" href="../perpetuo-deployment-request/perpetuo-deployment-request-version-selector.html">
 <link rel="import" href="../perpetuo-stepper/perpetuo-step.html">
 <link rel="import" href="../perpetuo-stepper/perpetuo-stepper.html">
@@ -51,10 +51,10 @@
                                                       product-name="[[selectedProductName]]" selected-version="{{selectedVersion}}"></perpetuo-deployment-request-version-selector>
       </perpetuo-step>
 
-      <perpetuo-step label="Specify Target" complete-label="Continue" cancel-label="Back"
-                     complete-disabled="[[!selectedTargets.length]]">
-        <perpetuo-deployment-request-target-selector slot="content" product-name="[[selectedProductName]]" id="targetSelector"
-                                                     on-selected-targets-changed="updateSelectedTargets"></perpetuo-deployment-request-target-selector>
+      <perpetuo-step label="Select Strategy" complete-label="Continue" cancel-label="Back"
+                     complete-disabled="[[!selectedStrategy.length]]">
+        <perpetuo-deployment-request-strategy-selector slot="content" product-name="[[selectedProductName]]" id="strategySelector"
+                                                       on-selected-strategy-changed="updateSelectedStrategy"></perpetuo-deployment-request-strategy-selector>
       </perpetuo-step>
 
       <perpetuo-step label="Comment"
@@ -78,7 +78,7 @@
           products: { type: Array, value: () => [] },
           selectedProductName: { type: String, observer: 'onSelectedProductNameChanged'},
           selectedVersion: String,
-          selectedTargets: {type: Array, value: () => []},
+          selectedStrategy: {type: Array, value: () => []},
         };
       }
 
@@ -120,8 +120,8 @@
         }
       }
 
-      updateSelectedTargets() {
-        this.selectedTargets = this.$.targetSelector.selectedTargets;
+      updateSelectedStrategy() {
+        this.selectedStrategy = this.$.strategySelector.selectedStrategy;
       }
 
       constructor() {
@@ -142,7 +142,7 @@
         new Perpetuo.DeploymentRequestCreator()
                     .create(this.selectedProductName,
                             this.selectedVersion,
-                            [{name: '', target: this.selectedTargets}],
+                            this.selectedStrategy,
                             this.$.commentEditor.value)
                     .then(r => {
                       if (r.ok) {
@@ -164,7 +164,7 @@
         this.$.productSelector.clear();
         this.$.versionSelector.disabled = true;
         this.$.versionSelector.clear();
-        this.$.targetSelector.clear();
+        this.$.strategySelector.clear();
         this.$.commentEditor.clear();
         this.$.create.disabled = true;
       }
