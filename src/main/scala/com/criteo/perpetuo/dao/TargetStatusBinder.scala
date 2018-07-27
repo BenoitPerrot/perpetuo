@@ -53,16 +53,20 @@ trait TargetStatusBinder extends TableBinder {
     * considered independent so this function must apply as many changes as possible in order for the next client's
     * attempts to have a chance to succeed.
     */
-  def updatingTargetStatuses(executionId: Long, statusMap: Map[String, TargetAtomStatus]): DBIOrw[Unit] =
+  def updatingTargetStatuses(executionId: Long, statusMap: Map[String, TargetAtomStatus]): DBIOrw[Unit] = {
+    // fixme: temporary fix until a cleaner way to generically deal with truncatable string columns
+    val withTruncatedDetails = statusMap.map { case (k, v) =>
+      (k, TargetAtomStatus(v.code, if (4000 < v.detail.length) s"${v.detail.take(3997)}..." else v.detail))
+    }
     targetStatusQuery
       // first look at what is already created (nothing is ever removed) in order to
       // decrease the size of the following chain of inserts and updates (which can be costly)
-      .filter(ts => ts.executionId === executionId && ts.targetAtom.inSet(statusMap.keySet))
+      .filter(ts => ts.executionId === executionId && ts.targetAtom.inSet(withTruncatedDetails.keySet))
       .result
       .map { currentRecords =>
         // todo: take the status code "precedence" into account in order to reject impossible transitions, once DREDD-725 is implemented
         val (same, different) = currentRecords.partition { currentRecord =>
-          val askedStatus = statusMap(currentRecord.targetAtom)
+          val askedStatus = withTruncatedDetails(currentRecord.targetAtom)
           // look at the records that are up-to-date as of now, so we won't touch them at all
           currentRecord.code == askedStatus.code && currentRecord.detail == askedStatus.detail
         }
@@ -72,7 +76,7 @@ trait TargetStatusBinder extends TableBinder {
         val alreadyCreated = (same.toStream ++ different).toSet
         val toUpdate = Iterable.newBuilder[String] ++= different
         DBIO.sequence(
-          statusMap.toStream.collect { case (atom, status) if !alreadyCreated(atom) =>
+          withTruncatedDetails.toStream.collect { case (atom, status) if !alreadyCreated(atom) =>
             // try to create missing atoms
             (targetStatusQuery += TargetStatusRecord(executionId, atom, status.code, status.detail)).asTry.map {
               case Success(_) => ()
@@ -83,7 +87,7 @@ trait TargetStatusBinder extends TableBinder {
           toUpdate
             .result
             // for efficiency purpose, try to chain as less requests as possible by gathering the atoms sharing the same status
-            .groupBy(statusMap)
+            .groupBy(withTruncatedDetails)
             .map { case (TargetAtomStatus(newCode, newDetail), atomsToUpdate) =>
               targetStatusQuery
                 .filter(ts => ts.executionId === executionId && ts.targetAtom.inSet(atomsToUpdate)) // we could reject impossible transitions here too but it's not that important: see below
@@ -96,6 +100,7 @@ trait TargetStatusBinder extends TableBinder {
       }
       .map(_ => ())
       .withPinnedSession
+  }
 
   def closingTargetStatuses(operationTraceId: Long): DBIOrw[Int] =
     executionQuery.filter(_.operationTraceId === operationTraceId).map(_.id).result
