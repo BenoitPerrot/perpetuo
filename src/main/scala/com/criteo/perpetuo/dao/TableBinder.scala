@@ -1,7 +1,7 @@
 package com.criteo.perpetuo.dao
 
 import slick.ast.{ColumnOption, TypedType}
-import slick.lifted.{AbstractTable, ForeignKeyQuery, Index, PrimaryKey}
+import slick.lifted._
 
 import scala.collection.mutable
 
@@ -12,6 +12,10 @@ trait TableBinder {
 
   abstract class Table[T](tag: Tag, name: String) extends dbContext.profile.api.Table[T](tag, name) {
     val columnNames = mutable.HashMap[AnyRef, String]()
+
+    def nvarchar[C <: AnyVal with StringInput](n: String)(implicit c: String => C, tt: TypedType[C]): Rep[C] = {
+      column[C](n, O.SqlType(s"nvarchar(${maxLength[C]})"))
+    }
 
     override def column[C](n: String, options: ColumnOption[C]*)(implicit tt: TypedType[C]): Rep[C] = {
       val col = super.column(n, options: _*)

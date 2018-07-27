@@ -17,8 +17,6 @@ case class User(name: String, groupNames: Set[String] = Set()) {
 }
 
 object User {
-  val maxSize: Int = 64
-
   val maxValidity: FiniteDuration = 1.day // todo: to lower when no click will be needed to renew the token
 
   def currentTimestamp: Long = System.currentTimeMillis() / 1000
@@ -30,7 +28,7 @@ object User {
       None
     else
       Some(User(
-        values("name").asInstanceOf[JsString].value.take(maxSize),
+        values("name").asInstanceOf[JsString].value,
         values.get("groupNames").map(
           _.asInstanceOf[JsArray].elements
             .map(_.asInstanceOf[JsString].value)

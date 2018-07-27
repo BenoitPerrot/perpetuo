@@ -704,7 +704,7 @@ class RestControllerSpec extends Test with TestDb {
     )
   }
 
-  test("Creating a deployment request with a too long name works but store a truncated user name") {
+  test("Creating a deployment request with a too long name works but stores an explicitly truncated user name") {
     val longUser = makeUser("too-long-user-name/" * 42)
     val longUserJWT = longUser.toJWT(authModule.jwtEncoder)
 
@@ -720,7 +720,7 @@ class RestControllerSpec extends Test with TestDb {
     ).contentString.parseJson.idAsLong
 
     deepGetDepReq(id).fields("creator").asInstanceOf[JsString].value shouldEqual
-      "too-long-user-name/too-long-user-name/too-long-user-name/too-lon"
+      "too-long-user-name/too-long-user-name/too-long-user-name/too-..."
   }
 
 

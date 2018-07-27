@@ -41,9 +41,7 @@ class UserFilterSpec extends Test {
   })
 
   private val knownUser = User("knownUser")
-  private val longUser = User("too-long-name-" * 42)
   private val knownUserJWT = knownUser.toJWT(authModule.jwtEncoder)
-  private val longUserJWT = longUser.toJWT(authModule.jwtEncoder)
 
   test("The UserFilter decorates requests with a known user when the JWT cookie is valid") {
     server.httpGet("/username-from-jwt-cookie",
@@ -62,14 +60,6 @@ class UserFilterSpec extends Test {
     server.httpGet("/username-from-jwt-cookie",
       headers = Map("Cookie" -> "jwt=DEADBEEF"),
       andExpect = Unauthorized
-    )
-  }
-
-  test("The UserFilter doesn't fail when the user name is too long (but it truncates it)") {
-    server.httpGet("/username-from-jwt-cookie",
-      headers = Map("Cookie" -> s"jwt=$longUserJWT"),
-      andExpect = Ok,
-      withBody = longUser.name.take(User.maxSize)
     )
   }
 }

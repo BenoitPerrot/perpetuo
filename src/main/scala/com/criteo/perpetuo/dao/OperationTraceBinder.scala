@@ -1,6 +1,5 @@
 package com.criteo.perpetuo.dao
 
-import com.criteo.perpetuo.auth.User
 import com.criteo.perpetuo.model._
 import slick.sql.FixedSqlAction
 
@@ -10,12 +9,12 @@ import scala.concurrent.ExecutionContext.Implicits.global
 private[dao] case class OperationTraceRecord(id: Option[Long],
                                              deploymentRequestId: Long,
                                              operation: Operation.Kind,
-                                             creator: String,
+                                             creator: UserName,
                                              creationDate: java.sql.Timestamp,
                                              startingDate: Option[java.sql.Timestamp] = None,
                                              closingDate: Option[java.sql.Timestamp] = None) {
   def toOperationTrace(deploymentRequest: DeploymentRequest): OperationTrace =
-    OperationTrace(id.get, deploymentRequest, operation, creator, creationDate, closingDate)
+    OperationTrace(id.get, deploymentRequest, operation, creator.toString, creationDate, closingDate)
 }
 
 
@@ -37,8 +36,7 @@ trait OperationTraceBinder extends TableBinder {
     protected def fk = foreignKey(deploymentRequestId, deploymentRequestQuery)(_.id)
 
     def operation = column[Operation.Kind]("operation")
-
-    def creator = column[String]("creator", O.SqlType(s"nvarchar(${User.maxSize})"))
+    def creator = nvarchar[UserName]("creator")
     def creationDate = column[java.sql.Timestamp]("creation_date")
     protected def creationIdx = index(creationDate)
     def startingDate = column[Option[java.sql.Timestamp]]("starting_date")
