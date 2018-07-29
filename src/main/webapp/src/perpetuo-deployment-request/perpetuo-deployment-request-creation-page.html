@@ -150,7 +150,6 @@
                         r.json().then(o => {
                           window.location.replace(`/deployment-requests/${o.id}`);
                         });
-                        this.close();
                       } else {
                         r.json().then(o => {
                           this.$.errorDialog.errors = o.errors;
