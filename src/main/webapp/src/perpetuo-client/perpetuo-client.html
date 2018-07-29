@@ -121,7 +121,9 @@ this.Perpetuo.Client = this.Perpetuo.Client || (function () {
       return fetch(url, Object.assign({
         headers: {'Accept': 'application/json', 'Content-Type': 'application/json'},
         credentials: 'include'
-      }, options || {}));
+      }, options || {})).then(r =>
+        r.ok ? r : r.json().then(o => Promise.reject({status: r.status, detail: o}))
+      );
     }
   };
 }());
