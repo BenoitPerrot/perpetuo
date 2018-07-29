@@ -38,7 +38,7 @@
 
     <perpetuo-stepper id="stepper" on-stepper-completed="onStepperCompleted">
 
-      <perpetuo-step id="productSelectionStep" label="Select Product" complete-label="Continue" no-cancel-button
+      <perpetuo-step id="productSelectionStep" label="[[productSelectionStepLabel]]" complete-label="Continue" no-cancel-button
                      on-step-enter="onProductSelectionStepEnter" on-step-leave="onProductSelectionStepLeave"
                      complete-disabled="[[!selectedProductName]]">
         <perpetuo-deployment-request-product-selector slot="content" id="productSelector"
@@ -76,10 +76,15 @@
           login: String,
           active: {type: Boolean, observer: 'onActiveChanged'},
           products: { type: Array, value: () => [] },
+          productSelectionStepLabel: {type: String, value: 'Select Product'},
           selectedProductName: { type: String, observer: 'onSelectedProductNameChanged'},
           selectedVersion: String,
           selectedStrategy: {type: Array, value: () => []},
         };
+      }
+
+      restoreDefaultValue(propertyName) {
+        this[propertyName] = this.constructor.properties[propertyName].value;
       }
 
       onActiveChanged() {
@@ -99,11 +104,13 @@
       }
 
       onProductSelectionStepEnter(e) {
+        this.restoreDefaultValue('productSelectionStepLabel');
         this.$.productSelector.disabled = false;
       }
 
       onProductSelectionStepLeave(e) {
         this.$.productSelector.disabled = true;
+        this.productSelectionStepLabel = `Selected Product: ${this.selectedProductName}`;
       }
 
       onVersionSelectionStepEnter(e) {
