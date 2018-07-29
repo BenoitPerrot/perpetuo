@@ -6,13 +6,6 @@
 this.Perpetuo = this.Perpetuo || {};
 this.Perpetuo.Client = this.Perpetuo.Client || (function () {
 
-  function jsonFetch(url, options) {
-    return fetch(url, Object.assign({
-      headers: {'Accept': 'application/json', 'Content-Type': 'application/json'},
-      credentials: 'include'
-    }, options || {}));
-  }
-
   function memoize(f) {
     const memoized = () => {
       if (!memoized.hasOwnProperty('__cache')) {
@@ -23,7 +16,7 @@ this.Perpetuo.Client = this.Perpetuo.Client || (function () {
     return memoized;
   }
 
-  const fetchAuthorizeURL = memoize(() => jsonFetch('/api/auth/authorize-url').then(_ => _.json()).then(_ => _.url));
+  const fetchAuthorizeURL = memoize(() => Perpetuo.Client.jsonFetch('/api/auth/authorize-url').then(_ => _.json()).then(_ => _.url));
 
   return class Client {
     constructor(host) {
@@ -39,7 +32,7 @@ this.Perpetuo.Client = this.Perpetuo.Client || (function () {
     }
 
     identify(accessToken) {
-      return jsonFetch('/api/auth/identify', {method: 'POST', body: JSON.stringify({token: accessToken})}).then(_ => {
+      return Perpetuo.Client.jsonFetch('/api/auth/identify', {method: 'POST', body: JSON.stringify({token: accessToken})}).then(_ => {
         if (_.status === 200)
           return _.text();
         throw _.statusText;
@@ -55,18 +48,18 @@ this.Perpetuo.Client = this.Perpetuo.Client || (function () {
     }
 
     fetchIdentity() {
-      return jsonFetch('/api/auth/identity').then(r => r.json()).then(o => o.name).catch(() => null);
+      return Perpetuo.Client.jsonFetch('/api/auth/identity').then(r => r.json()).then(o => o.name).catch(() => null);
     }
 
     fetchDeploymentRequest(id) {
-      return jsonFetch(`/api/unstable/deployment-requests/${id}`)
+      return Perpetuo.Client.jsonFetch(`/api/unstable/deployment-requests/${id}`)
         .then(_ => _.json());
     }
 
     fetchDeploymentRequests(options) {
       options = Object.assign({where: [], limit: 20, offset: 0}, options);
       options.limit = options.limit + 1; // Ask for one more element to know if more are available TODO: remove
-      return jsonFetch('/api/unstable/deployment-requests', {method: 'POST', body: JSON.stringify(options)})
+      return Perpetuo.Client.jsonFetch('/api/unstable/deployment-requests', {method: 'POST', body: JSON.stringify(options)})
         .then(_ => _.json()).then(deploymentRequests => {
           this.hasMoreDeploymentRequests = deploymentRequests.length === options.limit; // TODO: handle in caller
           if (this.hasMoreDeploymentRequests) {
@@ -77,7 +70,7 @@ this.Perpetuo.Client = this.Perpetuo.Client || (function () {
     }
 
     createDeploymentRequest(productName, version, plan, comment) {
-      return jsonFetch('/api/deployment-requests', {
+      return Perpetuo.Client.jsonFetch('/api/deployment-requests', {
         method: 'POST',
         body: JSON.stringify({
           productName: productName,
@@ -104,11 +97,11 @@ this.Perpetuo.Client = this.Perpetuo.Client || (function () {
     }
 
     actOnDeploymentRequest(deploymentRequestId, actionName, body) {
-      return jsonFetch(`/api/deployment-requests/${deploymentRequestId}/actions/${actionName}`, {method: 'POST', body: JSON.stringify(body)});
+      return Perpetuo.Client.jsonFetch(`/api/deployment-requests/${deploymentRequestId}/actions/${actionName}`, {method: 'POST', body: JSON.stringify(body)});
     }
 
     fetchProducts() {
-      return jsonFetch('/api/products').then(_ => _.json()).then(products => products.map(_ => {
+      return Perpetuo.Client.jsonFetch('/api/products').then(_ => _.json()).then(products => products.map(_ => {
         return {name: _.name, active: _.active}
       }));
     }
@@ -122,6 +115,13 @@ this.Perpetuo.Client = this.Perpetuo.Client || (function () {
         default:
           return (status === 'notStarted' ? '' : `${lastOperationKind} `) + status.replace(/([A-Z])/g, ' $1');
       }
+    }
+
+    static jsonFetch(url, options) {
+      return fetch(url, Object.assign({
+        headers: {'Accept': 'application/json', 'Content-Type': 'application/json'},
+        credentials: 'include'
+      }, options || {}));
     }
   };
 }());
