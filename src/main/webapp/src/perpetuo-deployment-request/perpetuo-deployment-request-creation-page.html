@@ -83,6 +83,7 @@
       }
 
       onActiveChanged() {
+        this.clear();
         if (this.active) {
           this.client.fetchIdentity()
               .then(login => {
@@ -160,12 +161,14 @@
       }
 
       clear() {
-        this.$.stepper.reset();
-        this.$.productSelector.clear();
-        this.$.versionSelector.disabled = true;
-        this.$.versionSelector.clear();
-        this.$.strategySelector.clear();
-        this.$.commentEditor.clear();
+        if (this.$) {
+          this.$.stepper.reset();
+          this.$.productSelector.clear();
+          this.$.versionSelector.disabled = true;
+          this.$.versionSelector.clear();
+          this.$.strategySelector.clear();
+          this.$.commentEditor.clear();
+        }
       }
     }
 
