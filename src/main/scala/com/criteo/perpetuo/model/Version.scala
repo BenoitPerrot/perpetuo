@@ -10,11 +10,7 @@ case class PartialVersion(value: String, ratio: Float = 1f)
 
 
 case class Version(serialized: String) extends MappedTo[String] {
-  lazy val structured: Iterable[PartialVersion] = serialized.parseJson match {
-    case JsArray(arr) => arr.map(Version.parseVersion)
-    case JsString(v) => Seq(PartialVersion(v))
-    case _ => throw new ParsingException("Should not be there")
-  }
+  lazy val structured: Iterable[PartialVersion] = Version.toStructured(serialized)
 
   override def toString: String = serialized
 
@@ -29,7 +25,7 @@ object Version {
   private val valueField = "value"
   private val ratioField = "ratio"
 
-  private val parseVersion: JsValue => PartialVersion = {
+  private val partialFromJson: JsValue => PartialVersion = {
     case JsObject(obj) =>
       val value = obj.getOrElse(valueField, throw new ParsingException(s"Expected to find a `$valueField` in every `version`")) match {
         case JsString(v) => v
@@ -59,12 +55,18 @@ object Version {
     version
   }
 
-  def compactPrint(versions: Iterable[PartialVersion]): String = {
+  def compactPrint(structured: Iterable[PartialVersion]): String = {
     {
-      if (versions.size == 1)
-        JsString(versions.head.value)
+      if (structured.size == 1)
+        JsString(structured.head.value)
       else
-        versions.map { v => JsObject(valueField -> JsString(v.value), ratioField -> JsNumber(v.ratio - (v.ratio % ratioPrecision))) }.toJson
+        structured.map { v => JsObject(valueField -> JsString(v.value), ratioField -> JsNumber(v.ratio - (v.ratio % ratioPrecision))) }.toJson
     }.compactPrint
+  }
+
+  def toStructured(input: String): Iterable[PartialVersion] = input.parseJson match {
+    case JsArray(arr) => arr.map(partialFromJson)
+    case JsString(v) => Seq(PartialVersion(v))
+    case _ => throw new ParsingException("Should not be there")
   }
 }
