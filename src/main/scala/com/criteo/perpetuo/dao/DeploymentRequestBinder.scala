@@ -9,11 +9,11 @@ import scala.concurrent.Future
 private[dao] case class DeploymentRequestRecord(id: Option[Long],
                                                 productId: Int,
                                                 version: VersionField,
-                                                comment: String, // Not an `Option` because it's easier to consider that no comment <=> empty
+                                                comment: Comment, // Not an `Option` because it's easier to consider that no comment <=> empty
                                                 creator: UserName,
                                                 creationDate: java.sql.Timestamp) {
   def toDeploymentRequest(product: ProductRecord) =
-    DeploymentRequest(id.get, product.toProduct, version.toModel, comment, creator.toString, creationDate)
+    DeploymentRequest(id.get, product.toProduct, version.toModel, comment.toString, creator.toString, creationDate)
 }
 
 
@@ -32,7 +32,7 @@ trait DeploymentRequestBinder extends TableBinder {
     def version = nvarchar[VersionField]("version")
 
     // The details
-    def comment = column[String]("comment", O.SqlType("nvarchar(4000)"))
+    def comment = nvarchar[Comment]("comment")
     def creator = nvarchar[UserName]("creator")
     def creationDate = column[java.sql.Timestamp]("creation_date")
     protected def creationIdx = index(creationDate)

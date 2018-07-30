@@ -16,6 +16,12 @@ package object dao {
     override def isTruncatable = true
   }
 
+  implicit class Comment(val input: String) extends AnyVal with StringInput {
+    override def maxLength = 4000
+
+    override def isTruncatable = true
+  }
+
   implicit class VersionField(val input: String) extends AnyVal with StringInput {
     override def maxLength: Int = 1024
 

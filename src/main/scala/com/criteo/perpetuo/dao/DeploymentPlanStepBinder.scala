@@ -11,9 +11,9 @@ private[dao] case class DeploymentPlanStepRecord(id: Option[Long],
                                                  deploymentRequestId: Long,
                                                  name: String,
                                                  targetExpression: String,
-                                                 comment: String) { // Not an `Option` because it's easier to consider that no comment <=> empty
+                                                 comment: Comment) { // Not an `Option` because it's easier to consider that no comment <=> empty
   def toDeploymentPlanStep(deploymentRequest: DeploymentRequest) =
-    DeploymentPlanStep(id.get, deploymentRequest, name, targetExpression.parseJson, comment)
+    DeploymentPlanStep(id.get, deploymentRequest, name, targetExpression.parseJson, comment.toString)
 }
 
 trait DeploymentPlanStepBinder extends TableBinder {
@@ -32,7 +32,7 @@ trait DeploymentPlanStepBinder extends TableBinder {
 
     def targetExpression = column[String]("target_expression", O.SqlType("nvarchar(8000)"))
 
-    def comment = column[String]("comment", O.SqlType("nvarchar(4000)"))
+    def comment = nvarchar[Comment]("comment")
 
     def * = (id.?, deploymentRequestId, name, targetExpression, comment) <> (DeploymentPlanStepRecord.tupled, DeploymentPlanStepRecord.unapply)
   }

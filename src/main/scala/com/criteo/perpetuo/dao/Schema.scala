@@ -67,7 +67,7 @@ trait DeploymentRequestInserter
         planSteps <-
           deploymentPlanStepQuery
             .returning(deploymentPlanStepQuery.map(_.id))
-            .into((planStep, id) => DeploymentPlanStep(id, deploymentRequest, planStep.name, targetExpressions(planStep.targetExpression), planStep.comment))
+            .into((planStep, id) => DeploymentPlanStep(id, deploymentRequest, planStep.name, targetExpressions(planStep.targetExpression), planStep.comment.toString))
             .++=(
               r.plan.map(step => DeploymentPlanStepRecord(None, deploymentRequest.id, step.name, step.targetExpression.compactPrint, step.comment))
             )

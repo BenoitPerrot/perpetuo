@@ -14,12 +14,12 @@ private[dao] case class ExecutionTraceRecord(id: Option[Long],
                                              executionId: Long,
                                              logHref: Option[String] = None,
                                              state: ExecutionState = ExecutionState.pending,
-                                             detail: String = "") {
+                                             detail: Comment = "") {
   def toExecutionTrace: ShallowExecutionTrace =
-    ShallowExecutionTrace(id.get, logHref, state, detail)
+    ShallowExecutionTrace(id.get, logHref, state, detail.toString)
 
   def toExecutionTrace(operationTrace: OperationTrace): ExecutionTraceBranch =
-    ExecutionTraceBranch(id.get, executionId, operationTrace, logHref, state, detail)
+    ExecutionTraceBranch(id.get, executionId, operationTrace, logHref, state, detail.toString)
 }
 
 
@@ -42,7 +42,7 @@ trait ExecutionTraceBinder extends TableBinder {
 
     def logHref = column[Option[String]]("log_href", O.SqlType("nvarchar(1024)"))
     def state = column[ExecutionState]("state")
-    def detail = column[String]("detail", O.SqlType("nvarchar(4000)"))
+    def detail = nvarchar[Comment]("detail")
 
     def * = (id.?, executionId, logHref, state, detail) <> (ExecutionTraceRecord.tupled, ExecutionTraceRecord.unapply)
   }
@@ -88,11 +88,9 @@ trait ExecutionTraceBinder extends TableBinder {
     * @throws UnavailableAction if the transition is not allowed
     */
   def updatingExecutionTrace(id: Long, state: ExecutionState, detail: String, logHref: Option[String] = None): DBIOrw[Option[Long]] = {
-    // fixme: it's a quick fix, but a generic way of dealing with truncatable string columns is coming
-    val truncatedDetail = if (4000 < detail.length) s"${detail.take(3997)}..." else detail
     logHref
-      .map(_ => runningUpdate(id, state, _.map(r => (r.state, r.detail, r.logHref)).update((state, truncatedDetail, logHref))))
-      .getOrElse(runningUpdate(id, state, _.map(r => (r.state, r.detail)).update((state, truncatedDetail))))
+      .map(_ => runningUpdate(id, state, _.map(r => (r.state, r.detail, r.logHref)).update((state, detail, logHref))))
+      .getOrElse(runningUpdate(id, state, _.map(r => (r.state, r.detail)).update((state, detail))))
   }
 
   private def runningUpdate(id: Long, state: ExecutionState, updateQuery: Query[ExecutionTraceTable, ExecutionTraceRecord, Seq] => DBIOAction[Int, NoStream, Effect.Write]) = {

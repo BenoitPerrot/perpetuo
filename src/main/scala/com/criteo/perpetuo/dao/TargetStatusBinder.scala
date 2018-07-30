@@ -10,9 +10,9 @@ import scala.util.{Failure, Success}
 private[dao] case class TargetStatusRecord(executionId: Long,
                                            targetAtom: String,
                                            code: Status.Code,
-                                           detail: String) {
+                                           detail: Comment) {
   def toTargetStatus: TargetStatus =
-    TargetStatus(targetAtom, code, detail)
+    TargetStatus(targetAtom, code, detail.toString)
 }
 
 
@@ -32,7 +32,7 @@ trait TargetStatusBinder extends TableBinder {
 
     def targetAtom = column[TargetAtom.Type]("target", O.SqlType(s"nvarchar(${TargetAtom.maxSize})"))
     def code = column[Status.Code]("code")
-    def detail = column[String]("detail", O.SqlType(s"nvarchar(4000)"))
+    def detail = nvarchar[Comment]("detail")
 
     protected def pk = primaryKey((targetAtom, executionId))
 
@@ -54,21 +54,17 @@ trait TargetStatusBinder extends TableBinder {
     * attempts to have a chance to succeed.
     */
   def updatingTargetStatuses(executionId: Long, statusMap: Map[String, TargetAtomStatus]): DBIOrw[Unit] = {
-    // fixme: temporary fix until a cleaner way to generically deal with truncatable string columns
-    val withTruncatedDetails = statusMap.map { case (k, v) =>
-      (k, TargetAtomStatus(v.code, if (4000 < v.detail.length) s"${v.detail.take(3997)}..." else v.detail))
-    }
     targetStatusQuery
       // first look at what is already created (nothing is ever removed) in order to
       // decrease the size of the following chain of inserts and updates (which can be costly)
-      .filter(ts => ts.executionId === executionId && ts.targetAtom.inSet(withTruncatedDetails.keySet))
+      .filter(ts => ts.executionId === executionId && ts.targetAtom.inSet(statusMap.keySet))
       .result
       .map { currentRecords =>
         // todo: take the status code "precedence" into account in order to reject impossible transitions, once DREDD-725 is implemented
         val (same, different) = currentRecords.partition { currentRecord =>
-          val askedStatus = withTruncatedDetails(currentRecord.targetAtom)
+          val askedStatus = statusMap(currentRecord.targetAtom)
           // look at the records that are up-to-date as of now, so we won't touch them at all
-          currentRecord.code == askedStatus.code && currentRecord.detail == askedStatus.detail
+          currentRecord.code == askedStatus.code && currentRecord.detail.toString == askedStatus.detail
         }
         (same.map(_.targetAtom), different.map(_.targetAtom))
       }
@@ -76,7 +72,7 @@ trait TargetStatusBinder extends TableBinder {
         val alreadyCreated = (same.toStream ++ different).toSet
         val toUpdate = Iterable.newBuilder[String] ++= different
         DBIO.sequence(
-          withTruncatedDetails.toStream.collect { case (atom, status) if !alreadyCreated(atom) =>
+          statusMap.toStream.collect { case (atom, status) if !alreadyCreated(atom) =>
             // try to create missing atoms
             (targetStatusQuery += TargetStatusRecord(executionId, atom, status.code, status.detail)).asTry.map {
               case Success(_) => ()
@@ -87,7 +83,7 @@ trait TargetStatusBinder extends TableBinder {
           toUpdate
             .result
             // for efficiency purpose, try to chain as less requests as possible by gathering the atoms sharing the same status
-            .groupBy(withTruncatedDetails)
+            .groupBy(statusMap)
             .map { case (TargetAtomStatus(newCode, newDetail), atomsToUpdate) =>
               targetStatusQuery
                 .filter(ts => ts.executionId === executionId && ts.targetAtom.inSet(atomsToUpdate)) // we could reject impossible transitions here too but it's not that important: see below
