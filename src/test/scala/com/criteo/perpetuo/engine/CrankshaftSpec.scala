@@ -163,7 +163,7 @@ class CrankshaftSpec extends SimpleScenarioTesting {
         (undeterminedSpecsThird, determinedSpecsThird) <- dbContext.db.run(crankshaft.dbBinding.findingExecutionSpecificationsForRevert(thirdDeploymentRequest))
 
       } yield {
-        val specsThird = determinedSpecsThird.map { case (spec, targets) => spec.id -> (spec.version.value, targets) }.toMap
+        val specsThird = determinedSpecsThird.map { case (spec, targets) => spec.id -> (spec.version.serialized, targets) }.toMap
         (
           undeterminedSpecsFirst,
           determinedSpecsFirst.isEmpty,

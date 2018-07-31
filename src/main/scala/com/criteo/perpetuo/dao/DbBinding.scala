@@ -506,7 +506,7 @@ class DbBinding @Inject()(val dbContext: DbContext)
       latestExecutions(allStatuses)
         .map { case (atom, spec) => (atom, spec.version) }
         .result
-    ).map(_.toMap)
+    ).map(_.map { case (k, v) => k -> v.toModel }.toMap)
   }
 
   def hasHadAnEffect(deploymentRequestId: Long): FixedSqlAction[Boolean, NoStream, Effect.Read] =

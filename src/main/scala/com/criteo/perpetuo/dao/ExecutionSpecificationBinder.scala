@@ -7,10 +7,10 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
 private[dao] case class ExecutionSpecificationRecord(id: Option[Long],
-                                                     version: Version,
+                                                     version: VersionField,
                                                      specificParameters: String) {
   def toExecutionSpecification: ExecutionSpecification = {
-    ExecutionSpecification(id.get, version, specificParameters)
+    ExecutionSpecification(id.get, version.toModel, specificParameters)
   }
 }
 
@@ -24,7 +24,7 @@ trait ExecutionSpecificationBinder extends TableBinder {
     def id = column[Long]("id", O.AutoInc)
     protected def pk = primaryKey(id)
 
-    def version = column[Version]("version", O.SqlType(s"nvarchar(${Version.maxLength})"))
+    def version = nvarchar[VersionField]("version")
     def specificParameters = column[String]("specific_parameters", O.SqlType("nvarchar(16000)"))
 
     def * = (id.?, version, specificParameters) <> (ExecutionSpecificationRecord.tupled, ExecutionSpecificationRecord.unapply)

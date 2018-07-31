@@ -17,10 +17,12 @@ trait StringInput extends Any with MappedTo[String] {
     if (maxLength < input.length) {
       if (!isTruncatable) {
         val hint = if (100 < input.length) s"${input.substring(0, 80)}...${input.substring(input.length - 10)}" else input
-        throw UnprocessableIntent(s"Too long input (${input.length}-char. long for max. $maxLength): $hint")
+        throw UnprocessableIntent(s"Too long $fieldName (${input.length}-char. long for max. $maxLength): $hint")
       }
       input.substring(0, maxLength - 3) + "..."
     }
     else
       input
+
+  private def fieldName = getClass.getSimpleName.stripSuffix("Field").toLowerCase
 }

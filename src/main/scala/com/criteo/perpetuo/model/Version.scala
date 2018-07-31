@@ -1,6 +1,5 @@
 package com.criteo.perpetuo.model
 
-import slick.lifted.MappedTo
 import spray.json.DefaultJsonProtocol._
 import spray.json.JsonParser.ParsingException
 import spray.json._
@@ -9,17 +8,14 @@ import spray.json._
 case class PartialVersion(value: String, ratio: Float = 1f)
 
 
-case class Version(serialized: String) extends MappedTo[String] {
+case class Version(serialized: String) {
   lazy val structured: Iterable[PartialVersion] = Version.toStructured(serialized)
 
   override def toString: String = serialized
-
-  override def value: String = serialized
 }
 
 
 object Version {
-  val maxLength = 1024
   val ratioPrecision = 1e-6
 
   private val valueField = "value"
@@ -47,8 +43,6 @@ object Version {
     }
     if (versionArray.contains("'")) // fixme: as long as we have Rundeck API 16, but maybe we should configure a validator in plugins
       throw new ParsingException("Single quotes are not supported in versions")
-    if (maxLength < versionArray.length)
-      throw new ParsingException(s"Version is too long")
     val version = Version(versionArray)
     if ((version.structured.map(_.ratio).sum - 1f).abs > Version.ratioPrecision)
       throw new ParsingException("Sum of ratios must equal 1")
