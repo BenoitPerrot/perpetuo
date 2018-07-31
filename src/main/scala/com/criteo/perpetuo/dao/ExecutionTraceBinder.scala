@@ -42,7 +42,7 @@ trait ExecutionTraceBinder extends TableBinder {
 
     def logHref = column[Option[String]]("log_href", O.SqlType("nvarchar(1024)"))
     def state = column[ExecutionState]("state")
-    def detail = column[String]("detail", O.SqlType("nvarchar(1024)"))
+    def detail = column[String]("detail", O.SqlType("nvarchar(4000)"))
 
     def * = (id.?, executionId, logHref, state, detail) <> (ExecutionTraceRecord.tupled, ExecutionTraceRecord.unapply)
   }
@@ -89,7 +89,7 @@ trait ExecutionTraceBinder extends TableBinder {
     */
   def updatingExecutionTrace(id: Long, state: ExecutionState, detail: String, logHref: Option[String] = None): DBIOrw[Option[Long]] = {
     // fixme: it's a quick fix, but a generic way of dealing with truncatable string columns is coming
-    val truncatedDetail = if (1024 < detail.length) s"${detail.take(1021)}..." else detail
+    val truncatedDetail = if (4000 < detail.length) s"${detail.take(3997)}..." else detail
     logHref
       .map(_ => runningUpdate(id, state, _.map(r => (r.state, r.detail, r.logHref)).update((state, truncatedDetail, logHref))))
       .getOrElse(runningUpdate(id, state, _.map(r => (r.state, r.detail)).update((state, truncatedDetail))))

@@ -93,7 +93,7 @@ CREATE TABLE "execution_trace" (
   "execution_id"               BIGINT         NOT NULL,
   "log_href"                   NVARCHAR(1024),
   "state"                      SMALLINT       NOT NULL,
-  "detail"                     NVARCHAR(1024) NOT NULL
+  "detail"                     NVARCHAR(4000) NOT NULL
 )
 ALTER TABLE "execution_trace"
   ADD CONSTRAINT "pk_execution_trace" PRIMARY KEY ("id")
