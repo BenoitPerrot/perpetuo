@@ -1,7 +1,6 @@
 package com.criteo.perpetuo.dao
 
 import com.criteo.perpetuo.engine.{DeploymentStatus, Select, computeDeploymentStatus}
-import com.criteo.perpetuo.model.Operation.Kind
 import com.criteo.perpetuo.model._
 import javax.inject.{Inject, Singleton}
 import slick.jdbc.TransactionIsolation
@@ -267,7 +266,7 @@ class DbBinding @Inject()(val dbContext: DbContext)
         executionTrace.toExecutionTrace(operationTrace.toOperationTrace(deploymentRequest.toDeploymentRequest(product)))
       })
 
-  def findingDeploymentPlanAndLatestOperations(deploymentRequest: DeploymentRequest): DBIOAction[Seq[(DeploymentPlanStep, Option[(DeploymentRequestId, Kind)])], NoStream, Effect.Read] =
+  def findingDeploymentPlanAndLatestOperations(deploymentRequest: DeploymentRequest): DBIOAction[Seq[(DeploymentPlanStep, Option[(DeploymentRequestId, Operation.Kind)])], NoStream, Effect.Read] =
     deploymentPlanStepQuery
       .filter(_.deploymentRequestId === deploymentRequest.id)
       .joinLeft(stepOperationXRefQuery)

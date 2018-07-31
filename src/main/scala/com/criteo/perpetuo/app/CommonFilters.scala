@@ -9,8 +9,6 @@ import com.twitter.inject.Logging
 import com.twitter.util.{Future, Stopwatch}
 import javax.inject.{Inject, Singleton}
 
-import scala.collection.JavaConverters._
-
 
 @Singleton
 class CommonFilters @Inject()(a: StatsFilter[Request],

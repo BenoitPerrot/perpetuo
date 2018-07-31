@@ -1,6 +1,6 @@
 package com.criteo.perpetuo.engine
 
-import com.criteo.perpetuo.dao._
+import com.criteo.perpetuo.dao.{DBIOrw, DbBinding}
 import com.criteo.perpetuo.engine.dispatchers.TargetDispatcher
 import com.criteo.perpetuo.engine.executors.ExecutionTrigger
 import com.criteo.perpetuo.engine.resolvers.TargetResolver
