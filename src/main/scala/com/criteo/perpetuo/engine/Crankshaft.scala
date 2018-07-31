@@ -166,7 +166,8 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
               .andThen(fuelFilter.releasingLocks(operationTrace.deploymentRequest, transactionFinalSuccess.isEmpty))
               .map(_ =>
                 if (updated) { // if it's a successful close, let's notify
-                  val operationSucceeded = status == DeploymentStatus.succeeded
+                  // FIXME: when/if partial reverts are supported: a _failed_ partial revert would be "paused" too, the operationSucceeded should be "false"
+                  val operationSucceeded = status == DeploymentStatus.succeeded || status == DeploymentStatus.paused
                   listeners.foreach { listener =>
                     if (operationSucceeded)
                       listener.onOperationSucceeded(operationTrace)
