@@ -38,7 +38,7 @@
         </paper-listbox>
       </paper-dropdown-menu>
       <span style="margin-left:32px;">[[firstIndexOnPage]]-[[lastIndexOnPage]]</span>
-      <span style="margin-left:10px;margin-right:32px;">of [[total]]</span>
+      <span style="margin-left:10px;margin-right:32px;" hidden$="[[!total]]">of [[total]]</span>
       <paper-icon-button icon="chevron-left" on-tap="onPreviousPageTap" disabled="[[isFirstPage]]"></paper-icon-button>
       <paper-icon-button icon="chevron-right" on-tap="onNextPageTap" disabled="[[isLastPage]]"></paper-icon-button>
     </div>
@@ -61,7 +61,7 @@
           isLastPage: {type: Boolean, value: false},
 
           offset: {type: Number, computed: 'computeOffset(page, pageSize)', notify: true},
-          total: {type: String},
+          total: {type: Number, value: null},
 
           firstIndexOnPage: {type: Number, computed: 'computeFirstIndexOnPage(offset)', notify: true},
           lastIndexOnPage: {type: Number, computed: 'computeLastIndexOnPage(offset, countOnPage)', notify: true},
