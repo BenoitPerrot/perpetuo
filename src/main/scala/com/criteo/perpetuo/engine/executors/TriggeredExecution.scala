@@ -46,6 +46,7 @@ class TriggeredExecutionFinder @Inject()(loader: PluginLoader) {
       .map { logHref =>
         val executionName = logHref match { // todo: look at the executionName in the record instead
           case _ if logHref.contains("/execution/show/") => "rundeck"
+          case _ if logHref.contains("/job/") => "jenkins"
           case _ => "unknown"
         }
 
