@@ -8,6 +8,7 @@ import com.twitter.conversions.time._
 import com.twitter.finagle.Http.Client
 import com.twitter.finagle.builder.ClientBuilder
 import com.twitter.finagle.http.{Method, Request, Response}
+import com.twitter.finagle.http.Status.{NotFound, Ok, Found}
 import com.twitter.finagle.service.{Backoff, RetryPolicy}
 import com.twitter.inject.Logging
 import com.twitter.util.{Base64StringEncoder, Duration, Future => TwitterFuture, Try => TwitterTry}
@@ -24,6 +25,8 @@ class JenkinsClient(val host: String) extends Logging {
   // Timeouts
   protected val requestTimeout: Duration = 5.seconds
 
+  def maxAbortDuration: Duration = requestTimeout
+
   // HTTP client
   protected def ssl: Boolean = port == 443
 
@@ -31,8 +34,8 @@ class JenkinsClient(val host: String) extends Logging {
   protected val backoffDurations: Stream[Duration] = Backoff.exponentialJittered(1.seconds, 5.seconds)
   protected val backoffPolicy: RetryPolicy[TwitterTry[Nothing]] = RetryPolicy.backoff(backoffDurations)(RetryPolicy.TimeoutAndWriteExceptionsOnly)
 
-  protected def fetch(apiSubPath: String): TwitterFuture[Response] =
-    client(buildRequest(apiSubPath))
+  protected def post(apiSubPath: String): TwitterFuture[Response] =
+    client(buildPostRequest(apiSubPath))
 
   def createBasicAuthenticationHeader(username: Option[String], password: Option[String]): Option[String] =
     (username, password) match {
@@ -67,7 +70,7 @@ class JenkinsClient(val host: String) extends Logging {
       s"/$apiSubPath"
   }
 
-  protected def buildRequest(apiSubPath: String): Request = {
+  protected def buildPostRequest(apiSubPath: String): Request = {
 
     val req = Request(Method.Post, apiSubPath)
     req.host = host
@@ -75,7 +78,28 @@ class JenkinsClient(val host: String) extends Logging {
     req
   }
 
+  def abortJob(jobName: String, jobId: String): TwitterFuture[JenkinsJobState.ExecState] =
+    post(apiPath(s"job/$jobName/$jobId/stop")).flatMap(resp =>
+      resp.status match {
+        case NotFound =>
+          TwitterFuture(JenkinsJobState.notFound)
+        case Ok | Found =>
+          TwitterFuture(JenkinsJobState.terminated)
+        case error =>
+          // todo: return a status and a reason from the stopper
+          throw new RuntimeException(s"Jenkins error (${error.code}): ${error.reason}")
+      }
+    )
+
   def startJob(jobName: String, jobToken: Option[String], parameters: Map[String, String] = Map()): TwitterFuture[Response] = {
-    fetch(apiPath(s"job/$jobName/buildWithParameters", jobToken, parameters))
+    post(apiPath(s"job/$jobName/buildWithParameters", jobToken, parameters))
   }
+}
+
+
+object JenkinsJobState extends Enumeration {
+  type ExecState = Value
+
+  val terminated = Value("terminated")
+  val notFound = Value("notFound")
 }
