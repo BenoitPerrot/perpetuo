@@ -49,12 +49,12 @@ object FineGrainedPermissions extends Logging {
       createActionToAuthorityMap(DeploymentAction.values, config.getConfig("perAction"))
     )
 
-  private def createActionToAuthorityMap[T](actions: Iterable[T], config: Config): Map[T, Authority] =
+  private def createActionToAuthorityMap[T](actions: Iterable[T], config: Config): Map[T, Authority] = {
     actions.flatMap(a =>
-      config.tryGetConfig(a.toString).map(authorityConfig =>
-        a -> createAuthority(authorityConfig)
-      )
+      config.tryGetConfigList(a.toString).getOrElse(Seq()).map(authorityConfig =>
+        a -> createAuthority(authorityConfig))
     ).toMap
+  }
 
   def fromConfig(config: Config): FineGrainedPermissions = {
     val generalActionRules = config.tryGetConfig("perGeneralAction").map(perActionConfig =>

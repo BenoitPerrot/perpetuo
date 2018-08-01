@@ -57,27 +57,33 @@ class FineGrainedPermissionsSpec extends Test {
     "parsed from config" -> FineGrainedPermissions.fromConfig(ConfigFactory.parseString(
       s"""
         |perGeneralAction = {
-        |  administrate = {
-        |    userNames = ["${Users.authorizedToAdministrate.name}"]
-        |  }
+        |  administrate = [
+        |    {
+        |      userNames = ["${Users.authorizedToAdministrate.name}"]
+        |    }
+        |  ]
         |}
         |
         |perProduct = [
         |  {
         |    regex = ".*"
         |    perAction {
-        |      requestOperation {
-        |        groupNames = ["${UserGroups.registeredUsers}"]
-        |       }
+        |      requestOperation = [
+        |        {
+        |          groupNames = ["${UserGroups.registeredUsers}"]
+        |        }
+        |      ]
         |    }
         |  },
         |  {
         |    regex = "${Products.foo}"
         |    perAction {
-        |      applyOperation {
-        |        userNames = ["${Users.authorizedToProceedOnFoo.name}"]
-        |        groupNames = ["${UserGroups.hipsters}", "${UserGroups.generationY}"]
-        |      }
+        |      applyOperation = [
+        |        {
+        |          userNames = ["${Users.authorizedToProceedOnFoo.name}"]
+        |          groupNames = ["${UserGroups.hipsters}", "${UserGroups.generationY}"]
+        |        }
+        |      ]
         |    }
         |  }
         |]
