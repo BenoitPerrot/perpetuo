@@ -6,19 +6,19 @@ import com.criteo.perpetuo.model.ExecutionState.ExecutionState
 
 
 class JenkinsExecution(val logHref: String) extends TriggeredExecution {
-  val host = {
+  val (host, jobName, buildId) = {
     val matcher = JenkinsExecution.logHrefPattern.matcher(logHref)
     if (!matcher.matches())
       throw new IllegalArgumentException(s"Cannot find a proper Jenkins executor from $logHref")
 
-    matcher.group(1)
+    (matcher.group(1), matcher.group(3), matcher.group(4))
   }
 
   override val stopper: Option[() => Option[ExecutionState]] = Some(() => None)
 }
 
 private object JenkinsExecution {
-  val logHrefPattern: Pattern = Pattern.compile("https?://([^/:]+)(:[0-9]+)?/.+/([0-9]+)")
+  val logHrefPattern: Pattern = Pattern.compile("https?://([^/:]+)(:[0-9]+)?/job/([^/]+)/([0-9]+)/?")
 }
 
 
