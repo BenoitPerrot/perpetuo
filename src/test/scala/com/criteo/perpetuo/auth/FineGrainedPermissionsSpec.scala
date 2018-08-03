@@ -40,16 +40,22 @@ class FineGrainedPermissionsSpec extends Test {
         ProductRule(
           Pattern.compile(".*"),
           Map(
-            DeploymentAction.requestOperation -> Authority(Set(), Set(UserGroups.registeredUsers))
+            DeploymentAction.requestOperation -> Iterable((
+              Authority(Set(), Set(UserGroups.registeredUsers)),
+              TargetMatchers(Seq())
+            ))
           )
         ),
         ProductRule(
           Pattern.compile(Products.foo.toString),
           Map(
-            DeploymentAction.applyOperation -> Authority(
-              Set(Users.authorizedToProceedOnFoo.name),
-              Set(UserGroups.hipsters, UserGroups.generationY)
-            )
+            DeploymentAction.applyOperation -> Iterable((
+              Authority(
+                Set(Users.authorizedToProceedOnFoo.name),
+                Set(UserGroups.hipsters, UserGroups.generationY)
+              ),
+              TargetMatchers(Seq())
+            ))
           )
         )
       )
