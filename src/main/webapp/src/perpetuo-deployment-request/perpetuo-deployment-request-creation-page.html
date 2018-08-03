@@ -151,18 +151,14 @@
                             this.selectedVersion,
                             this.selectedStrategy,
                             this.$.commentEditor.value)
-                    .then(r => {
-                      if (r.ok) {
-                        r.json().then(o => {
-                          window.location.replace(`/deployment-requests/${o.id}`);
-                        });
-                      } else {
-                        r.json().then(o => {
-                          this.$.errorDialog.errors = o.errors;
-                          this.$.errorDialog.open();
-                        });
-                      }
+                    .then(_ => _.json())
+                    .then(o => {
+                      window.location.replace(`/deployment-requests/${o.id}`);
                     })
+                    .catch(e => {
+                      this.$.errorDialog.errors = e.detail.errors;
+                      this.$.errorDialog.open();
+                    });
       }
 
       clear() {
