@@ -36,7 +36,7 @@
     span.active-status {
       flex: 1;
     }
-    paper-toggle-button {
+    paper-toggle-button[class=disabled] {
       pointer-events: none;
     }
 
@@ -50,7 +50,7 @@
         <div class="row">
           <span class="product-name">[[item.name]]</span>
           <span class="active-status">
-            <paper-toggle-button checked="{{item.active}}" on-tap="updateProduct"></paper-toggle-button>
+            <paper-toggle-button checked="{{item.active}}" on-tap="updateProduct" class$="[[canUpdateProduct]]"></paper-toggle-button>
           </span>
         </div>
       </template>
@@ -63,7 +63,8 @@
 
       static get properties() {
         return {
-          data: { type: Array, value: () => [] }
+          data: { type: Array, value: () => [] },
+          canUpdateProduct: String
         };
       }
 

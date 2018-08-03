@@ -98,4 +98,7 @@ class Engine @Inject()(val crankshaft: Crankshaft,
 
     crankshaft.setActiveProducts(names)
   }
+
+  def allowedToUpdateProduct(user: User): Boolean =
+    permissions.isAuthorized(user, GeneralAction.updateProduct)
 }

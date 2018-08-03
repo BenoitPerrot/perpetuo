@@ -43,6 +43,9 @@
         this.client.fetchProducts().then(products => {
           this.$.productTable.data = products;
         });
+        this.client.getAllowedActions().then(actions => {
+          this.$.productTable.canUpdateProduct = actions.includes("updateProduct") ? "enabled" : "disabled";
+        });
       }
     }
 

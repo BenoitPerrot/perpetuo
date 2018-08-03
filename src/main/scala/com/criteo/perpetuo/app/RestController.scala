@@ -123,6 +123,10 @@ class RestController @Inject()(val engine: Engine)
     }
   }
 
+  get("/api/products/actions") { r: Request =>
+     futurePool { if (r.user.exists(user => engine.allowedToUpdateProduct(user))) Seq("updateProduct") else Seq() }
+  }
+
   post("/api/deployment-requests") { r: Request =>
     authenticate(r) { case user =>
       val protoDeploymentRequest = try {
