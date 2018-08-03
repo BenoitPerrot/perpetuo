@@ -45,7 +45,7 @@
                                                       products="[[products]]" selected-product-name="{{selectedProductName}}"></perpetuo-deployment-request-product-selector>
       </perpetuo-step>
 
-      <perpetuo-step id="versionSelectionStep" label="Select Version" complete-label="Continue" cancel-label="Back"
+      <perpetuo-step id="versionSelectionStep" label="[[versionSelectionStepLabel]]" complete-label="Continue" cancel-label="Back"
                      on-step-enter="onVersionSelectionStepEnter" on-step-leave="onVersionSelectionStepLeave">
         <perpetuo-deployment-request-version-selector slot="content" id="versionSelector"
                                                       product-name="[[selectedProductName]]" selected-version="{{selectedVersion}}"></perpetuo-deployment-request-version-selector>
@@ -77,6 +77,7 @@
           active: {type: Boolean, observer: 'onActiveChanged'},
           products: { type: Array, value: () => [] },
           productSelectionStepLabel: {type: String, value: 'Select Product'},
+          versionSelectionStepLabel: {type: String, value: 'Select Version'},
           selectedProductName: { type: String, observer: 'onSelectedProductNameChanged'},
           selectedVersion: String,
           selectedStrategy: {type: Array, value: () => []},
@@ -114,11 +115,13 @@
       }
 
       onVersionSelectionStepEnter(e) {
+        this.restoreDefaultValue('versionSelectionStepLabel');
         this.$.versionSelector.disabled = false;
       }
 
       onVersionSelectionStepLeave(e) {
         this.$.versionSelector.disabled = true;
+        this.versionSelectionStepLabel = `Selected Version: ${this.selectedVersion}`;
       }
 
       onSelectedProductNameChanged(name) {
