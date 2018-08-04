@@ -30,7 +30,10 @@
     <iron-collapse id="detail" opened="{{opened}}">
       <p>Started by [[data.creator]] on [[timestampToDates(data.creationDate)]]</p>
       <perpetuo-target-status-table data="[[arrayifyTargetStatus(data.targetStatus)]]"></perpetuo-target-status-table>
-      <perpetuo-deployment-execution-list data="[[data.executions]]"></perpetuo-deployment-execution-list>
+      <h2><paper-icon-button icon="[[lessOrMoreIcon(executionDetailOpened)]]" on-tap="toggleExecutionDetail"></paper-icon-button>Execution Detail</h2>
+      <iron-collapse id="executionDetail" opened="{{executionDetailOpened}}">
+        <perpetuo-deployment-execution-list data="[[data.executions]]"></perpetuo-deployment-execution-list>
+      </iron-collapse>
     </iron-collapse>
   </template>
   <script>
@@ -43,6 +46,7 @@
           index: { type: Number },
           data: Object,
           opened: {type: Boolean, notify: true, reflectToAttribute: true},
+          executionDetailOpened: {type: Boolean, value: false}
         };
       }
 
@@ -68,6 +72,10 @@
 
       toggleDetail() {
         this.$.detail.toggle();
+      }
+
+      toggleExecutionDetail() {
+        this.$.executionDetail.toggle();
       }
 
       lessOrMoreIcon(opened) {
