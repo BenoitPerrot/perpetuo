@@ -1,6 +1,7 @@
 <link rel="import" href="../../bower_components/polymer/polymer.html">
 
 <link rel="import" href="../perpetuo-markdown/perpetuo-markdown-viewer.html">
+<link rel="import" href="../perpetuo-paging/perpetuo-paging.html">
 
 <dom-module id="perpetuo-target-status-table">
   <template>
@@ -35,16 +36,20 @@
     }
     </style>
     <template is="dom-if" if="[[data.length]]">
-      <table>
-        <thead>
-        <tr><th>Target</th><th>Status</th><th>Detail</th></tr>
-        </thead>
-        <tbody>
-        <template is="dom-repeat" items="[[data]]">
-          <tr><td>[[item.targetAtom]]</td><td>[[item.code]]</td><td><perpetuo-markdown-viewer md="[[item.detail]]"></perpetuo-markdown-viewer></td></tr>
-        </template>
-        </tbody>
-      </table>
+      <perpetuo-paging page-sizes="[10, 50, 100]" page-size="{{pageSize}}"
+                       offset="{{pageOffset}}" is-last-page="[[isLastPage(data, pageOffset, pageSize)]]"
+                       count-on-page="[[pageItems.length]]" total="[[data.length]]">
+        <table>
+          <thead>
+            <tr><th>Target</th><th>Status</th><th>Detail</th></tr>
+          </thead>
+          <tbody>
+            <template is="dom-repeat" items="[[pageItems]]">
+              <tr><td>[[item.targetAtom]]</td><td>[[item.code]]</td><td><perpetuo-markdown-viewer md="[[item.detail]]"></perpetuo-markdown-viewer></td></tr>
+            </template>
+          </tbody>
+        </table>
+      </perpetuo-paging>
     </template>
   </template>
   <script>
@@ -54,8 +59,20 @@
 
       static get properties() {
         return {
-          data: { type: Array, value: () => [] }
+          data: {type: Array, value: () => []},
+
+          pageSize: Number,
+          pageOffset: Number,
+          pageItems: {type: Array, computed: 'computePageItems(data, pageOffset, pageSize)'},
         }
+      }
+
+      computePageItems(data, pageOffset, pageSize) {
+        return data.slice(pageOffset, pageOffset + pageSize);
+      }
+
+      isLastPage(data, pageOffset, pageSize) {
+        return data.length <= pageOffset + pageSize;
       }
     }
 
