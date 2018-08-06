@@ -55,7 +55,6 @@
     }
     </style>
     <perpetuo-identity id="identity" login="{{login}}"></perpetuo-identity>
-    <app-location query-params="{{queryParams}}"></app-location>
     <perpetuo-app-toolbar page-title="Perpetuo / Deployment Requests"></perpetuo-app-toolbar>
 
     <div sticky class="table" style="background: #fff">
@@ -99,6 +98,25 @@
   </template>
   <script>
   (function () {
+    class WindowLocationHelper {
+      static getQueryParams(win) {
+        const s = win.location.search.slice(1);
+        return new Map(s.length === 0 ? [] : s.split('&').map(_ => _.split('=')));
+      }
+
+      static setQueryParam(win, k, v) {
+        const queryParams = WindowLocationHelper.getQueryParams(win);
+        if (v === undefined) {
+          queryParams.delete(k);
+        } else {
+          queryParams.set(k, v);
+        }
+        const search = Array.from(queryParams.entries()).map(_ => _.join('=')).join('&');
+        const url = `${win.location.protocol}//${win.location.host}${win.location.pathname}?${search}`;
+        win.history.pushState({}, '', url);
+      }
+    }
+
     class PerpetuoDeploymentRequestTable extends Polymer.Element {
       static get is() { return 'perpetuo-deployment-request-table'; }
 
@@ -130,9 +148,34 @@
         this.client = new Perpetuo.Client();
       }
 
+      ready() {
+        super.ready();
+
+        window.addEventListener('popstate', _ => {
+          this.applyQueryParams();
+        });
+      }
+
+      applyQueryParams() {
+        const queryParams = WindowLocationHelper.getQueryParams(window);
+
+        this.deploymentRequestFilter = decodeURIComponent(queryParams.get('q') || '');
+        if (this.deploymentRequestFilter) {
+          this.$.productFilter.select(this.deploymentRequestFilter);
+        } else {
+          this.$.productFilter.clear();
+        }
+        const page = parseInt(queryParams.get('page'));
+        if (0 < page)
+          this.page = page;
+        const pageSize = parseInt(queryParams.get('page-size'));
+        if (0 < pageSize)
+          this.$.paging.selectPageSize(pageSize);
+      }
+
       onActiveChanged(active) {
         if (active) {
-          this.deploymentRequestFilter = decodeURIComponent(this.queryParams['q'] || '');
+          this.applyQueryParams();
           this.client.fetchProducts().then(products => {
             this.productNames = products.sort((a, b) => {
               if (a.active === b.active) { return 0; }
@@ -141,12 +184,6 @@
             }).map(_ => _.name);
             this.$.productFilter.select(this.deploymentRequestFilter);
           });
-          const page = parseInt(this.queryParams['page']);
-          if (0 < page)
-            this.page = page;
-          const pageSize = parseInt(this.queryParams['page-size']);
-          if (0 < pageSize)
-            this.$.paging.selectPageSize(pageSize);
           const installRefresh = () => this.refresh().then(reinstallRefresh, reinstallRefresh);
           const refreshDelay = 1000;
           const reinstallRefresh = () => {
@@ -196,12 +233,8 @@
         if (this.active) {
           if (this.deploymentRequestFilter != e.target.selectedItem) {
             this.deploymentRequestFilter = e.target.selectedItem;
-            if (this.deploymentRequestFilter) {
-              this.set('queryParams.q', encodeURIComponent(this.deploymentRequestFilter));
-            } else {
-              delete this.queryParams.q;
-              this.set('queryParams', Object.assign({}, this.queryParams));
-            }
+            const q = this.deploymentRequestFilter ? encodeURIComponent(this.deploymentRequestFilter) : undefined;
+            WindowLocationHelper.setQueryParam(window, 'q', q);
             this.refresh(true);
           }
         }
@@ -210,14 +243,14 @@
       onPageChanged() {
         if (this.active) {
           this.hasNextPage = false; // Assume no more page
-          this.set('queryParams.page', this.page);
+          WindowLocationHelper.setQueryParam(window, 'page', this.page);
           this.refresh();
         }
       }
 
       onPageSizeChanged() {
         if (this.active) {
-          this.set('queryParams.page-size', this.pageSize);
+          WindowLocationHelper.setQueryParam('page-size', this.pageSize);
           this.refresh();
         }
       }
