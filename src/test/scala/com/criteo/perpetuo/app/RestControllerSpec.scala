@@ -439,7 +439,7 @@ class RestControllerSpec extends Test with TestDb {
       expectedClosed = false
     )
     checkExecutionTraceUpdate(
-      depReqId, execTraceId, "stopped", Some("http://final"),
+      depReqId, execTraceId, "aborted", Some("http://final"),
       Some(Map(
         "tokyo" -> Map("code" -> "notDone", "detail" -> "crashed").toJson,
         "london" -> Map("code" -> "running", "detail" -> "am I too late?").toJson

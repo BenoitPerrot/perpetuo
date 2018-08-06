@@ -30,11 +30,11 @@
       "planSteps": ["step-21"],
       "executions": [
         {
-          "executionTraceStates": ["completed", "unreachable", "stopped"],
+          "executionTraceStates": ["completed", "unreachable", "aborted"],
           "targetStatuses": ["success", "hostFailure", "notDone"]
         },
         {
-          "executionTraceStates": ["completed", "unreachable", "stopped"],
+          "executionTraceStates": ["completed", "unreachable", "aborted"],
           "targetStatuses": ["success", "hostFailure", "notDone"]
         }
       ]
@@ -90,7 +90,7 @@
           "targetStatuses": ["notDone"]
         },
         {
-          "executionTraceStates": ["stopped"],
+          "executionTraceStates": ["aborted"],
           "targetStatuses": []
         }
       ]
@@ -102,7 +102,7 @@
       "planSteps": ["step-01"],
       "executions": [
         {
-          "executionTraceStates": ["stopped"],
+          "executionTraceStates": ["aborted"],
           "targetStatuses": ["success"]
         },
         {
@@ -142,7 +142,7 @@
           "targetStatuses": ["notDone"]
         },
         {
-          "executionTraceStates": ["stopped"],
+          "executionTraceStates": ["aborted"],
           "targetStatuses": []
         }
       ]
@@ -222,7 +222,7 @@
       "operation": "revert",
       "executions": [
         {
-          "executionTraceStates": ["stopped"],
+          "executionTraceStates": ["aborted"],
           "targetStatuses": ["notDone", "hostFailure"]
         }
       ]
