@@ -451,8 +451,7 @@ class CrankshaftWithMultiStepSpec extends SimpleScenarioTesting {
     getDeployedVersions("fat-falcon") should become(Map("north" -> "new", "south" -> "new", "east" -> "new", "west" -> "new"))
 
     r.eligibleOperations should become(Seq(Operation.revert))
-    (the[UnprocessableIntent] thrownBy r.step()).getMessage should
-      endWith("there is no next step, they have all been successfully deployed")
+    (the[UnprocessableIntent] thrownBy r.step()).msg shouldBe "there is no next step, they have all been successfully deployed"
   }
 
   test("Crankshaft can retry a failed revert") {
@@ -479,8 +478,7 @@ class CrankshaftWithMultiStepSpec extends SimpleScenarioTesting {
     r.revert("old")
 
     r.eligibleOperations should become(Seq[Operation.Kind]())
-    (the[UnprocessableIntent] thrownBy r.revert("older")).getMessage should
-      endWith("there is no next step, they have all been successfully reverted")
+    (the[UnprocessableIntent] thrownBy r.revert("older")).msg shouldBe "there is no next step, they have all been successfully reverted"
   }
 
   test("Crankshaft cannot deploy anymore once it has been tentatively reverted") {
@@ -493,8 +491,7 @@ class CrankshaftWithMultiStepSpec extends SimpleScenarioTesting {
     r.revert("old")
 
     r.eligibleOperations should become(Seq[Operation.Kind]())
-    (the[UnprocessableIntent] thrownBy r.step()).getMessage should
-      endWith("deploying after a revert is not supported")
+    (the[UnprocessableIntent] thrownBy r.step()).msg shouldBe "deploying after a revert is not supported"
   }
 }
 
