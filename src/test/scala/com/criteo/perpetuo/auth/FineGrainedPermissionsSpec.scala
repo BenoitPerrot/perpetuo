@@ -97,7 +97,7 @@ class FineGrainedPermissionsSpec extends Test {
     }
 
     test(s"$subject forbids users by their name on specific actions") {
-      permissions.isAuthorized(Users.authorizedToAdministrate, GeneralAction.addProduct) shouldBe false
+      permissions.isAuthorized(Users.authorizedToAdministrate, GeneralAction.updateProduct) shouldBe false
       GeneralAction.values.exists(permissions.isAuthorized(Users.unauthorized, _)) shouldBe false
     }
 

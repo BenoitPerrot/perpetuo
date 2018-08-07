@@ -86,14 +86,14 @@ class Engine @Inject()(val crankshaft: Crankshaft,
       )
 
   def upsertProduct(user: User, name: String, active: Boolean = true): Future[Product] = {
-    if (!permissions.isAuthorized(user, GeneralAction.addProduct))
+    if (!permissions.isAuthorized(user, GeneralAction.updateProduct))
       throw PermissionDenied()
 
     crankshaft.upsertProduct(name, active)
   }
 
   def setActiveProducts(user: User, names: Seq[String]): Future[Set[Product]] = {
-    if (!permissions.isAuthorized(user, GeneralAction.addProduct))
+    if (!permissions.isAuthorized(user, GeneralAction.updateProduct))
       throw PermissionDenied()
 
     crankshaft.setActiveProducts(names)
