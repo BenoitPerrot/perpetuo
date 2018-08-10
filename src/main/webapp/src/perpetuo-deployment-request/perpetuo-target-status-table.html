@@ -54,6 +54,11 @@
   </template>
   <script>
   (function () {
+    const codeToIndex = new Map(
+      // Most relevant/important/informative first
+      ['productFailure', 'hostFailure', 'undetermined', 'running', 'notDone', 'success'].map((e, i) => [e, i])
+    );
+
     class PerpetuoTargetStatusTable extends Polymer.Element {
       static get is() { return 'perpetuo-target-status-table'; }
 
@@ -68,7 +73,9 @@
       }
 
       computePageItems(data, pageOffset, pageSize) {
-        return data.slice(pageOffset, pageOffset + pageSize);
+        return data.slice()
+                   .sort((a, b) => codeToIndex.get(a.code) - codeToIndex.get(b.code))
+                   .slice(pageOffset, pageOffset + pageSize);
       }
 
       isLastPage(data, pageOffset, pageSize) {
