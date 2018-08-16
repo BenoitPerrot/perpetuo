@@ -57,9 +57,8 @@
                                                        on-selected-strategy-changed="updateSelectedStrategy"></perpetuo-deployment-request-strategy-selector>
       </perpetuo-step>
 
-      <perpetuo-step label="Comment"
-                     cancel-label="Back"
-                     complete-label="Create">
+      <perpetuo-step label="Comment" cancel-label="Back" complete-label="Create"
+                     on-step-enter="onCommentEditionStepEnter" on-step-leave="onCommentEditionStepLeave">
         <perpetuo-deployment-request-comment-editor slot="content" id="commentEditor"></perpetuo-deployment-request-comment-editor>
       </perpetuo-step>
     </perpetuo-stepper>
@@ -135,6 +134,14 @@
         this.selectedStrategy = this.$.strategySelector.selectedStrategy;
       }
 
+      onCommentEditionStepEnter(e) {
+        this.$.commentEditor.disabled = false;
+      }
+
+      onCommentEditionStepLeave(e) {
+        this.$.commentEditor.disabled = true;
+      }
+
       constructor() {
         super();
         this.client = new Perpetuo.Client();
@@ -145,7 +152,6 @@
       }
 
       create() {
-        this.$.commentEditor.disabled = true;
         new Perpetuo.DeploymentRequestCreator()
                     .create(this.selectedProductName,
                             this.selectedVersion,
