@@ -164,6 +164,7 @@
                     .catch(e => {
                       this.$.errorDialog.errors = e.detail.errors;
                       this.$.errorDialog.open();
+                      this.$.stepper.reset();
                     });
       }
 
