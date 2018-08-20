@@ -32,14 +32,12 @@ this.Perpetuo.Client = this.Perpetuo.Client || (function () {
     }
 
     identify(accessToken) {
-      return Perpetuo.Client.fetch('/api/auth/identify', {method: 'POST', body: JSON.stringify({token: accessToken})}).then(_ => {
-        if (_.status === 200)
-          return _.text();
-        throw _.statusText;
-      }).then(jwt => {
-        window.localStorage.jwt = jwt;
-        document.cookie = 'jwt=' + window.localStorage.jwt;
-      });
+      return Perpetuo.Client.fetch('/api/auth/identify', {method: 'POST', body: JSON.stringify({token: accessToken})})
+                            .then(_ => _.text())
+                            .then(jwt => {
+                              window.localStorage.jwt = jwt;
+                              document.cookie = 'jwt=' + window.localStorage.jwt;
+                            });
     }
 
     signOut() {
