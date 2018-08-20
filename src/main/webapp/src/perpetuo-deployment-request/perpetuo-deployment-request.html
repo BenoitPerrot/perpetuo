@@ -395,17 +395,13 @@
       onDeployTap(e) {
         this.actionLock(() =>
           this.client.deployDeploymentRequest(this.deploymentRequestId)
-              .then(r => {
-                if (400 <= r.status && r.status < 500)
-                  return r.json()
-                          .then(body => {
-                            if (body.conflicts) {
-                              const panel = this.$.conflictPanel;
-                              panel.conflicts = body.conflicts;
-                              panel.open();
-                            }
-                          });
-                return this.refresh();
+              .then(_ => this.refresh())
+              .catch(e => {
+                if (e.detail && e.detail.conflicts) {
+                  const panel = this.$.conflictPanel;
+                  panel.conflicts = e.detail.conflicts;
+                  panel.open();
+                }
               })
         );
       }
