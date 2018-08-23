@@ -429,8 +429,8 @@
           this.client.deviseRevertPlan(this.deploymentRequestId)
               .then(r => r.json())
               .then(revertPlan => this.showRevertPlan(revertPlan))
-              .then(defaultVersion =>
-                this.client.revertDeploymentRequest(this.deploymentRequestId, defaultVersion ? {defaultVersion: defaultVersion} : {})
+              .then(defaultVersion => // possibly undefined
+                this.client.revertDeploymentRequest(this.deploymentRequestId, defaultVersion)
               )
               .catch(_ => this.refresh())
         );

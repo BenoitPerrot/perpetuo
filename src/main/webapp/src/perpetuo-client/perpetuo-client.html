@@ -86,8 +86,8 @@ this.Perpetuo.Client = this.Perpetuo.Client || (function () {
       return this.actOnDeploymentRequest(deploymentRequestId, 'devise-revert-plan');
     }
 
-    revertDeploymentRequest(deploymentRequestId, body) {
-      return this.actOnDeploymentRequest(deploymentRequestId, 'revert', body);
+    revertDeploymentRequest(deploymentRequestId, defaultVersion) {
+      return this.actOnDeploymentRequest(deploymentRequestId, 'revert', {defaultVersion: defaultVersion});
     }
 
     stopDeploymentRequest(deploymentRequestId) {
@@ -95,6 +95,7 @@ this.Perpetuo.Client = this.Perpetuo.Client || (function () {
     }
 
     actOnDeploymentRequest(deploymentRequestId, actionName, body) {
+      // note: below, JSON.stringify removes the undefined values
       return Perpetuo.Client.fetch(`/api/deployment-requests/${deploymentRequestId}/actions/${actionName}`, {method: 'POST', body: JSON.stringify(body)});
     }
 
