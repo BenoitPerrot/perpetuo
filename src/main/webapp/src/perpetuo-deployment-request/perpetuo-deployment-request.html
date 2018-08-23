@@ -425,15 +425,17 @@
       }
 
       onRevertTap(e) {
-        this.actionLock(() =>
-          this.client.deviseRevertPlan(this.deploymentRequestId)
+        this.actionLock(() => {
+          const deploymentRequestId = this.deploymentRequestId
+          const operationCount = this.data.operations.length
+          this.client.deviseRevertPlan(deploymentRequestId)
               .then(r => r.json())
               .then(revertPlan => this.showRevertPlan(revertPlan))
               .then(defaultVersion => // possibly undefined
-                this.client.revertDeploymentRequest(this.deploymentRequestId, this.data.operations.length, defaultVersion)
+                this.client.revertDeploymentRequest(deploymentRequestId, operationCount, defaultVersion)
               )
               .catch(_ => this.refresh())
-        );
+        });
       }
 
       onStopTap(e) {

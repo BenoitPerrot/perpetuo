@@ -143,7 +143,6 @@ class RestController @Inject()(val engine: Engine)
     }
   }
 
-  // todo? consider sending back the operationCount for "versioning" the plan in the revert request
   post("/api/deployment-requests/:id/actions/devise-revert-plan") { r: RequestWithId =>
     withIdAndRequest(
       (id, _: RequestWithId) => {
