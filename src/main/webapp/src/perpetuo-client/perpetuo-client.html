@@ -78,20 +78,20 @@ this.Perpetuo.Client = this.Perpetuo.Client || (function () {
         })
       });
     }
-    stepDeploymentRequest(deploymentRequestId) {
-      return this.actOnDeploymentRequest(deploymentRequestId, 'step', {});
+    stepDeploymentRequest(deploymentRequestId, operationCount) {
+      return this.actOnDeploymentRequest(deploymentRequestId, 'step', {operationCount: operationCount});
     }
 
     deviseRevertPlan(deploymentRequestId) {
       return this.actOnDeploymentRequest(deploymentRequestId, 'devise-revert-plan');
     }
 
-    revertDeploymentRequest(deploymentRequestId, defaultVersion) {
-      return this.actOnDeploymentRequest(deploymentRequestId, 'revert', {defaultVersion: defaultVersion});
+    revertDeploymentRequest(deploymentRequestId, operationCount, defaultVersion) {
+      return this.actOnDeploymentRequest(deploymentRequestId, 'revert', {operationCount: operationCount, defaultVersion: defaultVersion});
     }
 
-    stopDeploymentRequest(deploymentRequestId) {
-      return this.actOnDeploymentRequest(deploymentRequestId, 'stop', {});
+    stopDeploymentRequest(deploymentRequestId, operationCount) {
+      return this.actOnDeploymentRequest(deploymentRequestId, 'stop', {operationCount: operationCount});
     }
 
     actOnDeploymentRequest(deploymentRequestId, actionName, body) {

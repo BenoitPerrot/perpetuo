@@ -394,7 +394,7 @@
 
       onDeployTap(e) {
         this.actionLock(() =>
-          this.client.stepDeploymentRequest(this.deploymentRequestId)
+          this.client.stepDeploymentRequest(this.deploymentRequestId, this.data.operations.length)
               .then(_ => this.refresh())
               .catch(e => {
                 if (e.detail && e.detail.conflicts) {
@@ -430,7 +430,7 @@
               .then(r => r.json())
               .then(revertPlan => this.showRevertPlan(revertPlan))
               .then(defaultVersion => // possibly undefined
-                this.client.revertDeploymentRequest(this.deploymentRequestId, defaultVersion)
+                this.client.revertDeploymentRequest(this.deploymentRequestId, this.data.operations.length, defaultVersion)
               )
               .catch(_ => this.refresh())
         );
@@ -438,7 +438,7 @@
 
       onStopTap(e) {
         this.actionLock(() =>
-          this.client.stopDeploymentRequest(this.deploymentRequestId)
+          this.client.stopDeploymentRequest(this.deploymentRequestId, this.data.operations.length)
         );
       }
 
