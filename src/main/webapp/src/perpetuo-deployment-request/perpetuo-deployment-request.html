@@ -394,7 +394,7 @@
 
       onDeployTap(e) {
         this.actionLock(() =>
-          this.client.deployDeploymentRequest(this.deploymentRequestId)
+          this.client.stepDeploymentRequest(this.deploymentRequestId)
               .then(_ => this.refresh())
               .catch(e => {
                 if (e.detail && e.detail.conflicts) {

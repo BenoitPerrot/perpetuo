@@ -78,8 +78,8 @@ this.Perpetuo.Client = this.Perpetuo.Client || (function () {
         })
       });
     }
-    deployDeploymentRequest(deploymentRequestId) {
-      return this.actOnDeploymentRequest(deploymentRequestId, 'deploy', {});
+    stepDeploymentRequest(deploymentRequestId) {
+      return this.actOnDeploymentRequest(deploymentRequestId, 'step', {});
     }
 
     deviseRevertPlan(deploymentRequestId) {
