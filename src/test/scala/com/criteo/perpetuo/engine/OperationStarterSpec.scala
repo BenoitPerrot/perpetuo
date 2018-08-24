@@ -103,8 +103,8 @@ class OperationStarterSpec extends Test with TestDb {
 
   test("A complex execution raises if a target is not fully covered by executors") {
     val params = TestTargetDispatcher.freezeParameters("", Version(""""42""""))
-    val thrown = the[IllegalArgumentException] thrownBy operationStarter.dispatchToExecutors(TestTargetDispatcher, Set("def"), params)
-    thrown.getMessage shouldEqual "requirement failed: Some targets have been lost in dispatching: def"
+    val thrown = the[UnprocessableIntent] thrownBy operationStarter.dispatchToExecutors(TestTargetDispatcher, Set("def"), params)
+    thrown.getMessage should startWith("Unknown target")
   }
 
 
