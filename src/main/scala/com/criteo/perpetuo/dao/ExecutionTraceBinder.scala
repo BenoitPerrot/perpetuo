@@ -12,6 +12,7 @@ import scala.concurrent.Future
 
 private[dao] case class ExecutionTraceRecord(id: Option[Long],
                                              executionId: Long,
+                                             executorType: String,
                                              href: Option[String] = None,
                                              state: ExecutionState = ExecutionState.pending,
                                              detail: Comment = "") {
@@ -40,17 +41,15 @@ trait ExecutionTraceBinder extends TableBinder {
     def executionId = column[Long]("execution_id")
     protected def fk = foreignKey(executionId, executionQuery)(_.id)
 
+    def executorType = column[String]("executor_type", O.SqlType("nvarchar(64)"))
     def href = column[Option[String]]("href", O.SqlType("nvarchar(1024)"))
     def state = column[ExecutionState]("state")
     def detail = nvarchar[Comment]("detail")
 
-    def * = (id.?, executionId, href, state, detail) <> (ExecutionTraceRecord.tupled, ExecutionTraceRecord.unapply)
+    def * = (id.?, executionId, executorType, href, state, detail) <> (ExecutionTraceRecord.tupled, ExecutionTraceRecord.unapply)
   }
 
   val executionTraceQuery = TableQuery[ExecutionTraceTable]
-
-  def insertingExecutionTraces(executionId: Long, numberOfTraces: Int): FixedSqlAction[Seq[Long], NoStream, Effect.Write] =
-    insertingExecutionTraces(List.fill(numberOfTraces)(ExecutionTraceRecord(None, executionId)))
 
   def insertingExecutionTraces(traces: Iterable[ExecutionTraceRecord]): FixedSqlAction[Seq[Long], NoStream, Effect.Write] =
     (executionTraceQuery returning executionTraceQuery.map(_.id)) ++= traces

@@ -112,7 +112,9 @@ trait EffectInserter
                 insertExecution(newOp.id, spec.id)
                   .flatMap { executionId =>
                     // create as many traces as needed, all at the same time
-                    val ret = insertingExecutionTraces(executionId, invocations.length)
+                    val ret = insertingExecutionTraces(
+                      invocations.map { case (trigger, _) => ExecutionTraceRecord(None, executionId, trigger.executorType) }
+                    )
                     if (createTargetStatuses)
                       updatingTargetStatuses(
                         executionId,

@@ -91,6 +91,7 @@ ALTER TABLE "target_status"
 CREATE TABLE "execution_trace" (
   "id"                         BIGINT         NOT NULL IDENTITY,
   "execution_id"               BIGINT         NOT NULL,
+  "executor_type"              NVARCHAR(64)   NOT NULL,
   "href"                       NVARCHAR(1024),
   "state"                      SMALLINT       NOT NULL,
   "detail"                     NVARCHAR(4000) NOT NULL
