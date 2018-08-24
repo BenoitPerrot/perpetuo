@@ -112,7 +112,8 @@
           queryParams.set(k, v);
         }
         const search = Array.from(queryParams.entries()).map(_ => _.join('=')).join('&');
-        const url = `${win.location.protocol}//${win.location.host}${win.location.pathname}?${search}`;
+        const query = search ? `?${search}` : ''
+        const url = `${win.location.protocol}//${win.location.host}${win.location.pathname}${query}`;
         win.history.pushState({}, '', url);
       }
     }
