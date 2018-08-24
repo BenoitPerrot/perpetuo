@@ -2,15 +2,14 @@ package com.criteo.perpetuo.engine.executors
 
 import com.criteo.perpetuo.app.RestApi
 import com.criteo.perpetuo.config.AppConfigProvider
-import com.criteo.perpetuo.config.ConfigSyntacticSugar._
 import com.criteo.perpetuo.engine.TargetExpr
 import com.criteo.perpetuo.model.Version
 import com.twitter.conversions.time._
 import com.twitter.finagle.http.Status
 import com.twitter.util.Await
 
-import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.Future
 
 class JenkinsTrigger(name: String,
                      val jobToken: Option[String],
@@ -48,10 +47,5 @@ class JenkinsTrigger(name: String,
     }
   }
 
-  /**
-    * The executorName should be stable because it's persisted in the DB and used
-    * later to instantiate the right TriggeredExecution from a log href in order
-    * to interact with an execution.
-    */
-  override val executorName: String = "jenkins"
+  override val executorType: String = "jenkins"
 }

@@ -22,5 +22,5 @@ class DummyExecutionTrigger(name: String) extends ExecutionTrigger with Logging 
     Future.successful(None)
   }
 
-  override val executorName: String = "dummy"
+  override val executorType: String = "dummy"
 }

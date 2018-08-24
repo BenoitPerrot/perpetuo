@@ -23,5 +23,5 @@ trait ExecutionTrigger {
     * later to instantiate the right TriggeredExecution from a log href in order
     * to interact with an execution.
     */
-  val executorName: String
+  val executorType: String
 }
