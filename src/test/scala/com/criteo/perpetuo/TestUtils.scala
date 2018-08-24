@@ -3,7 +3,7 @@ package com.criteo.perpetuo
 import com.criteo.perpetuo.config.{AppConfigProvider, PluginLoader, Plugins}
 import com.criteo.perpetuo.dao.{DbBinding, DbContext, DbContextProvider, TestingDbContextModule}
 import com.criteo.perpetuo.engine.dispatchers.SingleTargetDispatcher
-import com.criteo.perpetuo.engine.executors.{DummyExecutionTrigger, TriggeredExecutionFinder}
+import com.criteo.perpetuo.engine.executors.{ExecutionTrigger, TriggeredExecutionFinder}
 import com.criteo.perpetuo.engine.{Crankshaft, TargetExpr, UnavailableAction}
 import com.criteo.perpetuo.model._
 import com.twitter.inject.Test
@@ -43,9 +43,12 @@ trait TestHelpers extends Test {
 trait SimpleScenarioTesting extends TestHelpers with TestDb with MockitoSugar {
   private val knownProducts = mutable.Set[String]()
   private val loader = new PluginLoader(null)
-  private val executionTrigger: DummyExecutionTrigger = mock[DummyExecutionTrigger]
+  private val executionTrigger: ExecutionTrigger = mock[ExecutionTrigger]
+  when(executionTrigger.executorType).thenReturn("testing")
+
   val plugins = new Plugins(loader)
   val executionFinder = new TriggeredExecutionFinder(loader)
+
   lazy val crankshaft: Crankshaft = {
     when(executionTrigger.trigger(anyLong, anyString, any[Version], any[TargetExpr], anyString))
       .thenReturn(Future(triggerMock))
