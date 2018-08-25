@@ -82,7 +82,7 @@ class JenkinsClient(val host: String) extends Logging {
           Future.value(JenkinsJobState.terminated)
         case error =>
           // todo: return a status and a reason from the stopper
-          throw new RuntimeException(s"Jenkins error (${error.code}): ${error.reason}")
+          Future.exception(new RuntimeException(s"Jenkins error (${error.code}): ${error.reason}"))
       }
     )
 
