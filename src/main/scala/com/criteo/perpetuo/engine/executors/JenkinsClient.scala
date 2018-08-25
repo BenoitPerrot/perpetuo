@@ -100,6 +100,6 @@ class JenkinsClient(val host: String) extends Logging {
 object JenkinsJobState extends Enumeration {
   type ExecState = Value
 
-  val terminated = Value("terminated")
-  val notFound = Value("notFound")
+  val terminated: ExecState = Value("terminated")
+  val notFound: ExecState = Value("notFound")
 }
