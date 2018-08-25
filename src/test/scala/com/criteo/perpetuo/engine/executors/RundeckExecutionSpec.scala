@@ -17,7 +17,7 @@ class RundeckExecutionSpec extends Test with MockitoSugar {
 
     override protected val baseWaitInterval: Duration = 1.millisecond
     override protected val jobTerminationTimeout: Duration = 10.milliseconds
-    override protected lazy val client: Request => Future[Response] = (_: Request) => {
+    override protected val client: Request => Future[Response] = (_: Request) => {
       val resp = Response(Status(statusMock))
       resp.write(contentMock)
       Future.value(resp)

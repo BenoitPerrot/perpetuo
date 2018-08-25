@@ -18,7 +18,7 @@ class RundeckTriggerSpec extends Test {
     private class RundeckClientMock extends RundeckClient(host) {
       override val authToken: Option[String] = Some("my-super-secret-token")
 
-      override protected lazy val client: Request => Future[Response] = (request: Request) => {
+      override protected val client: Request => Future[Response] = (request: Request) => {
         request.uri shouldEqual s"/api/16/job/perpetuo-deployment/executions?authtoken=my-super-secret-token"
         request.contentString shouldEqual """{"argString":"-callback-url 'http://somewhere/api/execution-traces/42' -product-name 'My\"Beautiful\"Project' -target 'a,b' -product-version \"the 042nd version\""}"""
         val resp = Response(Status(statusMock))

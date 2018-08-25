@@ -30,7 +30,7 @@ class RundeckClient(val host: String) {
   def maxAbortDuration: Duration = requestTimeout * 2 + jobTerminationTimeout
 
   // HTTP client
-  protected def ssl: Boolean = port == 443
+  protected val ssl: Boolean = port == 443
 
   protected val maxConnectionsPerHost: Int = 10
   protected val backoffDurations: Stream[Duration] = Backoff.exponentialJittered(1.seconds, 5.seconds).take(5)
@@ -39,7 +39,7 @@ class RundeckClient(val host: String) {
   protected def fetch(apiSubPath: String, parameters: Map[String, String] = Map()): TwitterFuture[Response] =
     client(buildRequest(apiSubPath, parameters))
 
-  protected lazy val client: Request => TwitterFuture[Response] = (if (ssl) ClientBuilder().tlsWithoutValidation else ClientBuilder())
+  protected val client: Request => TwitterFuture[Response] = (if (ssl) ClientBuilder().tlsWithoutValidation else ClientBuilder())
     .stack(Client())
     .timeout(requestTimeout)
     .hostConnectionLimit(maxConnectionsPerHost)
