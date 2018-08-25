@@ -11,7 +11,7 @@ import com.twitter.finagle.http.{Method, Request, Response}
 import com.twitter.finagle.http.Status.{NotFound, Ok, Found}
 import com.twitter.finagle.service.{Backoff, RetryPolicy}
 import com.twitter.inject.Logging
-import com.twitter.util.{Base64StringEncoder, Duration, Future => TwitterFuture, Try => TwitterTry}
+import com.twitter.util.{Base64StringEncoder, Duration, Future, Try}
 
 
 class JenkinsClient(val host: String) extends Logging {
@@ -32,9 +32,9 @@ class JenkinsClient(val host: String) extends Logging {
 
   private val maxConnectionsPerHost: Int = 10
   private val backoffDurations: Stream[Duration] = Backoff.exponentialJittered(1.seconds, 5.seconds)
-  private val backoffPolicy: RetryPolicy[TwitterTry[Nothing]] = RetryPolicy.backoff(backoffDurations)(RetryPolicy.TimeoutAndWriteExceptionsOnly)
+  private val backoffPolicy: RetryPolicy[Try[Nothing]] = RetryPolicy.backoff(backoffDurations)(RetryPolicy.TimeoutAndWriteExceptionsOnly)
 
-  private def post(apiSubPath: String): TwitterFuture[Response] = {
+  private def post(apiSubPath: String): Future[Response] = {
     val req = Request(Method.Post, apiSubPath)
     req.host = host
     createBasicAuthenticationHeader(username, password).foreach(req.authorization = _)
@@ -51,7 +51,7 @@ class JenkinsClient(val host: String) extends Logging {
       }
     }
 
-  private val client: Request => TwitterFuture[Response] = (if (ssl) ClientBuilder().tlsWithoutValidation else ClientBuilder())
+  private val client: Request => Future[Response] = (if (ssl) ClientBuilder().tlsWithoutValidation else ClientBuilder())
     .stack(Client())
     .timeout(requestTimeout)
     .hostConnectionLimit(maxConnectionsPerHost)
@@ -73,20 +73,20 @@ class JenkinsClient(val host: String) extends Logging {
       s"/$apiSubPath"
   }
 
-  def abortJob(jobName: String, jobId: String): TwitterFuture[JenkinsJobState.ExecState] =
+  def abortJob(jobName: String, jobId: String): Future[JenkinsJobState.ExecState] =
     post(apiPath(s"job/$jobName/$jobId/stop")).flatMap(resp =>
       resp.status match {
         case NotFound =>
-          TwitterFuture(JenkinsJobState.notFound)
+          Future(JenkinsJobState.notFound)
         case Ok | Found =>
-          TwitterFuture(JenkinsJobState.terminated)
+          Future(JenkinsJobState.terminated)
         case error =>
           // todo: return a status and a reason from the stopper
           throw new RuntimeException(s"Jenkins error (${error.code}): ${error.reason}")
       }
     )
 
-  def startJob(jobName: String, jobToken: Option[String], parameters: Map[String, String] = Map()): TwitterFuture[Response] = {
+  def startJob(jobName: String, jobToken: Option[String], parameters: Map[String, String] = Map()): Future[Response] = {
     post(apiPath(s"job/$jobName/buildWithParameters", jobToken.map(t => Map("token" -> t)).getOrElse(Map()) ++ parameters))
   }
 }
