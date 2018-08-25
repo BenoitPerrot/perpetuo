@@ -14,7 +14,6 @@ import com.twitter.util.{Duration, Future => TwitterFuture, Try => TwitterTry}
 import spray.json.DefaultJsonProtocol._
 import spray.json._
 
-
 class RundeckClient(val host: String) {
   val apiVersion = 16
 
@@ -23,20 +22,20 @@ class RundeckClient(val host: String) {
   val authToken: Option[String] = config.tryGetString("token")
 
   // Timeouts
-  protected val requestTimeout: Duration = 5.seconds
+  private val requestTimeout: Duration = 5.seconds
   protected val baseWaitInterval: Duration = 100.milliseconds
   protected val jobTerminationTimeout: Duration = 5.seconds
 
   def maxAbortDuration: Duration = requestTimeout * 2 + jobTerminationTimeout
 
   // HTTP client
-  protected val ssl: Boolean = port == 443
+  private val ssl: Boolean = port == 443
 
-  protected val maxConnectionsPerHost: Int = 10
-  protected val backoffDurations: Stream[Duration] = Backoff.exponentialJittered(1.seconds, 5.seconds).take(5)
-  protected val backoffPolicy: RetryPolicy[TwitterTry[Nothing]] = RetryPolicy.backoff(backoffDurations)(RetryPolicy.TimeoutAndWriteExceptionsOnly)
+  private val maxConnectionsPerHost: Int = 10
+  private val backoffDurations: Stream[Duration] = Backoff.exponentialJittered(1.seconds, 5.seconds).take(5)
+  private val backoffPolicy: RetryPolicy[TwitterTry[Nothing]] = RetryPolicy.backoff(backoffDurations)(RetryPolicy.TimeoutAndWriteExceptionsOnly)
 
-  protected def fetch(apiSubPath: String, parameters: Map[String, String] = Map()): TwitterFuture[Response] =
+  private def fetch(apiSubPath: String, parameters: Map[String, String] = Map()): TwitterFuture[Response] =
     client(buildRequest(apiSubPath, parameters))
 
   protected val client: Request => TwitterFuture[Response] = (if (ssl) ClientBuilder().tlsWithoutValidation else ClientBuilder())
@@ -48,13 +47,13 @@ class RundeckClient(val host: String) {
     .failFast(false)
     .build()
 
-  protected def apiPath(apiSubPath: String, queryParameters: Map[String, String] = Map()): String = {
+  private def apiPath(apiSubPath: String, queryParameters: Map[String, String] = Map()): String = {
     val path = s"/api/$apiVersion/$apiSubPath"
     val q = authToken.map(t => Map("authtoken" -> t)).getOrElse(Map()) ++ queryParameters
     if (q.nonEmpty) s"$path?${q.map { case (k, v) => s"$k=$v" }.mkString("&")}" else path
   }
 
-  protected def buildRequest(apiSubPath: String, parameters: Map[String, String] = Map()): Request = {
+  private def buildRequest(apiSubPath: String, parameters: Map[String, String] = Map()): Request = {
 
     // Rundeck before API version 18 does not support invocation with structured arguments
     val argString = parameters.toStream
