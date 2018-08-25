@@ -85,11 +85,11 @@ class RundeckClient(val host: String) {
     fetch(apiPath(s"execution/$jobId/abort")).flatMap(resp =>
       resp.status match {
         case NotFound =>
-          Future(RundeckJobState.notFound)
+          Future.value(RundeckJobState.notFound)
         case Ok =>
           val body = resp.contentString.parseJson.asJsObject
           body match {
-            case s if !isJobRunning(s) => Future(RundeckJobState.terminated)
+            case s if !isJobRunning(s) => Future.value(RundeckJobState.terminated)
             case s if isAbortFailed(s) => throw new RuntimeException(body.fields("abort").asJsObject.fields("reason").asInstanceOf[JsString].value)
             case _ => waitForJobFinalState(jobId)
           }
@@ -120,11 +120,11 @@ class RundeckClient(val host: String) {
           if (status == RundeckJobState.running)
             loopWhileRunning(sleepTime + baseWaitInterval)
           else
-            Future(status)
+            Future.value(status)
         )
       }
       else
-        Future(RundeckJobState.running)
+        Future.value(RundeckJobState.running)
     }
 
     loopWhileRunning(baseWaitInterval)
