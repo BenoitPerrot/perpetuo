@@ -28,7 +28,7 @@ class JenkinsClient(val host: String) extends Logging {
   def maxAbortDuration: Duration = requestTimeout
 
   // HTTP client
-  protected def ssl: Boolean = port == 443
+  protected val ssl: Boolean = port == 443
 
   protected val maxConnectionsPerHost: Int = 10
   protected val backoffDurations: Stream[Duration] = Backoff.exponentialJittered(1.seconds, 5.seconds)
@@ -47,7 +47,7 @@ class JenkinsClient(val host: String) extends Logging {
       }
     }
 
-  protected lazy val client: Request => TwitterFuture[Response] = (if (ssl) ClientBuilder().tlsWithoutValidation else ClientBuilder())
+  protected val client: Request => TwitterFuture[Response] = (if (ssl) ClientBuilder().tlsWithoutValidation else ClientBuilder())
     .stack(Client())
     .timeout(requestTimeout)
     .hostConnectionLimit(maxConnectionsPerHost)
