@@ -139,7 +139,7 @@ class RundeckClient(val host: String) {
 object RundeckJobState extends Enumeration {
   type ExecState = Value
 
-  val running = Value("running")
-  val terminated = Value("terminated")
-  val notFound = Value("notFound")
+  val running: ExecState = Value("running")
+  val terminated: ExecState = Value("terminated")
+  val notFound: ExecState = Value("notFound")
 }
