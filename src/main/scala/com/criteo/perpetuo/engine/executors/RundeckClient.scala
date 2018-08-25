@@ -90,12 +90,12 @@ class RundeckClient(val host: String) {
           val body = resp.contentString.parseJson.asJsObject
           body match {
             case s if !isJobRunning(s) => Future.value(RundeckJobState.terminated)
-            case s if isAbortFailed(s) => throw new RuntimeException(body.fields("abort").asJsObject.fields("reason").asInstanceOf[JsString].value)
+            case s if isAbortFailed(s) => Future.exception(new RuntimeException(body.fields("abort").asJsObject.fields("reason").asInstanceOf[JsString].value))
             case _ => waitForJobFinalState(jobId)
           }
         case error =>
           // todo: return a status and a reason from the stopper
-          throw new RuntimeException(s"Rundeck error (${error.code}): ${error.reason}")
+          Future.exception(new RuntimeException(s"Rundeck error (${error.code}): ${error.reason}"))
       }
     )
 
