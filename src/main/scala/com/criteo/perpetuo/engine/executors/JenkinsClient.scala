@@ -34,8 +34,12 @@ class JenkinsClient(val host: String) extends Logging {
   private val backoffDurations: Stream[Duration] = Backoff.exponentialJittered(1.seconds, 5.seconds)
   private val backoffPolicy: RetryPolicy[TwitterTry[Nothing]] = RetryPolicy.backoff(backoffDurations)(RetryPolicy.TimeoutAndWriteExceptionsOnly)
 
-  private def post(apiSubPath: String): TwitterFuture[Response] =
-    client(buildPostRequest(apiSubPath))
+  private def post(apiSubPath: String): TwitterFuture[Response] = {
+    val req = Request(Method.Post, apiSubPath)
+    req.host = host
+    createBasicAuthenticationHeader(username, password).foreach(req.authorization = _)
+    client(req)
+  }
 
   def createBasicAuthenticationHeader(username: Option[String], password: Option[String]): Option[String] =
     (username, password) match {
@@ -68,14 +72,6 @@ class JenkinsClient(val host: String) extends Logging {
       s"/$apiSubPath?$queryString"
     } else
       s"/$apiSubPath"
-  }
-
-  private def buildPostRequest(apiSubPath: String): Request = {
-
-    val req = Request(Method.Post, apiSubPath)
-    req.host = host
-    createBasicAuthenticationHeader(username, password).foreach(req.authorization = _)
-    req
   }
 
   def abortJob(jobName: String, jobId: String): TwitterFuture[JenkinsJobState.ExecState] =
