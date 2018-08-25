@@ -60,10 +60,9 @@ class JenkinsClient(val host: String) extends Logging {
     .failFast(false)
     .build()
 
-  private[executors] def apiPath(apiSubPath: String, jobToken: Option[String] = None, queryParameters: Map[String, String] = Map()): String = {
-    val q = jobToken.map(t => Map("token" -> t)).getOrElse(Map()) ++ queryParameters
-    if (q.nonEmpty) {
-      val queryString = q.map { case (k, v) =>
+  private[executors] def apiPath(apiSubPath: String, queryParameters: Map[String, String] = Map()): String = {
+    if (queryParameters.nonEmpty) {
+      val queryString = queryParameters.map { case (k, v) =>
         val encodedVal = URLEncoder.encode(v, "UTF-8")
         val encodedKey = URLEncoder.encode(k, "UTF-8")
         s"$encodedKey=$encodedVal"
@@ -88,7 +87,7 @@ class JenkinsClient(val host: String) extends Logging {
     )
 
   def startJob(jobName: String, jobToken: Option[String], parameters: Map[String, String] = Map()): TwitterFuture[Response] = {
-    post(apiPath(s"job/$jobName/buildWithParameters", jobToken, parameters))
+    post(apiPath(s"job/$jobName/buildWithParameters", jobToken.map(t => Map("token" -> t)).getOrElse(Map()) ++ parameters))
   }
 }
 
