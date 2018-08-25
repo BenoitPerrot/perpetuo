@@ -23,18 +23,18 @@ class JenkinsClient(val host: String) extends Logging {
   val password: Option[String] = config.tryGetString("password")
 
   // Timeouts
-  protected val requestTimeout: Duration = 5.seconds
+  private val requestTimeout: Duration = 5.seconds
 
   def maxAbortDuration: Duration = requestTimeout
 
   // HTTP client
-  protected val ssl: Boolean = port == 443
+  private val ssl: Boolean = port == 443
 
-  protected val maxConnectionsPerHost: Int = 10
-  protected val backoffDurations: Stream[Duration] = Backoff.exponentialJittered(1.seconds, 5.seconds)
-  protected val backoffPolicy: RetryPolicy[TwitterTry[Nothing]] = RetryPolicy.backoff(backoffDurations)(RetryPolicy.TimeoutAndWriteExceptionsOnly)
+  private val maxConnectionsPerHost: Int = 10
+  private val backoffDurations: Stream[Duration] = Backoff.exponentialJittered(1.seconds, 5.seconds)
+  private val backoffPolicy: RetryPolicy[TwitterTry[Nothing]] = RetryPolicy.backoff(backoffDurations)(RetryPolicy.TimeoutAndWriteExceptionsOnly)
 
-  protected def post(apiSubPath: String): TwitterFuture[Response] =
+  private def post(apiSubPath: String): TwitterFuture[Response] =
     client(buildPostRequest(apiSubPath))
 
   def createBasicAuthenticationHeader(username: Option[String], password: Option[String]): Option[String] =
@@ -47,7 +47,7 @@ class JenkinsClient(val host: String) extends Logging {
       }
     }
 
-  protected val client: Request => TwitterFuture[Response] = (if (ssl) ClientBuilder().tlsWithoutValidation else ClientBuilder())
+  private val client: Request => TwitterFuture[Response] = (if (ssl) ClientBuilder().tlsWithoutValidation else ClientBuilder())
     .stack(Client())
     .timeout(requestTimeout)
     .hostConnectionLimit(maxConnectionsPerHost)
@@ -70,7 +70,7 @@ class JenkinsClient(val host: String) extends Logging {
       s"/$apiSubPath"
   }
 
-  protected def buildPostRequest(apiSubPath: String): Request = {
+  private def buildPostRequest(apiSubPath: String): Request = {
 
     val req = Request(Method.Post, apiSubPath)
     req.host = host
