@@ -77,9 +77,9 @@ class JenkinsClient(val host: String) extends Logging {
     post(apiPath(s"job/$jobName/$jobId/stop")).flatMap(resp =>
       resp.status match {
         case NotFound =>
-          Future(JenkinsJobState.notFound)
+          Future.value(JenkinsJobState.notFound)
         case Ok | Found =>
-          Future(JenkinsJobState.terminated)
+          Future.value(JenkinsJobState.terminated)
         case error =>
           // todo: return a status and a reason from the stopper
           throw new RuntimeException(s"Jenkins error (${error.code}): ${error.reason}")
