@@ -35,26 +35,7 @@ class RundeckClient(val host: String) {
   private val backoffDurations: Stream[Duration] = Backoff.exponentialJittered(1.seconds, 5.seconds).take(5)
   private val backoffPolicy: RetryPolicy[TwitterTry[Nothing]] = RetryPolicy.backoff(backoffDurations)(RetryPolicy.TimeoutAndWriteExceptionsOnly)
 
-  private def fetch(apiSubPath: String, parameters: Map[String, String] = Map()): TwitterFuture[Response] =
-    client(buildRequest(apiSubPath, parameters))
-
-  protected val client: Request => TwitterFuture[Response] = (if (ssl) ClientBuilder().tlsWithoutValidation else ClientBuilder())
-    .stack(Client())
-    .timeout(requestTimeout)
-    .hostConnectionLimit(maxConnectionsPerHost)
-    .hosts(new InetSocketAddress(host, port))
-    .retryPolicy(backoffPolicy)
-    .failFast(false)
-    .build()
-
-  private def apiPath(apiSubPath: String, queryParameters: Map[String, String] = Map()): String = {
-    val path = s"/api/$apiVersion/$apiSubPath"
-    val q = authToken.map(t => Map("authtoken" -> t)).getOrElse(Map()) ++ queryParameters
-    if (q.nonEmpty) s"$path?${q.map { case (k, v) => s"$k=$v" }.mkString("&")}" else path
-  }
-
-  private def buildRequest(apiSubPath: String, parameters: Map[String, String] = Map()): Request = {
-
+  private def fetch(apiSubPath: String, parameters: Map[String, String] = Map()): TwitterFuture[Response] = {
     // Rundeck before API version 18 does not support invocation with structured arguments
     val argString = parameters.toStream
       .map { case (parameterName, value) =>
@@ -69,7 +50,23 @@ class RundeckClient(val host: String) {
     req.contentType = Message.ContentTypeJson
     req.accept = Message.ContentTypeJson // default response format is XML
     req.contentString = body.compactPrint
-    req
+
+    client(req)
+  }
+
+  protected val client: Request => TwitterFuture[Response] = (if (ssl) ClientBuilder().tlsWithoutValidation else ClientBuilder())
+    .stack(Client())
+    .timeout(requestTimeout)
+    .hostConnectionLimit(maxConnectionsPerHost)
+    .hosts(new InetSocketAddress(host, port))
+    .retryPolicy(backoffPolicy)
+    .failFast(false)
+    .build()
+
+  private def apiPath(apiSubPath: String, queryParameters: Map[String, String] = Map()): String = {
+    val path = s"/api/$apiVersion/$apiSubPath"
+    val q = authToken.map(t => Map("authtoken" -> t)).getOrElse(Map()) ++ queryParameters
+    if (q.nonEmpty) s"$path?${q.map { case (k, v) => s"$k=$v" }.mkString("&")}" else path
   }
 
   def startJob(jobName: String, parameters: Map[String, String] = Map()): TwitterFuture[Response] =
