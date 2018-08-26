@@ -85,6 +85,9 @@ class Engine @Inject()(val crankshaft: Crankshaft,
         }.getOrElse(Future.successful(None))
       )
 
+  def findExecutionTracesByDeploymentRequest(deploymentRequestId: Long): Future[Option[Seq[ShallowExecutionTrace]]] =
+    crankshaft.findExecutionTracesByDeploymentRequest(deploymentRequestId)
+
   def getProducts: Future[Seq[Product]] =
     crankshaft.getProducts
 

@@ -201,7 +201,7 @@ class RestController @Inject()(val engine: Engine)
 
   get("/api/deployment-requests/:id/execution-traces")(
     withLongId(
-      crankshaft.findExecutionTracesByDeploymentRequest,
+      engine.findExecutionTracesByDeploymentRequest,
       5.seconds
     )
   )
