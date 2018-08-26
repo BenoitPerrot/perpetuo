@@ -96,7 +96,7 @@ class RestController @Inject()(val engine: Engine)
 
   get("/api/products") { _: Request =>
     timeBoxed(
-      crankshaft.getProducts,
+      engine.getProducts,
       5.seconds
     )
   }
