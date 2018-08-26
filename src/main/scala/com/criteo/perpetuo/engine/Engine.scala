@@ -1,6 +1,7 @@
 package com.criteo.perpetuo.engine
 
 import com.criteo.perpetuo.auth.{DeploymentAction, GeneralAction, Permissions, User}
+import com.criteo.perpetuo.model.ExecutionState.ExecutionState
 import com.criteo.perpetuo.model._
 import javax.inject.{Inject, Singleton}
 
@@ -87,6 +88,9 @@ class Engine @Inject()(val crankshaft: Crankshaft,
 
   def findExecutionTracesByDeploymentRequest(deploymentRequestId: Long): Future[Option[Seq[ShallowExecutionTrace]]] =
     crankshaft.findExecutionTracesByDeploymentRequest(deploymentRequestId)
+
+  def tryUpdateExecutionTrace(id: Long, executionState: ExecutionState, detail: String, logHref: Option[String], statusMap: Map[String, TargetAtomStatus] = Map()): Future[Option[Long]] =
+    crankshaft.tryUpdateExecutionTrace(id, executionState, detail, logHref, statusMap)
 
   def getProducts: Future[Seq[Product]] =
     crankshaft.getProducts
