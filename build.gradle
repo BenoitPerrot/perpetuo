@@ -41,11 +41,8 @@ sourceSets.main.resources {
 }
 
 processResources {
-    // Ad-hoc support for Maven-like resource filtering (should be replaced)
-    filesMatching("*.conf") {
-        filter {
-            it.replace('${perpetuo.version}', project.perpetuo_version)
-        }
+    from("src/main/resources/version") {
+        expand(['version': project.perpetuo_version])
     }
 }
 

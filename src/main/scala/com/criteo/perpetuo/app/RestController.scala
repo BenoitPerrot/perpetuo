@@ -18,6 +18,7 @@ import spray.json.JsonParser.ParsingException
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.concurrent.duration._
+import scala.io.Source
 import scala.util.Try
 
 trait WithId {
@@ -317,7 +318,7 @@ class RestController @Inject()(val engine: Engine)
 }
 
 object RestApi {
-  val perpetuoVersion: String = AppConfigProvider.config.getString("perpetuo.version")
+  val perpetuoVersion: String = Source.fromInputStream(getClass.getResourceAsStream("/version")).mkString
   val selfUrl: String = AppConfigProvider.config.getString("selfUrl")
 
   def executionCallbackPath(execTraceId: String): String = s"/api/execution-traces/$execTraceId"
