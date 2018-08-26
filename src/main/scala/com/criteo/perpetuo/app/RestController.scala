@@ -71,8 +71,6 @@ class RestController @Inject()(val engine: Engine)
 
   private val futurePool = FuturePools.unboundedPool("RequestFuturePool")
 
-  private val crankshaft = engine.crankshaft
-
   private def timeBoxed[T](view: => Future[T], maxDuration: Duration): TwitterFuture[T] =
     futurePool {
       await(view, maxDuration)
