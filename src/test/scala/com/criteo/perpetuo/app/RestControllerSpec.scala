@@ -3,7 +3,7 @@ package com.criteo.perpetuo.app
 import com.criteo.perpetuo.TestDb
 import com.criteo.perpetuo.auth.{User, UserFilter}
 import com.criteo.perpetuo.config.AppConfigProvider
-import com.criteo.perpetuo.model.{ProtoDeploymentPlanStep, ProtoDeploymentRequest, Version}
+import com.criteo.perpetuo.model.{ExecutionState, ProtoDeploymentPlanStep, ProtoDeploymentRequest, Version}
 import com.twitter.finagle.http.Status._
 import com.twitter.finagle.http.{Request, Response, Status}
 import com.twitter.finatra.http.filters.{LoggingMDCFilter, TraceIdMDCFilter}
@@ -198,8 +198,7 @@ class RestControllerSpec extends Test with TestDb {
                                         targetStatus: Option[Map[String, JsValue]] = None,
                                         executionDetail: Option[String] = None,
                                         expectedTargetStatus: Map[String, (String, String)] = Map(),
-                                        expectedRequestStatus: Status = NoContent,
-                                        expectedClosed: Boolean = true): Unit = {
+                                        expectedRequestStatus: Status = NoContent): Unit = {
     val previousLogHrefJson = logHrefHistory.getOrElse(execTraceId, JsNull)
     val expectedLogHrefJson = logHref.map(_.toJson).getOrElse(previousLogHrefJson)
     logHrefHistory(execTraceId) = expectedLogHrefJson
@@ -221,7 +220,8 @@ class RestControllerSpec extends Test with TestDb {
       )
     ) shouldEqual operations.head("executions")
 
-    expectedClosed shouldEqual operations.head.get("closingDate").nonEmpty
+    val isRunning = state == ExecutionState.running.toString
+    isRunning shouldEqual operations.head.get("closingDate").isEmpty
   }
 
   test("The Product's entry-point returns 201 when creating a Product") {
@@ -429,14 +429,12 @@ class RestControllerSpec extends Test with TestDb {
     checkExecutionTraceUpdate(
       depReqId, execTraceId, "running", None,
       Some(Map("amsterdam" -> Map("code" -> "notDone", "detail" -> "").toJson)),
-      None, Map("amsterdam" -> ("notDone", "pending")),
-      expectedClosed = false
+      None, Map("amsterdam" -> ("notDone", "pending"))
     )
     checkExecutionTraceUpdate(
       depReqId, execTraceId, "running", None,
       Some(Map("amsterdam" -> Map("code" -> "running", "detail" -> "").toJson, "paris" -> Map("code" -> "notDone", "detail" -> "waiting...").toJson)),
-      None, Map("amsterdam" -> ("running", ""), "paris" -> ("notDone", "waiting...")),
-      expectedClosed = false
+      None, Map("amsterdam" -> ("running", ""), "paris" -> ("notDone", "waiting..."))
     )
     checkExecutionTraceUpdate(
       depReqId, execTraceId, "aborted", Some("http://final"),
