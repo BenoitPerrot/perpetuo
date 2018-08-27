@@ -545,12 +545,24 @@ class RestControllerSpec extends Test with TestDb {
         "failures" -> executionTraceIds.map(id => s"No log href for execution trace #$id, thus cannot interact with the actual execution").toJson
       )
 
-    getExecutionTracesByDeploymentRequestId(depReqId.toString).elements.map(_.idAsLong).foreach { execTraceId =>
+    executionTraceIds.foreach(execTraceId =>
       updateExecutionTrace(
-        execTraceId, "completed", Some("http://final"),
-        Some(Map("paris" -> Map("code" -> "hostFailure", "detail" -> "crashed").toJson))
+        execTraceId, "running", Some("http://final"),
+        Some(Map("paris" -> Map("code" -> "running", "detail" -> "").toJson))
       )
-    }
+    )
+    actOnDeploymentRequest(depReqId, "stop", JsObject("operationCount" -> JsNumber(1)), Status.Ok).contentString.parseJson.asJsObject shouldEqual
+      JsObject(
+        "id" -> JsNumber(depReqId),
+        "stopped" -> JsNumber(0),
+        "failures" -> JsArray(JsString("Could not find an execution configuration for the type `unknown`"))
+      )
+
+    executionTraceIds.foreach(execTraceId =>
+      updateExecutionTrace(
+        execTraceId, "aborted", Some("http://final"), None
+      )
+    )
     actOnDeploymentRequest(depReqId, "stop", JsObject("operationCount" -> JsNumber(1)), Status.Ok).contentString.parseJson.asJsObject shouldEqual
       JsObject("id" -> JsNumber(depReqId), "stopped" -> JsNumber(0), "failures" -> JsArray())
   }
