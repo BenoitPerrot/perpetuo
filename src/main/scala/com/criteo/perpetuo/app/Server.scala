@@ -66,11 +66,4 @@ class Server extends ServerConfigurator with HttpServer {
   }
 }
 
-object main {
-  new Server
-
-  val metricsConfig = AppConfigProvider.config.getConfig("metrics")
-  if (metricsConfig.getBoolean("enabled")) {
-    new MetricsServer(metricsConfig.getInt("metrics.port"))
-  }
-}
+object main extends Server
