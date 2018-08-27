@@ -536,12 +536,13 @@ class RestControllerSpec extends Test with TestDb {
     startDeploymentRequest(depReqId)
 
     actOnDeploymentRequest(depReqId, "stop", JsObject("operationCount" -> JsNumber(0)), Status.Conflict)
+    val executionTraceIds = getExecutionTracesByDeploymentRequestId(depReqId.toString).elements.map(_.idAsLong)
 
     actOnDeploymentRequest(depReqId, "stop", JsObject("operationCount" -> JsNumber(1)), Status.Ok).contentString.parseJson.asJsObject shouldEqual
       JsObject(
         "id" -> JsNumber(depReqId),
         "stopped" -> JsNumber(0),
-        "failures" -> JsArray(JsString(s"No log href for execution trace #$depReqId, thus cannot interact with the actual execution"))
+        "failures" -> executionTraceIds.map(id => s"No log href for execution trace #$id, thus cannot interact with the actual execution").toJson
       )
 
     getExecutionTracesByDeploymentRequestId(depReqId.toString).elements.map(_.idAsLong).foreach { execTraceId =>
