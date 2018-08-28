@@ -1,6 +1,6 @@
 package com.criteo.perpetuo.engine.executors
 
-import java.net.InetSocketAddress
+import java.net.{InetSocketAddress, URL}
 
 import com.criteo.perpetuo.config.AppConfigProvider
 import com.criteo.perpetuo.config.ConfigSyntacticSugar._
@@ -8,8 +8,10 @@ import com.twitter.conversions.time._
 import com.twitter.finagle.Http.Client
 import com.twitter.finagle.builder.ClientBuilder
 import com.twitter.finagle.http.Status.{NotFound, Ok}
-import com.twitter.finagle.http.{Message, Method, Request, Response}
+import com.twitter.finagle.http._
 import com.twitter.finagle.service.{Backoff, RetryPolicy}
+import com.twitter.finatra.http.HttpHeaders
+import com.twitter.io.Buf
 import com.twitter.util.{Duration, Future, Try}
 import spray.json._
 
@@ -29,20 +31,21 @@ class RundeckClient(val host: String) {
 
   // HTTP client
   private val ssl: Boolean = port == 443
-
+  private val protocol: String = if (ssl) "https" else "http"
   private val maxConnectionsPerHost: Int = 10
   private val backoffDurations: Stream[Duration] = Backoff.exponentialJittered(1.seconds, 5.seconds).take(5)
   private val backoffPolicy: RetryPolicy[Try[Nothing]] = RetryPolicy.backoff(backoffDurations)(RetryPolicy.TimeoutAndWriteExceptionsOnly)
 
-  private def post(apiSubPath: String, body: Option[JsValue] = None): Future[Response] = {
-    val req = Request(Method.Post, apiSubPath)
-    req.host = host
-    req.contentType = Message.ContentTypeJson
-    req.accept = Message.ContentTypeJson // default response format is XML
-    req.contentString = body.map(_.compactPrint).getOrElse("")
+  private val jsonRequestBuilder = RequestBuilder()
+    .setHeader(HttpHeaders.ContentType, Message.ContentTypeJson)
+    .setHeader(HttpHeaders.Accept, Message.ContentTypeJson)
 
-    client(req)
-  }
+  private def post(apiSubPath: String, body: Option[JsValue] = None): Future[Response] =
+    client(
+      jsonRequestBuilder
+        .url(new URL(protocol, host, apiSubPath))
+        .buildPost(body.map(_.compactPrint).map(Buf.Utf8(_)).getOrElse(Buf.Empty))
+    )
 
   protected val client: Request => Future[Response] = (if (ssl) ClientBuilder().tlsWithoutValidation else ClientBuilder())
     .stack(Client())
