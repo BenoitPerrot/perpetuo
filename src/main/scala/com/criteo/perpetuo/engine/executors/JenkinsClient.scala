@@ -1,17 +1,18 @@
 package com.criteo.perpetuo.engine.executors
 
-import java.net.{InetSocketAddress, URLEncoder}
+import java.net.{InetSocketAddress, URL, URLEncoder}
 
 import com.criteo.perpetuo.config.AppConfigProvider
 import com.criteo.perpetuo.config.ConfigSyntacticSugar._
 import com.twitter.conversions.time._
 import com.twitter.finagle.Http.Client
 import com.twitter.finagle.builder.ClientBuilder
-import com.twitter.finagle.http.{Method, Request, Response}
+import com.twitter.finagle.http.{Request, RequestBuilder, Response}
 import com.twitter.finagle.http.Status.{NotFound, Ok, Found}
 import com.twitter.finagle.service.{Backoff, RetryPolicy}
 import com.twitter.inject.Logging
-import com.twitter.util.{Base64StringEncoder, Duration, Future, Try}
+import com.twitter.io.Buf
+import com.twitter.util.{Duration, Future, Try}
 
 
 class JenkinsClient(val host: String) extends Logging {
@@ -21,13 +22,13 @@ class JenkinsClient(val host: String) extends Logging {
   // Username and Apitoken of the Jenkins user used to authenticate to Jenkins server
   val username: Option[String] = config.tryGetString("username")
   val password: Option[String] = config.tryGetString("password")
-  private val userInfo: Option[String] =
+  private val userInfoPrefix: String =
     (username, password) match {
-      case (Some(u), Some(p)) => Some(s"$u:$p")
-      case (None, None) => None
+      case (Some(u), Some(p)) => s"$u:$p@"
+      case (None, None) => ""
       case _ =>
         logger.warn(s"Incomplete authentication setup: only one of username and password was provided, while both or none are expected")
-        None
+        ""
     }
 
   // Timeouts
@@ -37,17 +38,17 @@ class JenkinsClient(val host: String) extends Logging {
 
   // HTTP client
   private val ssl: Boolean = port == 443
-
+  private val protocol: String = if (ssl) "https" else "http"
   private val maxConnectionsPerHost: Int = 10
   private val backoffDurations: Stream[Duration] = Backoff.exponentialJittered(1.seconds, 5.seconds)
   private val backoffPolicy: RetryPolicy[Try[Nothing]] = RetryPolicy.backoff(backoffDurations)(RetryPolicy.TimeoutAndWriteExceptionsOnly)
 
-  private def post(apiSubPath: String): Future[Response] = {
-    val req = Request(Method.Post, apiSubPath)
-    req.host = host
-    userInfo.foreach(x => req.authorization = "Basic " + Base64StringEncoder.encode(x.getBytes("UTF-8")))
-    client(req)
-  }
+  private def post(apiSubPath: String): Future[Response] =
+    client(
+      RequestBuilder()
+        .url(new URL(protocol, host, userInfoPrefix + apiSubPath))
+        .buildPost(Buf.Empty)
+    )
 
   private val client: Request => Future[Response] = (if (ssl) ClientBuilder().tlsWithoutValidation else ClientBuilder())
     .stack(Client())
