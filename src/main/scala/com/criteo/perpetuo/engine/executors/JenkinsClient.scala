@@ -52,6 +52,7 @@ class JenkinsClient(val host: String) extends Logging {
 
   private val client: Request => Future[Response] = (if (ssl) ClientBuilder().tlsWithoutValidation else ClientBuilder())
     .stack(Client())
+    .name(getClass.getSimpleName)
     .timeout(requestTimeout)
     .hostConnectionLimit(maxConnectionsPerHost)
     .hosts(new InetSocketAddress(host, port))
