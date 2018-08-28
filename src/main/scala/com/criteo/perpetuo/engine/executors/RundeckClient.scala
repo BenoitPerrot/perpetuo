@@ -49,6 +49,7 @@ class RundeckClient(val host: String) {
 
   protected val client: Request => Future[Response] = (if (ssl) ClientBuilder().tlsWithoutValidation else ClientBuilder())
     .stack(Client())
+    .name(getClass.getSimpleName)
     .timeout(requestTimeout)
     .hostConnectionLimit(maxConnectionsPerHost)
     .hosts(new InetSocketAddress(host, port))
