@@ -34,7 +34,7 @@ class RundeckClient(val host: String) {
   private val backoffDurations: Stream[Duration] = Backoff.exponentialJittered(1.seconds, 5.seconds).take(5)
   private val backoffPolicy: RetryPolicy[Try[Nothing]] = RetryPolicy.backoff(backoffDurations)(RetryPolicy.TimeoutAndWriteExceptionsOnly)
 
-  private def fetch(apiSubPath: String, body: Option[JsValue] = None): Future[Response] = {
+  private def post(apiSubPath: String, body: Option[JsValue] = None): Future[Response] = {
     val req = Request(Method.Post, apiSubPath)
     req.host = host
     req.contentType = Message.ContentTypeJson
@@ -69,7 +69,7 @@ class RundeckClient(val host: String) {
           .mkString(" "))
     )
 
-    fetch(apiPath(s"job/$jobName/executions"), Some(body))
+    post(apiPath(s"job/$jobName/executions"), Some(body))
   }
 
   private def isJobCompleted(parsedContent: JsObject): Boolean =
@@ -82,7 +82,7 @@ class RundeckClient(val host: String) {
     parsedContent.fields("execution").asJsObject.fields("status").asInstanceOf[JsString].value == "running"
 
   def abortJob(jobId: String): Future[RundeckJobState.ExecState] =
-    fetch(apiPath(s"execution/$jobId/abort")).flatMap(resp =>
+    post(apiPath(s"execution/$jobId/abort")).flatMap(resp =>
       resp.status match {
         case NotFound =>
           Future.value(RundeckJobState.notFound)
@@ -100,7 +100,7 @@ class RundeckClient(val host: String) {
     )
 
   def fetchJobState(jobId: String): Future[RundeckJobState.ExecState] =
-    fetch(apiPath(s"execution/$jobId/output/state", Map("stateOnly" -> "true"))).map(resp =>
+    post(apiPath(s"execution/$jobId/output/state", Map("stateOnly" -> "true"))).map(resp =>
       resp.status match {
         case NotFound => RundeckJobState.notFound
         case Ok if isJobCompleted(resp.contentString.parseJson.asJsObject) => RundeckJobState.terminated
