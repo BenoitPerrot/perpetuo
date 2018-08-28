@@ -21,9 +21,9 @@ class JenkinsClient(val host: String) extends Logging {
   // Username and Apitoken of the Jenkins user used to authenticate to Jenkins server
   val username: Option[String] = config.tryGetString("username")
   val password: Option[String] = config.tryGetString("password")
-  private val basicAuthenticationHeader: Option[String] =
+  private val userInfo: Option[String] =
     (username, password) match {
-      case (Some(u), Some(p)) => Some(s"Basic " + Base64StringEncoder.encode(s"$u:$p".getBytes("UTF-8")))
+      case (Some(u), Some(p)) => Some(s"$u:$p")
       case (None, None) => None
       case _ =>
         logger.warn(s"Incomplete authentication setup: only one of username and password was provided, while both or none are expected")
@@ -45,7 +45,7 @@ class JenkinsClient(val host: String) extends Logging {
   private def post(apiSubPath: String): Future[Response] = {
     val req = Request(Method.Post, apiSubPath)
     req.host = host
-    basicAuthenticationHeader.foreach(req.authorization = _)
+    userInfo.foreach(x => req.authorization = "Basic " + Base64StringEncoder.encode(x.getBytes("UTF-8")))
     client(req)
   }
 
