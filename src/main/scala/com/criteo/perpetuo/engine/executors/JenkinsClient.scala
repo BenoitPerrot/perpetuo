@@ -21,6 +21,14 @@ class JenkinsClient(val host: String) extends Logging {
   // Username and Apitoken of the Jenkins user used to authenticate to Jenkins server
   val username: Option[String] = config.tryGetString("username")
   val password: Option[String] = config.tryGetString("password")
+  private val basicAuthenticationHeader: Option[String] =
+    (username, password) match {
+      case (Some(u), Some(p)) => Some(s"Basic " + Base64StringEncoder.encode(s"$u:$p".getBytes("UTF-8")))
+      case (None, None) => None
+      case _ =>
+        logger.warn(s"Jenkins Client ${host}: Username or Password provided but not both")
+        None
+    }
 
   // Timeouts
   private val requestTimeout: Duration = 5.seconds
@@ -37,19 +45,9 @@ class JenkinsClient(val host: String) extends Logging {
   private def post(apiSubPath: String): Future[Response] = {
     val req = Request(Method.Post, apiSubPath)
     req.host = host
-    createBasicAuthenticationHeader(username, password).foreach(req.authorization = _)
+    basicAuthenticationHeader.foreach(req.authorization = _)
     client(req)
   }
-
-  def createBasicAuthenticationHeader(username: Option[String], password: Option[String]): Option[String] =
-    (username, password) match {
-      case (Some(u), Some(p)) => Some(s"Basic " + Base64StringEncoder.encode(s"$u:$p".getBytes("UTF-8")))
-      case (None, None) => None
-      case _ => {
-        logger.warn(s"Jenkins Client ${host}: Username or Password provided but not both")
-        None
-      }
-    }
 
   private val client: Request => Future[Response] = (if (ssl) ClientBuilder().tlsWithoutValidation else ClientBuilder())
     .stack(Client())
