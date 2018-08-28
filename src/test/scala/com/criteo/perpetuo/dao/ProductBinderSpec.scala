@@ -19,9 +19,10 @@ class ProductBinderSpec
         product1 <- upsertProduct("product1")
         product2 <- upsertProduct("product2", active = false)
       } yield {
-        (product1.active, product2.active)
+        product1.active shouldBe true
+        product2.active shouldBe false
       }
-    ) shouldBe(true, false)
+    )
   }
 
   test("Existing product's active status is updated when upserting") {
@@ -31,9 +32,9 @@ class ProductBinderSpec
         _ <- upsertProduct("product1")
         product <- upsertProduct("product1", active = false)
       } yield {
-        product.active
+        product.active shouldBe false
       }
-    ) shouldBe false
+    )
   }
 
   test("Return all inserted products") {
@@ -42,10 +43,9 @@ class ProductBinderSpec
       for {
         _ <- dbContext.db.run(productQuery.delete)
         _ <- Future.traverse(nameSet)(upsertProduct(_))
-        productList <- getProducts
+        products <- getProducts
       } yield {
-        val x = productList.map(_.name).toSet
-        assert(x == nameSet)
+        products.map(_.name).toSet shouldEqual nameSet
       }
     )
   }
@@ -59,8 +59,9 @@ class ProductBinderSpec
         _ <- Future.sequence(existingProductNames.map(name => upsertProduct(name)))
         products <- setActiveProducts(postedProductNames)
       } yield {
-        products.map(product => (product.name, product.active)).toSet
+        products.map(product => (product.name, product.active)) shouldEqual
+          Set(("app1", false), ("app2", false), ("app4", true))
       }
-    ) shouldBe Set(("app1", false), ("app2", false), ("app4", true))
+    )
   }
 }

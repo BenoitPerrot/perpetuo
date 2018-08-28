@@ -38,15 +38,12 @@ class CrankshaftSpec extends SimpleScenarioTesting {
         _ <- crankshaft.step(depPlan.deploymentRequest, Some(0), "s.tarter")
         (toDoAfterStart, lastDoneAfterStart) <- gettingPlanStepToOperateAndLastDoneStep(depPlan.deploymentRequest, Operation.deploy)
         traces <- crankshaft.findExecutionTracesByDeploymentRequest(depPlan.deploymentRequest.id)
-      } yield (
-        traces.get.map(trace => (trace.id, trace.logHref)),
-        lastDoneBeforeStart.isEmpty,
-        lastDoneAfterStart.contains(toDoBeforeStart),
-        toDoBeforeStart == toDoAfterStart // Deployment flopped, so the next step remains the same
-      )
-    ) shouldEqual(
-      Seq((1, None)),
-      true, true, true
+      } yield {
+        traces.get.map(trace => (trace.id, trace.logHref)) shouldEqual Seq((1, None))
+        lastDoneBeforeStart shouldBe empty
+        lastDoneAfterStart should contain(toDoBeforeStart)
+        toDoBeforeStart shouldEqual toDoAfterStart // Deployment flopped, so the next step remains the same
+      }
     )
   }
 
@@ -60,8 +57,12 @@ class CrankshaftSpec extends SimpleScenarioTesting {
         _ <- closeOperation(operationTrace, Map("moon" -> Status.success, "mars" -> Status.hostFailure))
         hasOpenExecutionAfter <- hasOpenExecutionTracesForOperation(operationTrace.id)
         operationReClosingSucceeded <- closeOperationTrace(operationTrace)
-      } yield (hasOpenExecutionBefore, hasOpenExecutionAfter, operationReClosingSucceeded.isDefined)
-    ) shouldBe(true, false, false)
+      } yield {
+        hasOpenExecutionBefore shouldBe true
+        hasOpenExecutionAfter shouldBe false
+        operationReClosingSucceeded shouldNot be(defined)
+      }
+    )
   }
 
   def mockDeployExecution(productName: String, v: String, targetAtomToStatus: Map[String, Status.Code], updateTargetStatuses: Boolean = true): Future[(DeploymentRequest, Long)] = {
@@ -136,8 +137,10 @@ class CrankshaftSpec extends SimpleScenarioTesting {
         // The last one of course is retryable
         thirdDeploymentRequest <- crankshaft.dbBinding.findDeploymentRequestById(thirdDeploymentRequest.id).map(_.get)
         _ <- rejectIfCannot(Operation.deploy, thirdDeploymentRequest)
-      } yield rejectionOfSecond.asInstanceOf[RejectingError].msg
-    ) shouldBe "a newer one has already been applied"
+      } yield {
+        rejectionOfSecond.asInstanceOf[RejectingError].msg shouldEqual "a newer one has already been applied"
+      }
+    )
   }
 
   test("Crankshaft finds executions for reverting") {
@@ -164,15 +167,13 @@ class CrankshaftSpec extends SimpleScenarioTesting {
 
       } yield {
         val specsThird = determinedSpecsThird.map { case (spec, targets) => spec.id -> (spec.version.serialized, targets) }.toMap
-        (
-          undeterminedSpecsFirst,
-          determinedSpecsFirst.isEmpty,
-          undeterminedSpecsThird.isEmpty,
-          specsThird(firstExecSpecId),
-          specsThird(secondExecSpecId)
-        )
+        undeterminedSpecsFirst shouldEqual Set("moon", "mars")
+        determinedSpecsFirst shouldBe empty
+        undeterminedSpecsThird shouldBe empty
+        specsThird(firstExecSpecId) shouldEqual(JsString("27").toString, Set("mars"))
+        specsThird(secondExecSpecId) shouldEqual(JsString("54").toString, Set("moon"))
       }
-    ) shouldBe(Set("moon", "mars"), true, true, (JsString("27").toString, Set("mars")), (JsString("54").toString, Set("moon")))
+    )
   }
 
   test("Crankshaft checks if an operation can be reverted") {
@@ -217,8 +218,12 @@ class CrankshaftSpec extends SimpleScenarioTesting {
         notDoneDeploymentRequest <- crankshaft.dbBinding.findDeploymentRequestById(notDoneDeploymentRequest.id).map(_.get)
         rejectionOfNotDone <- rejectIfCannot(Operation.revert, notDoneDeploymentRequest).failed
 
-      } yield List(rejectionOfSecond, rejectionOfNothingDone, rejectionOfNotDone).map(_.asInstanceOf[RejectingError].msg)
-    ) shouldBe List("a newer one has already been applied", "Nothing to revert", "Nothing to revert")
+      } yield {
+        rejectionOfSecond.asInstanceOf[RejectingError].msg shouldEqual "a newer one has already been applied"
+        rejectionOfNothingDone.asInstanceOf[RejectingError].msg shouldEqual "Nothing to revert"
+        rejectionOfNotDone.asInstanceOf[RejectingError].msg shouldEqual "Nothing to revert"
+      }
+    )
   }
 
   test("Crankshaft rejects reverts of outdated deployment requests") {
@@ -231,8 +236,10 @@ class CrankshaftSpec extends SimpleScenarioTesting {
         msg <- crankshaft.revert(dr1, Some(1), "foo", None).failed.map(_.asInstanceOf[RejectingError].msg) // outdated by dr2
         _ <- crankshaft.revert(dr2, Some(1), "foo", None) // revert the last request for this product
         _ <- crankshaft.revert(dr3, Some(1), "foo", Some(Version(JsString("older")))) // not outdated because the following one is not started
-      } yield msg
-    ) shouldBe "a newer one has already been applied"
+      } yield {
+        msg shouldEqual "a newer one has already been applied"
+      }
+    )
   }
 
   test("Crankshaft rejects outdated revert intents before devising the plan") {
@@ -241,8 +248,10 @@ class CrankshaftSpec extends SimpleScenarioTesting {
       for {
         msg <- crankshaft.revert(deploymentRequest, Some(0), "foo", None).failed.map(_.getMessage)
         _ <- crankshaft.revert(deploymentRequest, Some(1), "foo", Some(Version(JsString("first-version-ever"))))
-      } yield msg
-    ) should include("the state of the deployment has just changed")
+      } yield {
+        msg should include("the state of the deployment has just changed")
+      }
+    )
   }
 
   test("Crankshaft performs a revert") {
@@ -402,16 +411,18 @@ class CrankshaftWithFailingExecutorSpec extends SimpleScenarioTesting {
   override protected def triggerMock = throw new RuntimeException("too bad, dude")
 
   test("Crankshaft keeps the created records in DB and marks an execution trace as failed if the trigger fails") {
-    val res = for {
-      product <- crankshaft.upsertProduct("airplane")
-      deploymentRequest <- crankshaft.createDeploymentRequest(ProtoDeploymentRequest(product.name, Version(JsString("42").compactPrint), Seq(ProtoDeploymentPlanStep("", JsArray(JsString("moon"), JsString("mars")), "")), "", "bob"))
-      operationTrace <- crankshaft.step(deploymentRequest, Some(0), "ignace")
-      hasOpenExecution <- dbContext.db.run(crankshaft.dbBinding.hasOpenExecutionTracesForOperation(operationTrace.id))
-      executionTrace <- crankshaft.dbBinding.findExecutionTracesByDeploymentRequest(deploymentRequest.id).map(_.head)
-    } yield (
-      hasOpenExecution, executionTrace.state
+    await(
+      for {
+        product <- crankshaft.upsertProduct("airplane")
+        deploymentRequest <- crankshaft.createDeploymentRequest(ProtoDeploymentRequest(product.name, Version(JsString("42").compactPrint), Seq(ProtoDeploymentPlanStep("", JsArray(JsString("moon"), JsString("mars")), "")), "", "bob"))
+        operationTrace <- crankshaft.step(deploymentRequest, Some(0), "ignace")
+        hasOpenExecution <- dbContext.db.run(crankshaft.dbBinding.hasOpenExecutionTracesForOperation(operationTrace.id))
+        executionTraces <- crankshaft.dbBinding.findExecutionTracesByOperationTrace(operationTrace.id)
+      } yield {
+        hasOpenExecution shouldBe false
+        executionTraces.map(_.state) shouldEqual Seq(ExecutionState.initFailed)
+      }
     )
-    res should become(false, ExecutionState.initFailed)
   }
 }
 
