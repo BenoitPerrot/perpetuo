@@ -26,7 +26,7 @@ class JenkinsClient(val host: String) extends Logging {
       case (Some(u), Some(p)) => Some(s"Basic " + Base64StringEncoder.encode(s"$u:$p".getBytes("UTF-8")))
       case (None, None) => None
       case _ =>
-        logger.warn(s"Jenkins Client ${host}: Username or Password provided but not both")
+        logger.warn(s"Incomplete authentication setup: only one of username and password was provided, while both or none are expected")
         None
     }
 
