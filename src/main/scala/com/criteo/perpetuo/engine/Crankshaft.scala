@@ -343,7 +343,8 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
     }
 
   def updateExecutionTrace(id: Long, executionState: ExecutionState, detail: String, logHref: Option[String], statusMap: Map[String, TargetAtomStatus] = Map()): Future[Long] =
-    tryUpdateExecutionTrace(id, executionState, detail, logHref, statusMap).map(_.getOrElse(throw new AssertionError(s"Trying to update an execution trace ($id) that doesn't exist")))
+    tryUpdateExecutionTrace(id, executionState, detail, logHref, statusMap)
+      .map(_.getOrElse(throw new IllegalArgumentException(s"Trying to update an execution trace ($id) that doesn't exist")))
 
   def tryUpdateExecutionTrace(id: Long, executionState: ExecutionState, detail: String, logHref: Option[String], statusMap: Map[String, TargetAtomStatus] = Map()): Future[Option[Long]] =
     dbBinding.dbContext.db.run(
