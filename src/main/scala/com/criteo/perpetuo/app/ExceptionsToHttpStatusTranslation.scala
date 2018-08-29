@@ -1,7 +1,7 @@
 package com.criteo.perpetuo.app
 
 import com.criteo.perpetuo.engine.dispatchers.NoAvailableExecutor
-import com.criteo.perpetuo.engine.{Conflict, MissingInfo, PermissionDenied, RejectingError, UnavailableAction, UnprocessableIntent, Veto}
+import com.criteo.perpetuo.engine.{Conflict, MissingInfo, PermissionDenied, RejectingException, UnavailableAction, UnprocessableIntent, Veto}
 import com.twitter.finagle.http.Status
 import com.twitter.finagle.{TimeoutException => FinagleTimeout}
 import com.twitter.finatra.http.exceptions._
@@ -19,7 +19,7 @@ trait ExceptionsToHttpStatusTranslation extends Logging {
   def await[T](future: => Future[T], maxDuration: Duration): T =
     handleExceptions(Await.result(future, maxDuration))
 
-  private def toHttpResponseException(e: RejectingError, status: Status): HttpResponseException = {
+  private def toHttpResponseException(e: RejectingException, status: Status): HttpResponseException = {
     val body = Map("errors" -> Seq(e.msg)) ++ e.detail
     new HttpResponseException(response.EnrichedResponse(status).json(body))
   }
@@ -42,7 +42,7 @@ trait ExceptionsToHttpStatusTranslation extends Logging {
       case e: UnavailableAction => throw toHttpResponseException(e, Status.UnprocessableEntity)
       case e: UnprocessableIntent => throw toHttpResponseException(e, Status.BadRequest)
       case e: Veto => throw toHttpResponseException(e, Status.UnprocessableEntity)
-      case e: RejectingError => // should not happen: every subclass of RejectingError should be covered above
+      case e: RejectingException => // should not happen: every subclass of RejectingError should be covered above
         logger.error(e.getMessage, e)
         throw toHttpResponseException(e, Status.BadRequest)
     }

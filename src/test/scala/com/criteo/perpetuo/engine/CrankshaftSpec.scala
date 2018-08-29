@@ -138,7 +138,7 @@ class CrankshaftSpec extends SimpleScenarioTesting {
         thirdDeploymentRequest <- crankshaft.dbBinding.findDeploymentRequestById(thirdDeploymentRequest.id).map(_.get)
         _ <- rejectIfCannot(Operation.deploy, thirdDeploymentRequest)
       } yield {
-        rejectionOfSecond.asInstanceOf[RejectingError].msg shouldEqual "a newer one has already been applied"
+        rejectionOfSecond.asInstanceOf[RejectingException].msg shouldEqual "a newer one has already been applied"
       }
     )
   }
@@ -219,9 +219,9 @@ class CrankshaftSpec extends SimpleScenarioTesting {
         rejectionOfNotDone <- rejectIfCannot(Operation.revert, notDoneDeploymentRequest).failed
 
       } yield {
-        rejectionOfSecond.asInstanceOf[RejectingError].msg shouldEqual "a newer one has already been applied"
-        rejectionOfNothingDone.asInstanceOf[RejectingError].msg shouldEqual "Nothing to revert"
-        rejectionOfNotDone.asInstanceOf[RejectingError].msg shouldEqual "Nothing to revert"
+        rejectionOfSecond.asInstanceOf[RejectingException].msg shouldEqual "a newer one has already been applied"
+        rejectionOfNothingDone.asInstanceOf[RejectingException].msg shouldEqual "Nothing to revert"
+        rejectionOfNotDone.asInstanceOf[RejectingException].msg shouldEqual "Nothing to revert"
       }
     )
   }
@@ -233,7 +233,7 @@ class CrankshaftSpec extends SimpleScenarioTesting {
     request("zestful-zebra", "newer", Seq("unknown-desert"))
     await(
       for {
-        msg <- crankshaft.revert(dr1, Some(1), "foo", None).failed.map(_.asInstanceOf[RejectingError].msg) // outdated by dr2
+        msg <- crankshaft.revert(dr1, Some(1), "foo", None).failed.map(_.asInstanceOf[RejectingException].msg) // outdated by dr2
         _ <- crankshaft.revert(dr2, Some(1), "foo", None) // revert the last request for this product
         _ <- crankshaft.revert(dr3, Some(1), "foo", Some(Version(JsString("older")))) // not outdated because the following one is not started
       } yield {

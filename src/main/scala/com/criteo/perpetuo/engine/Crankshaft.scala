@@ -28,7 +28,7 @@ object DeploymentStatus extends Enumeration {
   val paused = Value("paused")
 }
 
-abstract class RejectingError extends RuntimeException {
+abstract class RejectingException extends RuntimeException {
   val msg: String
   val detail: Map[String, _]
 
@@ -38,21 +38,21 @@ abstract class RejectingError extends RuntimeException {
   }.mkString("")
 }
 
-case class UnprocessableIntent(msg: String, detail: Map[String, _] = Map()) extends RejectingError
+case class UnprocessableIntent(msg: String, detail: Map[String, _] = Map()) extends RejectingException
 
-case class UnavailableAction(msg: String, detail: Map[String, _] = Map()) extends RejectingError
+case class UnavailableAction(msg: String, detail: Map[String, _] = Map()) extends RejectingException
 
-case class MissingInfo(msg: String, required: String) extends RejectingError {
+case class MissingInfo(msg: String, required: String) extends RejectingException {
   val detail: Map[String, String] = Map("required" -> required)
 }
 
-case class Conflict(msg: String, deploymentRequestId: Long, conflicts: Iterable[_] = Seq()) extends RejectingError {
+case class Conflict(msg: String, deploymentRequestId: Long, conflicts: Iterable[_] = Seq()) extends RejectingException {
   val detail: Map[String, _] =
     Map("deploymentRequestId" -> deploymentRequestId) ++
       (if (conflicts.nonEmpty) Map("conflicts" -> conflicts) else Map())
 }
 
-case class Veto(msg: String, reason: String) extends RejectingError {
+case class Veto(msg: String, reason: String) extends RejectingException {
   val detail: Map[String, String] = Map("reason" -> reason)
 }
 
@@ -77,7 +77,7 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
               }
               val getRejectionReason = canApply.asTry.collect {
                 case Success(_) => None
-                case Failure(e: RejectingError) => Some(e.msg) // don't show the details
+                case Failure(e: RejectingException) => Some(e.msg) // don't show the details
                 case Failure(e) => Some(e.getMessage)
               }
               getRejectionReason.map((DeploymentAction.applyOperation, operation, operation.toString, _))
