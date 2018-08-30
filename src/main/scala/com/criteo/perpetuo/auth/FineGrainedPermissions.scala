@@ -5,10 +5,9 @@ import java.util.regex.Pattern
 import com.criteo.perpetuo.config.ConfigSyntacticSugar._
 import com.criteo.perpetuo.model.Operation
 import com.twitter.inject.Logging
-import com.typesafe.config.{Config, ConfigList, ConfigValue}
+import com.typesafe.config.Config
 
 import scala.collection.JavaConversions._
-import scala.collection.JavaConverters._
 
 case class Authority(authorizedUserNames: Set[String],
                      authorizedGroupNames: Set[String]) {
