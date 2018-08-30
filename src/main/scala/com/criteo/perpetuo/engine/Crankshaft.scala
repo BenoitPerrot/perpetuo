@@ -217,9 +217,10 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
   def step(deploymentRequest: DeploymentRequest, operationCount: Option[Int], initiatorName: String, emitEvent: Boolean = true): Future[OperationTrace] = {
     val getSpecifics = fuelFilter.gettingPlanStepToOperateAndLastDoneStep(deploymentRequest, Operation.deploy)
       .flatMap { case (toDo, lastDone) =>
+        val expandedTarget: Option[TargetExpr] = targetResolver.resolveExpression(toDo.deploymentRequest.product.name, toDo.deploymentRequest.version, toDo.parsedTarget)
         val isRetry = lastDone.contains(toDo)
         val getOperationSpecifics = if (isRetry) getRetrySpecifics _ else getStepSpecifics _
-        getOperationSpecifics(targetResolver, targetDispatcher, toDo)
+        getOperationSpecifics(expandedTarget, targetDispatcher, toDo)
           .map(operationCreationSpecifics => ((Seq(toDo), operationCreationSpecifics), (lastDone, toDo)))
       }
     act(deploymentRequest, operationCount, initiatorName, getSpecifics)
@@ -425,13 +426,11 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
     (Operation.deploy, specAndInvocations, expandedTarget.map(_.flatMap(_.select)))
   }
 
-  private[engine] def getStepSpecifics(resolver: TargetResolver,
+  private[engine] def getStepSpecifics(expandedTarget: Option[TargetExpr],
                                        dispatcher: TargetDispatcher,
                                        planStep: DeploymentPlanStep): DBIOrw[OperationCreationParams] = {
     // generation of specific parameters
     val specificParameters = dispatcher.freezeParameters(planStep.deploymentRequest.product.name, planStep.deploymentRequest.version)
-    // target resolution
-    val expandedTarget = resolver.resolveExpression(planStep.deploymentRequest.product.name, planStep.deploymentRequest.version, planStep.parsedTarget)
 
     // Create the execution specification outside of any transaction: it's not an issue if the request
     // fails afterward and the specification remains unbound.
@@ -442,12 +441,10 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
     )
   }
 
-  private def getRetrySpecifics(resolver: TargetResolver,
+  private def getRetrySpecifics(expandedTarget: Option[TargetExpr],
                                 dispatcher: TargetDispatcher,
                                 planStep: DeploymentPlanStep): DBIOrw[OperationCreationParams] = {
     // todo: map the right target to the right specification
-    val expandedTarget = resolver.resolveExpression(planStep.deploymentRequest.product.name, planStep.deploymentRequest.version, planStep.parsedTarget)
-
     dbBinding.findingDeploySpecifications(planStep).map(executionSpecs =>
       getDeploySpecifics(dispatcher, planStep, expandedTarget, executionSpecs)
     )

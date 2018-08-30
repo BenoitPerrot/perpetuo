@@ -63,11 +63,13 @@ class DispatchingSpec extends SimpleScenarioTesting {
     def dispatchedAs(that: Map[ExecutionTrigger, TargetExpr]): Unit = {
       Await.result(
         crankshaft.dbBinding.insertDeploymentRequest(request)
-          .flatMap(deploymentPlan =>
+          .flatMap { deploymentPlan =>
+            val firstStep = deploymentPlan.steps.head
+            val expandedTarget = testResolver.resolveExpression(firstStep.deploymentRequest.product.name, firstStep.deploymentRequest.version, firstStep.parsedTarget)
             crankshaft.dbBinding.dbContext.db.run(
-              crankshaft.getStepSpecifics(testResolver, TestTargetDispatcher, deploymentPlan.steps.head)
+              crankshaft.getStepSpecifics(expandedTarget, TestTargetDispatcher, firstStep)
             )
-          )
+          }
           .map { case (_, executionsToTrigger, _) =>
             val toTrigger = executionsToTrigger.flatMap { case (_, executionToTrigger) => executionToTrigger }
             assertEqual(toTrigger.toMap, that)
