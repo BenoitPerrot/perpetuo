@@ -520,7 +520,7 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
             (false, s"failed (${e.getMessage})", Some((ExecutionState.initFailed, e.getMessage, None)))
         }
         .map { case (succeeded, identifier, toUpdate) =>
-          logExecution(identifier, execTraceId, executor, target)
+          logger.debug(s"Triggering job $identifier for execution #$execTraceId: $executor <- ${target.toJson.compactPrint}")
           (succeeded, execTraceId, toUpdate)
         }
     }
@@ -589,9 +589,5 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
       s"More targets after $reason than before: " + (after -- before).map(_.toString).mkString(", "))
     if (after.size != before.size)
       throw UnprocessableIntent("Unknown target(s): " + (before -- after).map(_.toString).mkString(", "))
-  }
-
-  protected def logExecution(identifier: String, execId: Long, executor: ExecutionTrigger, target: TargetExpr): Unit = {
-    logger.debug(s"Triggering job $identifier for execution #$execId: $executor <- ${target.toJson.compactPrint}")
   }
 }
