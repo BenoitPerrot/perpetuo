@@ -114,7 +114,7 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
         // todo: replace that by the creation of all the related records when the first deploy operation will be created simultaneously
         targetDispatcher.freezeParameters(protoDeploymentRequest.productName, protoDeploymentRequest.version)
         protoDeploymentRequest.plan.foreach(planStep =>
-          expandTarget(targetResolver, protoDeploymentRequest.productName, protoDeploymentRequest.version, planStep.parsedTarget)
+          targetResolver.resolveExpression(protoDeploymentRequest.productName, protoDeploymentRequest.version, planStep.parsedTarget)
         )
 
         dbBinding
@@ -431,7 +431,7 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
     // generation of specific parameters
     val specificParameters = dispatcher.freezeParameters(planStep.deploymentRequest.product.name, planStep.deploymentRequest.version)
     // target resolution
-    val expandedTarget = expandTarget(resolver, planStep.deploymentRequest.product.name, planStep.deploymentRequest.version, planStep.parsedTarget)
+    val expandedTarget = resolver.resolveExpression(planStep.deploymentRequest.product.name, planStep.deploymentRequest.version, planStep.parsedTarget)
 
     // Create the execution specification outside of any transaction: it's not an issue if the request
     // fails afterward and the specification remains unbound.
@@ -446,7 +446,7 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
                                 dispatcher: TargetDispatcher,
                                 planStep: DeploymentPlanStep): DBIOrw[OperationCreationParams] = {
     // todo: map the right target to the right specification
-    val expandedTarget = expandTarget(resolver, planStep.deploymentRequest.product.name, planStep.deploymentRequest.version, planStep.parsedTarget)
+    val expandedTarget = resolver.resolveExpression(planStep.deploymentRequest.product.name, planStep.deploymentRequest.version, planStep.parsedTarget)
 
     dbBinding.findingDeploySpecifications(planStep).map(executionSpecs =>
       getDeploySpecifics(dispatcher, planStep, expandedTarget, executionSpecs)
@@ -525,26 +525,5 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
           (succeeded, execTraceId, toUpdate)
         }
     }
-  }
-
-  private[engine] def expandTarget(resolver: TargetResolver, productName: String, productVersion: Version, target: TargetExpr): Option[TargetExpr] = {
-    val select = target.select
-    resolver.toAtoms(productName, productVersion, select).map { toAtoms =>
-      checkUnchangedTarget(select, toAtoms.keySet, "resolution")
-      toAtoms.foreach { case (word, atoms) =>
-        if (atoms.isEmpty)
-          throw UnprocessableIntent(s"`$word` is not a valid target in that context")
-        atoms.foreach(atom => assert(atom.length <= TargetAtom.maxSize, s"Target `$atom` is too long"))
-      }
-      target.map(term => TargetTerm(term.tactics, term.select.iterator.flatMap(toAtoms).toSet))
-    }
-  }
-
-  private[engine] def checkUnchangedTarget(before: Select, after: Select, reason: String): Unit = {
-    // check that we have the same targets before and after the dispatch (but one can be dispatched in several groups)
-    assert(after.subsetOf(before),
-      s"More targets after $reason than before: " + (after -- before).map(_.toString).mkString(", "))
-    if (after.size != before.size)
-      throw UnprocessableIntent("Unknown target(s): " + (before -- after).map(_.toString).mkString(", "))
   }
 }

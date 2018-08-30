@@ -1,7 +1,7 @@
 package com.criteo.perpetuo.engine.resolvers
 
-import com.criteo.perpetuo.engine.{Provider, Select}
-import com.criteo.perpetuo.model.Version
+import com.criteo.perpetuo.engine.{Provider, Select, TargetExpr, TargetTerm, UnprocessableIntent}
+import com.criteo.perpetuo.model.{TargetAtom, Version}
 
 
 trait TargetResolver extends Provider[TargetResolver] {
@@ -27,4 +27,20 @@ trait TargetResolver extends Provider[TargetResolver] {
     *         - None if it's NOT CERTAIN that ANY TARGET can be resolved to atoms for the given product.
     */
   def toAtoms(productName: String, productVersion: Version, targetWords: Select): Option[Map[String, Select]] = None
+
+  def resolveExpression(productName: String, productVersion: Version, target: TargetExpr): Option[TargetExpr] = {
+    val select = target.select
+    toAtoms(productName, productVersion, select).map { toAtoms =>
+      val resolvedTerms = toAtoms.keySet
+      assert(resolvedTerms.subsetOf(select), "More targets after resolution than before: " + (resolvedTerms -- select).map(_.toString).mkString(", "))
+      if (resolvedTerms.size != select.size)
+        throw UnprocessableIntent("Unknown target(s): " + (select -- resolvedTerms).map(_.toString).mkString(", "))
+      toAtoms.foreach { case (word, atoms) =>
+        if (atoms.isEmpty)
+          throw UnprocessableIntent(s"`$word` is not a valid target in that context")
+        atoms.foreach(atom => assert(atom.length <= TargetAtom.maxSize, s"Target `$atom` is too long"))
+      }
+      target.map(term => TargetTerm(term.tactics, term.select.iterator.flatMap(toAtoms).toSet))
+    }
+  }
 }
