@@ -101,7 +101,7 @@ class DispatchingSpec extends SimpleScenarioTesting {
 
   test("A complex execution raises if a target is not fully covered by executors") {
     val params = TestTargetDispatcher.freezeParameters("", Version(""""42""""))
-    val thrown = the[UnprocessableIntent] thrownBy crankshaft.dispatchToExecutors(TestTargetDispatcher, Set("def"), params)
+    val thrown = the[UnprocessableIntent] thrownBy TestTargetDispatcher.dispatchToExecutors(Set("def"), params)
     thrown.getMessage should startWith("Unknown target")
   }
 
@@ -178,7 +178,7 @@ class DispatchingSpec extends SimpleScenarioTesting {
     val Alternatives = Set
     val params = TestTargetDispatcher.freezeParameters("", Version(""""42""""))
     assertEqual(
-      crankshaft.dispatchAlternatives(TestTargetDispatcher, Set(
+      TestTargetDispatcher.dispatchAlternatives(Set(
         TargetTerm(Set(JsObject("ratio" -> JsNumber(0.05), "foo" -> JsString("bar"))), Set("ab")),
         TargetTerm(Set(JsObject("ratio" -> JsNumber(0.05))), Set("assault")),
         TargetTerm(Set(JsObject("ratio" -> JsNumber(0.05))), Set("appendix")),
@@ -218,8 +218,8 @@ class DispatchingSpec extends SimpleScenarioTesting {
       TargetTerm(Set(JsObject("foo" -> JsString("bar2"))), Set("ghi")),
       TargetTerm(Set(JsObject("foo2" -> JsString("bar"))), Set("ghi"))
     )
-    val dispatchedTargets = crankshaft
-      .dispatch(DummyTargetDispatcher, targetWithDuplicates, "")
+    val dispatchedTargets = DummyTargetDispatcher
+      .dispatchExpression(targetWithDuplicates, "")
       .map(_._2)
     assertEqual(dispatchedTargets, Seq(
       Set(

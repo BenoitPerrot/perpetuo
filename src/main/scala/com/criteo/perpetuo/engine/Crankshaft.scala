@@ -420,7 +420,7 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
                                  executionSpecs: Seq[ExecutionSpecification]): OperationCreationParams = {
 
     val specAndInvocations = executionSpecs.map(spec =>
-      (spec, dispatch(dispatcher, expandedTarget.getOrElse(planStep.parsedTarget), spec.specificParameters).toVector)
+      (spec, dispatcher.dispatchExpression(expandedTarget.getOrElse(planStep.parsedTarget), spec.specificParameters).toVector)
     )
     (Operation.deploy, specAndInvocations, expandedTarget.map(_.flatMap(_.select)))
   }
@@ -477,7 +477,7 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
       }
       .flatMap { groups =>
         val specAndInvocations = groups.map { case (spec, targets) =>
-          (spec, dispatch(dispatcher, Set(TargetTerm(select = targets)), spec.specificParameters).toVector)
+          (spec, dispatcher.dispatchExpression(Set(TargetTerm(select = targets)), spec.specificParameters).toVector)
         }
         val atoms = groups.flatMap { case (_, targets) => targets }
         dbBinding.findingOperatedPlanSteps(deploymentRequest).map(steps =>
@@ -538,50 +538,6 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
       }
       target.map(term => TargetTerm(term.tactics, term.select.iterator.flatMap(toAtoms).toSet))
     }
-  }
-
-  private[engine] def dispatch(dispatcher: TargetDispatcher, expandedTarget: TargetExpr, frozenParameters: String): Iterable[(ExecutionTrigger, TargetExpr)] =
-    dispatchAlternatives(dispatcher, expandedTarget, frozenParameters).map {
-      // return the shortest target expression for the executor
-      case (executor, expressions) => (executor, expressions.minBy(_.toJson.compactPrint.length))
-    }
-
-  private[engine] def dispatchAlternatives(dispatcher: TargetDispatcher, expandedTarget: TargetExpr, frozenParameters: String): Iterable[(ExecutionTrigger, Set[TargetExpr])] = {
-    def groupOn2[A, B](it: Iterable[(A, B)]): Map[B, Set[A]] =
-      it.groupBy(_._2).map { case (k, v) => (k, v.map(_._1).toSet) }
-
-    val perSelectAtom = groupOn2(
-      expandedTarget.toStream.flatMap { case TargetTerm(tactics, select) =>
-        select.toStream.flatMap(selectAtom =>
-          tactics.map(tactic => (tactic, selectAtom)))
-      }
-    )
-
-    // infer only once for all unique targets the executors required for each target word
-    dispatchToExecutors(dispatcher, perSelectAtom.keySet, frozenParameters).map { case (executor, select) =>
-      val atomsAndTactics = select.toStream.map(selectAtom => (selectAtom, perSelectAtom(selectAtom)))
-      val flattened = atomsAndTactics.flatMap { case (selectAtom, tactics) =>
-        tactics.toStream.map(tactic => (selectAtom, tactic))
-      }
-      val alternatives = Seq(
-        // either group first by "select" atoms then group these atoms by common "tactics"
-        groupOn2(atomsAndTactics).map(TargetTerm.tupled),
-        // or group first by tactic then group the tactics by common "select" atoms
-        groupOn2(groupOn2(flattened)).map(_.swap).map(TargetTerm.tupled)
-      )
-      (executor, alternatives.map(_.toSet).toSet)
-    }
-  }
-
-  private[engine] def dispatchToExecutors(targetDispatcher: TargetDispatcher, targetAtoms: Select, frozenParameters: String) = {
-    val dispatched = targetDispatcher.dispatch(targetAtoms, frozenParameters)
-      .toStream
-      .filter { case (_, select) => select.nonEmpty }
-
-    val flattened: Select = dispatched.map { case (_, group) => group }.foldLeft(Stream.empty[String])(_ ++ _).toSet
-    checkUnchangedTarget(targetAtoms, flattened, "dispatching")
-
-    dispatched
   }
 
   private[engine] def checkUnchangedTarget(before: Select, after: Select, reason: String): Unit = {
