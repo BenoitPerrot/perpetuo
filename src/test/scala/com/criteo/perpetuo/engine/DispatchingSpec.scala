@@ -1,11 +1,10 @@
 package com.criteo.perpetuo.engine
 
-import com.criteo.perpetuo.TestDb
+import com.criteo.perpetuo.SimpleScenarioTesting
 import com.criteo.perpetuo.engine.dispatchers.{SingleTargetDispatcher, TargetDispatcher}
 import com.criteo.perpetuo.engine.executors.{DummyExecutionTrigger, ExecutionTrigger}
 import com.criteo.perpetuo.engine.resolvers.TargetResolver
 import com.criteo.perpetuo.model._
-import com.twitter.inject.Test
 import spray.json.DefaultJsonProtocol._
 import spray.json._
 
@@ -39,11 +38,10 @@ object TestTargetDispatcher extends TargetDispatcher {
 
 object DummyTargetDispatcher extends SingleTargetDispatcher(executionTrigger = new DummyExecutionTrigger("Default Dummy Trigger"))
 
-class OperationStarterSpec extends Test with TestDb {
+class DispatchingSpec extends SimpleScenarioTesting {
 
   import TestTargetDispatcher._
 
-  private val operationStarter = new OperationStarter(dbBinding)
   private val testResolver = new TargetResolver {
     override def toAtoms(productName: String, productVersion: Version, targetWords: Select): Option[Map[String, Select]] = {
       // the atomic targets are the input word split on dashes
@@ -51,7 +49,7 @@ class OperationStarterSpec extends Test with TestDb {
     }
   }
 
-  private val product: Product = Await.result(operationStarter.dbBinding.upsertProduct("perpetuo-app"), 1.second)
+  private val product: Product = Await.result(crankshaft.dbBinding.upsertProduct("perpetuo-app"), 1.second)
 
   implicit class SimpleDispatchTest(private val select: Select) {
     def dispatchedAs(that: Map[ExecutionTrigger, Select]): Unit = {
@@ -64,10 +62,10 @@ class OperationStarterSpec extends Test with TestDb {
 
     def dispatchedAs(that: Map[ExecutionTrigger, TargetExpr]): Unit = {
       Await.result(
-        operationStarter.dbBinding.insertDeploymentRequest(request)
+        crankshaft.dbBinding.insertDeploymentRequest(request)
           .flatMap(deploymentPlan =>
-            operationStarter.dbBinding.dbContext.db.run(
-              operationStarter.getStepSpecifics(testResolver, TestTargetDispatcher, deploymentPlan.steps.head)
+            crankshaft.dbBinding.dbContext.db.run(
+              crankshaft.getStepSpecifics(testResolver, TestTargetDispatcher, deploymentPlan.steps.head)
             )
           )
           .map { case (_, executionsToTrigger, _) =>
@@ -97,13 +95,13 @@ class OperationStarterSpec extends Test with TestDb {
   }
 
   test("A complex execution raises if a target cannot be solved to atomic targets") {
-    val thrown = the[UnprocessableIntent] thrownBy operationStarter.expandTarget(testResolver, null, Version("\"\""), Set(TargetTerm(select = Set("ab", "-"))))
+    val thrown = the[UnprocessableIntent] thrownBy crankshaft.expandTarget(testResolver, null, Version("\"\""), Set(TargetTerm(select = Set("ab", "-"))))
     thrown.getMessage should endWith("`-` is not a valid target in that context")
   }
 
   test("A complex execution raises if a target is not fully covered by executors") {
     val params = TestTargetDispatcher.freezeParameters("", Version(""""42""""))
-    val thrown = the[UnprocessableIntent] thrownBy operationStarter.dispatchToExecutors(TestTargetDispatcher, Set("def"), params)
+    val thrown = the[UnprocessableIntent] thrownBy crankshaft.dispatchToExecutors(TestTargetDispatcher, Set("def"), params)
     thrown.getMessage should startWith("Unknown target")
   }
 
@@ -180,7 +178,7 @@ class OperationStarterSpec extends Test with TestDb {
     val Alternatives = Set
     val params = TestTargetDispatcher.freezeParameters("", Version(""""42""""))
     assertEqual(
-      operationStarter.dispatchAlternatives(TestTargetDispatcher, Set(
+      crankshaft.dispatchAlternatives(TestTargetDispatcher, Set(
         TargetTerm(Set(JsObject("ratio" -> JsNumber(0.05), "foo" -> JsString("bar"))), Set("ab")),
         TargetTerm(Set(JsObject("ratio" -> JsNumber(0.05))), Set("assault")),
         TargetTerm(Set(JsObject("ratio" -> JsNumber(0.05))), Set("appendix")),
@@ -220,7 +218,7 @@ class OperationStarterSpec extends Test with TestDb {
       TargetTerm(Set(JsObject("foo" -> JsString("bar2"))), Set("ghi")),
       TargetTerm(Set(JsObject("foo2" -> JsString("bar"))), Set("ghi"))
     )
-    val dispatchedTargets = operationStarter
+    val dispatchedTargets = crankshaft
       .dispatch(DummyTargetDispatcher, targetWithDuplicates, "")
       .map(_._2)
     assertEqual(dispatchedTargets, Seq(
