@@ -28,6 +28,9 @@ class FineGrainedPermissionsSpec extends Test {
     val authorizedToAdministrate = User("sub.admin")
     val authorizedToProceedOnFoo = User("foo.proceeder")
     val authorizedToRequest = User("some.one", Set(UserGroups.registeredUsers))
+    val authorizedToStop = User("some.stopper")
+    val authorizedToAdministrateInPreProd = User("preprod.admin")
+    val authorizedToRequestInPreProd = User("preprod.req")
     val unauthorized = User("anonymous")
   }
 
@@ -127,6 +130,86 @@ class FineGrainedPermissionsSpec extends Test {
     test(s"$subject collects relevant group names") {
       permissions.permittedGroupNames shouldBe Set(UserGroups.registeredUsers, UserGroups.hipsters, UserGroups.generationY)
     }
+  }
+
+  test("Authorizes users by target using hand built permissions") {
+    val permissions = new FineGrainedPermissions(
+      Map[GeneralAction.Value, Authority](),
+      Seq[ProductRule](
+        ProductRule(
+          Pattern.compile(".*"),
+          Map[DeploymentAction.Value, Iterable[(Authority, TargetMatchers)]](
+            DeploymentAction.requestOperation ->
+              Iterable(
+                (Authority(Set(Users.authorizedToRequest.name), Set()), TargetMatchers(Seq((s: String) => Set("par", "pa4").contains(s)))),
+                (Authority(Set(Users.authorizedToStop.name), Set()), TargetMatchers(Seq((s: String) => Set("par").contains(s))))
+              ),
+            DeploymentAction.applyOperation ->
+              Iterable(
+                (Authority(Set(Users.authorizedToAdministrate.name), Set(UserGroups.registeredUsers)), TargetMatchers(Seq((s: String) => Set("target", "anotherTarget").contains(s))))
+              ),
+            DeploymentAction.stopOperation ->
+              Iterable(
+                (Authority(Set(Users.authorizedToStop.name), Set()), TargetMatchers(Seq((s: String) => Set("par").contains(s))))
+              )
+          )
+        )
+      )
+    )
+
+    permissions.isAuthorized(Users.authorizedToRequest, DeploymentAction.requestOperation, Operation.deploy, "product1",
+      Iterable("par")) shouldBe true
+    permissions.isAuthorized(Users.authorizedToRequest, DeploymentAction.requestOperation, Operation.deploy, "product1",
+      Iterable("am5")) shouldBe false
+    permissions.isAuthorized(Users.authorizedToRequest, DeploymentAction.requestOperation, Operation.deploy, "product1",
+      Iterable("par", "pa4", "am5")) shouldBe false
+    permissions.isAuthorized(Users.unauthorized, DeploymentAction.requestOperation, Operation.deploy, "product1",
+      Iterable("pa3")) shouldBe false
+
+    permissions.isAuthorized(Users.authorizedToAdministrate, DeploymentAction.applyOperation, Operation.deploy, "product1",
+        Iterable("target")) shouldBe true
+    permissions.isAuthorized(Users.authorizedToRequest, DeploymentAction.applyOperation, Operation.deploy, "product1",
+      Iterable("anotherTarget")) shouldBe true
+
+    permissions.isAuthorized(Users.authorizedToStop, DeploymentAction.requestOperation, Operation.deploy, "product2",
+      Iterable("par")) shouldBe true
+  }
+
+  test("Authorizes users by target using permissions from config") {
+    val permissions = FineGrainedPermissions.fromConfig(ConfigFactory.parseString(
+      s"""
+         |perGeneralAction = {
+         |  administrate = [
+         |    {
+         |      userNames = ["${Users.authorizedToAdministrate.name}"]
+         |    }
+         |  ]
+         |}
+         |
+         |perProduct = [
+         |  {
+         |    regex = ".*"
+         |    perAction {
+         |      requestOperation = [
+         |        {
+         |          groupNames = ["${UserGroups.registeredUsers}"]
+         |        },
+         |        {
+         |          targetMatchers {
+         |            atoms = ["par"]
+         |          },
+         |          userNames = ["${Users.authorizedToRequestInPreProd.name}"]
+         |        }
+         |      ]
+         |    }
+         |  }
+         |]
+        """.stripMargin))
+
+    permissions.isAuthorized(Users.authorizedToAdministrate, GeneralAction.administrate) shouldBe true
+    permissions.isAuthorized(Users.authorizedToRequestInPreProd, DeploymentAction.requestOperation, Operation.deploy, "product", Iterable("par")) shouldBe true
+    permissions.isAuthorized(Users.authorizedToRequestInPreProd, DeploymentAction.requestOperation, Operation.deploy, "product", Iterable("am5")) shouldBe false
+    permissions.isAuthorized(Users.authorizedToStop, DeploymentAction.requestOperation, Operation.deploy, "product", Iterable("par")) shouldBe false
   }
 
 }

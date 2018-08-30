@@ -21,9 +21,9 @@ case class TargetMatchers(matchers: Iterable[String => Boolean]) {
 }
 
 case class ProductRule(productPattern: Pattern, actionRules: Map[DeploymentAction.Value, Iterable[(Authority, TargetMatchers)]]) {
-  def authorizes(user: User, action: DeploymentAction.Value, productName: String): Boolean =
+  def authorizes(user: User, action: DeploymentAction.Value, productName: String, targets: Iterable[String]): Boolean =
     productPattern.matcher(productName).matches() && actionRules.get(action).exists(rules => rules.exists {
-      case (authority, targetMatcher) => authority.authorizes(user) && targetMatcher.authorizes(Seq[String]()) // TODO: Pass the list of targets to target matcher
+      case (authority, targetMatcher) => authority.authorizes(user) && targetMatcher.authorizes(targets)
     })
 }
 
@@ -36,10 +36,13 @@ class FineGrainedPermissions(generalActionRules: Map[GeneralAction.Value, Author
   override def isAuthorized(user: User, action: GeneralAction.Value): Boolean =
     generalActionRules.get(action).exists(_.authorizes(user))
 
-  override def isAuthorized(user: User, action: DeploymentAction.Value, operation: Operation.Kind, productName: String): Boolean =
+  def isAuthorized(user: User, action: DeploymentAction.Value, operation: Operation.Kind, productName: String, targets: Iterable[String]): Boolean =
     productRules.exists(
-      _.authorizes(user, if (action == DeploymentAction.stopOperation) DeploymentAction.applyOperation else action, productName)
+      _.authorizes(user, if (action == DeploymentAction.stopOperation) DeploymentAction.applyOperation else action, productName, targets)
     )
+
+  override def isAuthorized(user: User, action: DeploymentAction.Value, operation: Operation.Kind, productName: String): Boolean =
+    isAuthorized(user, action, operation, productName, Seq())
 }
 
 object FineGrainedPermissions extends Logging {
