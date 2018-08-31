@@ -220,7 +220,7 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
         val expandedTarget: Option[TargetExpr] = targetResolver.resolveExpression(toDo.deploymentRequest.product.name, toDo.deploymentRequest.version, toDo.parsedTarget)
         val isRetry = lastDone.contains(toDo)
         val getOperationSpecifics = if (isRetry) getRetrySpecifics _ else getStepSpecifics _
-        getOperationSpecifics(expandedTarget, targetDispatcher, toDo)
+        getOperationSpecifics(expandedTarget, toDo)
           .map(operationCreationSpecifics => ((Seq(toDo), operationCreationSpecifics), (lastDone, toDo)))
       }
     act(deploymentRequest, operationCount, initiatorName, getSpecifics)
@@ -317,7 +317,7 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
 
   def revert(deploymentRequest: DeploymentRequest, operationCount: Option[Int], initiatorName: String, defaultVersion: Option[Version]): Future[OperationTrace] = {
     val getSpecifics = fuelFilter.rejectingIfCannotRevert(deploymentRequest)
-      .andThen(getRevertSpecifics(targetDispatcher, deploymentRequest, initiatorName, defaultVersion))
+      .andThen(getRevertSpecifics(deploymentRequest, initiatorName, defaultVersion))
       .map((_, ()))
     act(deploymentRequest, operationCount, initiatorName, getSpecifics)
       .map { case ((operationTrace, started, failed), _) =>
@@ -427,31 +427,28 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
   }
 
   private[engine] def getStepSpecifics(expandedTarget: Option[TargetExpr],
-                                       dispatcher: TargetDispatcher,
                                        planStep: DeploymentPlanStep): DBIOrw[OperationCreationParams] = {
     // generation of specific parameters
-    val specificParameters = dispatcher.freezeParameters(planStep.deploymentRequest.product.name, planStep.deploymentRequest.version)
+    val specificParameters = targetDispatcher.freezeParameters(planStep.deploymentRequest.product.name, planStep.deploymentRequest.version)
 
     // Create the execution specification outside of any transaction: it's not an issue if the request
     // fails afterward and the specification remains unbound.
     // Moreover, this will likely be rewritten eventually for the specifications to be created alongside with the
     // `deploy` operations at the time the deployment request is created.
     dbBinding.insertingExecutionSpecification(specificParameters, planStep.deploymentRequest.version).map(executionSpec =>
-      getDeploySpecifics(dispatcher, planStep, expandedTarget, Seq(executionSpec))
+      getDeploySpecifics(targetDispatcher, planStep, expandedTarget, Seq(executionSpec))
     )
   }
 
   private def getRetrySpecifics(expandedTarget: Option[TargetExpr],
-                                dispatcher: TargetDispatcher,
                                 planStep: DeploymentPlanStep): DBIOrw[OperationCreationParams] = {
     // todo: map the right target to the right specification
     dbBinding.findingDeploySpecifications(planStep).map(executionSpecs =>
-      getDeploySpecifics(dispatcher, planStep, expandedTarget, executionSpecs)
+      getDeploySpecifics(targetDispatcher, planStep, expandedTarget, executionSpecs)
     )
   }
 
-  private def getRevertSpecifics(dispatcher: TargetDispatcher,
-                                 deploymentRequest: DeploymentRequest,
+  private def getRevertSpecifics(deploymentRequest: DeploymentRequest,
                                  userName: String,
                                  defaultVersion: Option[Version]): DBIOrw[(Iterable[DeploymentPlanStep], OperationCreationParams)] = {
     dbBinding
@@ -459,7 +456,7 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
       .flatMap { case (undetermined, determined) =>
         if (undetermined.nonEmpty)
           defaultVersion.map { version =>
-            val specificParameters = dispatcher.freezeParameters(deploymentRequest.product.name, version)
+            val specificParameters = targetDispatcher.freezeParameters(deploymentRequest.product.name, version)
             // Create the execution specification outside of any transaction: it's not an issue if the request
             // fails afterward and the specification remains unbound.
             dbBinding.insertingExecutionSpecification(specificParameters, version).map(executionSpecification =>
@@ -474,7 +471,7 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
       }
       .flatMap { groups =>
         val specAndInvocations = groups.map { case (spec, targets) =>
-          (spec, dispatcher.dispatchExpression(Set(TargetTerm(select = targets)), spec.specificParameters).toVector)
+          (spec, targetDispatcher.dispatchExpression(Set(TargetTerm(select = targets)), spec.specificParameters).toVector)
         }
         val atoms = groups.flatMap { case (_, targets) => targets }
         dbBinding.findingOperatedPlanSteps(deploymentRequest).map(steps =>

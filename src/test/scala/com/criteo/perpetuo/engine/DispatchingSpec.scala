@@ -69,7 +69,7 @@ class DispatchingSpec extends SimpleScenarioTesting {
             val firstStep = deploymentPlan.steps.head
             val expandedTarget = testResolver.resolveExpression(firstStep.deploymentRequest.product.name, firstStep.deploymentRequest.version, firstStep.parsedTarget)
             crankshaft.dbBinding.dbContext.db.run(
-              crankshaft.getStepSpecifics(expandedTarget, TestTargetDispatcher, firstStep)
+              crankshaft.getStepSpecifics(expandedTarget, firstStep)
             )
           }
           .map { case (_, executionsToTrigger, _) =>
