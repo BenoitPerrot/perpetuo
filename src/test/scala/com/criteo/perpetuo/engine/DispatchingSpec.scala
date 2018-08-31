@@ -42,6 +42,8 @@ class DispatchingSpec extends SimpleScenarioTesting {
 
   import TestTargetDispatcher._
 
+  override lazy val targetDispatcher: TargetDispatcher = TestTargetDispatcher
+
   private val testResolver = new TargetResolver {
     override def toAtoms(productName: String, productVersion: Version, targetWords: Select): Option[Map[String, Select]] = {
       // the atomic targets are the input word split on dashes

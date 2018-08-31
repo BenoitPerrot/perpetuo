@@ -2,7 +2,7 @@ package com.criteo.perpetuo
 
 import com.criteo.perpetuo.config.{AppConfigProvider, PluginLoader, Plugins}
 import com.criteo.perpetuo.dao.{DbBinding, DbContext, DbContextProvider, TestingDbContextModule}
-import com.criteo.perpetuo.engine.dispatchers.SingleTargetDispatcher
+import com.criteo.perpetuo.engine.dispatchers.{SingleTargetDispatcher, TargetDispatcher}
 import com.criteo.perpetuo.engine.executors.{ExecutionTrigger, TriggeredExecutionFinder}
 import com.criteo.perpetuo.engine.{Crankshaft, TargetExpr, UnavailableAction}
 import com.criteo.perpetuo.model._
@@ -49,10 +49,12 @@ trait SimpleScenarioTesting extends TestHelpers with TestDb with MockitoSugar {
   val plugins = new Plugins(loader)
   val executionFinder = new TriggeredExecutionFinder(loader)
 
+  lazy val targetDispatcher: TargetDispatcher = new SingleTargetDispatcher(executionTrigger)
+
   lazy val crankshaft: Crankshaft = {
     when(executionTrigger.trigger(anyLong, anyString, any[Version], any[TargetExpr], anyString))
       .thenReturn(Future(triggerMock))
-    new Crankshaft(dbBinding, plugins.resolver, new SingleTargetDispatcher(executionTrigger), plugins.listeners, executionFinder)
+    new Crankshaft(dbBinding, plugins.resolver, targetDispatcher, plugins.listeners, executionFinder)
   }
 
   protected def triggerMock: Option[String] = None
