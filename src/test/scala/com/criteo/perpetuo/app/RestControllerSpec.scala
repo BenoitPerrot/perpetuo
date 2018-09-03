@@ -279,12 +279,6 @@ class RestControllerSpec extends Test with TestDb {
     }
   }
 
-  test("The DEPRECATED DeploymentRequest's actions entry-point starts a deployment that was not started yet") {
-    createProduct("my deprecated product")
-    val id = requestDeployment("my deprecated product", "6", "worldwide".toJson)
-    actOnDeploymentRequest(id, "deploy", JsObject(), Ok).contentString.parseJson.asJsObject shouldEqual JsObject("id" -> id.toJson)
-  }
-
   test("The DeploymentRequest's actions entry-point starts a deployment that was not started yet") {
     createProduct("my product B")
     val id = requestDeployment("my product B", "456", "ams".toJson)

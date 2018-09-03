@@ -166,13 +166,6 @@ class RestController @Inject()(val engine: Engine)
       .map(_.map(_ => Map("id" -> id)))
   }
 
-  // TODO: Remove once clients have migrated to step
-  post("/api/deployment-requests/:id/actions/deploy", 5.seconds) { (id: Long, _: RequestWithId, user: User) =>
-    engine
-      .step(user, id, None)
-      .map(_.map(_ => Map("id" -> id)))
-  }
-
   post("/api/deployment-requests/:id/actions/revert", 5.seconds) { (id: Long, r: RevertRequest, user: User) =>
     engine
       .revert(user, id, r.operationCount, r.defaultVersion.map(Version.apply))
