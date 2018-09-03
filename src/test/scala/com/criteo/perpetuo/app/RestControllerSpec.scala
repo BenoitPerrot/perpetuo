@@ -756,7 +756,7 @@ class RestControllerSpec extends Test with TestDb {
 
     val depReqId = requestDeployment("my product", "version", "target".toJson)
     server.httpPost(
-      path = s"/api/deployment-requests/$depReqId/actions/deploy",
+      path = s"/api/deployment-requests/$depReqId/actions/step",
       headers = Map("Cookie" -> s"jwt=$stdUserJWT"),
       andExpect = Forbidden,
       postBody = JsObject().compactPrint
