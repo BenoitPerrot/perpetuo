@@ -317,7 +317,7 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
 
   def revert(deploymentRequest: DeploymentRequest, operationCount: Option[Int], initiatorName: String, defaultVersion: Option[Version]): Future[OperationTrace] = {
     val getSpecifics = fuelFilter.rejectingIfCannotRevert(deploymentRequest)
-      .andThen(getRevertSpecifics(deploymentRequest, initiatorName, defaultVersion))
+      .andThen(getRevertSpecifics(deploymentRequest, defaultVersion))
       .map((_, ()))
     act(deploymentRequest, operationCount, initiatorName, getSpecifics)
       .map { case ((operationTrace, started, failed), _) =>
@@ -449,7 +449,6 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
   }
 
   private def getRevertSpecifics(deploymentRequest: DeploymentRequest,
-                                 userName: String,
                                  defaultVersion: Option[Version]): DBIOrw[(Iterable[DeploymentPlanStep], OperationCreationParams)] = {
     dbBinding
       .findingExecutionSpecificationsForRevert(deploymentRequest)
