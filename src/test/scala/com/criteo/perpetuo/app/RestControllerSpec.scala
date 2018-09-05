@@ -84,7 +84,7 @@ class RestControllerSpec extends Test with TestDb {
     val depReqId = requestDeployment(productName, version, target, comment, expectsMessage)
     expectsMessage.getOrElse {
       startDeploymentRequest(depReqId)
-      getExecutionTracesByDeploymentRequestId(depReqId.toString).elements.map(_.idAsLong).foreach(execTraceId =>
+      getExecutionTracesByDeploymentRequestId(depReqId.toString).map(_.idAsLong).foreach(execTraceId =>
         checkExecutionTraceUpdate(depReqId, execTraceId, "completed")
       )
     }
@@ -177,7 +177,7 @@ class RestControllerSpec extends Test with TestDb {
     val productName = s"random product ${randomProductCounter.next()}"
     createProduct(productName)
     val depReqId = requestAndWaitDeployment(productName, version, target)
-    (depReqId, getExecutionTracesByDeploymentRequestId(depReqId.toString).elements.map(_.idAsLong))
+    (depReqId, getExecutionTracesByDeploymentRequestId(depReqId.toString).map(_.idAsLong))
   }
 
   private def updateExecutionTrace(execTraceId: Long, state: String,
@@ -308,7 +308,7 @@ class RestControllerSpec extends Test with TestDb {
     respJson1 shouldNot contain("required")
 
     startDeploymentRequest(id, Ok)
-    val execTraceId = getExecutionTracesByDeploymentRequestId(id.toString, Ok).get.elements.head.idAsLong
+    val execTraceId = getExecutionTracesByDeploymentRequestId(id.toString, Ok).get.head.idAsLong
     checkExecutionTraceUpdate(
       id, execTraceId, "completed", None, Some(
         Map("targetA" -> Map("code" -> "success", "detail" -> "").toJson,
@@ -322,24 +322,22 @@ class RestControllerSpec extends Test with TestDb {
     actOnDeploymentRequest(id, "revert", JsObject("defaultVersion" -> JsString("42"), "operationCount" -> JsNumber(1)), Ok)
   }
 
-  private def getExecutionTracesByDeploymentRequestId(deploymentRequestId: String, expectedStatus: Status): Option[JsArray] = {
+  private def getExecutionTracesByDeploymentRequestId(deploymentRequestId: String, expectedStatus: Status): Option[Vector[JsValue]] = {
     val response = server.httpGet(
       path = s"/api/unstable/deployment-requests/$deploymentRequestId",
       andExpect = expectedStatus
     )
     if (response.status == Ok) {
       Some(
-        JsArray(
-          response.contentString.parseJson.asInstanceOf[JsObject]
-            .fields("operations").asInstanceOf[JsArray].elements
-            .flatMap(_.asInstanceOf[JsObject].fields("executions").asInstanceOf[JsArray].elements)
-        )
+        response.contentString.parseJson.asInstanceOf[JsObject]
+          .fields("operations").asInstanceOf[JsArray].elements
+          .flatMap(_.asInstanceOf[JsObject].fields("executions").asInstanceOf[JsArray].elements)
       )
     } else
       None
   }
 
-  private def getExecutionTracesByDeploymentRequestId(deploymentRequestId: String): JsArray =
+  private def getExecutionTracesByDeploymentRequestId(deploymentRequestId: String): Vector[JsValue] =
     getExecutionTracesByDeploymentRequestId(deploymentRequestId, Ok).get
 
   test("The DeploymentRequest's GET entry-point returns 200 and a JSON with all necessary info when accessing an existing DeploymentRequest") {
@@ -382,12 +380,12 @@ class RestControllerSpec extends Test with TestDb {
   test("The ExecutionTrace's entry-point doesn't fail when the existing DeploymentRequest doesn't have execution traces yet") {
     val protoDeploymentRequest = ProtoDeploymentRequest("my product", Version(JsString("v")), Seq(ProtoDeploymentPlanStep("", JsString("t"), "")), "c", "c")
     val depReq = Await.result(controller.engine.crankshaft.createDeploymentRequest(protoDeploymentRequest), 1.second)
-    val traces = getExecutionTracesByDeploymentRequestId(depReq.id.toString).elements
+    val traces = getExecutionTracesByDeploymentRequestId(depReq.id.toString)
     traces shouldBe empty
   }
 
   test("The ExecutionTrace's entry-point returns a list of executions when trying to access a completed DeploymentRequest") {
-    val traces = getExecutionTracesByDeploymentRequestId("1").elements
+    val traces = getExecutionTracesByDeploymentRequestId("1")
     traces.length shouldEqual 1
     Map(
       "id" -> T,
@@ -412,7 +410,7 @@ class RestControllerSpec extends Test with TestDb {
     createProduct(productName)
     val depReqId = requestDeployment(productName, "653", Seq("paris", "ams").toJson)
     startDeploymentRequest(depReqId)
-    getExecutionTracesByDeploymentRequestId(depReqId.toString).elements.map(_.idAsLong).foreach(
+    getExecutionTracesByDeploymentRequestId(depReqId.toString).map(_.idAsLong).foreach(
       checkExecutionTraceUpdate(
         depReqId, _, "initFailed", None,
         Some(Map("paris" -> Map("code" -> "success", "detail" -> "").toJson)),
@@ -424,7 +422,7 @@ class RestControllerSpec extends Test with TestDb {
   test("The ExecutionTrace's entry-point updates one record's execution state, href and target status (partially) on a PUT") {
     val depReqId = requestDeployment("my product", "653", Seq("paris", "amsterdam").toJson, None)
     startDeploymentRequest(depReqId)
-    val execTraceId = getExecutionTracesByDeploymentRequestId(depReqId.toString).elements(0).idAsLong
+    val execTraceId = getExecutionTracesByDeploymentRequestId(depReqId.toString)(0).idAsLong
     checkExecutionTraceUpdate(
       depReqId, execTraceId, "conflicting", Some("http://"),
       Some(Map("amsterdam" -> Map("code" -> "notDone", "detail" -> "").toJson)),
@@ -435,7 +433,7 @@ class RestControllerSpec extends Test with TestDb {
   test("The ExecutionTrace's entry-point partially updates one record's target status on a PUT") {
     val depReqId = requestDeployment("my product", "653", Seq("paris", "amsterdam").toJson, None)
     startDeploymentRequest(depReqId)
-    val execTraceId = getExecutionTracesByDeploymentRequestId(depReqId.toString).elements(0).idAsLong
+    val execTraceId = getExecutionTracesByDeploymentRequestId(depReqId.toString)(0).idAsLong
     checkExecutionTraceUpdate(
       depReqId, execTraceId, "running", None,
       Some(Map("amsterdam" -> Map("code" -> "notDone", "detail" -> "").toJson)),
@@ -466,7 +464,7 @@ class RestControllerSpec extends Test with TestDb {
     createProduct("calm-camel")
     val depReqId = requestDeployment("calm-camel", "123456", Seq("paris", "amsterdam").toJson, None)
     startDeploymentRequest(depReqId)
-    val execTraceId = getExecutionTracesByDeploymentRequestId(depReqId.toString).elements(0).idAsLong
+    val execTraceId = getExecutionTracesByDeploymentRequestId(depReqId.toString)(0).idAsLong
     checkExecutionTraceUpdate(
       depReqId, execTraceId, "conflicting", None,
       Some(Map("amsterdam" -> Map("code" -> "notDone", "detail" -> "").toJson)),
@@ -547,7 +545,7 @@ class RestControllerSpec extends Test with TestDb {
     startDeploymentRequest(depReqId)
 
     actOnDeploymentRequest(depReqId, "stop", JsObject("operationCount" -> JsNumber(0)), Status.Conflict)
-    val executionTraceIds = getExecutionTracesByDeploymentRequestId(depReqId.toString).elements.map(_.idAsLong)
+    val executionTraceIds = getExecutionTracesByDeploymentRequestId(depReqId.toString).map(_.idAsLong)
 
     actOnDeploymentRequest(depReqId, "stop", JsObject("operationCount" -> JsNumber(1)), Status.Ok).contentString.parseJson.asJsObject shouldEqual
       JsObject(
