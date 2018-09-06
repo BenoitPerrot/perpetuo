@@ -39,8 +39,8 @@ class FineGrainedPermissionsSpec extends Test {
       Map[GeneralAction.Value, Authority](
         GeneralAction.administrate -> Authority(Set(Users.authorizedToAdministrate.name), Set())
       ),
-      Seq[ProductRule](
-        ProductRule(
+      Seq(
+        new ProductRule(
           Pattern.compile(".*"),
           Map(
             DeploymentAction.requestOperation -> Iterable((
@@ -49,7 +49,7 @@ class FineGrainedPermissionsSpec extends Test {
             ))
           )
         ),
-        ProductRule(
+        new ProductRule(
           Pattern.compile(Products.foo.toString),
           Map(
             DeploymentAction.applyOperation -> Iterable((
@@ -135,8 +135,8 @@ class FineGrainedPermissionsSpec extends Test {
   test("Authorizes users by target using hand built permissions") {
     val permissions = new FineGrainedPermissions(
       Map[GeneralAction.Value, Authority](),
-      Seq[ProductRule](
-        ProductRule(
+      Seq(
+        new ProductRule(
           Pattern.compile(".*"),
           Map[DeploymentAction.Value, Iterable[(Authority, TargetMatchers)]](
             DeploymentAction.requestOperation ->

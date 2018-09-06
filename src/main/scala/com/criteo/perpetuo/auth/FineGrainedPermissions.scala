@@ -20,7 +20,7 @@ case class TargetMatchers(matchers: Iterable[String => Boolean]) {
     matchers.isEmpty || targets.forall(target => matchers.exists(_(target)))
 }
 
-case class ProductRule(productPattern: Pattern, actionRules: Map[DeploymentAction.Value, Iterable[(Authority, TargetMatchers)]]) {
+class ProductRule(productPattern: Pattern, val actionRules: Map[DeploymentAction.Value, Iterable[(Authority, TargetMatchers)]]) {
   def authorizes(user: User, action: DeploymentAction.Value, productName: String, targets: Iterable[String]): Boolean =
     productPattern.matcher(productName).matches() && actionRules.get(action).exists(rules => rules.exists {
       case (authority, targetMatcher) => authority.authorizes(user) && targetMatcher.authorizes(targets)
@@ -67,7 +67,7 @@ object FineGrainedPermissions extends Logging {
     )
 
   private def createProductRule(config: Config): ProductRule =
-    ProductRule(
+    new ProductRule(
       Pattern.compile(config.getString("regex")),
       createActionToAuthorityTargetMatchersMap(DeploymentAction.values, config.getConfig("perAction"))
     )
