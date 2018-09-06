@@ -191,13 +191,6 @@ class RestController @Inject()(val engine: Engine)
       })
   }
 
-  get("/api/deployment-requests/:id/execution-traces")(
-    withLongId(
-      engine.findExecutionTracesByDeploymentRequest,
-      5.seconds
-    )
-  )
-
   /**
     * Respond a:
     * - HTTP 204 if the update is a success
