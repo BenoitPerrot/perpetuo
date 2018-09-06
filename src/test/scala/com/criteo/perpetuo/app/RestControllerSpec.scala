@@ -320,12 +320,18 @@ class RestControllerSpec extends Test with TestDb {
 
   private def getExecutionTracesByDeploymentRequestId(deploymentRequestId: String, expectedStatus: Status): Option[JsArray] = {
     val response = server.httpGet(
-      path = s"/api/deployment-requests/$deploymentRequestId/execution-traces",
+      path = s"/api/unstable/deployment-requests/$deploymentRequestId",
       andExpect = expectedStatus
     )
-    if (response.status == Ok)
-      Some(response.contentString.parseJson.asInstanceOf[JsArray])
-    else
+    if (response.status == Ok) {
+      Some(
+        JsArray(
+          response.contentString.parseJson.asInstanceOf[JsObject]
+            .fields("operations").asInstanceOf[JsArray].elements
+            .flatMap(_.asInstanceOf[JsObject].fields("executions").asInstanceOf[JsArray].elements)
+        )
+      )
+    } else
       None
   }
 
