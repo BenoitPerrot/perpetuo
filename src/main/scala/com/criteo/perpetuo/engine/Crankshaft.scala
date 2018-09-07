@@ -371,12 +371,27 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
         operationTrace
       }
 
-  def deviseRevertPlan(deploymentRequest: DeploymentRequest): Future[(Set[TargetAtom], Iterable[(ExecutionSpecification, Set[TargetAtom])])] =
-    dbBinding.dbContext.db.run(
-      fuelFilter.rejectingIfLocked(deploymentRequest)
-        .andThen(fuelFilter.rejectingIfCannotRevert(deploymentRequest))
-        .andThen(dbBinding.findingExecutionSpecificationsForRevert(deploymentRequest))
-    )
+  def deviseRevertPlan(deploymentRequest: DeploymentRequest): Future[(Set[TargetAtom], Iterable[(ExecutionSpecification, Set[TargetAtom])])] = {
+    val devisingRevertPlan =
+      assessingDeploymentState(deploymentRequest)
+        .flatMap {
+          case _: Outdated =>
+            DBIOAction.failed(Conflict("a newer one has already been applied", deploymentRequest.id))
+
+          case _: Reverted =>
+            DBIOAction.failed(UnavailableAction("the deployment transaction is closed", Map("deploymentRequestId" -> deploymentRequest.id)))
+
+          case _: NotStarted | _: DeployFlopped =>
+            DBIOAction.failed(UnavailableAction("Nothing to revert", Map("deploymentRequestId" -> deploymentRequest.id)))
+
+          case _: RevertInProgress | _: DeployInProgress =>
+            DBIOAction.failed(UnavailableAction("another operation is already running", Map("deploymentRequestId" -> deploymentRequest.id)))
+
+          case _: RevertFailed | _: DeployFailed | _: Paused | _: Deployed =>
+            dbBinding.findingExecutionSpecificationsForRevert(deploymentRequest)
+        }
+    dbBinding.dbContext.db.run(devisingRevertPlan)
+  }
 
   def findExecutionTracesByDeploymentRequest(deploymentRequestId: Long): Future[Option[Seq[ShallowExecutionTrace]]] =
     dbBinding.findExecutionTracesByDeploymentRequest(deploymentRequestId).flatMap { traces =>
