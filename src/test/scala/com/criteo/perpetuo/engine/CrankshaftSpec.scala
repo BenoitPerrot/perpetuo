@@ -498,7 +498,7 @@ class CrankshaftWithMultiStepSpec extends SimpleScenarioTesting {
     r.revert("old")
 
     r.eligibleOperations should become(Seq[Operation.Kind]())
-    (the[UnavailableAction] thrownBy r.revert("older")).msg shouldBe "there is no next step, they have all been successfully reverted"
+    (the[UnavailableAction] thrownBy r.revert("older")).msg shouldBe "the deployment transaction is closed"
   }
 
   test("Crankshaft cannot deploy anymore once it has been tentatively reverted") {

@@ -364,9 +364,24 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
       }
 
   def revert(deploymentRequest: DeploymentRequest, operationCount: Option[Int], initiatorName: String, defaultVersion: Option[Version]): Future[OperationTrace] = {
-    val getSpecifics = fuelFilter.rejectingIfCannotRevert(deploymentRequest)
-      .andThen(getRevertSpecifics(deploymentRequest, defaultVersion))
-      .map((_, ()))
+    val getSpecifics =
+      assessingDeploymentState(deploymentRequest)
+        .flatMap {
+          case _: Outdated =>
+            DBIOAction.failed(Conflict("a newer one has already been applied", deploymentRequest.id))
+
+          case _: Reverted =>
+            DBIOAction.failed(UnavailableAction("the deployment transaction is closed", Map("deploymentRequestId" -> deploymentRequest.id)))
+
+          case _: NotStarted | _: DeployFlopped =>
+            DBIOAction.failed(UnavailableAction("Nothing to revert", Map("deploymentRequestId" -> deploymentRequest.id)))
+
+          case _: RevertInProgress | _: DeployInProgress =>
+            DBIOAction.failed(UnavailableAction("another operation is already running", Map("deploymentRequestId" -> deploymentRequest.id)))
+
+          case _: RevertFailed | _: DeployFailed | _: Paused | _: Deployed =>
+            getRevertSpecifics(deploymentRequest, defaultVersion).map((_, ()))
+        }
     act(deploymentRequest, operationCount, initiatorName, getSpecifics)
       .map { case ((operationTrace, started, failed), _) =>
         listeners.foreach(_.onDeploymentRequestReverted(deploymentRequest, started, failed))
