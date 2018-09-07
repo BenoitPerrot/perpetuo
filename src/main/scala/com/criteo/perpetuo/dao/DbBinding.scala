@@ -106,9 +106,6 @@ class DbBinding @Inject()(val dbContext: DbContext)
     )
   }
 
-  def findDeploymentRequestAndEffects(deploymentRequestId: Long): Future[Option[(DeploymentRequest, Seq[DeploymentPlanStep], Iterable[OperationEffect])]] =
-    dbContext.db.run(findingDeploymentRequestAndEffects(deploymentRequestId))
-
   def findingDeploySpecifications(planStep: DeploymentPlanStep): DBIOAction[Seq[ExecutionSpecification], NoStream, Effect.Read] =
     operationTraceQuery
       .join(stepOperationXRefQuery)

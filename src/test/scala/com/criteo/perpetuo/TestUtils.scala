@@ -4,7 +4,7 @@ import com.criteo.perpetuo.config.{AppConfigProvider, PluginLoader, Plugins}
 import com.criteo.perpetuo.dao.{DbBinding, DbContext, DbContextProvider, TestingDbContextModule}
 import com.criteo.perpetuo.engine.dispatchers.{SingleTargetDispatcher, TargetDispatcher}
 import com.criteo.perpetuo.engine.executors.{ExecutionTrigger, TriggeredExecutionFinder}
-import com.criteo.perpetuo.engine.{Crankshaft, TargetExpr, UnavailableAction}
+import com.criteo.perpetuo.engine.{Crankshaft, DeploymentState, TargetExpr, UnavailableAction}
 import com.criteo.perpetuo.model._
 import com.twitter.inject.Test
 import org.mockito.Matchers._
@@ -110,9 +110,14 @@ trait SimpleScenarioTesting extends TestHelpers with TestDb with MockitoSugar {
     private var currentStep = 0
 
     def eligibleOperations: Future[Seq[Operation.Kind]] =
-      crankshaft.getEligibleActions(deploymentRequest).map(
-        _.flatMap { case (_, operation, _, rejectionCause) => rejectionCause.map(_ => None).getOrElse(Some(operation)) }
-      )
+      crankshaft
+        .assessDeploymentState(deploymentRequest)
+        .map { case DeploymentState(_, _, _, _, applicableActions) =>
+          Seq(
+            applicableActions.deployScope.map(_ => Operation.deploy),
+            applicableActions.revertScope.map(_ => Operation.revert)
+          ).flatten
+        }
 
     def startStep(): OperationTrace = {
       await(crankshaft.step(deploymentRequest, Some(currentState.next()), "s.tarter"))

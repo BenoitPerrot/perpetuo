@@ -540,7 +540,7 @@ class CrankshaftWithStopperSpec extends SimpleScenarioTesting {
       .flatMap(crankshaft.stopExecution(_, "joe")), 1.second) shouldBe true
     crankshaft.dbBinding.findExecutionTracesByOperationTrace(op.id).map(_.map(t => (t.state, t.detail)).toSet) should
       become(Set((ExecutionState.aborted, "stopped by joe")))
-    crankshaft.findDeploymentRequestAndEffects(op.deploymentRequest.id).map(_.get._3.map(_.operationTrace.closingDate.isDefined)) should
+    crankshaft.dbBinding.dbContext.db.run(crankshaft.dbBinding.findingDeploymentRequestAndEffects(op.deploymentRequest.id)).map(_.get._3.map(_.operationTrace.closingDate.isDefined)) should
       become(Iterable(true))
   }
 

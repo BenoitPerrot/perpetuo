@@ -64,27 +64,28 @@ class Engine @Inject()(val crankshaft: Crankshaft,
     crankshaft.findDeploymentRequestsWithStatuses(where, limit, offset)
 
   def queryDeploymentRequestStatus(user: Option[User], id: Long): Future[Option[DeploymentRequestStatus]] =
-    crankshaft
-      .findDeploymentRequestAndEffects(id)
-      .flatMap(
-        _.map { case (deploymentRequest, deploymentPlanSteps, effects) =>
+    withDeploymentRequest(id) { deploymentRequest =>
+      crankshaft
+        .assessDeploymentState(deploymentRequest)
+        .map { case DeploymentState(_, deploymentPlanSteps, isOutdated, sortedEffects, applicableActions) =>
+          val authorizedActions = {
+            def rejectIfForbidden(action: DeploymentAction.Value, kind: Operation.Kind) =
+              if (isOutdated)
+                Some("a newer one has already been applied")
+              else if (!user.exists(permissions.isAuthorized(_, action, kind, deploymentRequest.product.name)))
+                Some("permission denied")
+              else
+                None
 
-          crankshaft.getEligibleActions(deploymentRequest).map { actions =>
-            val authorizedActions = actions.map { case (deploymentAction, operationKind, actionName, message) =>
-              val rejectionCause = message.orElse(
-                if (user.exists(permissions.isAuthorized(_, deploymentAction, operationKind, deploymentRequest.product.name)))
-                  None
-                else
-                  Some("permission denied")
-              )
-              (actionName, rejectionCause)
-            }
-            val sortedEffects = effects.toSeq.sortBy(-_.operationTrace.id)
-            Some(DeploymentRequestStatus(deploymentRequest, deploymentPlanSteps, sortedEffects, sortedEffects.headOption.map(crankshaft.computeState), authorizedActions))
+            Seq(
+              applicableActions.deployScope.map(_ => (Operation.deploy.toString, rejectIfForbidden(DeploymentAction.applyOperation, Operation.deploy))),
+              applicableActions.revertScope.map(_ => (Operation.revert.toString, rejectIfForbidden(DeploymentAction.applyOperation, Operation.revert))),
+              applicableActions.stopScope.map(effectInProgress => ("stop", rejectIfForbidden(DeploymentAction.stopOperation, effectInProgress.operationTrace.kind)))
+            ).flatten
           }
-
-        }.getOrElse(Future.successful(None))
-      )
+          DeploymentRequestStatus(deploymentRequest, deploymentPlanSteps, sortedEffects, sortedEffects.headOption.map(crankshaft.computeState), authorizedActions)
+        }
+    }
 
   def findExecutionTracesByDeploymentRequest(deploymentRequestId: Long): Future[Option[Seq[ShallowExecutionTrace]]] =
     crankshaft.findExecutionTracesByDeploymentRequest(deploymentRequestId)

@@ -1,6 +1,5 @@
 package com.criteo.perpetuo.engine
 
-import com.criteo.perpetuo.auth.DeploymentAction
 import com.criteo.perpetuo.dao.{DBIOrw, DbBinding}
 import com.criteo.perpetuo.engine.dispatchers.TargetDispatcher
 import com.criteo.perpetuo.engine.executors.{ExecutionTrigger, TriggeredExecutionFinder}
@@ -16,7 +15,6 @@ import spray.json._
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
-import scala.util.{Failure, Success}
 
 
 object DeploymentStatus extends Enumeration {
@@ -73,35 +71,78 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
 
   val fuelFilter = new FuelFilter(dbBinding)
 
-  def getEligibleActions(deploymentRequest: DeploymentRequest): Future[Seq[(DeploymentAction.Value, Operation.Kind, String, Option[String])]] =
-    dbBinding.dbContext.db.run(
-      fuelFilter.rejectingIfLocked(deploymentRequest)
-        .andThen(
-          DBIOAction.sequence(
-            Operation.values.toSeq.map { operation =>
-              val canApply = operation match {
-                case Operation.deploy => fuelFilter.rejectingIfCannotDeploy(deploymentRequest)
-                case Operation.revert => fuelFilter.rejectingIfCannotRevert(deploymentRequest)
+  private def assessingDeploymentState(deploymentRequest: DeploymentRequest): DBIOAction[DeploymentState, NoStream, Effect.Read] = {
+    dbBinding
+      .isOutdated(deploymentRequest)
+      .flatMap(isOutdated =>
+        dbBinding
+          .findingDeploymentRequestAndEffects(deploymentRequest.id)
+          .map(_.get)
+          .map((isOutdated, _))
+      )
+      .map { case (isOutdated, (_, deploymentPlanSteps, effects)) =>
+        assert(deploymentPlanSteps.nonEmpty)
+        val sortedEffects = effects.sortBy(-_.operationTrace.id)
+
+        val applicableActions =
+          if (isOutdated)
+            ApplicableActions()
+          else {
+            val idToDeploymentPlanStep = deploymentPlanSteps.map(planStep => planStep.id -> planStep).toMap
+
+            sortedEffects.headOption
+              .map { latestEffect =>
+                def findAnyModifiedTargetInAllEffects = sortedEffects.find(_.targetStatuses.exists(_.code != Status.notDone))
+
+                latestEffect.operationTrace.kind match {
+                  case Operation.revert =>
+                    latestEffect.state match {
+                      case OperationEffectState.inProgress =>
+                        ApplicableActions(stopScope = Some(latestEffect))
+
+                      case OperationEffectState.succeeded =>
+                        ApplicableActions()
+
+                      case OperationEffectState.failed | OperationEffectState.flopped =>
+                        ApplicableActions(revertScope = findAnyModifiedTargetInAllEffects.map(_ => latestEffect.deploymentPlanStepIds.flatMap(idToDeploymentPlanStep.get)))
+                    }
+
+                  case Operation.deploy =>
+                    assert(latestEffect.deploymentPlanStepIds.size == 1)
+                    val latestOperatedPlanStep = idToDeploymentPlanStep(latestEffect.deploymentPlanStepIds.head)
+                    val operatedPlanSteps = sortedEffects.flatMap(_.deploymentPlanStepIds).distinct.flatMap(idToDeploymentPlanStep.get)
+                    latestEffect.state match {
+                      case OperationEffectState.inProgress =>
+                        ApplicableActions(stopScope = Some(latestEffect))
+
+                      case OperationEffectState.succeeded =>
+                        ApplicableActions(
+                          deployScope =
+                            fuelFilter
+                              .findNextPlanStep(deploymentPlanSteps, latestOperatedPlanStep.id)
+                              .map(toDo => DeployScope(toDo, Some(latestOperatedPlanStep))),
+                          revertScope = findAnyModifiedTargetInAllEffects.map(_ => operatedPlanSteps)
+                        )
+
+                      case OperationEffectState.failed | OperationEffectState.flopped =>
+                        ApplicableActions(
+                          deployScope = Some(DeployScope(latestOperatedPlanStep, Some(latestOperatedPlanStep))),
+                          revertScope = findAnyModifiedTargetInAllEffects.map(_ => operatedPlanSteps)
+                        )
+                    }
+                }
               }
-              val getRejectionReason = canApply.asTry.collect {
-                case Success(_) => None
-                case Failure(e: RejectingException) => Some(e.msg) // don't show the details
-                case Failure(e) => Some(e.getMessage)
-              }
-              getRejectionReason.map((DeploymentAction.applyOperation, operation, operation.toString, _))
-            }
-          )
-        )
-        .asTry
-        .flatMap(_
-          .map(DBIOAction.successful)
-          .getOrElse(
-            findingLastOperationTrace(deploymentRequest.id, None).map(
-              _.map(op => (DeploymentAction.stopOperation, op.kind, "stop", None)).toSeq
-            )
-          )
-        )
-    )
+              .getOrElse(
+                ApplicableActions(deployScope = Some(DeployScope(deploymentPlanSteps.head, None)))
+              )
+          }
+
+        DeploymentState(deploymentRequest, deploymentPlanSteps, isOutdated, sortedEffects, applicableActions)
+      }
+  }
+
+  def assessDeploymentState(deploymentRequest: DeploymentRequest): Future[DeploymentState] =
+    dbBinding.dbContext.db.run(assessingDeploymentState(deploymentRequest))
 
   def getProducts: Future[Seq[Product]] =
     dbBinding.getProducts
@@ -382,9 +423,6 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
         .getOrElse(DBIOAction.successful(None))
       )
     )
-
-  def findDeploymentRequestAndEffects(deploymentRequestId: Long): Future[Option[(DeploymentRequest, Seq[DeploymentPlanStep], Iterable[OperationEffect])]] =
-    dbBinding.findDeploymentRequestAndEffects(deploymentRequestId)
 
   def findDeploymentRequestsWithStatuses(where: Seq[Map[String, Any]], limit: Int, offset: Int): Future[Seq[(DeploymentPlan, DeploymentStatus.Value, Option[Operation.Kind])]] =
     dbBinding.findDeploymentRequestsWithStatuses(where, limit, offset)

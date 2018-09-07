@@ -78,9 +78,9 @@ class FuelFilter(dbBinding: DbBinding) {
         latest
     }
 
-  private def findNextPlanStep(planSteps: Seq[DeploymentPlanStep], referencePlanStep: DeploymentPlanStep) =
+  def findNextPlanStep(planSteps: Seq[DeploymentPlanStep], referencePlanStepId: Long): Option[DeploymentPlanStep] =
     planSteps.foldLeft(None: Option[DeploymentPlanStep]) { (result, x) =>
-      if (referencePlanStep.id < x.id && result.forall(x.id < _.id))
+      if (referencePlanStepId < x.id && result.forall(x.id < _.id))
         Some(x)
       else
         result
@@ -101,7 +101,7 @@ class FuelFilter(dbBinding: DbBinding) {
             else if (operationToDo == Operation.revert) // ONLY AS LONG AS REVERT OPERATIONS ARE ALWAYS FULL REVERTS (fixme: consider all the steps related to the last operation)
               throw UnavailableAction("there is no next step, they have all been successfully reverted", Map("deploymentRequestId" -> latestPlanStep.deploymentRequest.id))
             else
-              findNextPlanStep(planStepsAndLatestOperations.map(_._1), latestPlanStep)
+              findNextPlanStep(planStepsAndLatestOperations.map(_._1), latestPlanStep.id)
                 .getOrElse(throw UnavailableAction("there is no next step, they have all been successfully deployed", Map("deploymentRequestId" -> latestPlanStep.deploymentRequest.id)))
           )
           .map((_, Some(latestPlanStep)))

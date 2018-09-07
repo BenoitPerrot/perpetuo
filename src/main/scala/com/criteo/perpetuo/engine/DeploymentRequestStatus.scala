@@ -29,6 +29,19 @@ object computeDeploymentStatus {
 }
 
 
+case class DeployScope(toDo: DeploymentPlanStep, lastDone: Option[DeploymentPlanStep])
+
+case class ApplicableActions(deployScope: Option[DeployScope] = None,
+                             revertScope: Option[Seq[DeploymentPlanStep]] = None,
+                             stopScope: Option[OperationEffect] = None)
+
+case class DeploymentState(deploymentRequest: DeploymentRequest,
+                           deploymentPlanSteps: Seq[DeploymentPlanStep],
+                           isOutdated: Boolean,
+                           effects: Seq[OperationEffect],
+                           applicableActions: ApplicableActions)
+
+// TODO: replace with DeploymentState
 case class DeploymentRequestStatus(deploymentRequest: DeploymentRequest,
                                    deploymentPlanSteps: Seq[DeploymentPlanStep],
                                    operationEffects: Iterable[OperationEffect],
