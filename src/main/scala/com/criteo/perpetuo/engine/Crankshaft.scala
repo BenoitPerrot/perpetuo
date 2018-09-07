@@ -263,15 +263,43 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
     }
 
   def step(deploymentRequest: DeploymentRequest, operationCount: Option[Int], initiatorName: String, emitEvent: Boolean = true): Future[OperationTrace] = {
-    val getSpecifics = fuelFilter.gettingPlanStepToOperateAndLastDoneStep(deploymentRequest, Operation.deploy)
-      .flatMap { case (toDo, lastDone) =>
-        val expandedTarget: Option[Set[TargetAtom]] = targetResolver.resolveExpression(toDo.deploymentRequest.product.name, toDo.deploymentRequest.version, toDo.parsedTarget)
-        val isRetry = lastDone.contains(toDo)
-        val getOperationSpecifics = if (isRetry) getRetrySpecifics _ else getStepSpecifics _
-        getOperationSpecifics(expandedTarget, toDo)
-          .map(operationCreationSpecifics => ((Seq(toDo), operationCreationSpecifics), (lastDone, toDo)))
-      }
-    act(deploymentRequest, operationCount, initiatorName, getSpecifics)
+    def resolveTarget(step: DeploymentPlanStep) =
+      targetResolver.resolveExpression(step.deploymentRequest.product.name, step.deploymentRequest.version, step.parsedTarget)
+
+    val getSpecifics =
+      assessingDeploymentState(deploymentRequest)
+        .flatMap {
+          case _: Outdated =>
+            DBIOAction.failed(Conflict("a newer one has already been applied", deploymentRequest.id))
+
+          case _: Reverted | _: Deployed =>
+            DBIOAction.failed(UnavailableAction("the deployment transaction is closed", Map("deploymentRequestId" -> deploymentRequest.id)))
+
+          case _: RevertFailed =>
+            DBIOAction.failed(UnavailableAction("the deployment transaction is being canceled", Map("deploymentRequestId" -> deploymentRequest.id)))
+
+          case _: RevertInProgress | _: DeployInProgress =>
+            DBIOAction.failed(UnavailableAction("another operation is already running", Map("deploymentRequestId" -> deploymentRequest.id)))
+
+          case s: DeployFailed =>
+            getRetrySpecifics(resolveTarget(s.step), s.step).map((_, Some(s.step), s.step))
+
+          case s: DeployFlopped =>
+            getRetrySpecifics(resolveTarget(s.step), s.step).map((_, Some(s.step), s.step))
+
+          case s: NotStarted =>
+            getStepSpecifics(resolveTarget(s.toDo), s.toDo).map((_, None, s.toDo))
+
+          case s: Paused =>
+            getStepSpecifics(resolveTarget(s.toDo), s.toDo).map((_, Some(s.lastDone), s.toDo))
+        }
+
+    act(
+      deploymentRequest,
+      operationCount,
+      initiatorName,
+      getSpecifics.map { case (creationParams, lastDone, toDo) => ((Seq(toDo), creationParams), (lastDone, toDo)) }
+    )
       .map { case ((operationTrace, started, failed), (lastDone, toDo)) =>
         if (emitEvent) {
           if (lastDone.contains(toDo))

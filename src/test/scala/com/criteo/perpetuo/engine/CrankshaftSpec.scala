@@ -471,7 +471,7 @@ class CrankshaftWithMultiStepSpec extends SimpleScenarioTesting {
     getDeployedVersions("fat-falcon") should become(Map("north" -> "new", "south" -> "new", "east" -> "new", "west" -> "new"))
 
     r.eligibleOperations should become(Seq(Operation.revert))
-    (the[UnavailableAction] thrownBy r.step()).msg shouldBe "there is no next step, they have all been successfully deployed"
+    (the[UnavailableAction] thrownBy r.step()).msg shouldBe "the deployment transaction is closed"
   }
 
   test("Crankshaft can retry a failed revert") {
@@ -511,7 +511,7 @@ class CrankshaftWithMultiStepSpec extends SimpleScenarioTesting {
     r.revert("old")
 
     r.eligibleOperations should become(Seq[Operation.Kind]())
-    (the[UnavailableAction] thrownBy r.step()).msg shouldBe "deploying after a revert is not supported"
+    (the[UnavailableAction] thrownBy r.step()).msg shouldBe "the deployment transaction is closed"
   }
 }
 
