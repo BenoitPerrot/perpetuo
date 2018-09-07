@@ -4,6 +4,7 @@ import com.criteo.perpetuo.SimpleScenarioTesting
 import com.criteo.perpetuo.engine.executors._
 import com.criteo.perpetuo.model._
 import org.mockito.Mockito.when
+import slick.dbio.DBIOAction
 import spray.json.DefaultJsonProtocol._
 import spray.json._
 
@@ -17,17 +18,8 @@ class CrankshaftSpec extends SimpleScenarioTesting {
   private def hasOpenExecutionTracesForOperation(operationTraceId: Long) =
     dbContext.db.run(crankshaft.dbBinding.hasOpenExecutionTracesForOperation(operationTraceId))
 
-  private def gettingPlanStepToOperateAndLastDoneStep(deploymentRequest: DeploymentRequest, operation: Operation.Kind) =
-    dbContext.db.run(crankshaft.fuelFilter.gettingPlanStepToOperateAndLastDoneStep(deploymentRequest, operation))
-
   private def closeOperationTrace(operationTrace: OperationTrace): Future[Option[OperationTrace]] =
     dbContext.db.run(crankshaft.dbBinding.closingOperationTrace(operationTrace))
-
-  private def rejectIfCannot(operationKind: Operation.Kind, deploymentRequest: DeploymentRequest) =
-    dbContext.db.run(operationKind match {
-      case Operation.deploy => crankshaft.fuelFilter.rejectingIfCannotDeploy(deploymentRequest)
-      case Operation.revert => crankshaft.fuelFilter.rejectingIfCannotRevert(deploymentRequest)
-    })
 
   private def findCurrentVersionForEachKnownTarget(productName: String, amongAtoms: Iterable[String]) =
     crankshaft.dbBinding.findCurrentVersionForEachKnownTarget(productName, amongAtoms.map(TargetAtom))
@@ -44,15 +36,16 @@ class CrankshaftSpec extends SimpleScenarioTesting {
       for {
         product <- crankshaft.upsertProduct("product #1")
         depPlan <- crankshaft.dbBinding.insertDeploymentRequest(ProtoDeploymentRequest(product.name, Version("\"1000\""), Seq(ProtoDeploymentPlanStep("", JsString("*"), "")), "", "s.omeone"))
-        (toDoBeforeStart, lastDoneBeforeStart) <- gettingPlanStepToOperateAndLastDoneStep(depPlan.deploymentRequest, Operation.deploy)
+        NotStarted(_, deploymentPlanSteps, effectsBeforeStart, stepBeforeStart) <- crankshaft.assessDeploymentState(depPlan.deploymentRequest).map(_.asInstanceOf[NotStarted])
         op <- step(depPlan.deploymentRequest, Some(0), "s.tarter")
-        (toDoAfterStart, lastDoneAfterStart) <- gettingPlanStepToOperateAndLastDoneStep(depPlan.deploymentRequest, Operation.deploy)
+        DeployInProgress(_, _, effectsAfterStart, inProgress) <- crankshaft.assessDeploymentState(depPlan.deploymentRequest).map(_.asInstanceOf[DeployInProgress])
         traces <- crankshaft.dbBinding.findExecutionTracesByOperationTrace(op.id)
       } yield {
         traces.map(trace => (trace.id, trace.href)) shouldEqual Seq((1, None))
-        lastDoneBeforeStart shouldBe empty
-        lastDoneAfterStart should contain(toDoBeforeStart)
-        toDoBeforeStart shouldEqual toDoAfterStart // Deployment flopped, so the next step remains the same
+        effectsBeforeStart shouldBe empty
+        stepBeforeStart shouldBe deploymentPlanSteps.head
+        effectsAfterStart shouldNot be(empty)
+        inProgress.deploymentPlanStepIds shouldBe Seq(stepBeforeStart.id)
       }
     )
   }
@@ -143,12 +136,13 @@ class CrankshaftSpec extends SimpleScenarioTesting {
         // fixme: one day, first deployment will be retryable:
         // But second one can't be, because it impacts `racing`, whose status changed in the meantime
         secondDeploymentRequest <- crankshaft.dbBinding.findDeploymentRequestById(secondDeploymentRequest.id).map(_.get)
-        rejectionOfSecond <- rejectIfCannot(Operation.deploy, secondDeploymentRequest).failed
+        secondState <- crankshaft.assessDeploymentState(secondDeploymentRequest)
         // The last one of course is retryable
         thirdDeploymentRequest <- crankshaft.dbBinding.findDeploymentRequestById(thirdDeploymentRequest.id).map(_.get)
-        _ <- rejectIfCannot(Operation.deploy, thirdDeploymentRequest)
+        thirdState <- crankshaft.assessDeploymentState(thirdDeploymentRequest)
       } yield {
-        rejectionOfSecond.asInstanceOf[RejectingException].msg shouldEqual "a newer one has already been applied"
+        secondState shouldBe an[Outdated]
+        thirdState shouldBe a[DeployFailed]
       }
     )
   }
@@ -206,32 +200,34 @@ class CrankshaftSpec extends SimpleScenarioTesting {
 
         // Second request can't be reverted
         secondDeploymentRequest <- crankshaft.dbBinding.findDeploymentRequestById(secondDeploymentRequest.id).map(_.get)
-        rejectionOfSecond <- rejectIfCannot(Operation.revert, secondDeploymentRequest).failed
+        secondState <- crankshaft.assessDeploymentState(secondDeploymentRequest)
         // Third one can be reverted, because it's the last one for its product
         thirdDeploymentRequest <- crankshaft.dbBinding.findDeploymentRequestById(thirdDeploymentRequest.id).map(_.get)
-        _ <- rejectIfCannot(Operation.revert, thirdDeploymentRequest)
+        thirdState <- crankshaft.assessDeploymentState(thirdDeploymentRequest)
         // Meanwhile the deployment on another product can be reverted (even when it's the first one for that product: it just requires a default revert version)
         otherDeploymentRequest <- crankshaft.dbBinding.findDeploymentRequestById(otherDeploymentRequest.id).map(_.get)
-        _ <- rejectIfCannot(Operation.revert, otherDeploymentRequest)
+        otherState <- crankshaft.assessDeploymentState(otherDeploymentRequest)
 
         (nothingDoneDeploymentRequest, _) <- mockDeployExecution(product.name, "51", Map("pluto" -> Status.notDone), updateTargetStatuses = false)
         // Status = early failure
 
         // Verify we can't revert a request if no targetStatuses exists
         nothingDoneDeploymentRequest <- crankshaft.dbBinding.findDeploymentRequestById(nothingDoneDeploymentRequest.id).map(_.get)
-        rejectionOfNothingDone <- rejectIfCannot(Operation.revert, nothingDoneDeploymentRequest).failed
+        nothingDoneState <- crankshaft.assessDeploymentState(nothingDoneDeploymentRequest)
 
         (notDoneDeploymentRequest, _) <- mockDeployExecution(product.name, "51", Map("planet x" -> Status.notDone))
         // Status = early failure
 
         // Verify we can't revert a request if it has no effect
         notDoneDeploymentRequest <- crankshaft.dbBinding.findDeploymentRequestById(notDoneDeploymentRequest.id).map(_.get)
-        rejectionOfNotDone <- rejectIfCannot(Operation.revert, notDoneDeploymentRequest).failed
+        notDoneState <- crankshaft.assessDeploymentState(notDoneDeploymentRequest)
 
       } yield {
-        rejectionOfSecond.asInstanceOf[RejectingException].msg shouldEqual "a newer one has already been applied"
-        rejectionOfNothingDone.asInstanceOf[RejectingException].msg shouldEqual "Nothing to revert"
-        rejectionOfNotDone.asInstanceOf[RejectingException].msg shouldEqual "Nothing to revert"
+        secondState shouldBe an[Outdated]
+        thirdState shouldBe a[Deployed]
+        otherState shouldBe a[Deployed]
+        nothingDoneState shouldBe a[DeployFlopped]
+        notDoneState shouldBe a[DeployFlopped]
       }
     )
   }
@@ -285,7 +281,7 @@ class CrankshaftSpec extends SimpleScenarioTesting {
         // Status = tic: pony@33, tac: pony@33
 
         // Second request can't be reverted anymore
-        rejectionOfSecondA <- rejectIfCannot(Operation.revert, secondDeploymentRequest).failed
+        stateOfSecondA <- crankshaft.assessDeploymentState(secondDeploymentRequest)
 
         // Revert the last deployment request
         revertOperationTraceIdB <- mockRevertExecution(thirdDeploymentRequest, Map("tic" -> Status.success, "tac" -> Status.success), None)
@@ -293,17 +289,17 @@ class CrankshaftSpec extends SimpleScenarioTesting {
         // Status = tic: pony@11, tac: pony@11
 
         // Second request still can't be reverted
-        rejectionOfSecondB <- rejectIfCannot(Operation.revert, secondDeploymentRequest).failed
+        stateOfSecondB <- crankshaft.assessDeploymentState(secondDeploymentRequest)
       } yield {
         revertExecutionSpecIdsA should have length 1
         revertExecutionSpecIdsA should contain(firstExecSpecId)
 
-        rejectionOfSecondA.getMessage should include("a newer one has already been applied")
+        stateOfSecondA shouldBe an[Outdated]
 
         revertExecutionSpecIdsB should have length 1
         revertExecutionSpecIdsB should contain(firstExecSpecId)
 
-        rejectionOfSecondB.getMessage should include("a newer one has already been applied")
+        stateOfSecondB shouldBe an[Outdated]
       }
     )
   }

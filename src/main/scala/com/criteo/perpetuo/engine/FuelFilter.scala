@@ -38,46 +38,10 @@ class FuelFilter(dbBinding: DbBinding) {
         DBIOAction.successful(())
     )
 
-  def gettingPlanStepToOperateAndLastDoneStep(deploymentRequest: DeploymentRequest, operationToDo: Operation.Kind): DBIOAction[(DeploymentPlanStep, Option[DeploymentPlanStep]), NoStream, Effect.Read] =
-    rejectingIfOutdated(deploymentRequest)
-      .andThen(dbBinding.findingDeploymentPlanAndLatestOperations(deploymentRequest))
-      .flatMap(planStepsAndLatestOperations =>
-        if (planStepsAndLatestOperations.isEmpty)
-          DBIOAction.failed(new RuntimeException(s"${deploymentRequest.id}: should not be there: deployment plan is empty"))
-        else
-          gettingPlanStepToOperateAndLastDoneStep(planStepsAndLatestOperations, operationToDo)
-      )
-
-  def rejectingIfCannotDeploy(deploymentRequest: DeploymentRequest): DBIOAction[Unit, NoStream, Effect.Read] =
-    gettingPlanStepToOperateAndLastDoneStep(deploymentRequest, Operation.deploy).map(_ => ())
-
-  // todo: now we can allow successive rollbacks, by using dbBinding.findTargetAtomNotActionableBy instead of `outdated` here
-  def rejectingIfCannotRevert(deploymentRequest: DeploymentRequest): DBIOAction[Unit, NoStream, Effect.Read] =
-    gettingPlanStepToOperateAndLastDoneStep(deploymentRequest, Operation.revert)
-      .andThen(rejectingIfNothingToRevert(deploymentRequest))
-
   //
   // PRIVATE METHODS:
 
-  private def getLastDoneStepAndOperation(planStepsAndLatestOperations: Seq[(DeploymentPlanStep, Option[(Long, Operation.Kind)])]) =
-    planStepsAndLatestOperations.reduce[(DeploymentPlanStep, Option[(Long, Operation.Kind)])] {
-      case ((latestPlanStep, None), current@(planStep, None)) if planStep.id < latestPlanStep.id =>
-        // When comparing two steps, both with no operation, the oldest one is the latest one
-        current
-
-      case ((_, Some((latestOperationId, _))), current@(_, Some((operationId, _)))) if latestOperationId < operationId =>
-        // When comparing two steps, both with operations, the step with the youngest operation is the latest one
-        current
-
-      case ((_, None), current@(_, Some(_))) =>
-        // When comparing a step with no operation to another with operations, the one with operations is the latest one
-        current
-
-      case (latest, _) =>
-        // When all conditions failed, the latest one is to be kept
-        latest
-    }
-
+  // TODO: inline in (at least move closer to) lone caller in Crankshaft
   def findNextPlanStep(planSteps: Seq[DeploymentPlanStep], referencePlanStepId: Long): Option[DeploymentPlanStep] =
     planSteps.foldLeft(None: Option[DeploymentPlanStep]) { (result, x) =>
       if (referencePlanStepId < x.id && result.forall(x.id < _.id))
@@ -85,44 +49,6 @@ class FuelFilter(dbBinding: DbBinding) {
       else
         result
     }
-
-  private def gettingPlanStepToOperateAndLastDoneStep(planStepsAndLatestOperations: Seq[(DeploymentPlanStep, Option[(Long, Operation.Kind)])], operationToDo: Operation.Kind) =
-    getLastDoneStepAndOperation(planStepsAndLatestOperations) match {
-      case (latestPlanStep, None) =>
-        DBIOAction.successful((latestPlanStep, None))
-
-      case (latestPlanStep, Some((lastOperationId, lastOperationKind))) =>
-        dbBinding.computingOperationStatus(lastOperationId, isRunning = false)
-          .map(operationStatus =>
-            if (lastOperationKind == Operation.revert && operationToDo == Operation.deploy)
-              throw UnavailableAction("deploying after a revert is not supported", Map("deploymentRequestId" -> latestPlanStep.deploymentRequest.id))
-            else if (lastOperationKind != operationToDo || operationStatus == DeploymentStatus.flopped || operationStatus == DeploymentStatus.failed)
-              latestPlanStep
-            else if (operationToDo == Operation.revert) // ONLY AS LONG AS REVERT OPERATIONS ARE ALWAYS FULL REVERTS (fixme: consider all the steps related to the last operation)
-              throw UnavailableAction("there is no next step, they have all been successfully reverted", Map("deploymentRequestId" -> latestPlanStep.deploymentRequest.id))
-            else
-              findNextPlanStep(planStepsAndLatestOperations.map(_._1), latestPlanStep.id)
-                .getOrElse(throw UnavailableAction("there is no next step, they have all been successfully deployed", Map("deploymentRequestId" -> latestPlanStep.deploymentRequest.id)))
-          )
-          .map((_, Some(latestPlanStep)))
-    }
-
-  private def rejectingIfNothingToRevert(deploymentRequest: DeploymentRequest): DBIOAction[Unit, NoStream, Effect.Read] =
-    dbBinding.hasHadAnEffect(deploymentRequest.id).flatMap(
-      if (_)
-        DBIOAction.successful(())
-      else
-        DBIOAction.failed(UnavailableAction("Nothing to revert", Map("deploymentRequestId" -> deploymentRequest.id)))
-    )
-
-  // fixme: race condition
-  private def rejectingIfOutdated(deploymentRequest: DeploymentRequest) =
-    dbBinding.isOutdated(deploymentRequest).flatMap(
-      if (_)
-        DBIOAction.failed(Conflict("a newer one has already been applied", deploymentRequest.id))
-      else
-        DBIOAction.successful(())
-    )
 
   private def getOperationLockName(deploymentRequest: DeploymentRequest) =
     s"Operating on ${deploymentRequest.id}"

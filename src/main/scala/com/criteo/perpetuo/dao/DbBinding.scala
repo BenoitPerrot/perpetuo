@@ -283,31 +283,6 @@ class DbBinding @Inject()(val dbContext: DbContext)
         (step.toDeploymentPlanStep(deploymentRequest), lastOperation)
       })
 
-  def computingOperationStatus(operationId: Long, isRunning: Boolean): DBIOAction[DeploymentStatus.Value, NoStream, Effect.Read] =
-    if (isRunning)
-      DBIO.successful(DeploymentStatus.inProgress)
-    else
-      executionQuery
-        .join(executionTraceQuery)
-        .filter { case (ex, et) => ex.operationTraceId === operationId && ex.id === et.executionId && et.state =!= ExecutionState.completed }
-        .take(1)
-        .map { case (_, et) => et.state }
-        .joinFull(
-          executionQuery
-            .join(targetStatusQuery)
-            .filter { case (ex, ts) => ex.operationTraceId === operationId && ex.id === ts.executionId }
-            .map { case (_, ts) => ts.code }
-            .distinct
-        )
-        .result
-        .map(statusSummary =>
-          computeOperationState(
-            isRunning,
-            statusSummary.flatMap { case (execState, _) => execState },
-            statusSummary.flatMap { case (_, targetStatus) => targetStatus }
-          )
-        )
-
   // if that is removed one day (with multi-step, out-dating a deployment request makes less sense),
   // a few functions must be changed to not rely on current request application order, for instance
   // findExecutionSpecificationsForRevert
