@@ -95,14 +95,14 @@ class FuelFilter(dbBinding: DbBinding) {
         dbBinding.computingOperationStatus(lastOperationId, isRunning = false)
           .map(operationStatus =>
             if (lastOperationKind == Operation.revert && operationToDo == Operation.deploy)
-              throw UnprocessableIntent("deploying after a revert is not supported", Map("deploymentRequestId" -> latestPlanStep.deploymentRequest.id))
+              throw UnavailableAction("deploying after a revert is not supported", Map("deploymentRequestId" -> latestPlanStep.deploymentRequest.id))
             else if (lastOperationKind != operationToDo || operationStatus == DeploymentStatus.flopped || operationStatus == DeploymentStatus.failed)
               latestPlanStep
             else if (operationToDo == Operation.revert) // ONLY AS LONG AS REVERT OPERATIONS ARE ALWAYS FULL REVERTS (fixme: consider all the steps related to the last operation)
-              throw UnprocessableIntent("there is no next step, they have all been successfully reverted", Map("deploymentRequestId" -> latestPlanStep.deploymentRequest.id))
+              throw UnavailableAction("there is no next step, they have all been successfully reverted", Map("deploymentRequestId" -> latestPlanStep.deploymentRequest.id))
             else
               findNextPlanStep(planStepsAndLatestOperations.map(_._1), latestPlanStep)
-                .getOrElse(throw UnprocessableIntent("there is no next step, they have all been successfully deployed", Map("deploymentRequestId" -> latestPlanStep.deploymentRequest.id)))
+                .getOrElse(throw UnavailableAction("there is no next step, they have all been successfully deployed", Map("deploymentRequestId" -> latestPlanStep.deploymentRequest.id)))
           )
           .map((_, Some(latestPlanStep)))
     }
