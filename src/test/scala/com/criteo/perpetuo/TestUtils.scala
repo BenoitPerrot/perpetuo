@@ -79,6 +79,11 @@ trait SimpleScenarioTesting extends TestHelpers with TestDb with MockitoSugar {
       _.map(_.getOrElse(throw UnavailableAction("An execution could not be updated: impossible transition")))
     )
 
+  def tryStopOperation(operationTrace: OperationTrace, initiatorName: String): Future[(Int, Seq[String])] =
+    dbBinding.dbContext.db.run(dbBinding.gettingOperationEffect(operationTrace)).flatMap { case (_, effect) =>
+      crankshaft.tryStopOperation(effect, initiatorName)
+    }
+
   def tryCloseOperation(operationTrace: OperationTrace,
                         targetFinalStatus: Map[String, Status.Code] = Map()): Future[Seq[Option[Long]]] =
     crankshaft.dbBinding.findExecutionIdsByOperationTrace(operationTrace.id)

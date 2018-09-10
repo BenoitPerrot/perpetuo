@@ -34,6 +34,10 @@ trait DeploymentState {
   val effects: Seq[OperationEffect]
 }
 
+trait InProgressState extends DeploymentState {
+  val scope: OperationEffect
+}
+
 case class Outdated(deploymentRequest: DeploymentRequest,
                     deploymentPlanSteps: Seq[DeploymentPlanStep],
                     effects: Seq[OperationEffect])
@@ -49,7 +53,7 @@ case class RevertInProgress(deploymentRequest: DeploymentRequest,
                             deploymentPlanSteps: Seq[DeploymentPlanStep],
                             effects: Seq[OperationEffect],
                             scope: OperationEffect)
-  extends DeploymentState
+  extends InProgressState
 
 case class RevertFailed(deploymentRequest: DeploymentRequest,
                         deploymentPlanSteps: Seq[DeploymentPlanStep],
@@ -72,7 +76,7 @@ case class DeployInProgress(deploymentRequest: DeploymentRequest,
                             deploymentPlanSteps: Seq[DeploymentPlanStep],
                             effects: Seq[OperationEffect],
                             scope: OperationEffect)
-  extends DeploymentState
+  extends InProgressState
 
 case class DeployFailed(deploymentRequest: DeploymentRequest,
                         deploymentPlanSteps: Seq[DeploymentPlanStep],

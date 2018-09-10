@@ -37,13 +37,15 @@ class Engine @Inject()(val crankshaft: Crankshaft,
     .concurrencyLevel(10)
     .build(stateCacheLoader)
 
-  private def withDeploymentRequest[T](id: Long)(callback: DeploymentRequest => Future[T]): Future[Option[T]] =
+  private def flatWithDeploymentRequest[T](id: Long)(callback: DeploymentRequest => Future[Option[T]]): Future[Option[T]] =
     crankshaft.findDeploymentRequestById(id)
-      .flatMap(
-        _.map(callback)
-          .map(_.map(Some.apply))
-          .getOrElse(Future.successful(None))
+      .flatMap(_
+        .map(callback)
+        .getOrElse(Future.successful(None))
       )
+
+  private def withDeploymentRequest[T](id: Long)(callback: DeploymentRequest => Future[T]): Future[Option[T]] =
+    flatWithDeploymentRequest(id)(deploymentRequest => callback(deploymentRequest).map(Some.apply))
 
   def step(user: User, deploymentRequestId: Long, operationCount: Option[Int]): Future[Option[OperationTrace]] =
     withDeploymentRequest(deploymentRequestId) { deploymentRequest =>
@@ -114,18 +116,23 @@ class Engine @Inject()(val crankshaft: Crankshaft,
       crankshaft.revert(deploymentRequest, operationCount, user.name, gettingRevertSpecifics)
     }
 
-  def stop(user: User, deploymentRequestId: Long, operationCount: Option[Int]): Future[Option[(Int, Seq[String])]] =
-    crankshaft.findLastOperationTrace(deploymentRequestId, operationCount)
-      .flatMap(_
-        .map { operationTrace =>
-          if (!permissions.isAuthorized(user, DeploymentAction.stopOperation, operationTrace.kind, operationTrace.deploymentRequest.product.name))
-            throw PermissionDenied()
+  def stop(user: User, deploymentRequestId: Long, operationCount: Option[Int]): Future[Option[(Int, Seq[String])]] = {
+    flatWithDeploymentRequest(deploymentRequestId) { deploymentRequest =>
+      crankshaft
+        .assessDeploymentState(deploymentRequest)
+        .flatMap {
+          case s: InProgressState =>
+            operationCount.foreach(crankshaft.checkState(deploymentRequest, s.effects.length, _))
+            if (!permissions.isAuthorized(user, DeploymentAction.stopOperation, s.scope.operationTrace.kind, deploymentRequest.product.name))
+              Future.failed(PermissionDenied())
+            else
+              crankshaft.tryStopOperation(s.scope, user.name).map(Some.apply)
 
-          crankshaft.tryStopOperation(operationTrace, user.name)
+          case _ =>
+            Future.successful(Some(0, Seq()))
         }
-        .map(_.map(Some.apply))
-        .getOrElse(Future.successful(None))
-      )
+    }
+  }
 
   def findDeploymentRequestsWithStatuses(where: Seq[Map[String, Any]], limit: Int, offset: Int): Future[Seq[(DeploymentPlan, DeploymentStatus.Value, Option[Operation.Kind])]] =
     crankshaft.findDeploymentRequestsWithStatuses(where, limit, offset)

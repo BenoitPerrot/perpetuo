@@ -402,7 +402,7 @@ class DbBinding @Inject()(val dbContext: DbContext)
       .map(_.collectFirst { case (targetAtom, actionable) if !actionable => targetAtom.toModel })
   }
 
-  def gettingDeploymentStatus(operationTrace: OperationTrace): DBIOAction[DeploymentStatus.Value, NoStream, Effect.Read] =
+  def gettingOperationEffect(operationTrace: OperationTrace): DBIOAction[(Seq[Long], OperationEffect), NoStream, Effect.Read] =
     executionQuery
       .joinLeft(executionTraceQuery)
       .filter { case (execution, executionTrace) =>
@@ -436,9 +436,14 @@ class DbBinding @Inject()(val dbContext: DbContext)
           .map { result =>
             val planStepIds = result.map { case (stepId, _) => stepId }
             val impactedStepIds = result.collect { case (stepId, isImpacted) if isImpacted => stepId }
-            computeDeploymentStatus(planStepIds, Some(OperationEffect(operationTrace, impactedStepIds, et, ts)))
+            (planStepIds, OperationEffect(operationTrace, impactedStepIds, et, ts))
           }
       }
+
+  def gettingDeploymentStatus(operationTrace: OperationTrace): DBIOAction[DeploymentStatus.Value, NoStream, Effect.Read] =
+    gettingOperationEffect(operationTrace).map { case (planStepIds, effect) =>
+      computeDeploymentStatus(planStepIds, Some(effect))
+    }
 
   private def latestExecutions(targetStatuses: Query[TargetStatusTable, TargetStatusRecord, Seq]) =
     targetStatuses

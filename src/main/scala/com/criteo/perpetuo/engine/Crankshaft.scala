@@ -236,7 +236,7 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
           .map(_ => trace)
       }
 
-  private def checkState(deploymentRequest: DeploymentRequest, currentState: Int, expectedState: Int): Unit =
+  def checkState(deploymentRequest: DeploymentRequest, currentState: Int, expectedState: Int): Unit =
     if (currentState != expectedState)
       throw Conflict("the state of the deployment has just changed; have another look before choosing an action to trigger", deploymentRequest.id)
 
@@ -319,18 +319,6 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
       )
   }
 
-  def findLastOperationTrace(deploymentRequestId: Long, operationCount: Option[Int]): Future[Option[OperationTrace]] =
-    dbBinding.dbContext.db.run(findingLastOperationTrace(deploymentRequestId, operationCount))
-
-  // validate the expected state and find the operation to close from the same request, for consistency yet without any lock
-  def findingLastOperationTrace(deploymentRequestId: Long, operationCount: Option[Int]): DBIOAction[Option[OperationTrace], NoStream, Effect.Read] =
-    dbBinding.findingLastOperationTraceAndCurrentCountByDeploymentRequestId(deploymentRequestId).map(
-      _.map { case (operationTrace, currentCount) =>
-        operationCount.foreach(checkState(operationTrace.deploymentRequest, currentCount, _))
-        operationTrace
-      }
-    )
-
   /**
     * Try to stop all underlying executions in parallel: each one can failed for various predictable reasons.
     *
@@ -338,30 +326,31 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
     *         for each execution that could not be stopped and is presumably still running).
     *         Executions that were already stopped are not included in the response.
     */
-  def tryStopOperation(operationTrace: OperationTrace, initiatorName: String): Future[(Int, Seq[String])] =
-    dbBinding.dbContext.db.run(dbBinding.findingOpenExecutionTracesByOperationTrace(operationTrace.id))
-      .flatMap(openExecutionTraces =>
-        if (openExecutionTraces.nonEmpty)
-          Future.traverse(openExecutionTraces) { openExecutionTrace =>
-            try {
-              stopExecution(openExecutionTrace, initiatorName).map(Left(_)).recover { case e => Right(e.getMessage) }
-            }
-            catch {
-              case e: Throwable =>
-                logger.error(s"While trying to stop execution #${openExecutionTrace.id} (${openExecutionTrace.href})", e)
-                Future.successful(Right(e.getMessage))
-            }
+  def tryStopOperation(effectInProgress: OperationEffect, initiatorName: String): Future[(Int, Seq[String])] = {
+    val openExecutionTraces = effectInProgress.executionTraces.filter(t => t.state == ExecutionState.pending || t.state == ExecutionState.running).toSeq
+    val stoppingOperation =
+      if (openExecutionTraces.nonEmpty)
+        Future.traverse(openExecutionTraces) { openExecutionTrace =>
+          try {
+            stopExecution(openExecutionTrace, initiatorName).map(Left(_)).recover { case e => Right(e.getMessage) }
           }
-        else // todo: maybe a better way would be to possibly close the operation each time the user is querying the status of this operation
-          dbBinding.dbContext.db.run(closingOperation(operationTrace))
-            .map(_ => Seq())
-      )
+          catch {
+            case e: Throwable =>
+              logger.error(s"While trying to stop execution #${openExecutionTrace.id} (${openExecutionTrace.href})", e)
+              Future.successful(Right(e.getMessage))
+          }
+        }
+      else // todo: maybe a better way would be to possibly close the operation each time the user is querying the status of this operation
+        dbBinding.dbContext.db.run(closingOperation(effectInProgress.operationTrace))
+          .map(_ => Seq())
+    stoppingOperation
       .map { results =>
         val nbStopped = results.count(_.left.getOrElse(false))
         val errors = results.collect { case Right(message) => message }
-        listeners.foreach(_.onDeploymentRequestStopped(operationTrace.deploymentRequest, nbStopped, errors.length))
+        listeners.foreach(_.onDeploymentRequestStopped(effectInProgress.operationTrace.deploymentRequest, nbStopped, errors.length))
         (nbStopped, errors)
       }
+  }
 
   def revert(deploymentRequest: DeploymentRequest, operationCount: Option[Int], initiatorName: String,
              gettingRevertSpecifics: DBIOrw[((Iterable[DeploymentPlanStep], OperationCreationParams), Unit)]): Future[OperationTrace] =

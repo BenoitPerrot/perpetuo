@@ -555,12 +555,12 @@ class CrankshaftWithStopperSpec extends SimpleScenarioTesting {
     val dep = request("dusty-duck", "2", Seq("here", "there")).step()
 
     // try to stop when everything is already terminated
-    crankshaft.tryStopOperation(dep, "killer-guy") should
+    tryStopOperation(dep, "killer-guy") should
       eventually(be((0, Seq())))
 
     // try to stop when nothing has been terminated
     revert(dep.deploymentRequest, Some(1), "r.everter", Some(Version("0".toJson))).flatMap(op =>
-      crankshaft.tryStopOperation(op, "killer-guy")
+      tryStopOperation(op, "killer-guy")
         .flatMap { case (successes, failures) =>
           tryCloseOperation(op).map(updates =>
             (updates.length, updates.flatten.length, successes, failures.length)
@@ -582,7 +582,7 @@ class CrankshaftWithStopperSpec extends SimpleScenarioTesting {
                 ))
             ))
         }
-        .flatMap(_ => crankshaft.tryStopOperation(op, "killer-guy"))
+        .flatMap(_ => tryStopOperation(op, "killer-guy"))
         .flatMap { case (successes, failures) =>
           tryCloseOperation(op).map(updates =>
             (updates.length, updates.flatten.length, successes, failures.length)
@@ -593,7 +593,7 @@ class CrankshaftWithStopperSpec extends SimpleScenarioTesting {
     when(executionMock.stopper).thenReturn(Some(() => Some(ExecutionState.unreachable)))
     // try to stop when the job cannot be stopped
     revert(dep.deploymentRequest, None, "r.everter", Some(Version("0".toJson))).flatMap(op =>
-      crankshaft.tryStopOperation(op, "killer-guy")
+      tryStopOperation(op, "killer-guy")
         .flatMap { case (successes, failures) =>
           tryCloseOperation(op).map(updates =>
             (updates.length, updates.flatten.length, successes, failures)
@@ -628,12 +628,12 @@ class CrankshaftWithUncontrollableTriggeredExecutionSpec extends SimpleScenarioT
     val dep = request("dusty-duck", "2", Seq("here", "there")).step()
 
     // try to stop when everything is already terminated
-    crankshaft.tryStopOperation(dep, "killer-guy") should
+    tryStopOperation(dep, "killer-guy") should
       eventually(be((0, Seq())))
 
     // try to stop when nothing has been terminated but it's impossible to stop
     revert(dep.deploymentRequest, Some(1), "r.everter", Some(Version("0".toJson))).flatMap(op =>
-      crankshaft.tryStopOperation(op, "killer-guy")
+      tryStopOperation(op, "killer-guy")
         .flatMap { case (successes, failures) =>
           tryCloseOperation(op, Map("here" -> Status.notDone)).map(updates =>
             (updates.length, updates.flatten.length, successes, failures.length)
@@ -655,7 +655,7 @@ class CrankshaftWithUncontrollableTriggeredExecutionSpec extends SimpleScenarioT
                 ))
             ))
         }
-        .flatMap(_ => crankshaft.tryStopOperation(op, "killer-guy"))
+        .flatMap(_ => tryStopOperation(op, "killer-guy"))
         .flatMap { case (successes, failures) =>
           tryCloseOperation(op).map(updates =>
             (updates.length, updates.flatten.length, successes, failures.map(_.split(":").head))
