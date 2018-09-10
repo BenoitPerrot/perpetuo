@@ -64,7 +64,7 @@ case class Veto(msg: String, reason: String) extends RejectingException {
 
 @Singleton
 class Crankshaft @Inject()(val dbBinding: DbBinding,
-                           val targetResolver: TargetResolver,
+                           val targetResolver: TargetResolver, // TODO: move to Engine
                            val targetDispatcher: TargetDispatcher,
                            val listeners: Seq[AsyncListener],
                            val findTriggeredExecution: TriggeredExecutionFinder) extends Logging {
@@ -161,9 +161,6 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
       .flatMap { _ =>
         // todo: replace that by the creation of all the related records when the first deploy operation will be created simultaneously
         targetDispatcher.freezeParameters(protoDeploymentRequest.productName, protoDeploymentRequest.version)
-        protoDeploymentRequest.plan.foreach(planStep =>
-          targetResolver.resolveExpression(protoDeploymentRequest.productName, protoDeploymentRequest.version, planStep.parsedTarget)
-        )
 
         dbBinding
           .insertDeploymentRequest(protoDeploymentRequest)

@@ -3,7 +3,10 @@ package com.criteo.perpetuo.model
 
 case class TargetAtom(name: String) extends AnyVal
 
-case class TargetAtomSet(items: Set[TargetAtom])
+case class TargetAtomSet(items: Set[TargetAtom]) {
+  def union(x: TargetAtomSet) =
+    TargetAtomSet(items.union(x.items))
+}
 
 case class TargetAtomStatus(code: Status.Code, detail: String)
 

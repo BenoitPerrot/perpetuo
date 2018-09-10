@@ -17,11 +17,22 @@ case class PermissionDenied() extends RuntimeException("permission denied")
 @Singleton
 class Engine @Inject()(val crankshaft: Crankshaft,
                        val permissions: Permissions) {
-  def requestDeployment(user: User, protoDeploymentRequest: ProtoDeploymentRequest): Future[DeploymentRequest] = {
-    if (!permissions.isAuthorized(user, DeploymentAction.requestOperation, Operation.deploy, protoDeploymentRequest.productName))
-      throw PermissionDenied()
 
-    crankshaft.createDeploymentRequest(protoDeploymentRequest)
+  private def resolveTarget(productName: String, version: Version, target: Iterable[TargetExpr]) =
+    target.foldLeft(Option(TargetAtomSet(Set()))) { (result, expr) =>
+      result.flatMap(atoms =>
+        crankshaft.targetResolver
+          .resolveExpression(productName, version, expr)
+          .map(_.union(atoms))
+      )
+    }
+
+  def requestDeployment(user: User, protoDeploymentRequest: ProtoDeploymentRequest): Future[DeploymentRequest] = {
+    val resolvedTarget = resolveTarget(protoDeploymentRequest.productName, protoDeploymentRequest.version, protoDeploymentRequest.plan.map(_.parsedTarget))
+    if (!permissions.isAuthorized(user, DeploymentAction.requestOperation, Operation.deploy, protoDeploymentRequest.productName, resolvedTarget))
+      Future.failed(PermissionDenied())
+    else
+      crankshaft.createDeploymentRequest(protoDeploymentRequest)
   }
 
   protected val stateCacheLoader: CacheLoader[java.lang.Long, Future[Option[DeploymentState]]] =
@@ -49,11 +60,13 @@ class Engine @Inject()(val crankshaft: Crankshaft,
 
   def step(user: User, deploymentRequestId: Long, operationCount: Option[Int]): Future[Option[OperationTrace]] =
     withDeploymentRequest(deploymentRequestId) { deploymentRequest =>
-      if (!permissions.isAuthorized(user, DeploymentAction.applyOperation, Operation.deploy, deploymentRequest.product.name))
-        throw PermissionDenied()
-
-      def resolveTarget(step: DeploymentPlanStep) =
-        crankshaft.targetResolver.resolveExpression(step.deploymentRequest.product.name, step.deploymentRequest.version, step.parsedTarget)
+      def resolveTargetAndRejectIfPermissionDenied(step: DeploymentPlanStep) = {
+        val resolvedTarget = crankshaft.targetResolver.resolveExpression(deploymentRequest.product.name, deploymentRequest.version, step.parsedTarget)
+        if (!permissions.isAuthorized(user, DeploymentAction.applyOperation, Operation.deploy, deploymentRequest.product.name, resolvedTarget))
+          DBIOAction.failed(PermissionDenied())
+        else
+          DBIOAction.successful(resolvedTarget)
+      }
 
       val getSpecifics =
         crankshaft.assessingDeploymentState(deploymentRequest)
@@ -71,16 +84,16 @@ class Engine @Inject()(val crankshaft: Crankshaft,
               DBIOAction.failed(UnavailableAction("another operation is already running", Map("deploymentRequestId" -> deploymentRequest.id)))
 
             case s: DeployFailed =>
-              crankshaft.getRetrySpecifics(resolveTarget(s.step), s.step).map((_, Some(s.step), s.step))
+              resolveTargetAndRejectIfPermissionDenied(s.step).flatMap(resolvedTarget => crankshaft.getRetrySpecifics(resolvedTarget, s.step).map((_, Some(s.step), s.step)))
 
             case s: DeployFlopped =>
-              crankshaft.getRetrySpecifics(resolveTarget(s.step), s.step).map((_, Some(s.step), s.step))
+              resolveTargetAndRejectIfPermissionDenied(s.step).flatMap(resolvedTarget => crankshaft.getRetrySpecifics(resolvedTarget, s.step).map((_, Some(s.step), s.step)))
 
             case s: NotStarted =>
-              crankshaft.getStepSpecifics(resolveTarget(s.toDo), s.toDo).map((_, None, s.toDo))
+              resolveTargetAndRejectIfPermissionDenied(s.toDo).flatMap(resolvedTarget => crankshaft.getStepSpecifics(resolvedTarget, s.toDo).map((_, None, s.toDo)))
 
             case s: Paused =>
-              crankshaft.getStepSpecifics(resolveTarget(s.toDo), s.toDo).map((_, Some(s.lastDone), s.toDo))
+              resolveTargetAndRejectIfPermissionDenied(s.toDo).flatMap(resolvedTarget => crankshaft.getStepSpecifics(resolvedTarget, s.toDo).map((_, Some(s.lastDone), s.toDo)))
           }
 
       crankshaft.step(deploymentRequest, operationCount, user.name, getSpecifics)
@@ -91,8 +104,13 @@ class Engine @Inject()(val crankshaft: Crankshaft,
 
   def revert(user: User, deploymentRequestId: Long, operationCount: Option[Int], defaultVersion: Option[Version]): Future[Option[OperationTrace]] =
     withDeploymentRequest(deploymentRequestId) { deploymentRequest =>
-      if (!permissions.isAuthorized(user, DeploymentAction.applyOperation, Operation.revert, deploymentRequest.product.name))
-        throw PermissionDenied()
+      def rejectIfPermissionDenied(scope: Seq[DeploymentPlanStep]) = {
+        val resolvedTarget = Engine.this.resolveTarget(deploymentRequest.product.name, deploymentRequest.version, scope.map(_.parsedTarget))
+        if (!permissions.isAuthorized(user, DeploymentAction.applyOperation, Operation.revert, deploymentRequest.product.name, resolvedTarget))
+          DBIOAction.failed(PermissionDenied())
+        else
+          DBIOAction.successful(())
+      }
 
       val gettingRevertSpecifics =
         crankshaft.assessingDeploymentState(deploymentRequest)
@@ -109,12 +127,27 @@ class Engine @Inject()(val crankshaft: Crankshaft,
             case _: RevertInProgress | _: DeployInProgress =>
               DBIOAction.failed(UnavailableAction("another operation is already running", Map("deploymentRequestId" -> deploymentRequest.id)))
 
-            case _: RevertFailed | _: DeployFailed | _: Paused | _: Deployed =>
-              crankshaft.getRevertSpecifics(deploymentRequest, defaultVersion).map((_, ()))
+            case s: RevertFailed =>
+              rejectIfPermissionDenied(s.scope).flatMap(_ => crankshaft.getRevertSpecifics(deploymentRequest, defaultVersion).map((_, ())))
+
+            case s: DeployFailed =>
+              rejectIfPermissionDenied(s.revertScope).flatMap(_ => crankshaft.getRevertSpecifics(deploymentRequest, defaultVersion).map((_, ())))
+
+            case s: Paused =>
+              rejectIfPermissionDenied(s.revertScope).flatMap(_ => crankshaft.getRevertSpecifics(deploymentRequest, defaultVersion).map((_, ())))
+
+            case s: Deployed =>
+              rejectIfPermissionDenied(s.revertScope).flatMap(_ => crankshaft.getRevertSpecifics(deploymentRequest, defaultVersion).map((_, ())))
           }
 
       crankshaft.revert(deploymentRequest, operationCount, user.name, gettingRevertSpecifics)
     }
+
+  // TODO: put deploymentPlanSteps in a TreeMap[id -> step] in state
+  private def toPlanSteps(s: DeploymentState, planStepIds: Seq[Long]) = {
+    val idToPlanStep = s.deploymentPlanSteps.map(planStep => planStep.id -> planStep).toMap
+    planStepIds.flatMap(idToPlanStep.get)
+  }
 
   def stop(user: User, deploymentRequestId: Long, operationCount: Option[Int]): Future[Option[(Int, Seq[String])]] = {
     flatWithDeploymentRequest(deploymentRequestId) { deploymentRequest =>
@@ -123,7 +156,9 @@ class Engine @Inject()(val crankshaft: Crankshaft,
         .flatMap {
           case s: InProgressState =>
             operationCount.foreach(crankshaft.checkState(deploymentRequest, s.effects.length, _))
-            if (!permissions.isAuthorized(user, DeploymentAction.stopOperation, s.scope.operationTrace.kind, deploymentRequest.product.name))
+            val planStepsToStop = toPlanSteps(s, s.scope.deploymentPlanStepIds)
+            val resolvedTarget = resolveTarget(deploymentRequest.product.name, deploymentRequest.version, planStepsToStop.map(_.parsedTarget))
+            if (!permissions.isAuthorized(user, DeploymentAction.stopOperation, s.scope.operationTrace.kind, deploymentRequest.product.name, resolvedTarget))
               Future.failed(PermissionDenied())
             else
               crankshaft.tryStopOperation(s.scope, user.name).map(Some.apply)
@@ -142,11 +177,13 @@ class Engine @Inject()(val crankshaft: Crankshaft,
 
   def queryDeploymentRequestStatus(user: Option[User], id: Long): Future[Option[DeploymentRequestStatus]] =
     withDeploymentRequest(id) { deploymentRequest =>
-      def rejectIfPermissionDenied(action: DeploymentAction.Value, kind: Operation.Kind) =
-        if (!user.exists(permissions.isAuthorized(_, action, kind, deploymentRequest.product.name)))
+      def rejectIfPermissionDenied(action: DeploymentAction.Value, kind: Operation.Kind, scope: Seq[DeploymentPlanStep]) = {
+        val resolvedTarget = resolveTarget(deploymentRequest.product.name, deploymentRequest.version, scope.map(_.parsedTarget))
+        if (!user.exists(permissions.isAuthorized(_, action, kind, deploymentRequest.product.name, resolvedTarget)))
           Some("permission denied")
         else
           None
+      }
 
       crankshaft
         .assessDeploymentState(deploymentRequest)
@@ -159,22 +196,34 @@ class Engine @Inject()(val crankshaft: Crankshaft,
             (s, Seq())
 
           case s: Deployed =>
-            (s, Seq((Operation.revert.toString, rejectIfPermissionDenied(DeploymentAction.applyOperation, Operation.revert))))
+            (s, Seq((Operation.revert.toString, rejectIfPermissionDenied(DeploymentAction.applyOperation, Operation.revert, s.deploymentPlanSteps))))
 
-          case s@(_: NotStarted | _: DeployFlopped) =>
-            (s, Seq((Operation.deploy.toString, rejectIfPermissionDenied(DeploymentAction.applyOperation, Operation.deploy))))
+          case s: NotStarted =>
+            (s, Seq((Operation.deploy.toString, rejectIfPermissionDenied(DeploymentAction.applyOperation, Operation.deploy, Seq(s.toDo)))))
+
+          case s: DeployFlopped =>
+            (s, Seq((Operation.deploy.toString, rejectIfPermissionDenied(DeploymentAction.applyOperation, Operation.deploy, Seq(s.step)))))
 
           case s: RevertInProgress =>
-            (s, Seq(("stop", rejectIfPermissionDenied(DeploymentAction.stopOperation, Operation.revert))))
+            (s, Seq(("stop", rejectIfPermissionDenied(DeploymentAction.stopOperation, Operation.revert, toPlanSteps(s, s.scope.deploymentPlanStepIds)))))
 
           case s: DeployInProgress =>
-            (s, Seq(("stop", rejectIfPermissionDenied(DeploymentAction.stopOperation, Operation.deploy))))
+            (s, Seq(("stop", rejectIfPermissionDenied(DeploymentAction.stopOperation, Operation.deploy, toPlanSteps(s, s.scope.deploymentPlanStepIds)))))
 
           case s: RevertFailed =>
-            (s, Seq((Operation.revert.toString, rejectIfPermissionDenied(DeploymentAction.applyOperation, Operation.revert))))
+            (s, Seq((Operation.revert.toString, rejectIfPermissionDenied(DeploymentAction.applyOperation, Operation.revert, s.scope))))
 
-          case s@(_: DeployFailed | _: Paused) =>
-            (s, Seq(Operation.deploy, Operation.revert).map(k => (k.toString, rejectIfPermissionDenied(DeploymentAction.applyOperation, k))))
+          case s: DeployFailed =>
+            (s, Seq(
+              (Operation.deploy.toString, rejectIfPermissionDenied(DeploymentAction.applyOperation, Operation.deploy, Seq(s.step))),
+              (Operation.revert.toString, rejectIfPermissionDenied(DeploymentAction.applyOperation, Operation.revert, s.revertScope))
+            ))
+
+          case s: Paused =>
+            (s, Seq(
+              (Operation.deploy.toString, rejectIfPermissionDenied(DeploymentAction.applyOperation, Operation.deploy, Seq(s.toDo))),
+              (Operation.revert.toString, rejectIfPermissionDenied(DeploymentAction.applyOperation, Operation.revert, s.revertScope))
+            ))
         }
         .map { case (s, authorizedActions) =>
           DeploymentRequestStatus(s.deploymentRequest, s.deploymentPlanSteps, s.effects, s.effects.headOption.map(crankshaft.computeState), authorizedActions)
