@@ -253,12 +253,12 @@ class RestController @Inject()(val engine: Engine)
   private def serialize(status: DeploymentRequestStatus): Map[String, Any] =
     serialize(
       DeploymentPlan(status.deploymentRequest, status.deploymentPlanSteps),
-      status.lastOperationStatus.map { case (_, opStatus) => opStatus }.getOrElse(DeploymentStatus.notStarted),
+      status.lastOperationStatus.map { case (_, opStatus) => DeploymentStatus.from(opStatus) }.getOrElse(DeploymentStatus.notStarted),
       status.lastOperationStatus.map { case (kind, _) => kind }
     ) ++
       Map("operations" ->
         status.operationEffects.map { case effect@OperationEffect(op, planStepIds, executionTraces, targetStatus) =>
-          val getTargetDetail = if (effect.state == DeploymentStatus.inProgress)
+          val getTargetDetail = if (effect.state == OperationEffectState.inProgress)
             (ts: TargetStatus) => if (ts.code == Status.notDone && ts.detail.isEmpty) "pending" else ts.detail
           else
             (_: TargetStatus).detail

@@ -26,6 +26,14 @@ object DeploymentStatus extends Enumeration {
   val failed = Value("failed")
   val succeeded = Value("succeeded")
   val paused = Value("paused")
+
+  def from(operationState: OperationEffectState.Value): DeploymentStatus.Value =
+    operationState match {
+      case OperationEffectState.inProgress => inProgress
+      case OperationEffectState.flopped => flopped
+      case OperationEffectState.failed => failed
+      case OperationEffectState.succeeded => succeeded
+    }
 }
 
 abstract class RejectingException extends RuntimeException {
@@ -382,7 +390,7 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
     dbBinding.findDeploymentRequestsWithStatuses(where, limit, offset)
 
   // todo: inline
-  def computeState(operationEffect: OperationEffect): (Operation.Kind, DeploymentStatus.Value) =
+  def computeState(operationEffect: OperationEffect): (Operation.Kind, OperationEffectState.Value) =
     (operationEffect.operationTrace.kind, operationEffect.state)
 
   /**

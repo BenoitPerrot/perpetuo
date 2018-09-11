@@ -32,5 +32,5 @@ object computeDeploymentStatus {
 case class DeploymentRequestStatus(deploymentRequest: DeploymentRequest,
                                    deploymentPlanSteps: Seq[DeploymentPlanStep],
                                    operationEffects: Iterable[OperationEffect],
-                                   lastOperationStatus: Option[(Operation.Kind, DeploymentStatus.Value)], // fixme
+                                   lastOperationStatus: Option[(Operation.Kind, OperationEffectState.Value)], // fixme
                                    eligibleActions: Seq[(String, Option[String])])
