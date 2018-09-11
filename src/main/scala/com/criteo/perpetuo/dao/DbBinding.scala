@@ -32,7 +32,7 @@ class DbBinding @Inject()(val dbContext: DbContext)
   def executeInSerializableTransaction[T](q: DBIOAction[T, NoStream, _]): Future[T] =
     dbContext.db.run(q.transactionally.withTransactionIsolation(TransactionIsolation.Serializable))
 
-  def findDeploymentRequestAndEffects(deploymentRequestId: Long): Future[Option[(DeploymentRequest, Seq[DeploymentPlanStep], Iterable[OperationEffect])]] = {
+  def findingDeploymentRequestAndEffects(deploymentRequestId: Long): DBIOAction[Option[(DeploymentRequest, Seq[DeploymentPlanStep], Stream[OperationEffect])], NoStream, Effect.Read] = {
     val findingDeploymentRequest =
       deploymentRequestQuery
         .join(productQuery)
@@ -82,7 +82,7 @@ class DbBinding @Inject()(val dbContext: DbContext)
             }
         }
 
-    val findingDeploymentRequestAndEffects = findingDeploymentRequest.flatMap(deploymentIntent =>
+    findingDeploymentRequest.flatMap(deploymentIntent =>
       deploymentIntent
         .headOption
         .map { case ((deploymentRequestRecord, product), _) =>
@@ -104,9 +104,10 @@ class DbBinding @Inject()(val dbContext: DbContext)
         }
         .getOrElse(DBIO.successful(None))
     )
-
-    dbContext.db.run(findingDeploymentRequestAndEffects)
   }
+
+  def findDeploymentRequestAndEffects(deploymentRequestId: Long): Future[Option[(DeploymentRequest, Seq[DeploymentPlanStep], Iterable[OperationEffect])]] =
+    dbContext.db.run(findingDeploymentRequestAndEffects(deploymentRequestId))
 
   def findingDeploySpecifications(planStep: DeploymentPlanStep): DBIOAction[Seq[ExecutionSpecification], NoStream, Effect.Read] =
     operationTraceQuery
