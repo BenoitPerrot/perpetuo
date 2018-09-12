@@ -13,13 +13,14 @@ import scala.concurrent.Future
 private[dao] case class ExecutionTraceRecord(id: Option[Long],
                                              executionId: Long,
                                              logHref: Option[String] = None,
+                                             href: Option[String] = None,
                                              state: ExecutionState = ExecutionState.pending,
                                              detail: Comment = "") {
   def toExecutionTrace: ShallowExecutionTrace =
-    ShallowExecutionTrace(id.get, logHref, state, detail.toString)
+    ShallowExecutionTrace(id.get, logHref, href, state, detail.toString)
 
   def toExecutionTrace(operationTrace: OperationTrace): ExecutionTraceBranch =
-    ExecutionTraceBranch(id.get, executionId, operationTrace, logHref, state, detail.toString)
+    ExecutionTraceBranch(id.get, executionId, operationTrace, logHref, href, state, detail.toString)
 }
 
 
@@ -41,10 +42,11 @@ trait ExecutionTraceBinder extends TableBinder {
     protected def fk = foreignKey(executionId, executionQuery)(_.id)
 
     def logHref = column[Option[String]]("log_href", O.SqlType("nvarchar(1024)"))
+    def href = column[Option[String]]("href", O.SqlType("nvarchar(1024)"))
     def state = column[ExecutionState]("state")
     def detail = nvarchar[Comment]("detail")
 
-    def * = (id.?, executionId, logHref, state, detail) <> (ExecutionTraceRecord.tupled, ExecutionTraceRecord.unapply)
+    def * = (id.?, executionId, logHref, href, state, detail) <> (ExecutionTraceRecord.tupled, ExecutionTraceRecord.unapply)
   }
 
   val executionTraceQuery = TableQuery[ExecutionTraceTable]
@@ -89,7 +91,7 @@ trait ExecutionTraceBinder extends TableBinder {
     */
   def updatingExecutionTrace(id: Long, state: ExecutionState, detail: String, logHref: Option[String] = None): DBIOrw[Option[Long]] = {
     logHref
-      .map(_ => runningUpdate(id, state, _.map(r => (r.state, r.detail, r.logHref)).update((state, detail, logHref))))
+      .map(_ => runningUpdate(id, state, _.map(r => (r.state, r.detail, r.logHref, r.href)).update((state, detail, logHref, logHref))))
       .getOrElse(runningUpdate(id, state, _.map(r => (r.state, r.detail)).update((state, detail))))
   }
 
