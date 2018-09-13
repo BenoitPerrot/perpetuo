@@ -71,7 +71,7 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
 
   val fuelFilter = new FuelFilter(dbBinding)
 
-  private def assessingDeploymentState(deploymentRequest: DeploymentRequest): DBIOAction[DeploymentState, NoStream, Effect.Read] = {
+  private def assessingDeploymentState(deploymentRequest: DeploymentRequest): DBIOAction[DeploymentState, NoStream, Effect.Read] =
     dbBinding
       .isOutdated(deploymentRequest)
       .flatMap(isOutdated =>
@@ -84,62 +84,61 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
         assert(deploymentPlanSteps.nonEmpty)
         val sortedEffects = effects.sortBy(-_.operationTrace.id)
 
-        val applicableActions =
-          if (isOutdated)
-            ApplicableActions()
-          else {
-            val idToDeploymentPlanStep = deploymentPlanSteps.map(planStep => planStep.id -> planStep).toMap
+        if (isOutdated)
+          Outdated(deploymentRequest, deploymentPlanSteps, sortedEffects)
+        else {
+          val idToDeploymentPlanStep = deploymentPlanSteps.map(planStep => planStep.id -> planStep).toMap
 
-            sortedEffects.headOption
-              .map { latestEffect =>
-                def findAnyModifiedTargetInAllEffects = sortedEffects.find(_.targetStatuses.exists(_.code != Status.notDone))
+          sortedEffects.headOption
+            .map { latestEffect =>
+              latestEffect.operationTrace.kind match {
+                case Operation.revert =>
+                  latestEffect.state match {
+                    case OperationEffectState.inProgress =>
+                      RevertInProgress(deploymentRequest, deploymentPlanSteps, sortedEffects, latestEffect)
 
-                latestEffect.operationTrace.kind match {
-                  case Operation.revert =>
-                    latestEffect.state match {
-                      case OperationEffectState.inProgress =>
-                        ApplicableActions(stopScope = Some(latestEffect))
+                    case OperationEffectState.succeeded =>
+                      Reverted(deploymentRequest, deploymentPlanSteps, sortedEffects)
 
-                      case OperationEffectState.succeeded =>
-                        ApplicableActions()
+                    case OperationEffectState.failed | OperationEffectState.flopped =>
+                      RevertFailed(deploymentRequest, deploymentPlanSteps, sortedEffects, latestEffect.deploymentPlanStepIds.flatMap(idToDeploymentPlanStep.get))
+                  }
 
-                      case OperationEffectState.failed | OperationEffectState.flopped =>
-                        ApplicableActions(revertScope = findAnyModifiedTargetInAllEffects.map(_ => latestEffect.deploymentPlanStepIds.flatMap(idToDeploymentPlanStep.get)))
-                    }
+                case Operation.deploy =>
+                  assert(latestEffect.deploymentPlanStepIds.size == 1)
+                  val latestOperatedPlanStep = idToDeploymentPlanStep(latestEffect.deploymentPlanStepIds.head)
+                  val operatedPlanSteps = sortedEffects.flatMap(_.deploymentPlanStepIds).distinct.flatMap(idToDeploymentPlanStep.get)
+                  latestEffect.state match {
+                    case OperationEffectState.inProgress =>
+                      DeployInProgress(deploymentRequest, deploymentPlanSteps, sortedEffects, latestEffect)
 
-                  case Operation.deploy =>
-                    assert(latestEffect.deploymentPlanStepIds.size == 1)
-                    val latestOperatedPlanStep = idToDeploymentPlanStep(latestEffect.deploymentPlanStepIds.head)
-                    val operatedPlanSteps = sortedEffects.flatMap(_.deploymentPlanStepIds).distinct.flatMap(idToDeploymentPlanStep.get)
-                    latestEffect.state match {
-                      case OperationEffectState.inProgress =>
-                        ApplicableActions(stopScope = Some(latestEffect))
-
-                      case OperationEffectState.succeeded =>
-                        ApplicableActions(
-                          deployScope =
-                            fuelFilter
-                              .findNextPlanStep(deploymentPlanSteps, latestOperatedPlanStep.id)
-                              .map(toDo => DeployScope(toDo, Some(latestOperatedPlanStep))),
-                          revertScope = findAnyModifiedTargetInAllEffects.map(_ => operatedPlanSteps)
+                    case OperationEffectState.succeeded =>
+                      fuelFilter
+                        .findNextPlanStep(deploymentPlanSteps, latestOperatedPlanStep.id)
+                        .map(
+                          Paused(deploymentRequest, deploymentPlanSteps, sortedEffects, _, latestOperatedPlanStep, operatedPlanSteps)
+                        )
+                        .getOrElse(
+                          Deployed(deploymentRequest, deploymentPlanSteps, sortedEffects, operatedPlanSteps)
                         )
 
-                      case OperationEffectState.failed | OperationEffectState.flopped =>
-                        ApplicableActions(
-                          deployScope = Some(DeployScope(latestOperatedPlanStep, Some(latestOperatedPlanStep))),
-                          revertScope = findAnyModifiedTargetInAllEffects.map(_ => operatedPlanSteps)
+                    case OperationEffectState.failed | OperationEffectState.flopped =>
+                      sortedEffects
+                        .find(_.targetStatuses.exists(_.code != Status.notDone))
+                        .map(_ =>
+                          DeployFailed(deploymentRequest, deploymentPlanSteps, sortedEffects, latestOperatedPlanStep, operatedPlanSteps)
                         )
-                    }
-                }
+                        .getOrElse(
+                          DeployFlopped(deploymentRequest, deploymentPlanSteps, sortedEffects, latestOperatedPlanStep)
+                        )
+                  }
               }
-              .getOrElse(
-                ApplicableActions(deployScope = Some(DeployScope(deploymentPlanSteps.head, None)))
-              )
-          }
-
-        DeploymentState(deploymentRequest, deploymentPlanSteps, isOutdated, sortedEffects, applicableActions)
+            }
+            .getOrElse(
+              NotStarted(deploymentRequest, deploymentPlanSteps, sortedEffects, deploymentPlanSteps.head)
+            )
+        }
       }
-  }
 
   def assessDeploymentState(deploymentRequest: DeploymentRequest): Future[DeploymentState] =
     dbBinding.dbContext.db.run(assessingDeploymentState(deploymentRequest))

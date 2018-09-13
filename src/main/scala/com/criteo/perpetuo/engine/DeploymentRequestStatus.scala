@@ -28,18 +28,73 @@ object computeDeploymentStatus {
       .getOrElse(DeploymentStatus.notStarted)
 }
 
+trait DeploymentState {
+  val deploymentRequest: DeploymentRequest
+  val deploymentPlanSteps: Seq[DeploymentPlanStep]
+  val effects: Seq[OperationEffect]
+}
 
-case class DeployScope(toDo: DeploymentPlanStep, lastDone: Option[DeploymentPlanStep])
+case class Outdated(deploymentRequest: DeploymentRequest,
+                    deploymentPlanSteps: Seq[DeploymentPlanStep],
+                    effects: Seq[OperationEffect])
+  extends DeploymentState
 
-case class ApplicableActions(deployScope: Option[DeployScope] = None,
-                             revertScope: Option[Seq[DeploymentPlanStep]] = None,
-                             stopScope: Option[OperationEffect] = None)
+case class NotStarted(deploymentRequest: DeploymentRequest,
+                      deploymentPlanSteps: Seq[DeploymentPlanStep],
+                      effects: Seq[OperationEffect],
+                      toDo: DeploymentPlanStep)
+  extends DeploymentState
 
-case class DeploymentState(deploymentRequest: DeploymentRequest,
-                           deploymentPlanSteps: Seq[DeploymentPlanStep],
-                           isOutdated: Boolean,
-                           effects: Seq[OperationEffect],
-                           applicableActions: ApplicableActions)
+case class RevertInProgress(deploymentRequest: DeploymentRequest,
+                            deploymentPlanSteps: Seq[DeploymentPlanStep],
+                            effects: Seq[OperationEffect],
+                            scope: OperationEffect)
+  extends DeploymentState
+
+case class RevertFailed(deploymentRequest: DeploymentRequest,
+                        deploymentPlanSteps: Seq[DeploymentPlanStep],
+                        effects: Seq[OperationEffect],
+                        scope: Seq[DeploymentPlanStep])
+  extends DeploymentState
+
+case class Reverted(deploymentRequest: DeploymentRequest,
+                    deploymentPlanSteps: Seq[DeploymentPlanStep],
+                    effects: Seq[OperationEffect])
+  extends DeploymentState
+
+case class DeployFlopped(deploymentRequest: DeploymentRequest,
+                         deploymentPlanSteps: Seq[DeploymentPlanStep],
+                         effects: Seq[OperationEffect],
+                         step: DeploymentPlanStep)
+  extends DeploymentState
+
+case class DeployInProgress(deploymentRequest: DeploymentRequest,
+                            deploymentPlanSteps: Seq[DeploymentPlanStep],
+                            effects: Seq[OperationEffect],
+                            scope: OperationEffect)
+  extends DeploymentState
+
+case class DeployFailed(deploymentRequest: DeploymentRequest,
+                        deploymentPlanSteps: Seq[DeploymentPlanStep],
+                        effects: Seq[OperationEffect],
+                        step: DeploymentPlanStep,
+                        revertScope: Seq[DeploymentPlanStep])
+  extends DeploymentState
+
+case class Paused(deploymentRequest: DeploymentRequest,
+                  deploymentPlanSteps: Seq[DeploymentPlanStep],
+                  effects: Seq[OperationEffect],
+                  toDo: DeploymentPlanStep,
+                  lastDone: DeploymentPlanStep,
+                  revertScope: Seq[DeploymentPlanStep])
+  extends DeploymentState
+
+case class Deployed(deploymentRequest: DeploymentRequest,
+                    deploymentPlanSteps: Seq[DeploymentPlanStep],
+                    effects: Seq[OperationEffect],
+                    revertScope: Seq[DeploymentPlanStep])
+  extends DeploymentState
+
 
 // TODO: replace with DeploymentState
 case class DeploymentRequestStatus(deploymentRequest: DeploymentRequest,

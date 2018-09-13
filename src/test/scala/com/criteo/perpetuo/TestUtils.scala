@@ -4,7 +4,7 @@ import com.criteo.perpetuo.config.{AppConfigProvider, PluginLoader, Plugins}
 import com.criteo.perpetuo.dao.{DbBinding, DbContext, DbContextProvider, TestingDbContextModule}
 import com.criteo.perpetuo.engine.dispatchers.{SingleTargetDispatcher, TargetDispatcher}
 import com.criteo.perpetuo.engine.executors.{ExecutionTrigger, TriggeredExecutionFinder}
-import com.criteo.perpetuo.engine.{Crankshaft, DeploymentState, TargetExpr, UnavailableAction}
+import com.criteo.perpetuo.engine.{Crankshaft, DeployFailed, DeployFlopped, DeployInProgress, Deployed, NotStarted, Outdated, Paused, RevertFailed, RevertInProgress, Reverted, TargetExpr, UnavailableAction}
 import com.criteo.perpetuo.model._
 import com.twitter.inject.Test
 import org.mockito.Matchers._
@@ -112,11 +112,12 @@ trait SimpleScenarioTesting extends TestHelpers with TestDb with MockitoSugar {
     def eligibleOperations: Future[Seq[Operation.Kind]] =
       crankshaft
         .assessDeploymentState(deploymentRequest)
-        .map { case DeploymentState(_, _, _, _, applicableActions) =>
-          Seq(
-            applicableActions.deployScope.map(_ => Operation.deploy),
-            applicableActions.revertScope.map(_ => Operation.revert)
-          ).flatten
+        .map {
+          case _: Outdated | _: Reverted => Seq()
+          case _: NotStarted | _: DeployFlopped => Seq(Operation.deploy)
+          case _: DeployFailed | _: Paused => Seq(Operation.deploy, Operation.revert)
+          case _: Deployed | _: RevertFailed => Seq(Operation.revert)
+          case _ => throw new RuntimeException("should not be there")
         }
 
     def startStep(): OperationTrace = {

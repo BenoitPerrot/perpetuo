@@ -65,25 +65,42 @@ class Engine @Inject()(val crankshaft: Crankshaft,
 
   def queryDeploymentRequestStatus(user: Option[User], id: Long): Future[Option[DeploymentRequestStatus]] =
     withDeploymentRequest(id) { deploymentRequest =>
+      def rejectIfPermissionDenied(action: DeploymentAction.Value, kind: Operation.Kind) =
+        if (!user.exists(permissions.isAuthorized(_, action, kind, deploymentRequest.product.name)))
+          Some("permission denied")
+        else
+          None
+
       crankshaft
         .assessDeploymentState(deploymentRequest)
-        .map { case DeploymentState(_, deploymentPlanSteps, isOutdated, sortedEffects, applicableActions) =>
-          val authorizedActions = {
-            def rejectIfForbidden(action: DeploymentAction.Value, kind: Operation.Kind) =
-              if (isOutdated)
-                Some("a newer one has already been applied")
-              else if (!user.exists(permissions.isAuthorized(_, action, kind, deploymentRequest.product.name)))
-                Some("permission denied")
-              else
-                None
+        .map {
+          case s: Outdated =>
+            // TODO: no applicable actions
+            (s, Seq(Operation.deploy.toString, Operation.revert.toString).map((_, Some("a newer one has already been applied"))))
 
-            Seq(
-              applicableActions.deployScope.map(_ => (Operation.deploy.toString, rejectIfForbidden(DeploymentAction.applyOperation, Operation.deploy))),
-              applicableActions.revertScope.map(_ => (Operation.revert.toString, rejectIfForbidden(DeploymentAction.applyOperation, Operation.revert))),
-              applicableActions.stopScope.map(effectInProgress => ("stop", rejectIfForbidden(DeploymentAction.stopOperation, effectInProgress.operationTrace.kind)))
-            ).flatten
-          }
-          DeploymentRequestStatus(deploymentRequest, deploymentPlanSteps, sortedEffects, sortedEffects.headOption.map(crankshaft.computeState), authorizedActions)
+          case s: Reverted =>
+            (s, Seq())
+
+          case s: Deployed =>
+            (s, Seq((Operation.revert.toString, rejectIfPermissionDenied(DeploymentAction.applyOperation, Operation.revert))))
+
+          case s@(_: NotStarted | _: DeployFlopped) =>
+            (s, Seq((Operation.deploy.toString, rejectIfPermissionDenied(DeploymentAction.applyOperation, Operation.deploy))))
+
+          case s: RevertInProgress =>
+            (s, Seq(("stop", rejectIfPermissionDenied(DeploymentAction.stopOperation, Operation.revert))))
+
+          case s: DeployInProgress =>
+            (s, Seq(("stop", rejectIfPermissionDenied(DeploymentAction.stopOperation, Operation.deploy))))
+
+          case s: RevertFailed =>
+            (s, Seq((Operation.revert.toString, rejectIfPermissionDenied(DeploymentAction.applyOperation, Operation.revert))))
+
+          case s@(_: DeployFailed | _: Paused) =>
+            (s, Seq(Operation.deploy, Operation.revert).map(k => (k.toString, rejectIfPermissionDenied(DeploymentAction.applyOperation, k))))
+        }
+        .map { case (s, authorizedActions) =>
+          DeploymentRequestStatus(s.deploymentRequest, s.deploymentPlanSteps, s.effects, s.effects.headOption.map(crankshaft.computeState), authorizedActions)
         }
     }
 
