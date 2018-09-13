@@ -222,7 +222,6 @@ class RestControllerSpec extends Test with TestDb {
     JsArray(
       JsObject(
         "id" -> execTraceId.toJson,
-        "logHref" -> JsNull,
         "href" -> expectedHrefJson,
         "state" -> state.toJson,
         "detail" -> executionDetail.getOrElse("").toJson
@@ -393,7 +392,6 @@ class RestControllerSpec extends Test with TestDb {
     traces.length shouldEqual 1
     Map(
       "id" -> T,
-      "logHref" -> JsNull,
       "href" -> JsNull,
       "state" -> "completed".toJson,
       "detail" -> "".toJson
@@ -636,7 +634,6 @@ class RestControllerSpec extends Test with TestDb {
         "executions" -> JsArray(
           JsObject(
             "id" -> execTraceId.toJson,
-            "logHref" -> JsNull,
             "href" -> "http://final".toJson,
             "state" -> "completed".toJson,
             "detail" -> "".toJson
@@ -661,7 +658,6 @@ class RestControllerSpec extends Test with TestDb {
         "executions" -> JsArray(
           JsObject(
             "id" -> T,
-            "logHref" -> JsNull,
             "href" -> JsNull,
             "state" -> "pending".toJson,
             "detail" -> "".toJson

@@ -12,15 +12,14 @@ import scala.concurrent.Future
 
 private[dao] case class ExecutionTraceRecord(id: Option[Long],
                                              executionId: Long,
-                                             logHref: Option[String] = None,
                                              href: Option[String] = None,
                                              state: ExecutionState = ExecutionState.pending,
                                              detail: Comment = "") {
   def toExecutionTrace: ShallowExecutionTrace =
-    ShallowExecutionTrace(id.get, None, href, state, detail.toString)
+    ShallowExecutionTrace(id.get, href, state, detail.toString)
 
   def toExecutionTrace(operationTrace: OperationTrace): ExecutionTraceBranch =
-    ExecutionTraceBranch(id.get, executionId, operationTrace, None, href, state, detail.toString)
+    ExecutionTraceBranch(id.get, executionId, operationTrace, href, state, detail.toString)
 }
 
 
@@ -41,12 +40,11 @@ trait ExecutionTraceBinder extends TableBinder {
     def executionId = column[Long]("execution_id")
     protected def fk = foreignKey(executionId, executionQuery)(_.id)
 
-    def logHref = column[Option[String]]("log_href", O.SqlType("nvarchar(1024)"))
     def href = column[Option[String]]("href", O.SqlType("nvarchar(1024)"))
     def state = column[ExecutionState]("state")
     def detail = nvarchar[Comment]("detail")
 
-    def * = (id.?, executionId, logHref, href, state, detail) <> (ExecutionTraceRecord.tupled, ExecutionTraceRecord.unapply)
+    def * = (id.?, executionId, href, state, detail) <> (ExecutionTraceRecord.tupled, ExecutionTraceRecord.unapply)
   }
 
   val executionTraceQuery = TableQuery[ExecutionTraceTable]
