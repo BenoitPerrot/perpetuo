@@ -76,7 +76,26 @@ class Engine @Inject()(val crankshaft: Crankshaft,
       if (!permissions.isAuthorized(user, DeploymentAction.applyOperation, Operation.revert, deploymentRequest.product.name))
         throw PermissionDenied()
 
-      crankshaft.revert(deploymentRequest, operationCount, user.name, defaultVersion)
+      val gettingRevertSpecifics =
+        crankshaft.assessingDeploymentState(deploymentRequest)
+          .flatMap {
+            case _: Outdated =>
+              DBIOAction.failed(Conflict("a newer one has already been applied", deploymentRequest.id))
+
+            case _: Reverted =>
+              DBIOAction.failed(UnavailableAction("the deployment transaction is closed", Map("deploymentRequestId" -> deploymentRequest.id)))
+
+            case _: NotStarted | _: DeployFlopped =>
+              DBIOAction.failed(UnavailableAction("Nothing to revert", Map("deploymentRequestId" -> deploymentRequest.id)))
+
+            case _: RevertInProgress | _: DeployInProgress =>
+              DBIOAction.failed(UnavailableAction("another operation is already running", Map("deploymentRequestId" -> deploymentRequest.id)))
+
+            case _: RevertFailed | _: DeployFailed | _: Paused | _: Deployed =>
+              crankshaft.getRevertSpecifics(deploymentRequest, defaultVersion).map((_, ()))
+          }
+
+      crankshaft.revert(deploymentRequest, operationCount, user.name, gettingRevertSpecifics)
     }
 
   def stop(user: User, deploymentRequestId: Long, operationCount: Option[Int]): Future[Option[(Int, Seq[String])]] =

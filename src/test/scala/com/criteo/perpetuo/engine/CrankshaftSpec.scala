@@ -86,7 +86,7 @@ class CrankshaftSpec extends SimpleScenarioTesting {
 
   def mockRevertExecution(deploymentRequest: DeploymentRequest, targetAtomToStatus: Map[String, Status.Code], defaultVersion: Option[Version] = None): Future[Long] = {
     for {
-      operationTrace <- crankshaft.revert(deploymentRequest, None, "r.everter", defaultVersion)
+      operationTrace <- revert(deploymentRequest, None, "r.everter", defaultVersion)
       _ <- closeOperation(operationTrace, targetAtomToStatus)
     } yield operationTrace.id
   }
@@ -243,9 +243,9 @@ class CrankshaftSpec extends SimpleScenarioTesting {
     request("zestful-zebra", "newer", Seq("unknown-desert"))
     await(
       for {
-        msg <- crankshaft.revert(dr1, Some(1), "foo", None).failed.map(_.asInstanceOf[RejectingException].msg) // outdated by dr2
-        _ <- crankshaft.revert(dr2, Some(1), "foo", None) // revert the last request for this product
-        _ <- crankshaft.revert(dr3, Some(1), "foo", Some(Version(JsString("older")))) // not outdated because the following one is not started
+        msg <- revert(dr1, Some(1), "foo", None).failed.map(_.asInstanceOf[RejectingException].msg) // outdated by dr2
+        _ <- revert(dr2, Some(1), "foo", None) // revert the last request for this product
+        _ <- revert(dr3, Some(1), "foo", Some(Version(JsString("older")))) // not outdated because the following one is not started
       } yield {
         msg shouldEqual "a newer one has already been applied"
       }
@@ -256,8 +256,8 @@ class CrankshaftSpec extends SimpleScenarioTesting {
     val deploymentRequest = request("ocelot", "awesome-version", Seq("norway", "peru")).step().deploymentRequest
     await(
       for {
-        msg <- crankshaft.revert(deploymentRequest, Some(0), "foo", None).failed.map(_.getMessage)
-        _ <- crankshaft.revert(deploymentRequest, Some(1), "foo", Some(Version(JsString("first-version-ever"))))
+        msg <- revert(deploymentRequest, Some(0), "foo", None).failed.map(_.getMessage)
+        _ <- revert(deploymentRequest, Some(1), "foo", Some(Version(JsString("first-version-ever"))))
       } yield {
         msg should include("the state of the deployment has just changed")
       }
@@ -564,7 +564,7 @@ class CrankshaftWithStopperSpec extends SimpleScenarioTesting {
       eventually(be((0, Seq())))
 
     // try to stop when nothing has been terminated
-    crankshaft.revert(dep.deploymentRequest, Some(1), "r.everter", Some(Version("0".toJson))).flatMap(op =>
+    revert(dep.deploymentRequest, Some(1), "r.everter", Some(Version("0".toJson))).flatMap(op =>
       crankshaft.tryStopOperation(op, "killer-guy")
         .flatMap { case (successes, failures) =>
           tryCloseOperation(op).map(updates =>
@@ -574,7 +574,7 @@ class CrankshaftWithStopperSpec extends SimpleScenarioTesting {
     ) should eventually(be((2, 0, 2, 0))) // i.e. 2 execution traces, 0 closed, 2 stopped, 0 failures
 
     // try to stop when one execution is already terminated
-    crankshaft.revert(dep.deploymentRequest, Some(2), "r.everter", Some(Version("0".toJson))).flatMap(op =>
+    revert(dep.deploymentRequest, Some(2), "r.everter", Some(Version("0".toJson))).flatMap(op =>
       crankshaft.dbBinding.findExecutionIdsByOperationTrace(op.id)
         .flatMap { executionIds =>
           val executionId = executionIds.head // only update the first execution (out of the 2 triggered by the revert)
@@ -597,7 +597,7 @@ class CrankshaftWithStopperSpec extends SimpleScenarioTesting {
 
     when(executionMock.stopper).thenReturn(Some(() => Some(ExecutionState.unreachable)))
     // try to stop when the job cannot be stopped
-    crankshaft.revert(dep.deploymentRequest, None, "r.everter", Some(Version("0".toJson))).flatMap(op =>
+    revert(dep.deploymentRequest, None, "r.everter", Some(Version("0".toJson))).flatMap(op =>
       crankshaft.tryStopOperation(op, "killer-guy")
         .flatMap { case (successes, failures) =>
           tryCloseOperation(op).map(updates =>
@@ -637,7 +637,7 @@ class CrankshaftWithUncontrollableTriggeredExecutionSpec extends SimpleScenarioT
       eventually(be((0, Seq())))
 
     // try to stop when nothing has been terminated but it's impossible to stop
-    crankshaft.revert(dep.deploymentRequest, Some(1), "r.everter", Some(Version("0".toJson))).flatMap(op =>
+    revert(dep.deploymentRequest, Some(1), "r.everter", Some(Version("0".toJson))).flatMap(op =>
       crankshaft.tryStopOperation(op, "killer-guy")
         .flatMap { case (successes, failures) =>
           tryCloseOperation(op, Map("here" -> Status.notDone)).map(updates =>
@@ -647,7 +647,7 @@ class CrankshaftWithUncontrollableTriggeredExecutionSpec extends SimpleScenarioT
     ) should eventually(be((2, 2, 0, 2))) // i.e. 2 execution traces, 2 closed, 0 stopped, 2 failures
 
     // try to stop when one execution is already terminated and the other one could not be stopped (so 0 success)
-    crankshaft.revert(dep.deploymentRequest, Some(2), "r.everter", Some(Version("0".toJson))).flatMap(op =>
+    revert(dep.deploymentRequest, Some(2), "r.everter", Some(Version("0".toJson))).flatMap(op =>
       crankshaft.dbBinding.findExecutionIdsByOperationTrace(op.id)
         .flatMap { executionIds =>
           val executionId = executionIds.head // only update the first execution (out of the 2 triggered by the revert)

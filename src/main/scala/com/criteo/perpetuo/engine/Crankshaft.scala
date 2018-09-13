@@ -363,31 +363,13 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
         (nbStopped, errors)
       }
 
-  def revert(deploymentRequest: DeploymentRequest, operationCount: Option[Int], initiatorName: String, defaultVersion: Option[Version]): Future[OperationTrace] = {
-    val getSpecifics =
-      assessingDeploymentState(deploymentRequest)
-        .flatMap {
-          case _: Outdated =>
-            DBIOAction.failed(Conflict("a newer one has already been applied", deploymentRequest.id))
-
-          case _: Reverted =>
-            DBIOAction.failed(UnavailableAction("the deployment transaction is closed", Map("deploymentRequestId" -> deploymentRequest.id)))
-
-          case _: NotStarted | _: DeployFlopped =>
-            DBIOAction.failed(UnavailableAction("Nothing to revert", Map("deploymentRequestId" -> deploymentRequest.id)))
-
-          case _: RevertInProgress | _: DeployInProgress =>
-            DBIOAction.failed(UnavailableAction("another operation is already running", Map("deploymentRequestId" -> deploymentRequest.id)))
-
-          case _: RevertFailed | _: DeployFailed | _: Paused | _: Deployed =>
-            getRevertSpecifics(deploymentRequest, defaultVersion).map((_, ()))
-        }
-    act(deploymentRequest, operationCount, initiatorName, getSpecifics)
+  def revert(deploymentRequest: DeploymentRequest, operationCount: Option[Int], initiatorName: String,
+             gettingRevertSpecifics: DBIOrw[((Iterable[DeploymentPlanStep], OperationCreationParams), Unit)]): Future[OperationTrace] =
+    act(deploymentRequest, operationCount, initiatorName, gettingRevertSpecifics)
       .map { case ((operationTrace, started, failed), _) =>
         listeners.foreach(_.onDeploymentRequestReverted(deploymentRequest, started, failed))
         operationTrace
       }
-  }
 
   def deviseRevertPlan(deploymentRequest: DeploymentRequest): Future[(Set[TargetAtom], Iterable[(ExecutionSpecification, Set[TargetAtom])])] =
     dbBinding.dbContext.db.run(
@@ -508,8 +490,8 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
     )
   }
 
-  private def getRevertSpecifics(deploymentRequest: DeploymentRequest,
-                                 defaultVersion: Option[Version]): DBIOrw[(Iterable[DeploymentPlanStep], OperationCreationParams)] = {
+  def getRevertSpecifics(deploymentRequest: DeploymentRequest,
+                         defaultVersion: Option[Version]): DBIOrw[(Iterable[DeploymentPlanStep], OperationCreationParams)] = {
     dbBinding
       .findingExecutionSpecificationsForRevert(deploymentRequest)
       .flatMap { case (undetermined, determined) =>

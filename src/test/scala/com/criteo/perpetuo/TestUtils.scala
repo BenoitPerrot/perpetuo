@@ -68,6 +68,9 @@ trait SimpleScenarioTesting extends TestHelpers with TestDb with MockitoSugar {
   def step(deploymentRequest: DeploymentRequest, operationCount: Option[Int], userName: String): Future[OperationTrace] =
     engine.step(User(userName), deploymentRequest.id, operationCount).map(_.get)
 
+  def revert(deploymentRequest: DeploymentRequest, operationCount: Option[Int], initiatorName: String, defaultVersion: Option[Version]): Future[OperationTrace] =
+    engine.revert(User(initiatorName), deploymentRequest.id, operationCount, defaultVersion).map(_.get)
+
   def findTargetsByExecution(executionId: Long): Future[Seq[TargetAtom]] =
     dbContext.db.run(dbBinding.targetStatusQuery.filter(_.executionId === executionId).map(_.targetAtom).result.map(_.map(_.toModel)))
 
@@ -149,7 +152,7 @@ trait SimpleScenarioTesting extends TestHelpers with TestDb with MockitoSugar {
       val targetStatus = stepsTargets.zipWithIndex.collect { case (target, index) if index < currentStep => target.map(_ -> finalStatus) }.flatten.toMap
       await(
         for {
-          operationTrace <- crankshaft.revert(deploymentRequest, Some(currentState.next()), "r.everter", defaultVersion.headOption.map(_ => Version(defaultVersion.toJson)))
+          operationTrace <- SimpleScenarioTesting.this.revert(deploymentRequest, Some(currentState.next()), "r.everter", defaultVersion.headOption.map(_ => Version(defaultVersion.toJson)))
           _ <- closeOperation(operationTrace, targetStatus)
         } yield operationTrace
       )
