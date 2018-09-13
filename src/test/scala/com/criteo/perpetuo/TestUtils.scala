@@ -1,10 +1,11 @@
 package com.criteo.perpetuo
 
+import com.criteo.perpetuo.auth.{Unrestricted, User}
 import com.criteo.perpetuo.config.{AppConfigProvider, PluginLoader, Plugins}
 import com.criteo.perpetuo.dao.{DbBinding, DbContext, DbContextProvider, TestingDbContextModule}
 import com.criteo.perpetuo.engine.dispatchers.{SingleTargetDispatcher, TargetDispatcher}
 import com.criteo.perpetuo.engine.executors.{ExecutionTrigger, TriggeredExecutionFinder}
-import com.criteo.perpetuo.engine.{Crankshaft, DeployFailed, DeployFlopped, Deployed, NotStarted, Outdated, Paused, RevertFailed, Reverted, TargetExpr, UnavailableAction}
+import com.criteo.perpetuo.engine.{Crankshaft, DeployFailed, DeployFlopped, Deployed, Engine, NotStarted, Outdated, Paused, RevertFailed, Reverted, TargetExpr, UnavailableAction}
 import com.criteo.perpetuo.model._
 import com.twitter.inject.Test
 import org.mockito.Matchers._
@@ -60,7 +61,12 @@ trait SimpleScenarioTesting extends TestHelpers with TestDb with MockitoSugar {
     new Crankshaft(dbBinding, plugins.resolver, targetDispatcher, plugins.listeners, executionFinder)
   }
 
+  lazy val engine = new Engine(crankshaft, Unrestricted)
+
   protected def triggerMock: Option[String] = None
+
+  def step(deploymentRequest: DeploymentRequest, operationCount: Option[Int], userName: String): Future[OperationTrace] =
+    engine.step(User(userName), deploymentRequest.id, operationCount).map(_.get)
 
   def findTargetsByExecution(executionId: Long): Future[Seq[TargetAtom]] =
     dbContext.db.run(dbBinding.targetStatusQuery.filter(_.executionId === executionId).map(_.targetAtom).result.map(_.map(_.toModel)))
@@ -127,7 +133,7 @@ trait SimpleScenarioTesting extends TestHelpers with TestDb with MockitoSugar {
         }
 
     def startStep(): OperationTrace = {
-      await(crankshaft.step(deploymentRequest, Some(currentState.next()), "s.tarter"))
+      await(SimpleScenarioTesting.this.step(deploymentRequest, Some(currentState.next()), "s.tarter"))
     }
 
     def step(finalStatus: Status.Code = Status.success): OperationTrace = {

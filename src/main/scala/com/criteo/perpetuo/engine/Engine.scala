@@ -4,6 +4,7 @@ import com.criteo.perpetuo.auth.{DeploymentAction, GeneralAction, Permissions, U
 import com.criteo.perpetuo.model.ExecutionState.ExecutionState
 import com.criteo.perpetuo.model._
 import javax.inject.{Inject, Singleton}
+import slick.dbio.DBIOAction
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
@@ -33,7 +34,38 @@ class Engine @Inject()(val crankshaft: Crankshaft,
       if (!permissions.isAuthorized(user, DeploymentAction.applyOperation, Operation.deploy, deploymentRequest.product.name))
         throw PermissionDenied()
 
-      crankshaft.step(deploymentRequest, operationCount, user.name)
+      def resolveTarget(step: DeploymentPlanStep) =
+        crankshaft.targetResolver.resolveExpression(step.deploymentRequest.product.name, step.deploymentRequest.version, step.parsedTarget)
+
+      val getSpecifics =
+        crankshaft.assessingDeploymentState(deploymentRequest)
+          .flatMap {
+            case _: Outdated =>
+              DBIOAction.failed(Conflict("a newer one has already been applied", deploymentRequest.id))
+
+            case _: Reverted | _: Deployed =>
+              DBIOAction.failed(UnavailableAction("the deployment transaction is closed", Map("deploymentRequestId" -> deploymentRequest.id)))
+
+            case _: RevertFailed =>
+              DBIOAction.failed(UnavailableAction("the deployment transaction is being canceled", Map("deploymentRequestId" -> deploymentRequest.id)))
+
+            case _: RevertInProgress | _: DeployInProgress =>
+              DBIOAction.failed(UnavailableAction("another operation is already running", Map("deploymentRequestId" -> deploymentRequest.id)))
+
+            case s: DeployFailed =>
+              crankshaft.getRetrySpecifics(resolveTarget(s.step), s.step).map((_, Some(s.step), s.step))
+
+            case s: DeployFlopped =>
+              crankshaft.getRetrySpecifics(resolveTarget(s.step), s.step).map((_, Some(s.step), s.step))
+
+            case s: NotStarted =>
+              crankshaft.getStepSpecifics(resolveTarget(s.toDo), s.toDo).map((_, None, s.toDo))
+
+            case s: Paused =>
+              crankshaft.getStepSpecifics(resolveTarget(s.toDo), s.toDo).map((_, Some(s.lastDone), s.toDo))
+          }
+
+      crankshaft.step(deploymentRequest, operationCount, user.name, getSpecifics)
     }
 
   def deviseRevertPlan(id: Long): Future[Option[(Set[TargetAtom], Iterable[(ExecutionSpecification, Set[TargetAtom])])]] =

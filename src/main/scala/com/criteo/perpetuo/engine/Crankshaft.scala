@@ -71,7 +71,7 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
 
   val fuelFilter = new FuelFilter(dbBinding)
 
-  private def assessingDeploymentState(deploymentRequest: DeploymentRequest): DBIOAction[DeploymentState, NoStream, Effect.Read] =
+  def assessingDeploymentState(deploymentRequest: DeploymentRequest): DBIOAction[DeploymentState, NoStream, Effect.Read] =
     dbBinding
       .isOutdated(deploymentRequest)
       .flatMap(isOutdated =>
@@ -262,38 +262,11 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
       triggerExecutions(deploymentRequest, createdOperation, executionsToTrigger).map((_, actionSpecifics))
     }
 
-  def step(deploymentRequest: DeploymentRequest, operationCount: Option[Int], initiatorName: String, emitEvent: Boolean = true): Future[OperationTrace] = {
-    def resolveTarget(step: DeploymentPlanStep) =
-      targetResolver.resolveExpression(step.deploymentRequest.product.name, step.deploymentRequest.version, step.parsedTarget)
-
-    val getSpecifics =
-      assessingDeploymentState(deploymentRequest)
-        .flatMap {
-          case _: Outdated =>
-            DBIOAction.failed(Conflict("a newer one has already been applied", deploymentRequest.id))
-
-          case _: Reverted | _: Deployed =>
-            DBIOAction.failed(UnavailableAction("the deployment transaction is closed", Map("deploymentRequestId" -> deploymentRequest.id)))
-
-          case _: RevertFailed =>
-            DBIOAction.failed(UnavailableAction("the deployment transaction is being canceled", Map("deploymentRequestId" -> deploymentRequest.id)))
-
-          case _: RevertInProgress | _: DeployInProgress =>
-            DBIOAction.failed(UnavailableAction("another operation is already running", Map("deploymentRequestId" -> deploymentRequest.id)))
-
-          case s: DeployFailed =>
-            getRetrySpecifics(resolveTarget(s.step), s.step).map((_, Some(s.step), s.step))
-
-          case s: DeployFlopped =>
-            getRetrySpecifics(resolveTarget(s.step), s.step).map((_, Some(s.step), s.step))
-
-          case s: NotStarted =>
-            getStepSpecifics(resolveTarget(s.toDo), s.toDo).map((_, None, s.toDo))
-
-          case s: Paused =>
-            getStepSpecifics(resolveTarget(s.toDo), s.toDo).map((_, Some(s.lastDone), s.toDo))
-        }
-
+  def step(deploymentRequest: DeploymentRequest,
+           operationCount: Option[Int],
+           initiatorName: String,
+           getSpecifics: DBIOrw[(OperationCreationParams, Option[DeploymentPlanStep], DeploymentPlanStep)],
+           emitEvent: Boolean = true): Future[OperationTrace] =
     act(
       deploymentRequest,
       operationCount,
@@ -311,7 +284,6 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
         }
         operationTrace
       }
-  }
 
   /**
     * Try to stop an execution from its trace
@@ -499,8 +471,8 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
     (Operation.deploy, specAndInvocations, expandedTarget)
   }
 
-  private[engine] def getStepSpecifics(expandedTarget: Option[Set[TargetAtom]],
-                                       planStep: DeploymentPlanStep): DBIOrw[OperationCreationParams] = {
+  def getStepSpecifics(expandedTarget: Option[Set[TargetAtom]],
+                       planStep: DeploymentPlanStep): DBIOrw[OperationCreationParams] = {
     // generation of specific parameters
     val specificParameters = targetDispatcher.freezeParameters(planStep.deploymentRequest.product.name, planStep.deploymentRequest.version)
 
@@ -513,8 +485,8 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
     )
   }
 
-  private def getRetrySpecifics(expandedTarget: Option[Set[TargetAtom]],
-                                planStep: DeploymentPlanStep): DBIOrw[OperationCreationParams] = {
+  def getRetrySpecifics(expandedTarget: Option[Set[TargetAtom]],
+                        planStep: DeploymentPlanStep): DBIOrw[OperationCreationParams] = {
     // todo: map the right target to the right specification
     dbBinding.findingDeploySpecifications(planStep).map(executionSpecs =>
       getDeploySpecifics(targetDispatcher, planStep, expandedTarget, executionSpecs)

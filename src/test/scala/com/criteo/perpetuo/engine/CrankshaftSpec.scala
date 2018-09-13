@@ -11,7 +11,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}
 
-
+// TODO: extract the most Engine-oriented tests into an EngineSpec
 class CrankshaftSpec extends SimpleScenarioTesting {
 
   private def hasOpenExecutionTracesForOperation(operationTraceId: Long) =
@@ -45,7 +45,7 @@ class CrankshaftSpec extends SimpleScenarioTesting {
         product <- crankshaft.upsertProduct("product #1")
         depPlan <- crankshaft.dbBinding.insertDeploymentRequest(ProtoDeploymentRequest(product.name, Version("\"1000\""), Seq(ProtoDeploymentPlanStep("", JsString("*"), "")), "", "s.omeone"))
         (toDoBeforeStart, lastDoneBeforeStart) <- gettingPlanStepToOperateAndLastDoneStep(depPlan.deploymentRequest, Operation.deploy)
-        op <- crankshaft.step(depPlan.deploymentRequest, Some(0), "s.tarter")
+        op <- step(depPlan.deploymentRequest, Some(0), "s.tarter")
         (toDoAfterStart, lastDoneAfterStart) <- gettingPlanStepToOperateAndLastDoneStep(depPlan.deploymentRequest, Operation.deploy)
         traces <- crankshaft.dbBinding.findExecutionTracesByOperationTrace(op.id)
       } yield {
@@ -62,7 +62,7 @@ class CrankshaftSpec extends SimpleScenarioTesting {
       for {
         product <- crankshaft.upsertProduct("human")
         deploymentRequest <- crankshaft.createDeploymentRequest(ProtoDeploymentRequest(product.name, Version(JsString("42").compactPrint), Seq(ProtoDeploymentPlanStep("", JsArray(JsString("moon"), JsString("mars")), "")), "", "robert"))
-        operationTrace <- crankshaft.step(deploymentRequest, Some(0), "ignace")
+        operationTrace <- step(deploymentRequest, Some(0), "ignace")
         hasOpenExecutionBefore <- hasOpenExecutionTracesForOperation(operationTrace.id)
         _ <- closeOperation(operationTrace, Map("moon" -> Status.success, "mars" -> Status.hostFailure))
         hasOpenExecutionAfter <- hasOpenExecutionTracesForOperation(operationTrace.id)
@@ -78,7 +78,7 @@ class CrankshaftSpec extends SimpleScenarioTesting {
   def mockDeployExecution(productName: String, v: String, targetAtomToStatus: Map[String, Status.Code], updateTargetStatuses: Boolean = true): Future[(DeploymentRequest, Long)] = {
     for {
       deploymentRequest <- crankshaft.createDeploymentRequest(ProtoDeploymentRequest(productName, Version(JsString(v)), Seq(ProtoDeploymentPlanStep("", targetAtomToStatus.keys.toJson, "")), "", "r.equestor"))
-      operationTrace <- crankshaft.step(deploymentRequest, Some(0), "s.tarter")
+      operationTrace <- step(deploymentRequest, Some(0), "s.tarter")
       executionSpecIds <- crankshaft.dbBinding.findExecutionSpecIdsByOperationTrace(operationTrace.id)
       _ <- closeOperation(operationTrace, if (updateTargetStatuses) targetAtomToStatus else Map())
     } yield (deploymentRequest, executionSpecIds.head)
@@ -313,11 +313,11 @@ class CrankshaftSpec extends SimpleScenarioTesting {
       for {
         product <- crankshaft.upsertProduct("martian")
         deploymentRequest <- crankshaft.createDeploymentRequest(ProtoDeploymentRequest(product.name, Version(JsString("42").compactPrint), Seq(ProtoDeploymentPlanStep("", JsArray(JsString("moon"), JsString("mars")), "")), "", "robert"))
-        operationTrace <- crankshaft.step(deploymentRequest, Some(0), "ignace")
+        operationTrace <- step(deploymentRequest, Some(0), "ignace")
         firstExecutionTraces <- closeOperation(operationTrace, Map("moon" -> Status.success, "mars" -> Status.hostFailure))
-        retriedOperation <- crankshaft.step(deploymentRequest, Some(1), "b.lightning")
+        retriedOperation <- step(deploymentRequest, Some(1), "b.lightning")
         secondExecutionTraces <- closeOperation(retriedOperation, Map("moon" -> Status.success, "mars" -> Status.success))
-        raceConditionError <- crankshaft.step(deploymentRequest, Some(1), "b.lightning").failed
+        raceConditionError <- step(deploymentRequest, Some(1), "b.lightning").failed
         hasOpenExecutionAfter <- hasOpenExecutionTracesForOperation(retriedOperation.id)
         operationReClosingSucceeded <- closeOperationTrace(retriedOperation)
         initialExecutionSpecIds <- crankshaft.dbBinding.findExecutionSpecIdsByOperationTrace(operationTrace.id)
@@ -423,7 +423,7 @@ class CrankshaftWithFailingExecutorSpec extends SimpleScenarioTesting {
       for {
         product <- crankshaft.upsertProduct("airplane")
         deploymentRequest <- crankshaft.createDeploymentRequest(ProtoDeploymentRequest(product.name, Version(JsString("42").compactPrint), Seq(ProtoDeploymentPlanStep("", JsArray(JsString("moon"), JsString("mars")), "")), "", "bob"))
-        operationTrace <- crankshaft.step(deploymentRequest, Some(0), "ignace")
+        operationTrace <- step(deploymentRequest, Some(0), "ignace")
         hasOpenExecution <- dbContext.db.run(crankshaft.dbBinding.hasOpenExecutionTracesForOperation(operationTrace.id))
         executionTraces <- crankshaft.dbBinding.findExecutionTracesByOperationTrace(operationTrace.id)
       } yield {
