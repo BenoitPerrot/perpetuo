@@ -53,7 +53,8 @@ class PluginLoader @Inject()(engineProxy: EngineProxy) {
         instantiate(Class.forName(stringValue).asInstanceOf[Class[A]], specificArg)
       case "groovyScriptResource" =>
         val resource = getClass.getResource(stringValue)
-        assert(resource != null, s"Could not find configured resource $stringValue")
+        if (resource == null)
+          throw new RuntimeException(s"Could not find configured resource $stringValue")
         instantiate(groovyScriptLoader.load(resource), specificArg)
       case "groovyScriptFile" =>
         instantiate(groovyScriptLoader.load(new File(stringValue).getAbsoluteFile.toURI.toURL), specificArg)

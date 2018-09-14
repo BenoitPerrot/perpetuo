@@ -71,7 +71,8 @@ trait TargetDispatcher extends Provider[TargetDispatcher] with ParameterFreezer 
     val flattened: Select = dispatched.map { case (_, group) => group }.foldLeft(Stream.empty[String])(_ ++ _).toSet
 
     // check that we have the same targets before and after the dispatch (but one can be dispatched in several groups)
-    assert(flattened.subsetOf(targetAtoms), "More targets after dispatching than before: " + (flattened -- targetAtoms).map(_.toString).mkString(", "))
+    if (!flattened.subsetOf(targetAtoms))
+      throw new RuntimeException("More targets after dispatching than before: " + (flattened -- targetAtoms).map(_.toString).mkString(", "))
     if (flattened.size != targetAtoms.size)
       throw UnprocessableIntent("Unknown target(s): " + (targetAtoms -- flattened).map(_.toString).mkString(", "))
 

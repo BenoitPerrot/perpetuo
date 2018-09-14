@@ -32,7 +32,8 @@ trait TargetResolver extends Provider[TargetResolver] {
     val select = target.select
     toAtoms(productName, productVersion, select).map { toAtoms =>
       val resolvedTerms = toAtoms.keySet
-      assert(resolvedTerms.subsetOf(select), "More targets after resolution than before: " + (resolvedTerms -- select).map(_.toString).mkString(", "))
+      if (!resolvedTerms.subsetOf(select))
+        throw new RuntimeException("More targets after resolution than before: " + (resolvedTerms -- select).map(_.toString).mkString(", "))
       if (resolvedTerms.size != select.size)
         throw UnprocessableIntent("Unknown target(s): " + (select -- resolvedTerms).map(_.toString).mkString(", "))
       toAtoms.foreach { case (word, atoms) =>
