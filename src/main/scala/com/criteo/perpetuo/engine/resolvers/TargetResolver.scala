@@ -35,13 +35,17 @@ trait TargetResolver extends Provider[TargetResolver] {
       if (!resolvedTerms.subsetOf(select))
         throw new RuntimeException("The resolver augmented the original intent, which is forbidden. The targets introduced after dispatching are: " +
           (resolvedTerms -- select).map(_.toString).mkString(", "))
-      if (resolvedTerms.size != select.size)
-        throw UnprocessableIntent("Unknown target(s): " + (select -- resolvedTerms).map(_.toString).mkString(", "))
-      toAtoms.foreach { case (word, atoms) =>
-        if (atoms.isEmpty)
-          throw UnprocessableIntent(s"`$word` is not a valid target in that context")
-        atoms.foreach(atom => assert(atom.length <= TargetAtom.maxSize, s"Target `$atom` is too long"))
+
+      val emptyWords = toAtoms.flatMap {
+        case (_, atoms) if atoms.nonEmpty =>
+          atoms.foreach(atom => assert(atom.length <= TargetAtom.maxSize, s"Target `$atom` is too long"))
+          None
+        case (word, _) =>
+          Some(word)
       }
+      if (emptyWords.nonEmpty || resolvedTerms.size != select.size)
+        throw UnprocessableIntent("Unknown target(s): " + (emptyWords.iterator ++ (select -- resolvedTerms)).map(_.toString).mkString(", "))
+
       target.map(term => TargetTerm(term.tactics, term.select.iterator.flatMap(toAtoms).toSet))
     }
   }

@@ -100,7 +100,7 @@ class DispatchingSpec extends SimpleScenarioTesting {
 
   test("A complex execution raises if a target cannot be solved to atomic targets") {
     val thrown = the[UnprocessableIntent] thrownBy testResolver.resolveExpression(null, Version("\"\""), Set(TargetTerm(select = Set("ab", "-"))))
-    thrown.getMessage should endWith("`-` is not a valid target in that context")
+    thrown.getMessage should endWith("Unknown target(s): -")
   }
 
   test("A complex execution raises if a target is not fully covered by executors") {
