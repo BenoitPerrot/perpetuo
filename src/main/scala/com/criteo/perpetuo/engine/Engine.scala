@@ -1,8 +1,11 @@
 package com.criteo.perpetuo.engine
 
+import java.util.concurrent.TimeUnit
+
 import com.criteo.perpetuo.auth.{DeploymentAction, GeneralAction, Permissions, User}
 import com.criteo.perpetuo.model.ExecutionState.ExecutionState
 import com.criteo.perpetuo.model._
+import com.google.common.cache.{CacheBuilder, CacheLoader, LoadingCache}
 import javax.inject.{Inject, Singleton}
 import slick.dbio.DBIOAction
 
@@ -20,6 +23,19 @@ class Engine @Inject()(val crankshaft: Crankshaft,
 
     crankshaft.createDeploymentRequest(protoDeploymentRequest)
   }
+
+  protected val stateCacheLoader: CacheLoader[java.lang.Long, Future[Option[DeploymentState]]] =
+    new CacheLoader[java.lang.Long, Future[Option[DeploymentState]]]() {
+      override def load(id: java.lang.Long): Future[Option[DeploymentState]] =
+        withDeploymentRequest(id)(crankshaft.assessDeploymentState)
+    }
+
+  protected val cachedState: LoadingCache[java.lang.Long, Future[Option[DeploymentState]]] = CacheBuilder.newBuilder()
+    .initialCapacity(128)
+    .maximumSize(1024)
+    .expireAfterAccess(2, TimeUnit.SECONDS)
+    .concurrencyLevel(10)
+    .build(stateCacheLoader)
 
   private def withDeploymentRequest[T](id: Long)(callback: DeploymentRequest => Future[T]): Future[Option[T]] =
     crankshaft.findDeploymentRequestById(id)
@@ -115,7 +131,7 @@ class Engine @Inject()(val crankshaft: Crankshaft,
     crankshaft.findDeploymentRequestsWithStatuses(where, limit, offset)
 
   def findDeploymentRequestState(id: Long): Future[Option[DeploymentState]] =
-    withDeploymentRequest(id)(crankshaft.assessDeploymentState)
+    cachedState.get(id)
 
   def queryDeploymentRequestStatus(user: Option[User], id: Long): Future[Option[DeploymentRequestStatus]] =
     withDeploymentRequest(id) { deploymentRequest =>

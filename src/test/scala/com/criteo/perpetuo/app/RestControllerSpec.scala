@@ -1,16 +1,22 @@
 package com.criteo.perpetuo.app
 
+import java.util.concurrent.TimeUnit
+
 import com.criteo.perpetuo.TestDb
-import com.criteo.perpetuo.auth.{User, UserFilter}
+import com.criteo.perpetuo.auth.{Permissions, User, UserFilter}
 import com.criteo.perpetuo.config.AppConfigProvider
+import com.criteo.perpetuo.engine.{Crankshaft, Engine}
 import com.criteo.perpetuo.model.{ExecutionState, ProtoDeploymentPlanStep, ProtoDeploymentRequest, Version}
+import com.google.common.cache.CacheBuilder
+import com.google.inject.Provides
 import com.twitter.finagle.http.Status._
 import com.twitter.finagle.http.{Request, Response, Status}
 import com.twitter.finatra.http.filters.{LoggingMDCFilter, TraceIdMDCFilter}
 import com.twitter.finatra.http.routing.HttpRouter
 import com.twitter.finatra.http.{EmbeddedHttpServer, HttpServer}
 import com.twitter.finatra.json.modules.FinatraJacksonModule
-import com.twitter.inject.Test
+import com.twitter.inject.{Test, TwitterModule}
+import javax.inject.Singleton
 import spray.json.DefaultJsonProtocol._
 import spray.json._
 
@@ -30,6 +36,21 @@ class RestControllerSpec extends Test with TestDb {
 
   private def makeUser(userName: String) = User(userName, Set("Users"))
 
+  object EngineProviderModule extends TwitterModule {
+
+    @Singleton
+    @Provides
+    def providesEngine(crankshaft: Crankshaft, permissions: Permissions): Engine =
+      new Engine(crankshaft, permissions) {
+        override protected val cachedState = CacheBuilder.newBuilder()
+          .initialCapacity(128)
+          .maximumSize(1024)
+          .expireAfterAccess(0, TimeUnit.SECONDS)
+          .concurrencyLevel(10)
+          .build(stateCacheLoader)
+      }
+  }
+
   private val config = AppConfigProvider.config
   private val authModule = new AuthModule(config.getConfig("auth"))
   private val productUser = makeUser("bob.the.producer")
@@ -48,7 +69,8 @@ class RestControllerSpec extends Test with TestDb {
     override def modules = Seq(
       authModule,
       new PluginsModule,
-      dbTestModule
+      dbTestModule,
+      EngineProviderModule
     )
 
     override def configureHttp(router: HttpRouter) {
