@@ -63,6 +63,9 @@ class Engine @Inject()(val crankshaft: Crankshaft,
   def findDeploymentRequestsWithStatuses(where: Seq[Map[String, Any]], limit: Int, offset: Int): Future[Seq[(DeploymentPlan, DeploymentStatus.Value, Option[Operation.Kind])]] =
     crankshaft.findDeploymentRequestsWithStatuses(where, limit, offset)
 
+  def findDeploymentRequestState(id: Long): Future[Option[DeploymentState]] =
+    withDeploymentRequest(id)(crankshaft.assessDeploymentState)
+
   def queryDeploymentRequestStatus(user: Option[User], id: Long): Future[Option[DeploymentRequestStatus]] =
     withDeploymentRequest(id) { deploymentRequest =>
       def rejectIfPermissionDenied(action: DeploymentAction.Value, kind: Operation.Kind) =

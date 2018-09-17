@@ -123,6 +123,14 @@ class RestControllerSpec extends Test with TestDb {
     creationDate
   }
 
+  private def expectState(id: Long, expectedState: String) = {
+    server.httpGet(
+      path = s"/api/deployment-requests/$id/state",
+      andExpect = Ok
+    ).contentString.parseJson.asInstanceOf[JsObject]
+      .fields("state") shouldBe JsString(expectedState)
+  }
+
   private def deepGetDepReq(id: Long) = {
     server.httpGet(
       path = s"/api/unstable/deployment-requests/$id",
@@ -280,7 +288,10 @@ class RestControllerSpec extends Test with TestDb {
   test("The DeploymentRequest's actions entry-point starts a deployment that was not started yet") {
     createProduct("my product B")
     val id = requestDeployment("my product B", "456", "ams".toJson)
+    expectState(id, "notStarted")
+
     startDeploymentRequest(id) shouldEqual JsObject("id" -> id.toJson)
+    expectState(id, "deployInProgress")
   }
 
   test("The DeploymentRequest's actions entry-point returns 404 when trying to start a non-existing DeploymentRequest") {
@@ -504,6 +515,7 @@ class RestControllerSpec extends Test with TestDb {
     ).contentString should include("targetStatus: Can not deserialize")
 
     checkExecutionTraceUpdate(depReqId, execTraceId, "completed")
+    expectState(depReqId, "deployFlopped")
   }
 
   test("The ExecutionTrace's entry-point returns 400 if no state is provided") {
@@ -612,6 +624,7 @@ class RestControllerSpec extends Test with TestDb {
     )
 
     val depReq = deepGetDepReq(depReqId)
+    expectState(depReqId, "deployFailed")
 
     JsArray(
       JsObject(
@@ -662,6 +675,7 @@ class RestControllerSpec extends Test with TestDb {
         )
       )
     ) shouldEqual delayedDepReq.fields("operations")
+    expectState(delayedDepReqId, "deployInProgress")
   }
 
   test("Deep query paginates") {

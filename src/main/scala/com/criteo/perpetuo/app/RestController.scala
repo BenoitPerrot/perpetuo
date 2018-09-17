@@ -307,6 +307,16 @@ class RestController @Inject()(val engine: Engine)
       5.seconds)
   }
 
+  get("/api/deployment-requests/:id/state") { r: RequestWithId =>
+    withLongId(
+      id => engine.findDeploymentRequestState(id).map(_.map { deploymentRequestState =>
+        val state = deploymentRequestState.getClass.getSimpleName
+        Some(Map("state" -> Character.toLowerCase(state.charAt(0)).toString.concat(state.substring(1))))
+      }),
+      5.seconds
+    )(r)
+  }
+
   get("/api/version") { _: Request =>
     response.ok.plain(RestApi.perpetuoVersion)
   }
