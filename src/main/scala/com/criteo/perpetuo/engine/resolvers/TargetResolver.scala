@@ -44,7 +44,8 @@ trait TargetResolver extends Provider[TargetResolver] {
           Some(word)
       }
       if (emptyWords.nonEmpty || resolvedTerms.size != select.size)
-        throw UnprocessableIntent("Unknown target(s): " + (emptyWords.iterator ++ (select -- resolvedTerms)).map(_.toString).mkString(", "))
+        throw UnprocessableIntent("The following target(s) were not resolved: " +
+          (emptyWords.iterator ++ (select -- resolvedTerms)).map(_.toString).mkString(", "))
 
       target.map(term => TargetTerm(term.tactics, term.select.iterator.flatMap(toAtoms).toSet))
     }

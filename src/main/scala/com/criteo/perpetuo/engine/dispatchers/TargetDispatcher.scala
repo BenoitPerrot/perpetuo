@@ -75,7 +75,8 @@ trait TargetDispatcher extends Provider[TargetDispatcher] with ParameterFreezer 
       throw new RuntimeException("The dispatcher augmented the original intent, which is forbidden. The targets introduced after dispatching are: " +
         (flattened -- targetAtoms).map(_.toString).mkString(", "))
     if (flattened.size != targetAtoms.size)
-      throw UnprocessableIntent("Unknown target(s): " + (targetAtoms -- flattened).map(_.toString).mkString(", "))
+      throw UnprocessableIntent("The following target(s) were not resolved: " +
+        (targetAtoms -- flattened).map(_.toString).mkString(", "))
 
     dispatched
   }
