@@ -72,7 +72,8 @@ trait TargetDispatcher extends Provider[TargetDispatcher] with ParameterFreezer 
 
     // check that we have the same targets before and after the dispatch (but one can be dispatched in several groups)
     if (!flattened.subsetOf(targetAtoms))
-      throw new RuntimeException("More targets after dispatching than before: " + (flattened -- targetAtoms).map(_.toString).mkString(", "))
+      throw new RuntimeException("The dispatcher augmented the original intent, which is forbidden. The targets introduced after dispatching are: " +
+        (flattened -- targetAtoms).map(_.toString).mkString(", "))
     if (flattened.size != targetAtoms.size)
       throw UnprocessableIntent("Unknown target(s): " + (targetAtoms -- flattened).map(_.toString).mkString(", "))
 
