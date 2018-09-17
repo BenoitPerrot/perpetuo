@@ -53,7 +53,7 @@ private case class RevertRequest(@RouteParam @NotEmpty id: String,
 private case class ExecutionTracePut(@RouteParam @NotEmpty id: String,
                                      @NotEmpty state: String,
                                      detail: String = "",
-                                     logHref: String = "",
+                                     href: String = "",
                                      targetStatus: Map[String, Map[String, String]] = Map(),
                                      @Inject request: Request) extends WithId with WithRequest
 
@@ -230,7 +230,7 @@ class RestController @Inject()(val engine: Engine)
                 throw BadRequestException(s"Bad target status for `$atom`: ${status.map { case (k, v) => s"$k='$v'" }.mkString(", ")}")
             }
           }
-        engine.tryUpdateExecutionTrace(id, executionState, r.detail, r.logHref.headOption.map(_ => r.logHref), statusMap)
+        engine.tryUpdateExecutionTrace(id, executionState, r.detail, r.href.headOption.map(_ => r.href), statusMap)
           .map(_.map(_ => response.noContent))
       },
       3.seconds

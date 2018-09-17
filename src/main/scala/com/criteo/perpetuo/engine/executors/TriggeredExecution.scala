@@ -42,7 +42,7 @@ class UncontrollableTriggeredExecution(val logHref: String) extends TriggeredExe
 @Singleton
 class TriggeredExecutionFinder @Inject()(loader: PluginLoader) {
   def apply[T](executionTrace: ShallowExecutionTrace): TriggeredExecution =
-    executionTrace.logHref
+    executionTrace.href
       .map { logHref =>
         val executionName = logHref match { // todo: look at the executionName in the record instead
           case _ if logHref.contains("/execution/show/") => "rundeck"

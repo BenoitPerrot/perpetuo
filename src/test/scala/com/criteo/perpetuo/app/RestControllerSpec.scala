@@ -180,7 +180,7 @@ class RestControllerSpec extends Test with TestDb {
                                    expectedRequestStatus: Status = NoContent): Unit = {
     val params = Map(
       "state" -> Some(state.toJson),
-      "logHref" -> logHref.map(_.toJson),
+      "href" -> logHref.map(_.toJson),
       "detail" -> executionDetail.map(_.toJson),
       "targetStatus" -> targetStatus.map(_.toJson)
     ).collect {
@@ -214,7 +214,7 @@ class RestControllerSpec extends Test with TestDb {
     JsArray(
       JsObject(
         "id" -> execTraceId.toJson,
-        "logHref" -> expectedLogHrefJson,
+        "logHref" -> JsNull,
         "href" -> expectedLogHrefJson,
         "state" -> state.toJson,
         "detail" -> executionDetail.getOrElse("").toJson
@@ -629,7 +629,7 @@ class RestControllerSpec extends Test with TestDb {
         "executions" -> JsArray(
           JsObject(
             "id" -> execTraceId.toJson,
-            "logHref" -> "http://final".toJson,
+            "logHref" -> JsNull,
             "href" -> "http://final".toJson,
             "state" -> "completed".toJson,
             "detail" -> "".toJson

@@ -670,7 +670,7 @@ class CrankshaftWithUnknownLogHrefSpec extends SimpleScenarioTesting {
   test("A trivial execution triggers a job with a log href when a log href is provided") {
     val op = request("product #2", "1000", Seq("*")).step()
     crankshaft.dbBinding.findExecutionTracesByOperationTrace(op.id)
-      .map(_.flatMap(_.logHref).toSet) should eventually(be(Set(logHref)))
+      .map(_.flatMap(_.href).toSet) should eventually(be(Set(logHref)))
   }
 
   test("Cannot stop an execution of an unknown type") {

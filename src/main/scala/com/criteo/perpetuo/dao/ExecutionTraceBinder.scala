@@ -17,10 +17,10 @@ private[dao] case class ExecutionTraceRecord(id: Option[Long],
                                              state: ExecutionState = ExecutionState.pending,
                                              detail: Comment = "") {
   def toExecutionTrace: ShallowExecutionTrace =
-    ShallowExecutionTrace(id.get, logHref, href, state, detail.toString)
+    ShallowExecutionTrace(id.get, None, href, state, detail.toString)
 
   def toExecutionTrace(operationTrace: OperationTrace): ExecutionTraceBranch =
-    ExecutionTraceBranch(id.get, executionId, operationTrace, logHref, href, state, detail.toString)
+    ExecutionTraceBranch(id.get, executionId, operationTrace, None, href, state, detail.toString)
 }
 
 
@@ -91,7 +91,7 @@ trait ExecutionTraceBinder extends TableBinder {
     */
   def updatingExecutionTrace(id: Long, state: ExecutionState, detail: String, logHref: Option[String] = None): DBIOrw[Option[Long]] = {
     logHref
-      .map(_ => runningUpdate(id, state, _.map(r => (r.state, r.detail, r.logHref, r.href)).update((state, detail, logHref, logHref))))
+      .map(_ => runningUpdate(id, state, _.map(r => (r.state, r.detail, r.href)).update((state, detail, logHref))))
       .getOrElse(runningUpdate(id, state, _.map(r => (r.state, r.detail)).update((state, detail))))
   }
 
