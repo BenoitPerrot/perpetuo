@@ -221,10 +221,10 @@ class RestController @Inject()(val engine: Engine)
           } catch {
             case _: NoSuchElementException => throw BadRequestException(s"Unknown state `${r.state}`")
           }
-        val statusMap: Map[String, TargetAtomStatus] =
+        val statusMap: Map[TargetAtom, TargetAtomStatus] =
           r.targetStatus.map { case (atom, status) => // don't use mapValues, as it gives a view (lazy generation, incompatible with error management here)
             try {
-              (atom, TargetAtomStatus(Status.withName(status("code")), status("detail")))
+              (TargetAtom(atom), TargetAtomStatus(Status.withName(status("code")), status("detail")))
             } catch {
               case _: NoSuchElementException =>
                 throw BadRequestException(s"Bad target status for `$atom`: ${status.map { case (k, v) => s"$k='$v'" }.mkString(", ")}")
@@ -271,7 +271,7 @@ class RestController @Inject()(val engine: Engine)
             "creationDate" -> op.creationDate,
             "targetStatus" -> {
               targetStatus
-                .map(ts => ts.targetAtom -> Map("code" -> ts.code.toString, "detail" -> getTargetDetail(ts)))
+                .map(ts => ts.targetAtom.name -> Map("code" -> ts.code.toString, "detail" -> getTargetDetail(ts)))
                 .toMap
             },
             "status" -> effect.state,

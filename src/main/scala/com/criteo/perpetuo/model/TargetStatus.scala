@@ -1,16 +1,13 @@
 package com.criteo.perpetuo.model
 
 
+case class TargetAtom(name: String) extends AnyVal
+
 case class TargetAtomStatus(code: Status.Code, detail: String)
 
-case class TargetStatus(targetAtom: String,
+case class TargetStatus(targetAtom: TargetAtom,
                         code: Status.Code,
                         detail: String)
-
-object TargetAtom {
-  type Type = String
-  val maxSize = 128
-}
 
 object Status extends Enumeration {
   type Code = Value

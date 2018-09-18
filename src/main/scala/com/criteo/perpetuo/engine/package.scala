@@ -15,8 +15,8 @@ package object engine {
   type TargetTerm = Select // todo: remove the aliases (type migration)
 
 
-  implicit class TargetGroups[T](javaTargetGroups: JavaMap[T, JavaIterable[String]]) {
-    def iterateAsScala: Iterator[(T, Select)] =
+  implicit class TargetGroups[A, B](javaTargetGroups: JavaMap[A, JavaIterable[B]]) {
+    def iterateAsScala: Iterator[(A, Set[B])] =
       javaTargetGroups.entrySet.iterator.asScala
         .map(entry => entry.getKey -> entry.getValue.iterator.asScala.toSet)
   }
@@ -28,5 +28,5 @@ package object engine {
 
 
   type ExecutionsToTrigger = Iterable[(Long, Version, TargetExpr, ExecutionTrigger)]
-  type OperationCreationParams = (Operation.Kind, Iterable[(ExecutionSpecification, Vector[(ExecutionTrigger, TargetExpr)])], Option[Select])
+  type OperationCreationParams = (Operation.Kind, Iterable[(ExecutionSpecification, Vector[(ExecutionTrigger, TargetExpr)])], Option[Set[TargetAtom]])
 }

@@ -119,7 +119,7 @@ trait EffectInserter
                         invocations
                           .toStream
                           .flatMap { case (_, target) => target }
-                          .map(_ -> TargetAtomStatus(Status.notDone, ""))
+                          .map(TargetAtom(_) -> TargetAtomStatus(Status.notDone, ""))
                           .toMap
                       )
                         .andThen(ret)

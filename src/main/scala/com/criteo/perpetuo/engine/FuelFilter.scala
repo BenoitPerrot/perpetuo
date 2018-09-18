@@ -3,7 +3,7 @@ package com.criteo.perpetuo.engine
 import com.criteo.perpetuo.config.AppConfigProvider
 import com.criteo.perpetuo.config.ConfigSyntacticSugar._
 import com.criteo.perpetuo.dao.{DBIOrw, DbBinding}
-import com.criteo.perpetuo.model.{DeploymentPlanStep, DeploymentRequest, Operation}
+import com.criteo.perpetuo.model.{DeploymentPlanStep, DeploymentRequest, Operation, TargetAtom}
 import slick.dbio.{DBIOAction, Effect, NoStream}
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -18,7 +18,7 @@ class FuelFilter(dbBinding: DbBinding) {
         throw Conflict("Cannot be processed for the moment because another operation is running for the same deployment request", deploymentRequest.id)
     )
 
-  def acquiringDeploymentTransactionLock(deploymentRequest: DeploymentRequest, atoms: Option[Select]): DBIOrw[Unit] =
+  def acquiringDeploymentTransactionLock(deploymentRequest: DeploymentRequest, atoms: Option[Set[TargetAtom]]): DBIOrw[Unit] =
     dbBinding.tryAcquireLocks(getTransactionLockNames(deploymentRequest, atoms), deploymentRequest.id, reentrant = true).map(conflictingRequestIds =>
       if (conflictingRequestIds.nonEmpty)
         throw Conflict("Cannot be processed for the moment because a conflicting transaction is ongoing, which must first succeed or be reverted", deploymentRequest.id, conflictingRequestIds)
@@ -127,7 +127,7 @@ class FuelFilter(dbBinding: DbBinding) {
   private def getOperationLockName(deploymentRequest: DeploymentRequest) =
     s"Operating on ${deploymentRequest.id}"
 
-  private def getTransactionLockNames(deploymentRequest: DeploymentRequest, atoms: Option[Select]): Iterable[String] =
+  private def getTransactionLockNames(deploymentRequest: DeploymentRequest, atoms: Option[Set[TargetAtom]]): Iterable[String] =
     atoms
       .map(_.map(atom => s"${atom.hashCode.toHexString}_${deploymentRequest.product.name}"))
       .getOrElse(Seq("P_" + deploymentRequest.product.name))

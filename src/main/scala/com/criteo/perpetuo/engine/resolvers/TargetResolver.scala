@@ -1,5 +1,7 @@
 package com.criteo.perpetuo.engine.resolvers
 
+import com.criteo.perpetuo.dao
+import com.criteo.perpetuo.dao.TargetAtomField
 import com.criteo.perpetuo.engine.{Provider, Select, TargetExpr, UnprocessableIntent}
 import com.criteo.perpetuo.model.{TargetAtom, Version}
 
@@ -26,9 +28,9 @@ trait TargetResolver extends Provider[TargetResolver] {
     *         product and version;
     *         - None if it's NOT CERTAIN that ANY TARGET can be resolved to atoms for the given product.
     */
-  def toAtoms(productName: String, productVersion: Version, targetWords: Select): Option[Map[String, Select]] = None
+  def toAtoms(productName: String, productVersion: Version, targetWords: Select): Option[Map[String, Set[TargetAtom]]] = None
 
-  def resolveExpression(productName: String, productVersion: Version, target: TargetExpr): Option[TargetExpr] = {
+  def resolveExpression(productName: String, productVersion: Version, target: TargetExpr): Option[Set[TargetAtom]] = {
     toAtoms(productName, productVersion, target).map { toAtoms =>
       val resolvedTerms = toAtoms.keySet
       if (!resolvedTerms.subsetOf(target))
@@ -37,7 +39,7 @@ trait TargetResolver extends Provider[TargetResolver] {
 
       val emptyWords = toAtoms.flatMap {
         case (_, atoms) if atoms.nonEmpty =>
-          atoms.foreach(atom => assert(atom.length <= TargetAtom.maxSize, s"Target `$atom` is too long"))
+          atoms.foreach(atom => assert(atom.name.length <= dao.targetAtomMaxLength, s"Target `$atom` is too long"))
           None
         case (word, _) =>
           Some(word)

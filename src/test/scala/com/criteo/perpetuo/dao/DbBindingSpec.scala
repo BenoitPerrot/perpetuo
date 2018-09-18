@@ -87,7 +87,7 @@ class DbScenarios(dbBinding: DbBinding) extends DeploymentRequestInserter {
   private val dummySpecIds = Stream.from(0).map(_ =>
     dbBinding.insertExecutionSpecification("foobar", Version(JsString("version"))).map(_.id)
   )
-  private val dummyTargets = Iterator.from(100).map(n => s"target-$n")
+  private val dummyTargets = Iterator.from(100).map(n => TargetAtom(s"target-$n"))
 
   def insertEffect(effect: OperationEffect): Future[OperationTrace] =
     Future

@@ -1,6 +1,6 @@
 package com.criteo.perpetuo.dao
 
-import com.criteo.perpetuo.engine.{DeploymentStatus, Select, computeDeploymentStatus}
+import com.criteo.perpetuo.engine.{DeploymentStatus, computeDeploymentStatus}
 import com.criteo.perpetuo.model._
 import javax.inject.{Inject, Singleton}
 import slick.jdbc.TransactionIsolation
@@ -324,7 +324,7 @@ class DbBinding @Inject()(val dbContext: DbContext)
     * @return the target atoms for which there is no previous execution specification on the same product,
     *         followed by the groups of target atoms sharing the same last execution specification for the same product.
     */
-  def findingExecutionSpecificationsForRevert(deploymentRequest: DeploymentRequest): DBIOAction[(Select, Iterable[(ExecutionSpecification, Select)]), NoStream, Effect.Read] = {
+  def findingExecutionSpecificationsForRevert(deploymentRequest: DeploymentRequest): DBIOAction[(Set[TargetAtom], Iterable[(ExecutionSpecification, Set[TargetAtom])]), NoStream, Effect.Read] = {
     val previousTargetStatuses = targetStatusQuery
       .join(executionQuery)
       .join(operationTraceQuery)
@@ -365,7 +365,7 @@ class DbBinding @Inject()(val dbContext: DbContext)
       .map { case ((targetAtom, _), specLink) => (targetAtom, specLink.map(_._2)) }
 
     execSpecIds.result.map { perAtom =>
-      type Targets = ArrayBuffer[TargetAtom.Type]
+      type Targets = ArrayBuffer[TargetAtom]
       val undetermined = new Targets
       var determined = Map[Long, (ExecutionSpecification, Targets)]()
       perAtom.foreach { case (targetAtom, specLink) =>
@@ -382,13 +382,13 @@ class DbBinding @Inject()(val dbContext: DbContext)
           }
           .getOrElse(
             undetermined
-          ) += targetAtom
+          ) += targetAtom.toModel
       }
       (undetermined.toSet, determined.values.map { case (execSpec, targets) => (execSpec, targets.toSet) })
     }
   }
 
-  def findTargetAtomNotActionableBy(deploymentRequest: DeploymentRequest): Future[Option[TargetAtom.Type]] = {
+  def findTargetAtomNotActionableBy(deploymentRequest: DeploymentRequest): Future[Option[TargetAtom]] = {
     // The given deployment request has a specification for each target atom;
     // once we put aside the possible revert operations on this very deployment request (only),
     // for each target atom, if the last operation has the same specification as this deployment request,
@@ -424,7 +424,7 @@ class DbBinding @Inject()(val dbContext: DbContext)
       }
 
     dbContext.db.run(query.result)
-      .map(_.collectFirst { case (targetAtom, actionable) if !actionable => targetAtom })
+      .map(_.collectFirst { case (targetAtom, actionable) if !actionable => targetAtom.toModel })
   }
 
   def gettingDeploymentStatus(operationTrace: OperationTrace): DBIOAction[DeploymentStatus.Value, NoStream, Effect.Read] =
@@ -486,14 +486,14 @@ class DbBinding @Inject()(val dbContext: DbContext)
     *
     * @return for each target atom, the version assumed to be running (either successfully, failing, or still being deployed)
     */
-  def findCurrentVersionForEachKnownTarget(productName: String, amongAtoms: Iterable[String]): Future[Map[String, Version]] = {
+  def findCurrentVersionForEachKnownTarget(productName: String, amongAtoms: Iterable[TargetAtom]): Future[Map[TargetAtom, Version]] = {
     val allStatuses = targetStatusQuery
       .join(executionQuery)
       .join(operationTraceQuery)
       .join(deploymentRequestQuery)
       .join(productQuery)
       .filter { case ((((ts, ex), op), dr), p) =>
-        ts.targetAtom.inSet(amongAtoms) && ts.code =!= Status.notDone &&
+        ts.targetAtom.inSet(amongAtoms.map(a => a: TargetAtomField)) && ts.code =!= Status.notDone &&
           ts.executionId === ex.id && ex.operationTraceId === op.id &&
           op.deploymentRequestId === dr.id && dr.productId === p.id && p.name === productName
       }
@@ -503,7 +503,7 @@ class DbBinding @Inject()(val dbContext: DbContext)
       latestExecutions(allStatuses)
         .map { case (atom, spec) => (atom, spec.version) }
         .result
-    ).map(_.map { case (k, v) => k -> v.toModel }.toMap)
+    ).map(_.map { case (k, v) => k.toModel -> v.toModel }.toMap)
   }
 
   def hasHadAnEffect(deploymentRequestId: Long): FixedSqlAction[Boolean, NoStream, Effect.Read] =

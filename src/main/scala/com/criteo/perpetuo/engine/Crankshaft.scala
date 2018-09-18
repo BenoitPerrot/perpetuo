@@ -265,7 +265,7 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
   def step(deploymentRequest: DeploymentRequest, operationCount: Option[Int], initiatorName: String, emitEvent: Boolean = true): Future[OperationTrace] = {
     val getSpecifics = fuelFilter.gettingPlanStepToOperateAndLastDoneStep(deploymentRequest, Operation.deploy)
       .flatMap { case (toDo, lastDone) =>
-        val expandedTarget: Option[TargetExpr] = targetResolver.resolveExpression(toDo.deploymentRequest.product.name, toDo.deploymentRequest.version, toDo.parsedTarget)
+        val expandedTarget: Option[Set[TargetAtom]] = targetResolver.resolveExpression(toDo.deploymentRequest.product.name, toDo.deploymentRequest.version, toDo.parsedTarget)
         val isRetry = lastDone.contains(toDo)
         val getOperationSpecifics = if (isRetry) getRetrySpecifics _ else getStepSpecifics _
         getOperationSpecifics(expandedTarget, toDo)
@@ -374,7 +374,7 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
       }
   }
 
-  def deviseRevertPlan(deploymentRequest: DeploymentRequest): Future[(Select, Iterable[(ExecutionSpecification, Select)])] =
+  def deviseRevertPlan(deploymentRequest: DeploymentRequest): Future[(Set[TargetAtom], Iterable[(ExecutionSpecification, Set[TargetAtom])])] =
     dbBinding.dbContext.db.run(
       fuelFilter.rejectingIfLocked(deploymentRequest)
         .andThen(fuelFilter.rejectingIfCannotRevert(deploymentRequest))
@@ -391,11 +391,11 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
         Future.successful(Some(traces))
     }
 
-  def updateExecutionTrace(id: Long, executionState: ExecutionState, detail: String, href: Option[String], statusMap: Map[String, TargetAtomStatus] = Map()): Future[Long] =
+  def updateExecutionTrace(id: Long, executionState: ExecutionState, detail: String, href: Option[String], statusMap: Map[TargetAtom, TargetAtomStatus] = Map()): Future[Long] =
     tryUpdateExecutionTrace(id, executionState, detail, href, statusMap)
       .map(_.getOrElse(throw new IllegalArgumentException(s"Trying to update an execution trace ($id) that doesn't exist")))
 
-  def tryUpdateExecutionTrace(id: Long, executionState: ExecutionState, detail: String, href: Option[String], statusMap: Map[String, TargetAtomStatus] = Map()): Future[Option[Long]] =
+  def tryUpdateExecutionTrace(id: Long, executionState: ExecutionState, detail: String, href: Option[String], statusMap: Map[TargetAtom, TargetAtomStatus] = Map()): Future[Option[Long]] =
     dbBinding.dbContext.db.run(
       dbBinding.findingBranchFromExecutionTraceId(id).flatMap(_
         .map { executionTraceBranch =>
@@ -411,10 +411,10 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
             )
             .map { _ =>
               // Calls listener for target status update
-              statusMap.foreach { case (target, value) =>
+              statusMap.foreach { case (atom, value) =>
                 // todo: check if already the target is in the same state and don't emit an annotation in this case
                 if (value.code != Status.notDone)
-                  listeners.foreach(_.onTargetAtomStatusUpdate(op, target, value))
+                  listeners.foreach(_.onTargetAtomStatusUpdate(op, atom.name, value))
               }
               Some(op.id)
             }
@@ -439,9 +439,9 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
     *                       per set and in sequence until one responds at least a version.
     * @return the majority version of the first reference pool for which a version is found
     */
-  def computeDominantVersion(productName: String, referenceAtoms: Iterable[Iterable[String]]): Future[Option[Version]] = {
+  def computeDominantVersion(productName: String, referenceAtoms: Iterable[Iterable[TargetAtom]]): Future[Option[Version]] = {
     // the fold function to chain the asynchronous queries as long as we get no result
-    def chainQueries(acc: Future[Map[String, Version]], atomsGroup: Iterable[String]) =
+    def chainQueries(acc: Future[Map[TargetAtom, Version]], atomsGroup: Iterable[TargetAtom]) =
       acc.flatMap(lastVersions =>
         if (lastVersions.isEmpty) // run the query below until we get a non-empty result
           dbBinding.findCurrentVersionForEachKnownTarget(productName, atomsGroup)
@@ -450,7 +450,7 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
       )
 
     referenceAtoms
-      .foldLeft(Future.successful(Map[String, Version]()))(chainQueries)
+      .foldLeft(Future.successful(Map[TargetAtom, Version]()))(chainQueries)
       .map { knownVersions =>
         // get the most represented version in that pool
         knownVersions.headOption.map { _ =>
@@ -462,16 +462,16 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
 
   private def getDeploySpecifics(dispatcher: TargetDispatcher,
                                  planStep: DeploymentPlanStep,
-                                 expandedTarget: Option[TargetExpr],
+                                 expandedTarget: Option[Set[TargetAtom]],
                                  executionSpecs: Seq[ExecutionSpecification]): OperationCreationParams = {
 
     val specAndInvocations = executionSpecs.map(spec =>
-      (spec, dispatcher.dispatchExpression(expandedTarget.getOrElse(planStep.parsedTarget), spec.specificParameters).toVector)
+      (spec, dispatcher.dispatchExpression(expandedTarget.map(_.map(_.name)).getOrElse(planStep.parsedTarget), spec.specificParameters).toVector)
     )
     (Operation.deploy, specAndInvocations, expandedTarget)
   }
 
-  private[engine] def getStepSpecifics(expandedTarget: Option[TargetExpr],
+  private[engine] def getStepSpecifics(expandedTarget: Option[Set[TargetAtom]],
                                        planStep: DeploymentPlanStep): DBIOrw[OperationCreationParams] = {
     // generation of specific parameters
     val specificParameters = targetDispatcher.freezeParameters(planStep.deploymentRequest.product.name, planStep.deploymentRequest.version)
@@ -485,7 +485,7 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
     )
   }
 
-  private def getRetrySpecifics(expandedTarget: Option[TargetExpr],
+  private def getRetrySpecifics(expandedTarget: Option[Set[TargetAtom]],
                                 planStep: DeploymentPlanStep): DBIOrw[OperationCreationParams] = {
     // todo: map the right target to the right specification
     dbBinding.findingDeploySpecifications(planStep).map(executionSpecs =>
@@ -515,7 +515,7 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
       }
       .flatMap { groups =>
         val specAndInvocations = groups.map { case (spec, targets) =>
-          (spec, targetDispatcher.dispatchExpression(targets, spec.specificParameters).toVector)
+          (spec, targetDispatcher.dispatchExpression(targets.map(_.name), spec.specificParameters).toVector)
         }
         val atoms = groups.flatMap { case (_, targets) => targets }
         dbBinding.findingOperatedPlanSteps(deploymentRequest).map(steps =>

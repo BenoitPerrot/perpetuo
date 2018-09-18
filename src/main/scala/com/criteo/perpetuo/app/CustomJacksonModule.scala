@@ -1,6 +1,6 @@
 package com.criteo.perpetuo.app
 
-import com.criteo.perpetuo.model.Version
+import com.criteo.perpetuo.model.{TargetAtom, Version}
 import com.fasterxml.jackson.core.JsonGenerator
 import com.fasterxml.jackson.databind.module.SimpleModule
 import com.fasterxml.jackson.databind.ser.std.StdSerializer
@@ -18,6 +18,7 @@ object CustomJacksonModule extends FinatraJacksonModule {
       addSerializer(JsValueSerializer)
       addSerializer(RawJsonSerializer)
       addSerializer(TimestampSerializer)
+      addSerializer(TargetAtomSerializer)
       addSerializer(VersionSerializer)
       addSerializer(EnumSerializer)
     }
@@ -45,6 +46,13 @@ object RawJsonSerializer extends StdSerializer[RawJson](classOf[RawJson]) {
 object TimestampSerializer extends StdSerializer[java.sql.Timestamp](classOf[java.sql.Timestamp]) {
   def serialize(timestamp: java.sql.Timestamp, jgen: JsonGenerator, provider: SerializerProvider) {
     jgen.writeNumber(timestamp.getTime / 1000)
+  }
+}
+
+
+object TargetAtomSerializer extends StdSerializer[TargetAtom](classOf[TargetAtom]) {
+  def serialize(atom: TargetAtom, jgen: JsonGenerator, provider: SerializerProvider) {
+    jgen.writeString(atom.name)
   }
 }
 

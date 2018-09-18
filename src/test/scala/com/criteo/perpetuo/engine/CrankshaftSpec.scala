@@ -29,6 +29,13 @@ class CrankshaftSpec extends SimpleScenarioTesting {
       case Operation.revert => crankshaft.fuelFilter.rejectingIfCannotRevert(deploymentRequest)
     })
 
+  private def findCurrentVersionForEachKnownTarget(productName: String, amongAtoms: Iterable[String]) =
+    crankshaft.dbBinding.findCurrentVersionForEachKnownTarget(productName, amongAtoms.map(TargetAtom))
+      .map(_.map { case (k, v) => k.name -> v })
+
+  private def computeDominantVersion(productName: String, referenceAtoms: Iterable[Iterable[String]]) =
+    crankshaft.computeDominantVersion(productName, referenceAtoms.map(_.map(TargetAtom)))
+
   test("A trivial execution triggers a job with no href when there is no href provided") {
     await(
       for {
@@ -167,11 +174,11 @@ class CrankshaftSpec extends SimpleScenarioTesting {
 
       } yield {
         val specsThird = determinedSpecsThird.map { case (spec, targets) => spec.id -> (spec.version.serialized, targets) }.toMap
-        undeterminedSpecsFirst shouldEqual Set("moon", "mars")
+        undeterminedSpecsFirst.map(_.name) shouldEqual Set("moon", "mars")
         determinedSpecsFirst shouldBe empty
         undeterminedSpecsThird shouldBe empty
-        specsThird(firstExecSpecId) shouldEqual(JsString("27").toString, Set("mars"))
-        specsThird(secondExecSpecId) shouldEqual(JsString("54").toString, Set("moon"))
+        specsThird(firstExecSpecId) shouldEqual(JsString("27").toString, Set(TargetAtom("mars")))
+        specsThird(secondExecSpecId) shouldEqual(JsString("54").toString, Set(TargetAtom("moon")))
       }
     )
   }
@@ -340,20 +347,20 @@ class CrankshaftSpec extends SimpleScenarioTesting {
     mm.step(Status.productFailure)
 
     // projects don't override each other
-    crankshaft.dbBinding.findCurrentVersionForEachKnownTarget("pirate-piranha", Seq("paris", "london", "tokyo")) should
+    findCurrentVersionForEachKnownTarget("pirate-piranha", Seq("paris", "london", "tokyo")) should
       become(Map("london" -> v("0.0.1"), "tokyo" -> v("0.0.1"))) // no "paris"
 
     // if a version failed to start, it still counts as the last deployed version
-    crankshaft.dbBinding.findCurrentVersionForEachKnownTarget("mournful-moray", Seq("london", "paris", "new-york")) should
+    findCurrentVersionForEachKnownTarget("mournful-moray", Seq("london", "paris", "new-york")) should
       become(Map("paris" -> v("v13.eu"), "london" -> v("v13.eu"))) // no "new-york"
 
     // if a version has not been actually deployed on a target (i.e. despite the request, see status `notDone`)
     // it must not be considered as the last deployed version on the target
-    crankshaft.dbBinding.findCurrentVersionForEachKnownTarget("mournful-moray", Seq("tokyo")) should
+    findCurrentVersionForEachKnownTarget("mournful-moray", Seq("tokyo")) should
       become(Map("tokyo" -> v("v13")))
 
     mm.revert("prewar")
-    crankshaft.dbBinding.findCurrentVersionForEachKnownTarget("mournful-moray", Seq("paris", "london", "tokyo", "kuala lumpur")) should
+    findCurrentVersionForEachKnownTarget("mournful-moray", Seq("paris", "london", "tokyo", "kuala lumpur")) should
       become(Map("paris" -> v("v13"), "london" -> v("v13"), "tokyo" -> v("v13"), "kuala lumpur" -> v("prewar")))
   }
 
@@ -376,30 +383,30 @@ class CrankshaftSpec extends SimpleScenarioTesting {
     request("spatial-sparrow", "no-op", Seq("mercury", "earth"))
       .step(Status.notDone)
 
-    crankshaft.computeDominantVersion("spatial-sparrow", Seq(
+    computeDominantVersion("spatial-sparrow", Seq(
       Seq("unknown"))
     ) should become(Option.empty[Version])
 
-    crankshaft.computeDominantVersion("spatial-sparrow", Seq(
+    computeDominantVersion("spatial-sparrow", Seq(
       Seq("sun"))
     ) should become(v("hot-fix"))
 
-    crankshaft.computeDominantVersion("spatial-sparrow", Seq(
+    computeDominantVersion("spatial-sparrow", Seq(
       Seq("sun", "mercury", "venus"), // hot-fix, sunny, sunny
       Seq("jupiter", "saturn", "uranus", "neptune") // cold, cold, cold, cold
     )) should become(v("sunny"))
 
-    crankshaft.computeDominantVersion("spatial-sparrow", Seq(
+    computeDominantVersion("spatial-sparrow", Seq(
       Seq("unknown", "target"), //
       Seq("mercury", "venus"), // sunny, sunny
       Seq("jupiter", "saturn", "uranus", "neptune") // cold, cold, cold, cold
     )) should become(v("sunny"))
 
-    crankshaft.computeDominantVersion("spatial-sparrow", Seq(
+    computeDominantVersion("spatial-sparrow", Seq(
       Seq("moon")
     )) should become(v("big-bang"))
 
-    crankshaft.computeDominantVersion("spatial-sparrow", Seq(
+    computeDominantVersion("spatial-sparrow", Seq(
       Seq("earth", "mars", "uranus"), // sunny (from revert), sunny (from revert), cold
       Seq("jupiter", "saturn", "neptune") // cold, cold, cold
     )) should become(v("sunny"))
@@ -432,7 +439,8 @@ class CrankshaftWithMultiStepSpec extends SimpleScenarioTesting {
   private val step2 = Set("east", "west")
 
   private def getDeployedVersions(productName: String) =
-    crankshaft.dbBinding.findCurrentVersionForEachKnownTarget(productName, step1 ++ step2).map(_.mapValues(_.structured.head.value))
+    crankshaft.dbBinding.findCurrentVersionForEachKnownTarget(productName, (step1 ++ step2).map(TargetAtom))
+      .map(_.map{ case (k, v) => k.name -> v.structured.head.value })
 
   test("Crankshaft can retry the first step if it's failing and revert it") {
     val r = request("enormous-elephant", "new", step1, step2)

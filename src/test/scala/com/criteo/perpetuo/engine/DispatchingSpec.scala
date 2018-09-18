@@ -44,9 +44,9 @@ class DispatchingSpec extends SimpleScenarioTesting {
   override lazy val targetDispatcher: TargetDispatcher = TestTargetDispatcher
 
   private val testResolver = new TargetResolver {
-    override def toAtoms(productName: String, productVersion: Version, targetWords: Select): Option[Map[String, Select]] = {
+    override def toAtoms(productName: String, productVersion: Version, targetWords: Select): Option[Map[String, Set[TargetAtom]]] = {
       // the atomic targets are the input word split on dashes
-      Some(targetWords.map(word => word -> word.split("-").filter(_.nonEmpty).toSet).toMap)
+      Some(targetWords.map(word => word -> word.split("-").collect { case name if name.nonEmpty => TargetAtom(name) }.toSet).toMap)
     }
   }
 

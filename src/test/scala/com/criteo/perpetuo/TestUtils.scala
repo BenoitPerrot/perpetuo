@@ -4,7 +4,7 @@ import com.criteo.perpetuo.config.{AppConfigProvider, PluginLoader, Plugins}
 import com.criteo.perpetuo.dao.{DbBinding, DbContext, DbContextProvider, TestingDbContextModule}
 import com.criteo.perpetuo.engine.dispatchers.{SingleTargetDispatcher, TargetDispatcher}
 import com.criteo.perpetuo.engine.executors.{ExecutionTrigger, TriggeredExecutionFinder}
-import com.criteo.perpetuo.engine.{Crankshaft, DeployFailed, DeployFlopped, DeployInProgress, Deployed, NotStarted, Outdated, Paused, RevertFailed, RevertInProgress, Reverted, TargetExpr, UnavailableAction}
+import com.criteo.perpetuo.engine.{Crankshaft, DeployFailed, DeployFlopped, Deployed, NotStarted, Outdated, Paused, RevertFailed, Reverted, TargetExpr, UnavailableAction}
 import com.criteo.perpetuo.model._
 import com.twitter.inject.Test
 import org.mockito.Matchers._
@@ -62,8 +62,8 @@ trait SimpleScenarioTesting extends TestHelpers with TestDb with MockitoSugar {
 
   protected def triggerMock: Option[String] = None
 
-  def findTargetsByExecution(executionId: Long): Future[Seq[String]] =
-    dbContext.db.run(dbBinding.targetStatusQuery.filter(_.executionId === executionId).map(_.targetAtom).result)
+  def findTargetsByExecution(executionId: Long): Future[Seq[TargetAtom]] =
+    dbContext.db.run(dbBinding.targetStatusQuery.filter(_.executionId === executionId).map(_.targetAtom).result.map(_.map(_.toModel)))
 
   def closeOperation(operationTrace: OperationTrace, targetFinalStatus: Map[String, Status.Code] = Map()): Future[Seq[Long]] =
     tryCloseOperation(operationTrace, targetFinalStatus).map(
@@ -78,8 +78,8 @@ trait SimpleScenarioTesting extends TestHelpers with TestDb with MockitoSugar {
           findTargetsByExecution(executionId)
             .map(targets => targets
               .headOption
-              .map(_ => targets.map(target => target -> targetFinalStatus.getOrElse(target, Status.success)).toMap)
-              .getOrElse(targetFinalStatus)
+              .map(_ => targets.map(target => target -> targetFinalStatus.getOrElse(target.name, Status.success)).toMap)
+              .getOrElse(targetFinalStatus.map { case (k, v) => TargetAtom(k) -> v })
             )
             .zip(crankshaft.dbBinding.findExecutionTraceIdsByExecution(executionId))
             .flatMap { case (statuses, executionTraceIds) =>

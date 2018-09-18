@@ -27,6 +27,11 @@ class TargetStatusSpec
       _.map(status => s"${status.targetAtom}: ${status.code} (${status.detail})").toList.sorted.mkString(", ")
     )
 
+  private def updateTargetStatuses(executionId: Long, statusMap: Map[String, (Status.Code, String)]) =
+    dbContext.db.run(updatingTargetStatuses(executionId, statusMap.map { case (k, (s, d)) =>
+      TargetAtom(k) -> TargetAtomStatus(s, d)
+    }))
+
   test("Target statuses can be inserted and retrieved") {
     await(
       for {
@@ -36,8 +41,9 @@ class TargetStatusSpec
         deployOperationTrace <- dbContext.db.run(insertOperationTrace(request, Operation.deploy, "n.armstrong"))
         execSpec <- insertExecutionSpecification("{}", Version("\"456\""))
         execId <- dbContext.db.run(insertExecution(deployOperationTrace.id, execSpec.id))
-        _ <- dbContext.db.run(updatingTargetStatuses(execId, Map(
-          "Moon" -> TargetAtomStatus(Status.hostFailure, "Houston, we've got a problem"))))
+        _ <- updateTargetStatuses(execId, Map(
+          "Moon" -> (Status.hostFailure, "Houston, we've got a problem")
+        ))
         targetStatuses <- readStatuses
         nbStatuses <- dbContext.db.run(targetStatusQuery.filter(_.executionId === execId).length.result)
       } yield {
@@ -57,15 +63,18 @@ class TargetStatusSpec
         execSpec <- insertExecutionSpecification("{}", Version("\"0\""))
         execId <- dbContext.db.run(insertExecution(deployOperationTrace.id, execSpec.id))
         statuses1 <- readStatuses
-        _ <- dbContext.db.run(updatingTargetStatuses(execId, Map(
-          "West" -> TargetAtomStatus(Status.running, "confident"))))
+        _ <- updateTargetStatuses(execId, Map(
+          "West" -> (Status.running, "confident")
+        ))
         statuses2 <- readStatuses
-        _ <- dbContext.db.run(updatingTargetStatuses(execId, Map(
-          "West" -> TargetAtomStatus(Status.productFailure, "crashing"),
-          "East" -> TargetAtomStatus(Status.running, "starting"))))
+        _ <- updateTargetStatuses(execId, Map(
+          "West" -> (Status.productFailure, "crashing"),
+          "East" -> (Status.running, "starting")
+        ))
         statuses3 <- readStatuses
-        _ <- dbContext.db.run(updatingTargetStatuses(execId, Map(
-          "East" -> TargetAtomStatus(Status.running, "soaring"))))
+        _ <- updateTargetStatuses(execId, Map(
+          "East" -> (Status.running, "soaring")
+        ))
         statuses4 <- readStatuses
       } yield {
         statuses1 shouldEqual ""

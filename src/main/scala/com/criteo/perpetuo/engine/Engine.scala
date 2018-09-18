@@ -36,7 +36,7 @@ class Engine @Inject()(val crankshaft: Crankshaft,
       crankshaft.step(deploymentRequest, operationCount, user.name)
     }
 
-  def deviseRevertPlan(id: Long): Future[Option[(Select, Iterable[(ExecutionSpecification, Select)])]] =
+  def deviseRevertPlan(id: Long): Future[Option[(Set[TargetAtom], Iterable[(ExecutionSpecification, Set[TargetAtom])])]] =
     withDeploymentRequest(id)(crankshaft.deviseRevertPlan)
 
   def revert(user: User, deploymentRequestId: Long, operationCount: Option[Int], defaultVersion: Option[Version]): Future[Option[OperationTrace]] =
@@ -110,7 +110,7 @@ class Engine @Inject()(val crankshaft: Crankshaft,
   def findExecutionTracesByDeploymentRequest(deploymentRequestId: Long): Future[Option[Seq[ShallowExecutionTrace]]] =
     crankshaft.findExecutionTracesByDeploymentRequest(deploymentRequestId)
 
-  def tryUpdateExecutionTrace(id: Long, executionState: ExecutionState, detail: String, href: Option[String], statusMap: Map[String, TargetAtomStatus] = Map()): Future[Option[Long]] =
+  def tryUpdateExecutionTrace(id: Long, executionState: ExecutionState, detail: String, href: Option[String], statusMap: Map[TargetAtom, TargetAtomStatus] = Map()): Future[Option[Long]] =
     crankshaft.tryUpdateExecutionTrace(id, executionState, detail, href, statusMap)
 
   def getProducts: Future[Seq[Product]] =

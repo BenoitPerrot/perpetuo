@@ -3,16 +3,15 @@ package com.criteo.perpetuo.dao
 import com.criteo.perpetuo.model.{Status, TargetAtom, TargetAtomStatus, TargetStatus}
 
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.Future
 import scala.util.{Failure, Success}
 
 
 private[dao] case class TargetStatusRecord(executionId: Long,
-                                           targetAtom: String,
+                                           targetAtom: TargetAtomField,
                                            code: Status.Code,
                                            detail: Comment) {
   def toTargetStatus: TargetStatus =
-    TargetStatus(targetAtom, code, detail.toString)
+    TargetStatus(targetAtom.toModel, code, detail.toString)
 }
 
 
@@ -28,10 +27,13 @@ trait TargetStatusBinder extends TableBinder {
 
   class TargetStatusTable(tag: Tag) extends Table[TargetStatusRecord](tag, "target_status") {
     def executionId = column[Long]("execution_id")
+
     protected def fk = foreignKey(executionId, executionQuery)(_.id)
 
-    def targetAtom = column[TargetAtom.Type]("target", O.SqlType(s"nvarchar(${TargetAtom.maxSize})"))
+    def targetAtom = nvarchar[TargetAtomField]("target")
+
     def code = column[Status.Code]("code")
+
     def detail = nvarchar[Comment]("detail")
 
     protected def pk = primaryKey((targetAtom, executionId))
@@ -50,16 +52,17 @@ trait TargetStatusBinder extends TableBinder {
     * considered independent so this function must apply as many changes as possible in order for the next client's
     * attempts to have a chance to succeed.
     */
-  def updatingTargetStatuses(executionId: Long, statusMap: Map[String, TargetAtomStatus]): DBIOrw[Unit] = {
+  def updatingTargetStatuses(executionId: Long, statusMap: Map[TargetAtom, TargetAtomStatus]): DBIOrw[Unit] = {
+    val atomToStatus = statusMap.map { case (k, v) => (k: TargetAtomField) -> v }
     targetStatusQuery
       // first look at what is already created (nothing is ever removed) in order to
       // decrease the size of the following chain of inserts and updates (which can be costly)
-      .filter(ts => ts.executionId === executionId && ts.targetAtom.inSet(statusMap.keySet))
+      .filter(ts => ts.executionId === executionId && ts.targetAtom.inSet(atomToStatus.keySet))
       .result
       .map { currentRecords =>
         // todo: take the status code "precedence" into account in order to reject impossible transitions, once DREDD-725 is implemented
         val (same, different) = currentRecords.partition { currentRecord =>
-          val askedStatus = statusMap(currentRecord.targetAtom)
+          val askedStatus = atomToStatus(currentRecord.targetAtom)
           // look at the records that are up-to-date as of now, so we won't touch them at all
           currentRecord.code == askedStatus.code && currentRecord.detail.toString == askedStatus.detail
         }
@@ -67,9 +70,9 @@ trait TargetStatusBinder extends TableBinder {
       }
       .flatMap { case (same, different) =>
         val alreadyCreated = (same.toStream ++ different).toSet
-        val toUpdate = Iterable.newBuilder[String] ++= different
+        val toUpdate = Iterable.newBuilder[TargetAtomField] ++= different
         DBIO.sequence(
-          statusMap.toStream.collect { case (atom, status) if !alreadyCreated(atom) =>
+          atomToStatus.toStream.collect { case (atom, status) if !alreadyCreated(atom) =>
             // try to create missing atoms
             (targetStatusQuery += TargetStatusRecord(executionId, atom, status.code, status.detail)).asTry.map {
               case Success(_) => ()
@@ -80,7 +83,7 @@ trait TargetStatusBinder extends TableBinder {
           toUpdate
             .result
             // for efficiency purpose, try to chain as less requests as possible by gathering the atoms sharing the same status
-            .groupBy(statusMap)
+            .groupBy(atomToStatus)
             .map { case (TargetAtomStatus(newCode, newDetail), atomsToUpdate) =>
               targetStatusQuery
                 .filter(ts => ts.executionId === executionId && ts.targetAtom.inSet(atomsToUpdate)) // we could reject impossible transitions here too but it's not that important: see below

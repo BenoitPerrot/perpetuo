@@ -1,6 +1,6 @@
 package com.criteo.perpetuo
 
-import com.criteo.perpetuo.model.Version
+import com.criteo.perpetuo.model.{TargetAtom, Version}
 import slick.dbio.{DBIOAction, Effect, NoStream}
 
 import scala.language.implicitConversions
@@ -21,6 +21,16 @@ package object dao {
 
     override def isTruncatable = true
   }
+
+  implicit class TargetAtomField(val input: String) extends AnyVal with StringInput {
+    override def maxLength = 128
+
+    def toModel: TargetAtom = TargetAtom(input)
+  }
+
+  implicit def fromModelToDao(atom: TargetAtom): TargetAtomField = TargetAtomField(atom.name)
+
+  val targetAtomMaxLength: Int = maxLength[TargetAtomField]
 
   implicit class VersionField(val input: String) extends AnyVal with StringInput {
     override def maxLength: Int = 1024
