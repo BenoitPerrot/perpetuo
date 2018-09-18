@@ -41,9 +41,6 @@ trait TargetStatusBinder extends TableBinder {
 
   val targetStatusQuery: TableQuery[TargetStatusTable] = TableQuery[TargetStatusTable]
 
-  def findTargetsByExecution(executionId: Long): Future[Seq[String]] =
-    dbContext.db.run(targetStatusQuery.filter(_.executionId === executionId).map(_.targetAtom).result)
-
   /**
     * Hard-core implementation of a SQL bulk and transaction-free insert-or-update.
     * - The base idea is that the state machine describing the target statuses and their transitions is acyclic

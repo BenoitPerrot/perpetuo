@@ -41,6 +41,9 @@ trait TestHelpers extends Test {
 
 
 trait SimpleScenarioTesting extends TestHelpers with TestDb with MockitoSugar {
+
+  import dbContext.profile.api._
+
   private val knownProducts = mutable.Set[String]()
   private val loader = new PluginLoader(null)
   private val executionTrigger: ExecutionTrigger = mock[ExecutionTrigger]
@@ -59,6 +62,9 @@ trait SimpleScenarioTesting extends TestHelpers with TestDb with MockitoSugar {
 
   protected def triggerMock: Option[String] = None
 
+  def findTargetsByExecution(executionId: Long): Future[Seq[String]] =
+    dbContext.db.run(dbBinding.targetStatusQuery.filter(_.executionId === executionId).map(_.targetAtom).result)
+
   def closeOperation(operationTrace: OperationTrace, targetFinalStatus: Map[String, Status.Code] = Map()): Future[Seq[Long]] =
     tryCloseOperation(operationTrace, targetFinalStatus).map(
       _.map(_.getOrElse(throw UnavailableAction("An execution could not be updated: impossible transition")))
@@ -69,7 +75,7 @@ trait SimpleScenarioTesting extends TestHelpers with TestDb with MockitoSugar {
     crankshaft.dbBinding.findExecutionIdsByOperationTrace(operationTrace.id)
       .flatMap(executionIds =>
         Future.traverse(executionIds)(executionId =>
-          crankshaft.dbBinding.findTargetsByExecution(executionId)
+          findTargetsByExecution(executionId)
             .map(targets => targets
               .headOption
               .map(_ => targets.map(target => target -> targetFinalStatus.getOrElse(target, Status.success)).toMap)

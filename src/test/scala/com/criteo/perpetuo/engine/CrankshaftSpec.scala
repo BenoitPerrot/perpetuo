@@ -569,7 +569,7 @@ class CrankshaftWithStopperSpec extends SimpleScenarioTesting {
       crankshaft.dbBinding.findExecutionIdsByOperationTrace(op.id)
         .flatMap { executionIds =>
           val executionId = executionIds.head // only update the first execution (out of the 2 triggered by the revert)
-          crankshaft.dbBinding.findTargetsByExecution(executionId).flatMap(atoms =>
+          findTargetsByExecution(executionId).flatMap(atoms =>
             crankshaft.dbBinding.findExecutionTraceIdsByExecution(executionId).flatMap(executionTraceIds =>
               Future.traverse(executionTraceIds)(executionTraceId =>
                 crankshaft.updateExecutionTrace(
@@ -642,7 +642,7 @@ class CrankshaftWithUncontrollableTriggeredExecutionSpec extends SimpleScenarioT
       crankshaft.dbBinding.findExecutionIdsByOperationTrace(op.id)
         .flatMap { executionIds =>
           val executionId = executionIds.head // only update the first execution (out of the 2 triggered by the revert)
-          crankshaft.dbBinding.findTargetsByExecution(executionId).flatMap(atoms =>
+          findTargetsByExecution(executionId).flatMap(atoms =>
             crankshaft.dbBinding.findExecutionTraceIdsByExecution(executionId).flatMap(executionTraceIds =>
               Future.traverse(executionTraceIds)(executionTraceId =>
                 crankshaft.updateExecutionTrace(
