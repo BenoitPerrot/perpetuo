@@ -34,7 +34,10 @@ class CrankshaftSpec extends SimpleScenarioTesting {
       .map(_.map { case (k, v) => k.name -> v })
 
   private def computeDominantVersion(productName: String, referenceAtoms: Iterable[Iterable[String]]) =
-    crankshaft.computeDominantVersion(productName, referenceAtoms.map(_.map(TargetAtom)))
+    crankshaft.computeDominantVersion(productName, referenceAtoms.map(_.map(TargetAtom))).map(_.map { version =>
+      val v :: Nil = version.structured
+      v.value
+    })
 
   test("A trivial execution triggers a job with no href when there is no href provided") {
     await(
@@ -365,8 +368,6 @@ class CrankshaftSpec extends SimpleScenarioTesting {
   }
 
   test("Crankshaft computes the dominant version when given an ordered sequence of reference pools") {
-    def v(versionName: String): Option[Version] = Some(Version(JsString(versionName)))
-
     request("spatial-sparrow", "hot-fix", Seq("sun"))
       .step()
     request("side-siberian", "universal", Seq("sun", "earth", "saturn", "proxima"))
@@ -385,31 +386,31 @@ class CrankshaftSpec extends SimpleScenarioTesting {
 
     computeDominantVersion("spatial-sparrow", Seq(
       Seq("unknown"))
-    ) should become(Option.empty[Version])
+    ) should become[Option[String]](None)
 
     computeDominantVersion("spatial-sparrow", Seq(
       Seq("sun"))
-    ) should become(v("hot-fix"))
+    ) should become[Option[String]](Some("hot-fix"))
 
     computeDominantVersion("spatial-sparrow", Seq(
       Seq("sun", "mercury", "venus"), // hot-fix, sunny, sunny
       Seq("jupiter", "saturn", "uranus", "neptune") // cold, cold, cold, cold
-    )) should become(v("sunny"))
+    )) should become[Option[String]](Some("sunny"))
 
     computeDominantVersion("spatial-sparrow", Seq(
       Seq("unknown", "target"), //
       Seq("mercury", "venus"), // sunny, sunny
       Seq("jupiter", "saturn", "uranus", "neptune") // cold, cold, cold, cold
-    )) should become(v("sunny"))
+    )) should become[Option[String]](Some("sunny"))
 
     computeDominantVersion("spatial-sparrow", Seq(
       Seq("moon")
-    )) should become(v("big-bang"))
+    )) should become[Option[String]](Some("big-bang"))
 
     computeDominantVersion("spatial-sparrow", Seq(
       Seq("earth", "mars", "uranus"), // sunny (from revert), sunny (from revert), cold
       Seq("jupiter", "saturn", "neptune") // cold, cold, cold
-    )) should become(v("sunny"))
+    )) should become[Option[String]](Some("sunny"))
   }
 }
 
