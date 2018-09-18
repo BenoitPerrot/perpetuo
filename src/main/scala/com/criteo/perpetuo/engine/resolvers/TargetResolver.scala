@@ -1,7 +1,7 @@
 package com.criteo.perpetuo.engine.resolvers
 
 import com.criteo.perpetuo.dao
-import com.criteo.perpetuo.engine.{Provider, Select, TargetExpr, UnprocessableIntent}
+import com.criteo.perpetuo.engine.{Provider, TargetExpr, UnprocessableIntent}
 import com.criteo.perpetuo.model.{TargetAtom, Version}
 
 
@@ -27,14 +27,14 @@ trait TargetResolver extends Provider[TargetResolver] {
     *         product and version;
     *         - None if it's NOT CERTAIN that ANY TARGET can be resolved to atoms for the given product.
     */
-  def toAtoms(productName: String, productVersion: Version, targetWords: Select): Option[Map[String, Set[TargetAtom]]] = None
+  def toAtoms(productName: String, productVersion: Version, targetExpr: TargetExpr): Option[Map[String, Set[TargetAtom]]] = None
 
-  def resolveExpression(productName: String, productVersion: Version, target: TargetExpr): Option[Set[TargetAtom]] = {
-    toAtoms(productName, productVersion, target).map { toAtoms =>
+  def resolveExpression(productName: String, productVersion: Version, targetExpr: TargetExpr): Option[Set[TargetAtom]] = {
+    toAtoms(productName, productVersion, targetExpr).map { toAtoms =>
       val resolvedTerms = toAtoms.keySet
-      if (!resolvedTerms.subsetOf(target))
+      if (!resolvedTerms.subsetOf(targetExpr))
         throw new RuntimeException("The resolver augmented the original intent, which is forbidden. The targets introduced by the resolver are: " +
-          (resolvedTerms -- target).map(_.toString).mkString(", "))
+          (resolvedTerms -- targetExpr).map(_.toString).mkString(", "))
 
       val emptyWords = toAtoms.flatMap {
         case (_, atoms) if atoms.nonEmpty =>
@@ -43,11 +43,11 @@ trait TargetResolver extends Provider[TargetResolver] {
         case (word, _) =>
           Some(word)
       }
-      if (emptyWords.nonEmpty || resolvedTerms.size != target.size)
+      if (emptyWords.nonEmpty || resolvedTerms.size != targetExpr.size)
         throw UnprocessableIntent("The following target(s) were not resolved: " +
-          (emptyWords.iterator ++ (target -- resolvedTerms)).map(_.toString).mkString(", "))
+          (emptyWords.iterator ++ (targetExpr -- resolvedTerms)).map(_.toString).mkString(", "))
 
-      target.flatMap(toAtoms)
+      targetExpr.flatMap(toAtoms)
     }
   }
 }

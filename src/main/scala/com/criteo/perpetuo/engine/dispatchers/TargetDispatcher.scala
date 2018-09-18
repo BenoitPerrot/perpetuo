@@ -1,7 +1,7 @@
 package com.criteo.perpetuo.engine.dispatchers
 
 import com.criteo.perpetuo.engine.executors.ExecutionTrigger
-import com.criteo.perpetuo.engine.{Provider, Select, TargetExpr, UnprocessableIntent}
+import com.criteo.perpetuo.engine.{Provider, TargetExpr, UnprocessableIntent}
 import com.criteo.perpetuo.model.Version
 
 
@@ -32,7 +32,7 @@ trait TargetDispatcher extends Provider[TargetDispatcher] with ParameterFreezer 
       .toStream
       .filter { case (_, select) => select.nonEmpty }
 
-    val flattened: Select = dispatched.map { case (_, group) => group }.foldLeft(Stream.empty[String])(_ ++ _).toSet
+    val flattened: TargetExpr = dispatched.map { case (_, group) => group }.foldLeft(Stream.empty[String])(_ ++ _).toSet
 
     // check that we have the same targets before and after the dispatch (but one can be dispatched in several groups)
     if (!flattened.subsetOf(targetExpr))

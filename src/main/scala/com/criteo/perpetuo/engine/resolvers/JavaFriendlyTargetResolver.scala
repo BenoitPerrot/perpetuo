@@ -15,8 +15,8 @@ abstract class JavaFriendlyTargetResolver extends Provider[TargetResolver] with 
     val delegate = this
 
     new TargetResolver {
-      override def toAtoms(productName: String, productVersion: Version, targetWords: Select): Option[Map[String, Set[TargetAtom]]] =
-        Option(delegate.toAtoms(productName, productVersion, targetWords.asJava)).map(_.iterateAsScala.toMap)
+      override def toAtoms(productName: String, productVersion: Version, targetExpr: TargetExpr): Option[Map[String, Set[TargetAtom]]] =
+        Option(delegate.toAtoms(productName, productVersion, targetExpr.asJava)).map(_.iterateAsScala.toMap)
     }
   }
 

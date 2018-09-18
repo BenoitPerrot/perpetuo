@@ -10,9 +10,7 @@ import scala.collection.JavaConverters._
 
 
 package object engine {
-  type Select = Set[String]
-  type TargetExpr = Select
-  type TargetTerm = Select // todo: remove the aliases (type migration)
+  type TargetExpr = Set[String]
 
 
   implicit class TargetGroups[A, B](javaTargetGroups: JavaMap[A, JavaIterable[B]]) {
