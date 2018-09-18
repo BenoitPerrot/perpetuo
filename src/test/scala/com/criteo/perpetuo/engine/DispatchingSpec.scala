@@ -99,7 +99,7 @@ class DispatchingSpec extends SimpleScenarioTesting {
   test("An execution raises if a target is not fully covered by executors") {
     val params = TestTargetDispatcher.freezeParameters("", Version(""""42""""))
     val thrown = the[UnprocessableIntent] thrownBy TestTargetDispatcher.dispatchExpression(Set("def"), params)
-    thrown.getMessage shouldEqual "The following target(s) were not resolved: def"
+    thrown.getMessage shouldEqual "The following target(s) were not dispatched: def"
   }
 
   private def assertEqual(challenger: Any, expected: Any, path: String = "root"): Unit = {

@@ -32,7 +32,7 @@ trait TargetResolver extends Provider[TargetResolver] {
     toAtoms(productName, productVersion, target).map { toAtoms =>
       val resolvedTerms = toAtoms.keySet
       if (!resolvedTerms.subsetOf(target))
-        throw new RuntimeException("The resolver augmented the original intent, which is forbidden. The targets introduced after dispatching are: " +
+        throw new RuntimeException("The resolver augmented the original intent, which is forbidden. The targets introduced by the resolver are: " +
           (resolvedTerms -- target).map(_.toString).mkString(", "))
 
       val emptyWords = toAtoms.flatMap {
