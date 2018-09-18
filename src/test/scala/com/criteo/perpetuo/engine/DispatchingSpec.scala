@@ -22,10 +22,10 @@ object TestTargetDispatcher extends TargetDispatcher {
 
   override def freezeParameters(productName: String, version: Version): String = "foobar"
 
-  override def dispatch(targetAtoms: Select, frozenParameters: String): Iterable[(ExecutionTrigger, Select)] = {
+  override def dispatch(targetExpr: TargetExpr, frozenParameters: String): Iterable[(ExecutionTrigger, TargetExpr)] = {
     assert(frozenParameters == "foobar")
     // associate executors to target words wrt the each target word's characters
-    targetAtoms.flatMap { targetAtom =>
+    targetExpr.flatMap { targetAtom =>
       targetAtom.flatMap {
         case 'a' => Some(aTrigger)
         case 'b' => Some(bTrigger)

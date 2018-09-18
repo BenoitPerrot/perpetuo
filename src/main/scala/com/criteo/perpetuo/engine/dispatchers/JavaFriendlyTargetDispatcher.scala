@@ -19,10 +19,10 @@ abstract class JavaFriendlyTargetDispatcher extends Provider[TargetDispatcher] w
       override def freezeParameters(productName: String, version: Version): String =
         delegate.freezeParameters(productName, version)
 
-      override def dispatch(targetAtoms: Select, frozenParameters: String): Iterable[(ExecutionTrigger, Select)] =
-        delegate.dispatch(targetAtoms.asJava, frozenParameters).iterateAsScala.toIterable
+      override def dispatch(targetExpr: TargetExpr, frozenParameters: String): Iterable[(ExecutionTrigger, TargetExpr)] =
+        delegate.dispatch(targetExpr.asJava, frozenParameters).iterateAsScala.toIterable
     }
   }
 
-  protected def dispatch(targetAtoms: JavaSet[String], frozenParameters: String): JavaMap[ExecutionTrigger, JavaIterable[String]]
+  protected def dispatch(targetExpr: JavaSet[String], frozenParameters: String): JavaMap[ExecutionTrigger, JavaIterable[String]]
 }
