@@ -3,8 +3,6 @@ package com.criteo.perpetuo.engine.dispatchers
 import com.criteo.perpetuo.engine.executors.ExecutionTrigger
 import com.criteo.perpetuo.engine.{Provider, Select, TargetExpr, UnprocessableIntent}
 import com.criteo.perpetuo.model.Version
-import spray.json.DefaultJsonProtocol._
-import spray.json._
 
 
 trait ParameterFreezer {
@@ -27,35 +25,22 @@ trait TargetDispatcher extends Provider[TargetDispatcher] with ParameterFreezer 
     * @return all the provided target atoms grouped by their dedicated executors
     * @throws NoAvailableExecutor if a target could not be dispatched
     */
-  def dispatch(targetAtoms: Select, frozenParameters: String): Iterable[(ExecutionTrigger, Select)]
+  def dispatch(targetExpr: TargetExpr, frozenParameters: String): Iterable[(ExecutionTrigger, TargetExpr)]
 
-  def dispatchExpression(expandedTarget: TargetExpr, frozenParameters: String): Iterable[(ExecutionTrigger, TargetExpr)] =
-    dispatchAlternatives(expandedTarget, frozenParameters).map {
-      // return the shortest target expression for the executor
-      case (executor, expressions) => (executor, expressions.minBy(_.toJson.compactPrint.length))
-    }
-
-  private[engine] def dispatchAlternatives(expandedTarget: TargetExpr, frozenParameters: String): Iterable[(ExecutionTrigger, Set[TargetExpr])] = {
-    // infer only once for all unique targets the executors required for each target word
-    dispatchToExecutors(expandedTarget, frozenParameters).map { case (executor, select) =>
-      (executor, Set(select)) // fixme: change the return type to reflect that there is only one select now
-    }
-  }
-
-  private[engine] def dispatchToExecutors(targetAtoms: Select, frozenParameters: String) = {
-    val dispatched = dispatch(targetAtoms, frozenParameters)
+  def dispatchExpression(targetExpr: TargetExpr, frozenParameters: String): Iterable[(ExecutionTrigger, TargetExpr)] = {
+    val dispatched = dispatch(targetExpr, frozenParameters)
       .toStream
       .filter { case (_, select) => select.nonEmpty }
 
     val flattened: Select = dispatched.map { case (_, group) => group }.foldLeft(Stream.empty[String])(_ ++ _).toSet
 
     // check that we have the same targets before and after the dispatch (but one can be dispatched in several groups)
-    if (!flattened.subsetOf(targetAtoms))
+    if (!flattened.subsetOf(targetExpr))
       throw new RuntimeException("The dispatcher augmented the original intent, which is forbidden. The targets introduced after dispatching are: " +
-        (flattened -- targetAtoms).map(_.toString).mkString(", "))
-    if (flattened.size != targetAtoms.size)
+        (flattened -- targetExpr).map(_.toString).mkString(", "))
+    if (flattened.size != targetExpr.size)
       throw UnprocessableIntent("The following target(s) were not resolved: " +
-        (targetAtoms -- flattened).map(_.toString).mkString(", "))
+        (targetExpr -- flattened).map(_.toString).mkString(", "))
 
     dispatched
   }
