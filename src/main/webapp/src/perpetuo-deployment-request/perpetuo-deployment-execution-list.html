@@ -51,8 +51,8 @@
           <tr>
             <td>
               [[humanReadable(item.state)]]
-              <template is="dom-if" if="[[item.logHref]]">
-                (<a href$="[[item.logHref]]">technical logs</a>)
+              <template is="dom-if" if="[[item.href]]">
+                (<a href$="[[item.href]]">technical logs</a>)
               </template>
             </td>
             <td>
