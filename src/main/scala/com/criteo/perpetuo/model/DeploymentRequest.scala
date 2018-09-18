@@ -1,16 +1,5 @@
 package com.criteo.perpetuo.model
 
-import com.criteo.perpetuo.engine.TargetExpr
-
-import scala.collection.JavaConverters._
-
-
-object Target {
-  def getSimpleSelect(target: TargetExpr): Iterable[String] = target.flatMap(_.select)
-
-  def getSimpleSelectForGroovy(target: TargetExpr): java.util.Set[String] = target.flatMap(_.select).asJava
-}
-
 
 case class ProtoDeploymentRequest(productName: String,
                                   version: Version,

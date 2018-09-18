@@ -2,7 +2,7 @@ package com.criteo.perpetuo.engine
 
 import com.criteo.perpetuo.dao.{DBIOrw, DbBinding}
 import com.criteo.perpetuo.engine.dispatchers.TargetDispatcher
-import com.criteo.perpetuo.engine.executors.{ExecutionTrigger, TriggeredExecutionFinder}
+import com.criteo.perpetuo.engine.executors.TriggeredExecutionFinder
 import com.criteo.perpetuo.engine.resolvers.TargetResolver
 import com.criteo.perpetuo.model.ExecutionState.ExecutionState
 import com.criteo.perpetuo.model._
@@ -468,7 +468,7 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
     val specAndInvocations = executionSpecs.map(spec =>
       (spec, dispatcher.dispatchExpression(expandedTarget.getOrElse(planStep.parsedTarget), spec.specificParameters).toVector)
     )
-    (Operation.deploy, specAndInvocations, expandedTarget.map(_.flatMap(_.select)))
+    (Operation.deploy, specAndInvocations, expandedTarget)
   }
 
   private[engine] def getStepSpecifics(expandedTarget: Option[TargetExpr],
@@ -515,7 +515,7 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
       }
       .flatMap { groups =>
         val specAndInvocations = groups.map { case (spec, targets) =>
-          (spec, targetDispatcher.dispatchExpression(Set(TargetTerm(select = targets)), spec.specificParameters).toVector)
+          (spec, targetDispatcher.dispatchExpression(targets, spec.specificParameters).toVector)
         }
         val atoms = groups.flatMap { case (_, targets) => targets }
         dbBinding.findingOperatedPlanSteps(deploymentRequest).map(steps =>

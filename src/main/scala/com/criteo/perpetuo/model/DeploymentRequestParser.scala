@@ -1,6 +1,6 @@
 package com.criteo.perpetuo.model
 
-import com.criteo.perpetuo.engine.{Tactics, TargetExpr, TargetTerm}
+import com.criteo.perpetuo.engine.TargetExpr
 import com.criteo.perpetuo.util.json.JsObjectScanner
 import spray.json.JsonParser.ParsingException
 import spray.json._
@@ -31,51 +31,16 @@ object DeploymentRequestParser {
       case unknown => throw new ParsingException(s"Expected a JSON object as request body, got: $unknown")
     }
 
-  private val tacticsKey = "tactics"
-  private val selectKey = "select"
-
   def parseTargetExpression(target: JsValue): TargetExpr = {
-    val whereTacticsIsOptional: Set[(Option[Tactics], Set[JsString])] = target match {
-      case jsString: JsString => Set((None, Set(jsString)))
+    target match {
+      case JsString(string) if string.nonEmpty => Set(string)
       case JsArray(arr) if arr.nonEmpty => arr.map {
-        case jsString: JsString => (None, Set(jsString))
-        case JsObject(obj) => parseTargetTerm(obj)
-        case unknown => throw new ParsingException(s"Expected a JSON object or string in the `target` array, got: $unknown")
+        case JsString(string) if string.nonEmpty => string
+        case unknown => throw new ParsingException(s"Expected a non-empty JSON string in the `target` array, got: $unknown")
       }.toSet
-      case JsObject(obj) => Set(parseTargetTerm(obj))
-      case unknown => throw new ParsingException(s"Expected `target` to be a non-empty JSON array or object, got: $unknown")
-    }
-    whereTacticsIsOptional.map {
-      case (tacticsOption, selectWithJsonValues) =>
-        val s = selectWithJsonValues.map(_.value match {
-          case w if w.nonEmpty => w
-          case _ => throw new ParsingException(s"`$selectKey` doesn't accept empty JSON strings as values")
-        })
-        tacticsOption.map(TargetTerm(_, s)).getOrElse(TargetTerm(select = s))
+      case unknown => throw new ParsingException(s"Expected `target` to be a non-empty JSON array or string, got: $unknown")
     }
   }
-
-  private def parseTargetTerm(target: Map[String, JsValue]): (Option[Tactics], Set[JsString]) =
-    (
-      target.get(tacticsKey).map {
-        case JsArray(arr) if arr.nonEmpty => arr.map {
-          case jsObj: JsObject => jsObj
-          case unknown => throw new ParsingException(s"Expected a JSON object in the `$tacticsKey` array, got: $unknown")
-        }.toSet
-        case jsObj: JsObject => Set(jsObj)
-        case unknown => throw new ParsingException(s"Expected `$tacticsKey` to be a non-empty JSON object or array, got: $unknown")
-      },
-
-      target.get(selectKey).map {
-        case jsString: JsString => Set(jsString)
-        case JsArray(arr) if arr.nonEmpty =>
-          arr.map {
-            case string: JsString => string
-            case unknown => throw new ParsingException(s"Expected a JSON string in the `$selectKey` array, got: $unknown")
-          }.toSet
-        case unknown => throw new ParsingException(s"Expected `$selectKey` to be a non-empty JSON string or array, got: $unknown")
-      }.getOrElse(throw new ParsingException(s"`target` must contain a field `$selectKey`"))
-    )
 
   private def parsePlanStep(step: JsObjectScanner): ProtoDeploymentPlanStep = {
     val name = step.getString("name", Some(""))

@@ -1,6 +1,6 @@
 package com.criteo.perpetuo.engine.resolvers
 
-import com.criteo.perpetuo.engine.{Provider, Select, TargetExpr, TargetTerm, UnprocessableIntent}
+import com.criteo.perpetuo.engine.{Provider, Select, TargetExpr, UnprocessableIntent}
 import com.criteo.perpetuo.model.{TargetAtom, Version}
 
 
@@ -29,12 +29,11 @@ trait TargetResolver extends Provider[TargetResolver] {
   def toAtoms(productName: String, productVersion: Version, targetWords: Select): Option[Map[String, Select]] = None
 
   def resolveExpression(productName: String, productVersion: Version, target: TargetExpr): Option[TargetExpr] = {
-    val select = target.select
-    toAtoms(productName, productVersion, select).map { toAtoms =>
+    toAtoms(productName, productVersion, target).map { toAtoms =>
       val resolvedTerms = toAtoms.keySet
-      if (!resolvedTerms.subsetOf(select))
+      if (!resolvedTerms.subsetOf(target))
         throw new RuntimeException("The resolver augmented the original intent, which is forbidden. The targets introduced after dispatching are: " +
-          (resolvedTerms -- select).map(_.toString).mkString(", "))
+          (resolvedTerms -- target).map(_.toString).mkString(", "))
 
       val emptyWords = toAtoms.flatMap {
         case (_, atoms) if atoms.nonEmpty =>
@@ -43,11 +42,11 @@ trait TargetResolver extends Provider[TargetResolver] {
         case (word, _) =>
           Some(word)
       }
-      if (emptyWords.nonEmpty || resolvedTerms.size != select.size)
+      if (emptyWords.nonEmpty || resolvedTerms.size != target.size)
         throw UnprocessableIntent("The following target(s) were not resolved: " +
-          (emptyWords.iterator ++ (select -- resolvedTerms)).map(_.toString).mkString(", "))
+          (emptyWords.iterator ++ (target -- resolvedTerms)).map(_.toString).mkString(", "))
 
-      target.map(term => TargetTerm(term.tactics, term.select.iterator.flatMap(toAtoms).toSet))
+      target.flatMap(toAtoms)
     }
   }
 }

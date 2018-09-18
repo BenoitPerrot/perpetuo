@@ -1,7 +1,7 @@
 package com.criteo.perpetuo.engine
 
 import com.criteo.perpetuo.SimpleScenarioTesting
-import com.criteo.perpetuo.engine.dispatchers.{SingleTargetDispatcher, TargetDispatcher}
+import com.criteo.perpetuo.engine.dispatchers.TargetDispatcher
 import com.criteo.perpetuo.engine.executors.{DummyExecutionTrigger, ExecutionTrigger}
 import com.criteo.perpetuo.engine.resolvers.TargetResolver
 import com.criteo.perpetuo.model._
@@ -36,7 +36,6 @@ object TestTargetDispatcher extends TargetDispatcher {
   }
 }
 
-object DummyTargetDispatcher extends SingleTargetDispatcher(executionTrigger = new DummyExecutionTrigger("Default Dummy Trigger"))
 
 class DispatchingSpec extends SimpleScenarioTesting {
 
@@ -53,13 +52,7 @@ class DispatchingSpec extends SimpleScenarioTesting {
 
   private val product: Product = Await.result(crankshaft.dbBinding.upsertProduct("perpetuo-app"), 1.second)
 
-  implicit class SimpleDispatchTest(private val select: Select) {
-    def dispatchedAs(that: Map[ExecutionTrigger, Select]): Unit = {
-      Set(TargetTerm(select = select)) dispatchedAs that.map { case (e, s) => (e, Set(TargetTerm(select = s))) }
-    }
-  }
-
-  implicit class ComplexDispatchTest(private val target: TargetExpr) {
+  implicit class DispatchTest(private val target: TargetExpr) {
     private val request = ProtoDeploymentRequest(product.name, Version("\"v42\""), Seq(ProtoDeploymentPlanStep("", target.toJson, "")), "No fear", "c.norris")
 
     def dispatchedAs(that: Map[ExecutionTrigger, TargetExpr]): Unit = {
@@ -83,14 +76,14 @@ class DispatchingSpec extends SimpleScenarioTesting {
   }
 
 
-  test("A complex execution calls the right executor when available for each exact target word") {
+  test("An execution calls the right executor when available for each exact target word") {
     Set("a", "c") dispatchedAs Map(
       aTrigger -> Set("a"),
       cTrigger -> Set("c")
     )
   }
 
-  test("A complex execution gathers target words on executors") {
+  test("An execution gathers target words on executors") {
     Set("abc-ab", "cb") dispatchedAs Map(
       aTrigger -> Set("abc", "ab"),
       bTrigger -> Set("abc", "ab", "cb"),
@@ -98,139 +91,15 @@ class DispatchingSpec extends SimpleScenarioTesting {
     )
   }
 
-  test("A complex execution raises if a target cannot be solved to atomic targets") {
-    val thrown = the[UnprocessableIntent] thrownBy testResolver.resolveExpression(null, Version("\"\""), Set(TargetTerm(select = Set("ab", "-"))))
+  test("An execution raises if a target cannot be solved to atomic targets") {
+    val thrown = the[UnprocessableIntent] thrownBy testResolver.resolveExpression(null, Version("\"\""), Set("ab", "-"))
     thrown.getMessage shouldEqual "The following target(s) were not resolved: -"
   }
 
-  test("A complex execution raises if a target is not fully covered by executors") {
+  test("An execution raises if a target is not fully covered by executors") {
     val params = TestTargetDispatcher.freezeParameters("", Version(""""42""""))
     val thrown = the[UnprocessableIntent] thrownBy TestTargetDispatcher.dispatchToExecutors(Set("def"), params)
     thrown.getMessage shouldEqual "The following target(s) were not resolved: def"
-  }
-
-
-  test("A complex target expression is appropriately dispatched among impacted executors") {
-    Set(
-      TargetTerm(select = Set("aa", "ab-a")),
-      TargetTerm(
-        Set(
-          JsObject(
-            "ratio" -> JsNumber(0.05),
-            "awesome" -> JsTrue
-          ),
-          JsObject(
-            "tag" -> JsString("canary"),
-            "ratio" -> JsNumber(0.05)
-          )
-        ),
-        Set("bb-ab", "cc")
-      )
-    ) dispatchedAs Map(
-      aTrigger -> Set(
-        TargetTerm(select = Set("aa", "a")),
-        TargetTerm(
-          Set(
-            JsObject(),
-            JsObject(
-              "ratio" -> JsNumber(0.05),
-              "awesome" -> JsTrue
-            ),
-            JsObject(
-              "tag" -> JsString("canary"),
-              "ratio" -> JsNumber(0.05)
-            )
-          ),
-          Set("ab")
-        )
-      ),
-      bTrigger -> Set(
-        TargetTerm(select = Set("ab")),
-        TargetTerm(
-          Set(
-            JsObject(
-              "ratio" -> JsNumber(0.05),
-              "awesome" -> JsTrue
-            ),
-            JsObject(
-              "tag" -> JsString("canary"),
-              "ratio" -> JsNumber(0.05)
-            )
-          ),
-          Set("bb", "ab")
-        )
-      ),
-      cTrigger -> Set(
-        TargetTerm(
-          Set(
-            JsObject(
-              "ratio" -> JsNumber(0.05),
-              "awesome" -> JsTrue
-            ),
-            JsObject(
-              "tag" -> JsString("canary"),
-              "ratio" -> JsNumber(0.05)
-            )
-          ),
-          Set("cc")
-        )
-      )
-    )
-  }
-
-  test("A complex target expression is dispatched as short target expressions") {
-    val Alternatives = Set
-    val params = TestTargetDispatcher.freezeParameters("", Version(""""42""""))
-    assertEqual(
-      TestTargetDispatcher.dispatchAlternatives(Set(
-        TargetTerm(Set(JsObject("ratio" -> JsNumber(0.05), "foo" -> JsString("bar"))), Set("ab")),
-        TargetTerm(Set(JsObject("ratio" -> JsNumber(0.05))), Set("assault")),
-        TargetTerm(Set(JsObject("ratio" -> JsNumber(0.05))), Set("appendix")),
-        TargetTerm(Set(JsObject("ratio" -> JsNumber(0.05))), Set("alpha")),
-        TargetTerm(select = Set("alpha"))
-      ), params).toMap,
-      Map(
-        aTrigger -> Alternatives(
-          Set(
-            TargetTerm(Set(JsObject("ratio" -> JsNumber(0.05), "foo" -> JsString("bar"))), Set("ab")),
-            TargetTerm(Set(JsObject("ratio" -> JsNumber(0.05))), Set("assault", "appendix", "alpha")),
-            TargetTerm(select = Set("alpha"))
-          ),
-          Set(
-            TargetTerm(Set(JsObject("ratio" -> JsNumber(0.05), "foo" -> JsString("bar"))), Set("ab")),
-            TargetTerm(Set(JsObject("ratio" -> JsNumber(0.05))), Set("assault", "appendix")),
-            TargetTerm(Set(JsObject("ratio" -> JsNumber(0.05)), JsObject()), Set("alpha"))
-          )
-        ),
-        bTrigger -> Alternatives( // there is only one possible representation for such a simple expression
-          Set(
-            TargetTerm(Set(JsObject("ratio" -> JsNumber(0.05), "foo" -> JsString("bar"))), Set("ab"))
-          )
-        )
-      )
-    )
-  }
-
-
-  test("Target dispatching deduplicates targets and regenerate them (per executor) in a concise way") {
-    val targetWithDuplicates: TargetExpr = Set(
-      TargetTerm(Set(JsObject("foo" -> JsString("bar"), "bar" -> JsString("baz"))), Set("abc", "def")),
-      TargetTerm(Set(JsObject("foo" -> JsString("bar"), "bar" -> JsString("baz"))), Set("abc", "def")),
-      TargetTerm(Set(JsObject("foo" -> JsString("bar"), "bar" -> JsString("baz"))), Set("abc")),
-      TargetTerm(Set(JsObject("foo" -> JsString("bar"), "bar" -> JsString("baz"))), Set("def")),
-      TargetTerm(Set(JsObject("foo" -> JsString("bar"), "bar" -> JsString("baz"))), Set("ghi")),
-      TargetTerm(Set(JsObject("foo" -> JsString("bar2"))), Set("ghi")),
-      TargetTerm(Set(JsObject("foo2" -> JsString("bar"))), Set("ghi"))
-    )
-    val dispatchedTargets = DummyTargetDispatcher
-      .dispatchExpression(targetWithDuplicates, "")
-      .map(_._2)
-    assertEqual(dispatchedTargets, Seq(
-      Set(
-        TargetTerm(Set(JsObject("foo" -> JsString("bar"), "bar" -> JsString("baz"))), Set("abc", "def", "ghi")),
-        TargetTerm(Set(JsObject("foo" -> JsString("bar2")), JsObject("foo2" -> JsString("bar"))), Set("ghi"))
-      )
-    ))
   }
 
   private def assertEqual(challenger: Any, expected: Any, path: String = "root"): Unit = {

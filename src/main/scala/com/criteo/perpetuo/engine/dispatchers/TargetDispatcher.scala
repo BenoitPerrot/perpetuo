@@ -1,9 +1,8 @@
 package com.criteo.perpetuo.engine.dispatchers
 
 import com.criteo.perpetuo.engine.executors.ExecutionTrigger
-import com.criteo.perpetuo.engine.{Provider, Select, TargetExpr, TargetTerm, UnprocessableIntent}
+import com.criteo.perpetuo.engine.{Provider, Select, TargetExpr, UnprocessableIntent}
 import com.criteo.perpetuo.model.Version
-
 import spray.json.DefaultJsonProtocol._
 import spray.json._
 
@@ -37,29 +36,9 @@ trait TargetDispatcher extends Provider[TargetDispatcher] with ParameterFreezer 
     }
 
   private[engine] def dispatchAlternatives(expandedTarget: TargetExpr, frozenParameters: String): Iterable[(ExecutionTrigger, Set[TargetExpr])] = {
-    def groupOn2[A, B](it: Iterable[(A, B)]): Map[B, Set[A]] =
-      it.groupBy(_._2).map { case (k, v) => (k, v.map(_._1).toSet) }
-
-    val perSelectAtom = groupOn2(
-      expandedTarget.toStream.flatMap { case TargetTerm(tactics, select) =>
-        select.toStream.flatMap(selectAtom =>
-          tactics.map(tactic => (tactic, selectAtom)))
-      }
-    )
-
     // infer only once for all unique targets the executors required for each target word
-    dispatchToExecutors(perSelectAtom.keySet, frozenParameters).map { case (executor, select) =>
-      val atomsAndTactics = select.toStream.map(selectAtom => (selectAtom, perSelectAtom(selectAtom)))
-      val flattened = atomsAndTactics.flatMap { case (selectAtom, tactics) =>
-        tactics.toStream.map(tactic => (selectAtom, tactic))
-      }
-      val alternatives = Seq(
-        // either group first by "select" atoms then group these atoms by common "tactics"
-        groupOn2(atomsAndTactics).map(TargetTerm.tupled),
-        // or group first by tactic then group the tactics by common "select" atoms
-        groupOn2(groupOn2(flattened)).map(_.swap).map(TargetTerm.tupled)
-      )
-      (executor, alternatives.map(_.toSet).toSet)
+    dispatchToExecutors(expandedTarget, frozenParameters).map { case (executor, select) =>
+      (executor, Set(select)) // fixme: change the return type to reflect that there is only one select now
     }
   }
 

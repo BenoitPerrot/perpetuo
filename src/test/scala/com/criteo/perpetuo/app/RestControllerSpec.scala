@@ -112,7 +112,7 @@ class RestControllerSpec extends Test with TestDb {
       andExpect = if (expectsMessage.isDefined) BadRequest else Created,
       postBody = body
     ).contentString
-    ans should include regex expectsMessage.getOrElse(""""id":\d+""")
+    ans should expectsMessage.map(include(_)).getOrElse(include regex """"id":\d+""")
     expectsMessage.map(_ => -1L).getOrElse(ans.parseJson.asJsObject.fields("id").asInstanceOf[JsNumber].value.toLongExact)
   }
 
@@ -254,21 +254,21 @@ class RestControllerSpec extends Test with TestDb {
     requestDeployment(s"""{"productName": "my product", "plan": [{"target": "*"}], "version": "${"x" * 2000}"}""", Some("Too long version"))
   }
 
-  test("The DeploymentRequest's POST entry-point handles a complex target expression") {
+  test("The DeploymentRequest's POST entry-point handles a compound target expression") {
     requestAndWaitDeployment("my product", "42", Seq("here", "and", "there").toJson, Some(""))
-    requestAndWaitDeployment("my product", " 10402", Map("select" -> "here").toJson, Some(""))
-    requestAndWaitDeployment("my product", "0042", Map("select" -> Seq("here", "and", "there")).toJson, Some(""))
-    requestAndWaitDeployment("my product", "420", Seq(Map("select" -> Seq("here", "and", "there"))).toJson, Some(""))
   }
 
   test("The DeploymentRequest's POST entry-point properly rejects bad targets") {
-    requestAndWaitDeployment("my product", "b", JsArray(), None, Some("non-empty JSON array or object"))
-    requestAndWaitDeployment("my product", "b", JsObject(), None, Some("must contain a field `select`"))
-    requestAndWaitDeployment("my product", "b", 60.toJson, None, Some("JSON array or object"))
-    requestAndWaitDeployment("my product", "b", Seq(42).toJson, None, Some("JSON object or string"))
-    requestAndWaitDeployment("my product", "b", Seq(JsObject()).toJson, None, Some("must contain a field `select`"))
-    requestAndWaitDeployment("my product", "b", Seq(Map("select" -> 42)).toJson, None, Some("non-empty JSON string or array"))
-    requestAndWaitDeployment("my product", "b", Seq(Map("select" -> Seq(42))).toJson, None, Some("a JSON string in"))
+    Seq(
+      (JsArray(), "Expected `target` to be a non-empty JSON array or string, got: []"),
+      (JsObject(), "Expected `target` to be a non-empty JSON array or string, got: {}"),
+      (60.toJson, "Expected `target` to be a non-empty JSON array or string, got: 60"),
+      ("".toJson, "Expected `target` to be a non-empty JSON array or string, got: \"\""),
+      (Seq(42).toJson, "Expected a non-empty JSON string in the `target` array, got: 42"),
+      (Seq("").toJson, "Expected a non-empty JSON string in the `target` array, got: \"\"")
+    ).foreach { case (badTarget, errorMsg) =>
+      requestAndWaitDeployment("my product", "b", badTarget, None, Some(JsString(errorMsg).toString))
+    }
   }
 
   test("The DEPRECATED DeploymentRequest's actions entry-point starts a deployment that was not started yet") {

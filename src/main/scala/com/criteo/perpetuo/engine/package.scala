@@ -5,23 +5,14 @@ import java.util.{Map => JavaMap}
 
 import com.criteo.perpetuo.engine.executors.ExecutionTrigger
 import com.criteo.perpetuo.model._
-import spray.json.DefaultJsonProtocol._
-import spray.json.{JsObject, JsonFormat}
 
 import scala.collection.JavaConverters._
 
 
 package object engine {
-  type Tactics = Set[JsObject]
   type Select = Set[String]
-  type TargetExpr = Set[TargetTerm]
-
-  case class TargetTerm(tactics: Tactics = Set(JsObject()), select: Select)
-  implicit def targetTermJsonFormat: JsonFormat[TargetTerm] = jsonFormat2(TargetTerm)
-
-  implicit class ExprToSelect(targetExpr: TargetExpr) {
-    def select: Select = targetExpr.flatMap(_.select)
-  }
+  type TargetExpr = Select
+  type TargetTerm = Select // todo: remove the aliases (type migration)
 
 
   implicit class TargetGroups[T](javaTargetGroups: JavaMap[T, JavaIterable[String]]) {

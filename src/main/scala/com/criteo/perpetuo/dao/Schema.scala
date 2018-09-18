@@ -118,7 +118,7 @@ trait EffectInserter
                         executionId,
                         invocations
                           .toStream
-                          .flatMap { case (_, target) => target.toStream.flatMap(_.select) }
+                          .flatMap { case (_, target) => target }
                           .map(_ -> TargetAtomStatus(Status.notDone, ""))
                           .toMap
                       )
