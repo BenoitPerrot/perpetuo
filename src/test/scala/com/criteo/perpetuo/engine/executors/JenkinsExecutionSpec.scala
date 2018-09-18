@@ -22,7 +22,7 @@ class JenkinsExecutionSpec extends Test {
     localExecution.buildId shouldEqual "1"
   }
 
-  test("Wrong logHref generates an error") {
+  test("Wrong href generates an error") {
     val exc = the[IllegalArgumentException] thrownBy new JenkinsExecution("http://build.criteois.lan/job/test")
     exc.getMessage shouldEqual "Cannot find a proper Jenkins executor from http://build.criteois.lan/job/test"
   }

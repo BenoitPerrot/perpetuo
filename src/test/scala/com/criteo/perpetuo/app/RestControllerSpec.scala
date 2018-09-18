@@ -69,7 +69,7 @@ class RestControllerSpec extends Test with TestDb {
     override def equals(o: Any): Boolean = true
   }
 
-  private val logHrefHistory: mutable.Map[Long, JsValue] = mutable.Map()
+  private val hrefHistory: mutable.Map[Long, JsValue] = mutable.Map()
 
   private def createProduct(name: String, expectedError: Option[(String, Status)] = None): Unit = {
     val ans = server.httpPut(
@@ -174,13 +174,13 @@ class RestControllerSpec extends Test with TestDb {
   }
 
   private def updateExecutionTrace(execTraceId: Long, state: String,
-                                   logHref: Option[String],
+                                   href: Option[String],
                                    targetStatus: Option[Map[String, JsValue]],
                                    executionDetail: Option[String] = None,
                                    expectedRequestStatus: Status = NoContent): Unit = {
     val params = Map(
       "state" -> Some(state.toJson),
-      "href" -> logHref.map(_.toJson),
+      "href" -> href.map(_.toJson),
       "detail" -> executionDetail.map(_.toJson),
       "targetStatus" -> targetStatus.map(_.toJson)
     ).collect {
@@ -194,16 +194,16 @@ class RestControllerSpec extends Test with TestDb {
   }
 
   private def checkExecutionTraceUpdate(deploymentRequestId: Long, execTraceId: Long, state: String,
-                                        logHref: Option[String] = None,
+                                        href: Option[String] = None,
                                         targetStatus: Option[Map[String, JsValue]] = None,
                                         executionDetail: Option[String] = None,
                                         expectedTargetStatus: Map[String, (String, String)] = Map(),
                                         expectedRequestStatus: Status = NoContent): Unit = {
-    val previousLogHrefJson = logHrefHistory.getOrElse(execTraceId, JsNull)
-    val expectedLogHrefJson = logHref.map(_.toJson).getOrElse(previousLogHrefJson)
-    logHrefHistory(execTraceId) = expectedLogHrefJson
+    val previousHrefJson = hrefHistory.getOrElse(execTraceId, JsNull)
+    val expectedHrefJson = href.map(_.toJson).getOrElse(previousHrefJson)
+    hrefHistory(execTraceId) = expectedHrefJson
 
-    updateExecutionTrace(execTraceId, state, logHref, targetStatus, executionDetail, expectedRequestStatus)
+    updateExecutionTrace(execTraceId, state, href, targetStatus, executionDetail, expectedRequestStatus)
 
     val depReq = deepGetDepReq(deploymentRequestId)
     val operations = depReq.fields("operations").asInstanceOf[JsArray].elements.map(_.asJsObject.fields)
@@ -215,7 +215,7 @@ class RestControllerSpec extends Test with TestDb {
       JsObject(
         "id" -> execTraceId.toJson,
         "logHref" -> JsNull,
-        "href" -> expectedLogHrefJson,
+        "href" -> expectedHrefJson,
         "state" -> state.toJson,
         "detail" -> executionDetail.getOrElse("").toJson
       )
@@ -400,7 +400,7 @@ class RestControllerSpec extends Test with TestDb {
     checkExecutionTraceUpdate(depReqId, executionTraces.head, "completed", executionDetail = Some("execution detail"))
   }
 
-  test("The ExecutionTrace's entry-point updates one record's execution state and log href on a PUT") {
+  test("The ExecutionTrace's entry-point updates one record's execution state and href on a PUT") {
     val (depReqId, executionTraces) = createProductAndStartDeployment("1112", "paris".toJson)
     checkExecutionTraceUpdate(depReqId, executionTraces.head, "completed", Some("http://somewhe.re"))
   }
@@ -419,7 +419,7 @@ class RestControllerSpec extends Test with TestDb {
     )
   }
 
-  test("The ExecutionTrace's entry-point updates one record's execution state, log href and target status (partially) on a PUT") {
+  test("The ExecutionTrace's entry-point updates one record's execution state, href and target status (partially) on a PUT") {
     val depReqId = requestDeployment("my product", "653", Seq("paris", "amsterdam").toJson, None)
     startDeploymentRequest(depReqId)
     val execTraceId = getExecutionTracesByDeploymentRequestId(depReqId.toString).elements(0).idAsLong
@@ -550,7 +550,7 @@ class RestControllerSpec extends Test with TestDb {
       JsObject(
         "id" -> JsNumber(depReqId),
         "stopped" -> JsNumber(0),
-        "failures" -> executionTraceIds.map(id => s"No log href for execution trace #$id, thus cannot interact with the actual execution").toJson
+        "failures" -> executionTraceIds.map(id => s"No href for execution trace #$id, thus cannot interact with the actual execution").toJson
       )
 
     executionTraceIds.foreach(execTraceId =>

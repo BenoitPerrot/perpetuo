@@ -29,7 +29,7 @@ class CrankshaftSpec extends SimpleScenarioTesting {
       case Operation.revert => crankshaft.fuelFilter.rejectingIfCannotRevert(deploymentRequest)
     })
 
-  test("A trivial execution triggers a job with no log href when there is no log href provided") {
+  test("A trivial execution triggers a job with no href when there is no href provided") {
     await(
       for {
         product <- crankshaft.upsertProduct("product #1")
@@ -39,7 +39,7 @@ class CrankshaftSpec extends SimpleScenarioTesting {
         (toDoAfterStart, lastDoneAfterStart) <- gettingPlanStepToOperateAndLastDoneStep(depPlan.deploymentRequest, Operation.deploy)
         traces <- crankshaft.dbBinding.findExecutionTracesByOperationTrace(op.id)
       } yield {
-        traces.map(trace => (trace.id, trace.logHref)) shouldEqual Seq((1, None))
+        traces.map(trace => (trace.id, trace.href)) shouldEqual Seq((1, None))
         lastDoneBeforeStart shouldBe empty
         lastDoneAfterStart should contain(toDoBeforeStart)
         toDoBeforeStart shouldEqual toDoAfterStart // Deployment flopped, so the next step remains the same
@@ -507,24 +507,24 @@ class CrankshaftWithMultiStepSpec extends SimpleScenarioTesting {
 }
 
 
-class CrankshaftWithNoLogHrefSpec extends SimpleScenarioTesting {
-  test("Cannot stop an execution that has no log href") {
+class CrankshaftWithNoHrefSpec extends SimpleScenarioTesting {
+  test("Cannot stop an execution that has no href") {
     val op = request("dusty-duck", "12345", Seq("thailand")).step()
     crankshaft.dbBinding.findExecutionTracesByOperationTrace(op.id)
       .map(_.head)
       .flatMap(execTrace => crankshaft.stopExecution(execTrace, "joe")) should
-      asynchronouslyThrow[RuntimeException]("No log href for execution trace .+")
+      asynchronouslyThrow[RuntimeException]("No href for execution trace .+")
   }
 }
 
 
 class CrankshaftWithStopperSpec extends SimpleScenarioTesting {
-  private val logHref = "controllable.executions.io/42"
+  private val href = "controllable.executions.io/42"
 
-  override protected def triggerMock = Some(logHref)
+  override protected def triggerMock = Some(href)
 
   private val executionMock = mock[TriggeredExecution]
-  when(executionMock.logHref).thenReturn(logHref)
+  when(executionMock.href).thenReturn(href)
 
   override val executionFinder = new TriggeredExecutionFinder(null) {
     override def apply[T](executionTrace: ShallowExecutionTrace): TriggeredExecution =
@@ -595,20 +595,20 @@ class CrankshaftWithStopperSpec extends SimpleScenarioTesting {
             (updates.length, updates.flatten.length, successes, failures)
           )
         }
-    ) should eventually(be((2, 0, 0, Vector(s"Could not stop the execution $logHref (current state: unreachable)", s"Could not stop the execution $logHref (current state: unreachable)"))))
+    ) should eventually(be((2, 0, 0, Vector(s"Could not stop the execution $href (current state: unreachable)", s"Could not stop the execution $href (current state: unreachable)"))))
     // i.e. 2 execution traces, 0 closed, 0 stopped, 2 failures
   }
 }
 
 
 class CrankshaftWithUncontrollableTriggeredExecutionSpec extends SimpleScenarioTesting {
-  private val logHref = "uncontrollable.executions.io/42"
+  private val href = "uncontrollable.executions.io/42"
 
-  override protected def triggerMock = Some(logHref)
+  override protected def triggerMock = Some(href)
 
   override val executionFinder = new TriggeredExecutionFinder(null) {
     override def apply[T](executionTrace: ShallowExecutionTrace): TriggeredExecution =
-      new UncontrollableTriggeredExecution(logHref)
+      new UncontrollableTriggeredExecution(href)
   }
 
   test("Cannot stop an execution of an explicitly unstoppable type") {
@@ -616,7 +616,7 @@ class CrankshaftWithUncontrollableTriggeredExecutionSpec extends SimpleScenarioT
     crankshaft.dbBinding.findExecutionTracesByOperationTrace(op.id)
       .map(_.head)
       .flatMap(crankshaft.stopExecution(_, "joe")) should
-      asynchronouslyThrow[RuntimeException](s"This kind of execution cannot be stopped: $logHref")
+      asynchronouslyThrow[RuntimeException](s"This kind of execution cannot be stopped: $href")
   }
 
   test("Crankshaft tries to stop executions, which might terminate normally at the same time") {
@@ -662,15 +662,15 @@ class CrankshaftWithUncontrollableTriggeredExecutionSpec extends SimpleScenarioT
 }
 
 
-class CrankshaftWithUnknownLogHrefSpec extends SimpleScenarioTesting {
-  private val logHref = "now you can track me down"
+class CrankshaftWithUnknownHrefSpec extends SimpleScenarioTesting {
+  private val href = "now you can track me down"
 
-  override protected def triggerMock = Some(logHref)
+  override protected def triggerMock = Some(href)
 
-  test("A trivial execution triggers a job with a log href when a log href is provided") {
+  test("A trivial execution triggers a job with a href when a href is provided") {
     val op = request("product #2", "1000", Seq("*")).step()
     crankshaft.dbBinding.findExecutionTracesByOperationTrace(op.id)
-      .map(_.flatMap(_.href).toSet) should eventually(be(Set(logHref)))
+      .map(_.flatMap(_.href).toSet) should eventually(be(Set(href)))
   }
 
   test("Cannot stop an execution of an unknown type") {

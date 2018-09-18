@@ -9,13 +9,13 @@ import javax.inject.{Inject, Singleton}
 
 /**
   * Reflect an execution that has been triggered on an executor.
-  * Any implementation of it must have a constructor taking a log href as single parameter.
+  * Any implementation of it must have a constructor taking a href as single parameter.
   * An instantiation must not try to actually reach the executor; each method does.
   * An instantiation must not fail, but must instead consider the execution as unreachable
   * (even for instance if the arguments given to the constructor make no sense).
   */
 trait TriggeredExecution {
-  val logHref: String // todo: find another name for logHref (rename all occurrences) now that it's used to more generally interact with executions
+  val href: String
 
   /**
     * To forcefully stop an execution if supported.
@@ -30,7 +30,7 @@ trait TriggeredExecution {
 }
 
 
-class UncontrollableTriggeredExecution(val logHref: String) extends TriggeredExecution {
+class UncontrollableTriggeredExecution(val href: String) extends TriggeredExecution {
   override val stopper: Option[() => Option[ExecutionState]] = None
 }
 
@@ -43,10 +43,10 @@ class UncontrollableTriggeredExecution(val logHref: String) extends TriggeredExe
 class TriggeredExecutionFinder @Inject()(loader: PluginLoader) {
   def apply[T](executionTrace: ShallowExecutionTrace): TriggeredExecution =
     executionTrace.href
-      .map { logHref =>
-        val executionName = logHref match { // todo: look at the executionName in the record instead
-          case _ if logHref.contains("/execution/show/") => "rundeck"
-          case _ if logHref.contains("/job/") => "jenkins"
+      .map { href =>
+        val executionName = href match { // todo: look at the executionName in the record instead
+          case _ if href.contains("/execution/show/") => "rundeck"
+          case _ if href.contains("/job/") => "jenkins"
           case _ => "unknown"
         }
 
@@ -56,12 +56,12 @@ class TriggeredExecutionFinder @Inject()(loader: PluginLoader) {
           throwWithCause(s"Could not find an execution configuration for the type `$executionName`")
 
         try
-          loader.load[TriggeredExecution](executionConfig, "execution", logHref)
+          loader.load[TriggeredExecution](executionConfig, "execution", href)
         catch // catch any error when dynamically loading the object
           throwWithCause("Could not load the configured executor")
       }
       .getOrElse(
-        throw new RuntimeException(s"No log href for execution trace #${executionTrace.id}, thus cannot interact with the actual execution")
+        throw new RuntimeException(s"No href for execution trace #${executionTrace.id}, thus cannot interact with the actual execution")
       )
 
   private def throwWithCause(message: String): PartialFunction[Throwable, Nothing] = {

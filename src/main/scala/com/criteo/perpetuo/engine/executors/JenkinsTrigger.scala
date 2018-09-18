@@ -26,7 +26,7 @@ class JenkinsTrigger(name: String,
   /**
     * Trigger a new execution.
     *
-    * @return None. Jenkins doesn't return any logHref immediately.
+    * @return None. Jenkins doesn't return any href immediately.
     */
   override def trigger(execTraceId: Long, productName: String, version: Version, target: TargetExpr, initiator: String): Future[Option[String]] = {
 

@@ -179,13 +179,13 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
     triggerExecutions(deploymentRequest, executionsToTrigger).flatMap(effects =>
       Future.traverse(effects) { case (status, execTraceId, executionUpdate) =>
         executionUpdate
-          .map { case (state, detail, logHref) =>
+          .map { case (state, detail, href) =>
             // will close the operation if there is no more ongoing execution
-            updateExecutionTrace(execTraceId, state, detail, logHref)
+            updateExecutionTrace(execTraceId, state, detail, href)
               .map(_ => status)
               .recover { case e =>
                 // only log update errors, which are not critical in that case
-                logger.error(s"Could not update execution trace #$execTraceId${logHref.map(s => s" ($s)").getOrElse("")} as $state: $detail", e)
+                logger.error(s"Could not update execution trace #$execTraceId${href.map(s => s" ($s)").getOrElse("")} as $state: $detail", e)
                 status
               }
           }
@@ -295,11 +295,11 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
   def stopExecution(executionTrace: ShallowExecutionTrace, initiatorName: String): Future[Boolean] = {
     val triggeredExecution = findTriggeredExecution(executionTrace)
     val stop = triggeredExecution.stopper.getOrElse(
-      throw new RuntimeException(s"This kind of execution cannot be stopped: ${triggeredExecution.logHref}")
+      throw new RuntimeException(s"This kind of execution cannot be stopped: ${triggeredExecution.href}")
     )
     stop()
       .map { incompleteState =>
-        val ret = Future.failed(new RuntimeException(s"Could not stop the execution ${triggeredExecution.logHref} (current state: $incompleteState)"))
+        val ret = Future.failed(new RuntimeException(s"Could not stop the execution ${triggeredExecution.href} (current state: $incompleteState)"))
         if (incompleteState != executionTrace.state) // override anyway the detail if the state is outdated
           updateExecutionTrace(executionTrace.id, incompleteState, "", None).flatMap(_ => ret)
         else
@@ -308,12 +308,12 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
       .getOrElse(
         updateExecutionTrace(executionTrace.id, ExecutionState.aborted, s"stopped by $initiatorName", None)
           .map { _ =>
-            logger.info(s"Execution successfully stopped: ${triggeredExecution.logHref}")
+            logger.info(s"Execution successfully stopped: ${triggeredExecution.href}")
             true
           }
           .recover {
             case _: UnavailableAction =>
-              logger.warn(s"Execution already terminated: ${triggeredExecution.logHref}")
+              logger.warn(s"Execution already terminated: ${triggeredExecution.href}")
               false
           }
       )
@@ -348,7 +348,7 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
             }
             catch {
               case e: Throwable =>
-                logger.error(s"While trying to stop execution #${openExecutionTrace.id} (${openExecutionTrace.logHref})", e)
+                logger.error(s"While trying to stop execution #${openExecutionTrace.id} (${openExecutionTrace.href})", e)
                 Future.successful(Right(e.getMessage))
             }
           }
@@ -391,16 +391,16 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
         Future.successful(Some(traces))
     }
 
-  def updateExecutionTrace(id: Long, executionState: ExecutionState, detail: String, logHref: Option[String], statusMap: Map[String, TargetAtomStatus] = Map()): Future[Long] =
-    tryUpdateExecutionTrace(id, executionState, detail, logHref, statusMap)
+  def updateExecutionTrace(id: Long, executionState: ExecutionState, detail: String, href: Option[String], statusMap: Map[String, TargetAtomStatus] = Map()): Future[Long] =
+    tryUpdateExecutionTrace(id, executionState, detail, href, statusMap)
       .map(_.getOrElse(throw new IllegalArgumentException(s"Trying to update an execution trace ($id) that doesn't exist")))
 
-  def tryUpdateExecutionTrace(id: Long, executionState: ExecutionState, detail: String, logHref: Option[String], statusMap: Map[String, TargetAtomStatus] = Map()): Future[Option[Long]] =
+  def tryUpdateExecutionTrace(id: Long, executionState: ExecutionState, detail: String, href: Option[String], statusMap: Map[String, TargetAtomStatus] = Map()): Future[Option[Long]] =
     dbBinding.dbContext.db.run(
       dbBinding.findingBranchFromExecutionTraceId(id).flatMap(_
         .map { executionTraceBranch =>
           val op = executionTraceBranch.operationTrace
-          dbBinding.updatingExecutionTrace(id, executionState, detail, logHref)
+          dbBinding.updatingExecutionTrace(id, executionState, detail, href)
             .andThen(dbBinding.updatingTargetStatuses(executionTraceBranch.executionId, statusMap))
             .andThen(dbBinding.hasOpenExecutionTracesForOperation(op.id))
             .flatMap(hasOpenExecutions =>
@@ -543,13 +543,13 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
         case e: Throwable => Future.failed(new Exception("Could not trigger the execution; please contact #sre-perpetual", e))
       }
       trigger
-        .map(optLogHref =>
-          // if that answers a log href, update the trace with it, and consider that the job
+        .map(optHref =>
+          // if that answers a href, update the trace with it, and consider that the job
           // is running (i.e. already followable and not yet terminated, really)
-          optLogHref.map(logHref =>
-            (true, s"`$logHref` succeeded", Some((ExecutionState.running, "", optLogHref))) // todo: change to pending once DREDD-725 is implemented
+          optHref.map(href =>
+            (true, s"`$href` succeeded", Some((ExecutionState.running, "", optHref))) // todo: change to pending once DREDD-725 is implemented
           ).getOrElse(
-            (true, "succeeded (but with an unknown log href)", None)
+            (true, "succeeded (but with an unknown href)", None)
           )
         )
         .recover {

@@ -36,7 +36,7 @@ class RundeckExecutionSpec extends Test with MockitoSugar {
     local.executionNumber shouldEqual 51
   }
 
-  test("If a log href makes no sense to the assigned execution factory, the instantiation must behave appropriately") {
+  test("If a href makes no sense to the assigned execution factory, the instantiation must behave appropriately") {
     val exc = the[IllegalArgumentException] thrownBy new RundeckExecution("http://rundeck.criteo/menu/home")
     exc.getMessage shouldEqual "Cannot find a proper Rundeck executor from http://rundeck.criteo/menu/home"
   }

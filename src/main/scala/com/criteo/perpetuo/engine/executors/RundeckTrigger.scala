@@ -30,7 +30,7 @@ class RundeckTrigger(name: String,
 
   protected val client: RundeckClient = new RundeckClient(host)
 
-  def extractLogHref(executorAnswer: String): String =
+  def extractHref(executorAnswer: String): String =
     executorAnswer.parseJson.asJsObject.fields("permalink").asInstanceOf[JsString].value
 
   private val requestTimeout = 20.seconds
@@ -67,7 +67,7 @@ class RundeckTrigger(name: String,
       parameterName.replaceAll("([A-Z])", "-$1").toLowerCase -> value
     }
 
-    // trigger the job and return a future to the execution's log href
+    // trigger the job and return a future to the execution's href
     Future {
       // convert a twitter Future to a scala one
       val response = Await.result(client.startJob(jobName, triggerParameters), requestTimeout + 1.second)
@@ -75,8 +75,8 @@ class RundeckTrigger(name: String,
       val content = response.contentString
       response.status match {
         case Status.Successful(_) =>
-          val logHref = extractLogHref(content)
-          if (logHref.nonEmpty) Some(logHref) else None
+          val href = extractHref(content)
+          if (href.nonEmpty) Some(href) else None
         case s =>
           val embeddedDetail = extractMessage(content)
           val detail = if (embeddedDetail.nonEmpty) s"${s.reason}: $embeddedDetail" else s.reason

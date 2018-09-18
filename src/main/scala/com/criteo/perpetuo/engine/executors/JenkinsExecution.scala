@@ -7,11 +7,11 @@ import com.criteo.perpetuo.model.ExecutionState.ExecutionState
 import com.twitter.util.{Await, Future}
 
 
-class JenkinsExecution(val logHref: String) extends TriggeredExecution {
+class JenkinsExecution(val href: String) extends TriggeredExecution {
   val (host, jobName, buildId) = {
-    val matcher = JenkinsExecution.logHrefPattern.matcher(logHref)
+    val matcher = JenkinsExecution.hrefPattern.matcher(href)
     if (!matcher.matches())
-      throw new IllegalArgumentException(s"Cannot find a proper Jenkins executor from $logHref")
+      throw new IllegalArgumentException(s"Cannot find a proper Jenkins executor from $href")
 
     (matcher.group(1), matcher.group(3), matcher.group(4))
   }
@@ -30,7 +30,7 @@ class JenkinsExecution(val logHref: String) extends TriggeredExecution {
 }
 
 private object JenkinsExecution {
-  val logHrefPattern: Pattern = Pattern.compile("https?://([^/:]+)(:[0-9]+)?/job/([^/]+)/([0-9]+)/?")
+  val hrefPattern: Pattern = Pattern.compile("https?://([^/:]+)(:[0-9]+)?/job/([^/]+)/([0-9]+)/?")
 }
 
 

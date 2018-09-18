@@ -38,7 +38,7 @@ class ExecutionTraceSpec
         execTraces.length shouldEqual 1
         execTraces.head.id.get shouldEqual execTraceIds.head
         execTraces.head.executionId shouldEqual execId
-        execTraces.head.logHref shouldBe empty
+        execTraces.head.href shouldBe empty
         execTraces.head.state shouldEqual ExecutionState.pending
       }
     )

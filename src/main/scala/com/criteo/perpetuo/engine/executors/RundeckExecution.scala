@@ -7,11 +7,11 @@ import com.criteo.perpetuo.model.ExecutionState.ExecutionState
 import com.twitter.util.{Await, Future}
 
 
-class RundeckExecution(val logHref: String) extends TriggeredExecution {
+class RundeckExecution(val href: String) extends TriggeredExecution {
   val (host, executionNumber) = {
-    val matcher = RundeckExecution.logHrefPattern.matcher(logHref)
+    val matcher = RundeckExecution.hrefPattern.matcher(href)
     if (!matcher.matches())
-      throw new IllegalArgumentException(s"Cannot find a proper Rundeck executor from $logHref")
+      throw new IllegalArgumentException(s"Cannot find a proper Rundeck executor from $href")
 
     (matcher.group(1), matcher.group(3).toInt)
   }
@@ -32,5 +32,5 @@ class RundeckExecution(val logHref: String) extends TriggeredExecution {
 
 
 private object RundeckExecution {
-  val logHrefPattern: Pattern = Pattern.compile("https?://([^/:]+)(:[0-9]+)?/.+/([0-9]+)")
+  val hrefPattern: Pattern = Pattern.compile("https?://([^/:]+)(:[0-9]+)?/.+/([0-9]+)")
 }

@@ -17,8 +17,8 @@ class TriggeredExecutionSpec extends Test {
     exc.getMessage should startWith("Could not find")
   }
 
-  test("The TriggeredExecutionFinder fails to load an execution that has no log href") {
+  test("The TriggeredExecutionFinder fails to load an execution that has no href") {
     val exc = the[RuntimeException] thrownBy finder(ShallowExecutionTrace(51, None, None, ExecutionState.running, ""))
-    exc.getMessage should startWith("No log href")
+    exc.getMessage should startWith("No href")
   }
 }
