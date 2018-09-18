@@ -1,7 +1,6 @@
 package com.criteo.perpetuo.engine.resolvers
 
 import com.criteo.perpetuo.dao
-import com.criteo.perpetuo.dao.TargetAtomField
 import com.criteo.perpetuo.engine.{Provider, Select, TargetExpr, UnprocessableIntent}
 import com.criteo.perpetuo.model.{TargetAtom, Version}
 

@@ -7,8 +7,8 @@ import com.criteo.perpetuo.config.ConfigSyntacticSugar._
 import com.twitter.conversions.time._
 import com.twitter.finagle.Http.Client
 import com.twitter.finagle.builder.ClientBuilder
+import com.twitter.finagle.http.Status.{Found, NotFound, Ok}
 import com.twitter.finagle.http.{Request, RequestBuilder, Response}
-import com.twitter.finagle.http.Status.{NotFound, Ok, Found}
 import com.twitter.finagle.service.{Backoff, RetryPolicy}
 import com.twitter.inject.Logging
 import com.twitter.io.Buf
