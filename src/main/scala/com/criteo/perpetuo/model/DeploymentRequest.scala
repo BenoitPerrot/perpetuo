@@ -6,9 +6,7 @@ case class ProtoDeploymentRequest(productName: String,
                                   plan: Seq[ProtoDeploymentPlanStep],
                                   comment: String,
                                   creator: String,
-                                  creationDate: java.sql.Timestamp = new java.sql.Timestamp(System.currentTimeMillis)) {
-  val target: String = plan.head.targetExpression.compactPrint
-}
+                                  creationDate: java.sql.Timestamp = new java.sql.Timestamp(System.currentTimeMillis))
 
 
 case class DeploymentRequest(id: Long,
