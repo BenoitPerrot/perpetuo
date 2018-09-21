@@ -33,7 +33,7 @@ class Engine @Inject()(val crankshaft: Crankshaft,
   protected val cachedState: LoadingCache[java.lang.Long, Future[Option[DeploymentState]]] = CacheBuilder.newBuilder()
     .initialCapacity(128)
     .maximumSize(1024)
-    .expireAfterAccess(2, TimeUnit.SECONDS)
+    .expireAfterWrite(2, TimeUnit.SECONDS)
     .concurrencyLevel(10)
     .build(stateCacheLoader)
 

@@ -45,7 +45,7 @@ class RestControllerSpec extends Test with TestDb {
         override protected val cachedState = CacheBuilder.newBuilder()
           .initialCapacity(128)
           .maximumSize(1024)
-          .expireAfterAccess(0, TimeUnit.SECONDS)
+          .expireAfterWrite(0, TimeUnit.SECONDS)
           .concurrencyLevel(10)
           .build(stateCacheLoader)
       }
