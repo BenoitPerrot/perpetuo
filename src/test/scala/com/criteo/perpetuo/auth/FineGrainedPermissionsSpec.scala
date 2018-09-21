@@ -2,7 +2,7 @@ package com.criteo.perpetuo.auth
 
 import java.util.regex.Pattern
 
-import com.criteo.perpetuo.model.Operation
+import com.criteo.perpetuo.model.{Operation, TargetAtom}
 import com.twitter.inject.Test
 import com.typesafe.config.ConfigFactory
 
@@ -158,21 +158,21 @@ class FineGrainedPermissionsSpec extends Test {
     )
 
     permissions.isAuthorized(Users.authorizedToRequest, DeploymentAction.requestOperation, Operation.deploy, "product1",
-      Iterable("par")) shouldBe true
+      Iterable(TargetAtom("par"))) shouldBe true
     permissions.isAuthorized(Users.authorizedToRequest, DeploymentAction.requestOperation, Operation.deploy, "product1",
-      Iterable("am5")) shouldBe false
+      Iterable(TargetAtom("am5"))) shouldBe false
     permissions.isAuthorized(Users.authorizedToRequest, DeploymentAction.requestOperation, Operation.deploy, "product1",
-      Iterable("par", "pa4", "am5")) shouldBe false
+      Iterable(TargetAtom("par"), TargetAtom("pa4"), TargetAtom("am5"))) shouldBe false
     permissions.isAuthorized(Users.unauthorized, DeploymentAction.requestOperation, Operation.deploy, "product1",
-      Iterable("pa3")) shouldBe false
+      Iterable(TargetAtom("pa3"))) shouldBe false
 
     permissions.isAuthorized(Users.authorizedToAdministrate, DeploymentAction.applyOperation, Operation.deploy, "product1",
-        Iterable("target")) shouldBe true
+      Iterable(TargetAtom("target"))) shouldBe true
     permissions.isAuthorized(Users.authorizedToRequest, DeploymentAction.applyOperation, Operation.deploy, "product1",
-      Iterable("anotherTarget")) shouldBe true
+      Iterable(TargetAtom("anotherTarget"))) shouldBe true
 
     permissions.isAuthorized(Users.authorizedToStop, DeploymentAction.requestOperation, Operation.deploy, "product2",
-      Iterable("par")) shouldBe true
+      Iterable(TargetAtom("par"))) shouldBe true
   }
 
   test("Authorizes users by target using permissions from config") {
@@ -207,9 +207,9 @@ class FineGrainedPermissionsSpec extends Test {
         """.stripMargin))
 
     permissions.isAuthorized(Users.authorizedToAdministrate, GeneralAction.administrate) shouldBe true
-    permissions.isAuthorized(Users.authorizedToRequestInPreProd, DeploymentAction.requestOperation, Operation.deploy, "product", Iterable("par")) shouldBe true
-    permissions.isAuthorized(Users.authorizedToRequestInPreProd, DeploymentAction.requestOperation, Operation.deploy, "product", Iterable("am5")) shouldBe false
-    permissions.isAuthorized(Users.authorizedToStop, DeploymentAction.requestOperation, Operation.deploy, "product", Iterable("par")) shouldBe false
+    permissions.isAuthorized(Users.authorizedToRequestInPreProd, DeploymentAction.requestOperation, Operation.deploy, "product", Iterable(TargetAtom("par"))) shouldBe true
+    permissions.isAuthorized(Users.authorizedToRequestInPreProd, DeploymentAction.requestOperation, Operation.deploy, "product", Iterable(TargetAtom("am5"))) shouldBe false
+    permissions.isAuthorized(Users.authorizedToStop, DeploymentAction.requestOperation, Operation.deploy, "product", Iterable(TargetAtom("par"))) shouldBe false
   }
 
 }
