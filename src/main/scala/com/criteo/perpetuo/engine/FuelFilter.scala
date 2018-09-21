@@ -3,7 +3,7 @@ package com.criteo.perpetuo.engine
 import com.criteo.perpetuo.config.AppConfigProvider
 import com.criteo.perpetuo.config.ConfigSyntacticSugar._
 import com.criteo.perpetuo.dao.{DBIOrw, DbBinding}
-import com.criteo.perpetuo.model.{DeploymentPlanStep, DeploymentRequest, Operation, TargetAtom}
+import com.criteo.perpetuo.model.{DeploymentPlanStep, DeploymentRequest, TargetAtom}
 import slick.dbio.{DBIOAction, Effect, NoStream}
 
 import scala.concurrent.ExecutionContext.Implicits.global

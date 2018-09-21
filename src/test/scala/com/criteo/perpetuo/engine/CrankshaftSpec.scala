@@ -4,7 +4,6 @@ import com.criteo.perpetuo.SimpleScenarioTesting
 import com.criteo.perpetuo.engine.executors._
 import com.criteo.perpetuo.model._
 import org.mockito.Mockito.when
-import slick.dbio.DBIOAction
 import spray.json.DefaultJsonProtocol._
 import spray.json._
 
