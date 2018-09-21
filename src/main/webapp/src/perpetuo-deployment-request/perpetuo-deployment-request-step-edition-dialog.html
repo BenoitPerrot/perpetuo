@@ -31,7 +31,7 @@
                                                      on-selected-targets-changed="updateSelectedTargets"></perpetuo-deployment-request-target-selector>
       </paper-dialog-scrollable>
       <div class="buttons">
-        <paper-button id="create" dialog-confirm disabled="[[!selectedTargets.length]]">Add</paper-button>
+        <paper-button id="create" dialog-confirm disabled="[[!selectedTargets]]">Add</paper-button>
         <paper-button id="cancel" dialog-dismiss>Cancel</paper-button>
       </div>
     </paper-dialog>
@@ -46,7 +46,7 @@
           productName: String,
 
           name: {type: String, value: ''},
-          selectedTargets: {type: Array, value: () => []},
+          selectedTargets: {type: Object, value: null}
         }
       }
 
@@ -54,7 +54,7 @@
         if (this.$) {
           this.name = '';
           this.$.targetSelector.clear();
-          this.selectedTargets = [];
+          this.selectedTargets = null;
         }
       }
 
