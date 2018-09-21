@@ -1,8 +1,8 @@
 package com.criteo.perpetuo.engine.dispatchers
 
 import com.criteo.perpetuo.engine.executors.ExecutionTrigger
-import com.criteo.perpetuo.engine.{Provider, TargetExpr, UnprocessableIntent}
-import com.criteo.perpetuo.model.Version
+import com.criteo.perpetuo.engine.{Provider, UnprocessableIntent}
+import com.criteo.perpetuo.model.{TargetExpr, Version}
 
 
 trait ParameterFreezer {

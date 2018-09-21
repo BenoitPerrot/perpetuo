@@ -1,8 +1,8 @@
 package com.criteo.perpetuo.engine.resolvers
 
 import com.criteo.perpetuo.dao
-import com.criteo.perpetuo.engine.{Provider, TargetExpr, UnprocessableIntent}
-import com.criteo.perpetuo.model.{TargetAtom, Version}
+import com.criteo.perpetuo.engine.{Provider, UnprocessableIntent}
+import com.criteo.perpetuo.model.{TargetAtom, TargetExpr, Version}
 
 
 trait TargetResolver extends Provider[TargetResolver] {

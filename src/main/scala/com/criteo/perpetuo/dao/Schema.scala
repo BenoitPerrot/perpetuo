@@ -1,7 +1,7 @@
 package com.criteo.perpetuo.dao
 
+import com.criteo.perpetuo.engine.UnprocessableIntent
 import com.criteo.perpetuo.engine.executors.ExecutionTrigger
-import com.criteo.perpetuo.engine.{TargetExpr, UnprocessableIntent}
 import com.criteo.perpetuo.model._
 
 import scala.concurrent.ExecutionContext.Implicits.global

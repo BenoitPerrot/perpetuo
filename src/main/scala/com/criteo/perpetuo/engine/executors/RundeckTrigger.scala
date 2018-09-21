@@ -1,8 +1,7 @@
 package com.criteo.perpetuo.engine.executors
 
 import com.criteo.perpetuo.app.RestApi
-import com.criteo.perpetuo.engine.TargetExpr
-import com.criteo.perpetuo.model.Version
+import com.criteo.perpetuo.model.{TargetExpr, Version}
 import com.twitter.conversions.time._
 import com.twitter.finagle.http.Status
 import com.twitter.util.Await

@@ -1,6 +1,5 @@
 package com.criteo.perpetuo.model
 
-import com.criteo.perpetuo.engine.TargetExpr
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import spray.json.JsValue
 

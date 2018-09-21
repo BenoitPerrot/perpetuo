@@ -4,7 +4,7 @@ import java.lang.{Iterable => JavaIterable}
 import java.util.{Map => JavaMap, Set => JavaSet}
 
 import com.criteo.perpetuo.engine._
-import com.criteo.perpetuo.model.{TargetAtom, Version}
+import com.criteo.perpetuo.model.{TargetAtom, TargetExpr, Version}
 import com.twitter.inject.Logging
 
 import scala.collection.JavaConverters._

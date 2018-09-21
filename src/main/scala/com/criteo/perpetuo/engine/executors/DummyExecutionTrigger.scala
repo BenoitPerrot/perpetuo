@@ -1,7 +1,6 @@
 package com.criteo.perpetuo.engine.executors
 
-import com.criteo.perpetuo.engine.TargetExpr
-import com.criteo.perpetuo.model.Version
+import com.criteo.perpetuo.model.{TargetExpr, Version}
 import com.twitter.inject.Logging
 import com.typesafe.config.Config
 

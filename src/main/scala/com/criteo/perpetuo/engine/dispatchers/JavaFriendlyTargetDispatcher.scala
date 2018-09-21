@@ -5,7 +5,7 @@ import java.util.{Map => JavaMap, Set => JavaSet}
 
 import com.criteo.perpetuo.engine._
 import com.criteo.perpetuo.engine.executors.ExecutionTrigger
-import com.criteo.perpetuo.model.Version
+import com.criteo.perpetuo.model._
 import com.twitter.inject.Logging
 
 import scala.collection.JavaConverters._

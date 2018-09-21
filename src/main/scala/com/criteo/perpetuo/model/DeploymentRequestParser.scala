@@ -1,6 +1,5 @@
 package com.criteo.perpetuo.model
 
-import com.criteo.perpetuo.engine.TargetExpr
 import com.criteo.perpetuo.util.json.JsObjectScanner
 import spray.json.JsonParser.ParsingException
 import spray.json._

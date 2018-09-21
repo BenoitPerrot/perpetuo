@@ -3,9 +3,9 @@ package com.criteo.perpetuo
 import com.criteo.perpetuo.auth.{Unrestricted, User}
 import com.criteo.perpetuo.config.{AppConfigProvider, PluginLoader, Plugins}
 import com.criteo.perpetuo.dao.{DbBinding, DbContext, DbContextProvider, TestingDbContextModule}
+import com.criteo.perpetuo.engine._
 import com.criteo.perpetuo.engine.dispatchers.{SingleTargetDispatcher, TargetDispatcher}
 import com.criteo.perpetuo.engine.executors.{ExecutionTrigger, TriggeredExecutionFinder}
-import com.criteo.perpetuo.engine.{Crankshaft, DeployFailed, DeployFlopped, Deployed, Engine, NotStarted, Outdated, Paused, RevertFailed, Reverted, TargetExpr, UnavailableAction}
 import com.criteo.perpetuo.model._
 import com.twitter.inject.Test
 import org.mockito.Matchers._
