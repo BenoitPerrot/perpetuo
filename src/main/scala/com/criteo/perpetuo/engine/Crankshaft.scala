@@ -360,7 +360,7 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
         operationTrace
       }
 
-  def deviseRevertPlan(deploymentRequest: DeploymentRequest): Future[(Set[TargetAtom], Iterable[(ExecutionSpecification, Set[TargetAtom])])] = {
+  def deviseRevertPlan(deploymentRequest: DeploymentRequest): Future[(TargetAtomSet, Iterable[(ExecutionSpecification, TargetAtomSet)])] = {
     val devisingRevertPlan =
       assessingDeploymentState(deploymentRequest)
         .flatMap {
@@ -463,16 +463,16 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
 
   private def getDeploySpecifics(dispatcher: TargetDispatcher,
                                  planStep: DeploymentPlanStep,
-                                 expandedTarget: Option[Set[TargetAtom]],
+                                 expandedTarget: Option[TargetAtomSet],
                                  executionSpecs: Seq[ExecutionSpecification]): OperationCreationParams = {
 
     val specAndInvocations = executionSpecs.map(spec =>
-      (spec, dispatcher.dispatchExpression(expandedTarget.map(_.map(_.name)).getOrElse(planStep.parsedTarget), spec.specificParameters).toVector)
+      (spec, dispatcher.dispatchExpression(expandedTarget.map(_.items.map(_.name)).getOrElse(planStep.parsedTarget), spec.specificParameters).toVector)
     )
     (Operation.deploy, specAndInvocations, expandedTarget)
   }
 
-  def getStepSpecifics(expandedTarget: Option[Set[TargetAtom]],
+  def getStepSpecifics(expandedTarget: Option[TargetAtomSet],
                        planStep: DeploymentPlanStep): DBIOrw[OperationCreationParams] = {
     // generation of specific parameters
     val specificParameters = targetDispatcher.freezeParameters(planStep.deploymentRequest.product.name, planStep.deploymentRequest.version)
@@ -486,7 +486,7 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
     )
   }
 
-  def getRetrySpecifics(expandedTarget: Option[Set[TargetAtom]],
+  def getRetrySpecifics(expandedTarget: Option[TargetAtomSet],
                         planStep: DeploymentPlanStep): DBIOrw[OperationCreationParams] = {
     // todo: map the right target to the right specification
     dbBinding.findingDeploySpecifications(planStep).map(executionSpecs =>
@@ -499,7 +499,7 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
     dbBinding
       .findingExecutionSpecificationsForRevert(deploymentRequest)
       .flatMap { case (undetermined, determined) =>
-        if (undetermined.nonEmpty)
+        if (undetermined.items.nonEmpty)
           defaultVersion.map { version =>
             val specificParameters = targetDispatcher.freezeParameters(deploymentRequest.product.name, version)
             // Create the execution specification outside of any transaction: it's not an issue if the request
@@ -508,7 +508,7 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
               Stream.cons((executionSpecification, undetermined), determined.toStream)
             )
           }.getOrElse(throw MissingInfo(
-            s"a default rollback version is required, as some targets have no known previous state (e.g. `${undetermined.head}`)",
+            s"a default rollback version is required, as some targets have no known previous state (e.g. `${undetermined.items.head}`)",
             "defaultVersion"
           ))
         else
@@ -516,11 +516,11 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
       }
       .flatMap { groups =>
         val specAndInvocations = groups.map { case (spec, targets) =>
-          (spec, targetDispatcher.dispatchExpression(targets.map(_.name), spec.specificParameters).toVector)
+          (spec, targetDispatcher.dispatchExpression(targets.items.map(_.name), spec.specificParameters).toVector)
         }
-        val atoms = groups.flatMap { case (_, targets) => targets }
+        val atoms = TargetAtomSet(groups.flatMap { case (_, targets) => targets.items }.toSet)
         dbBinding.findingOperatedPlanSteps(deploymentRequest).map(steps =>
-          (steps, (Operation.revert, specAndInvocations, Some(atoms.toSet)))
+          (steps, (Operation.revert, specAndInvocations, Some(atoms)))
         )
       }
   }

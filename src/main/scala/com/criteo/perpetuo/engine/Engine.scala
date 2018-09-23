@@ -86,7 +86,7 @@ class Engine @Inject()(val crankshaft: Crankshaft,
       crankshaft.step(deploymentRequest, operationCount, user.name, getSpecifics)
     }
 
-  def deviseRevertPlan(id: Long): Future[Option[(Set[TargetAtom], Iterable[(ExecutionSpecification, Set[TargetAtom])])]] =
+  def deviseRevertPlan(id: Long): Future[Option[(TargetAtomSet, Iterable[(ExecutionSpecification, TargetAtomSet)])]] =
     withDeploymentRequest(id)(crankshaft.deviseRevertPlan)
 
   def revert(user: User, deploymentRequestId: Long, operationCount: Option[Int], defaultVersion: Option[Version]): Future[Option[OperationTrace]] =

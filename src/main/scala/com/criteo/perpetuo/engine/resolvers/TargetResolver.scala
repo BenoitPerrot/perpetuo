@@ -2,7 +2,7 @@ package com.criteo.perpetuo.engine.resolvers
 
 import com.criteo.perpetuo.dao
 import com.criteo.perpetuo.engine.{Provider, UnprocessableIntent}
-import com.criteo.perpetuo.model.{TargetAtom, TargetExpr, Version}
+import com.criteo.perpetuo.model.{TargetAtom, TargetAtomSet, TargetExpr, Version}
 
 
 trait TargetResolver extends Provider[TargetResolver] {
@@ -29,7 +29,7 @@ trait TargetResolver extends Provider[TargetResolver] {
     */
   def toAtoms(productName: String, productVersion: Version, targetExpr: TargetExpr): Option[Map[String, Set[TargetAtom]]] = None
 
-  def resolveExpression(productName: String, productVersion: Version, targetExpr: TargetExpr): Option[Set[TargetAtom]] = {
+  def resolveExpression(productName: String, productVersion: Version, targetExpr: TargetExpr): Option[TargetAtomSet] = {
     toAtoms(productName, productVersion, targetExpr).map { toAtoms =>
       val resolvedTerms = toAtoms.keySet
       if (!resolvedTerms.subsetOf(targetExpr))
@@ -47,7 +47,7 @@ trait TargetResolver extends Provider[TargetResolver] {
         throw UnprocessableIntent("The following target(s) were not resolved: " +
           (emptyWords.iterator ++ (targetExpr -- resolvedTerms)).map(_.toString).mkString(", "))
 
-      targetExpr.flatMap(toAtoms)
+      TargetAtomSet(targetExpr.flatMap(toAtoms))
     }
   }
 }

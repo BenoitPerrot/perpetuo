@@ -3,6 +3,8 @@ package com.criteo.perpetuo.model
 
 case class TargetAtom(name: String) extends AnyVal
 
+case class TargetAtomSet(items: Set[TargetAtom])
+
 case class TargetAtomStatus(code: Status.Code, detail: String)
 
 case class TargetStatus(targetAtom: TargetAtom,

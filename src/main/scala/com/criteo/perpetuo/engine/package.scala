@@ -1,7 +1,7 @@
 package com.criteo.perpetuo
 
 import com.criteo.perpetuo.engine.executors.ExecutionTrigger
-import com.criteo.perpetuo.model.{ExecutionSpecification, Operation, TargetAtom, TargetExpr, Version}
+import com.criteo.perpetuo.model.{ExecutionSpecification, Operation, TargetAtomSet, TargetExpr, Version}
 
 
 package object engine {
@@ -10,7 +10,7 @@ package object engine {
     def get: T
   }
 
-
   type ExecutionsToTrigger = Iterable[(Long, Version, TargetExpr, ExecutionTrigger)]
-  type OperationCreationParams = (Operation.Kind, Iterable[(ExecutionSpecification, Vector[(ExecutionTrigger, TargetExpr)])], Option[Set[TargetAtom]])
+  type OperationCreationParams = (Operation.Kind, Iterable[(ExecutionSpecification, Vector[(ExecutionTrigger, TargetExpr)])], Option[TargetAtomSet])
+
 }

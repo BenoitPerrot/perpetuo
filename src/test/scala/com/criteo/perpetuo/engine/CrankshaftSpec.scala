@@ -170,11 +170,11 @@ class CrankshaftSpec extends SimpleScenarioTesting {
 
       } yield {
         val specsThird = determinedSpecsThird.map { case (spec, targets) => spec.id -> (spec.version.serialized, targets) }.toMap
-        undeterminedSpecsFirst.map(_.name) shouldEqual Set("moon", "mars")
+        undeterminedSpecsFirst.items.map(_.name) shouldEqual Set("moon", "mars")
         determinedSpecsFirst shouldBe empty
-        undeterminedSpecsThird shouldBe empty
-        specsThird(firstExecSpecId) shouldEqual(JsString("27").toString, Set(TargetAtom("mars")))
-        specsThird(secondExecSpecId) shouldEqual(JsString("54").toString, Set(TargetAtom("moon")))
+        undeterminedSpecsThird.items shouldBe empty
+        specsThird(firstExecSpecId) shouldEqual(JsString("27").toString, TargetAtomSet(Set(TargetAtom("mars"))))
+        specsThird(secondExecSpecId) shouldEqual(JsString("54").toString, TargetAtomSet(Set(TargetAtom("moon"))))
       }
     )
   }
