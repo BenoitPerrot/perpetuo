@@ -3,6 +3,7 @@ package com.criteo.perpetuo.engine
 import java.util.concurrent.TimeUnit
 
 import com.criteo.perpetuo.auth.{DeploymentAction, GeneralAction, Permissions, User}
+import com.criteo.perpetuo.config.AppConfigProvider
 import com.criteo.perpetuo.model.ExecutionState.ExecutionState
 import com.criteo.perpetuo.model._
 import com.google.common.cache.{CacheBuilder, CacheLoader, LoadingCache}
@@ -41,10 +42,12 @@ class Engine @Inject()(val crankshaft: Crankshaft,
         withDeploymentRequest(id)(crankshaft.assessDeploymentState)
     }
 
+  private val stateCacheTimeExpiration = AppConfigProvider.config.getLong("engine.cache.stateExpirationTimeInMs")
+
   protected val cachedState: LoadingCache[java.lang.Long, Future[Option[DeploymentState]]] = CacheBuilder.newBuilder()
     .initialCapacity(128)
     .maximumSize(1024)
-    .expireAfterWrite(2, TimeUnit.SECONDS)
+    .expireAfterWrite(stateCacheTimeExpiration, TimeUnit.MILLISECONDS)
     .concurrencyLevel(10)
     .build(stateCacheLoader)
 
