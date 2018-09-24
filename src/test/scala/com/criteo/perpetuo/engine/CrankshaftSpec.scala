@@ -436,7 +436,7 @@ class CrankshaftWithMultiStepSpec extends SimpleScenarioTesting {
 
   private def getDeployedVersions(productName: String) =
     crankshaft.dbBinding.findCurrentVersionForEachKnownTarget(productName, (step1 ++ step2).map(TargetAtom))
-      .map(_.map{ case (k, v) => k.name -> v.structured.head.value })
+      .map(_.map { case (k, v) => k.name -> v.structured.head.value })
 
   test("Crankshaft can retry the first step if it's failing and revert it") {
     val r = request("enormous-elephant", "new", step1, step2)
