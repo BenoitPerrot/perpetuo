@@ -1,6 +1,7 @@
 package com.criteo.perpetuo.engine.executors
 
 import com.criteo.perpetuo.app.RestApi
+import com.criteo.perpetuo.engine.dispatchers.Dispatch
 import com.criteo.perpetuo.model.{TargetExpr, Version}
 import com.twitter.conversions.time._
 import com.twitter.finagle.http.Status
@@ -60,7 +61,7 @@ class RundeckTrigger(name: String,
     val triggerParameters = Map(
       "callback-url" -> squote(RestApi.executionCallbackUrl(execTraceId)),
       "product-name" -> squote(productName),
-      "target" -> squote(target.mkString(",")),
+      "target" -> squote(Dispatch.normalizeExpr(target).mkString(",")),
       "product-version" -> quotedVersion
     ) ++ specificParameters.map { case (parameterName, value) =>
       parameterName.replaceAll("([A-Z])", "-$1").toLowerCase -> value

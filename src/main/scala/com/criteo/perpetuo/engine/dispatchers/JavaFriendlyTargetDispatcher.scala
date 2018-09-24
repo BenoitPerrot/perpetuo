@@ -19,8 +19,15 @@ abstract class JavaFriendlyTargetDispatcher extends Provider[TargetDispatcher] w
       override def freezeParameters(productName: String, version: Version): String =
         delegate.freezeParameters(productName, version)
 
-      override def dispatch(targetExpr: TargetExpr, frozenParameters: String): Iterable[(ExecutionTrigger, TargetExpr)] =
-        delegate.dispatch(targetExpr.asJava, frozenParameters).iterateAsScala.toIterable
+      // temporary conversion but it doesn't make sense to keep this layer with a structured expression
+      override def dispatch(targetExpr: TargetExpr, frozenParameters: String): Iterable[(ExecutionTrigger, TargetExpr)] = {
+        val normalized = Dispatch.normalizeExpr(targetExpr)
+        val toTerm = normalized.map(term => term.toString -> term).toMap
+        delegate.dispatch(normalized.map(_.toString).asJava, frozenParameters)
+          .iterateAsScala
+          .toIterable
+          .map { case (et, te) => (et, TargetUnion(te.map(toTerm))) }
+      }
     }
   }
 

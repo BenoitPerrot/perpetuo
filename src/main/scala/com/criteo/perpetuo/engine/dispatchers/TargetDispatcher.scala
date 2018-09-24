@@ -2,7 +2,7 @@ package com.criteo.perpetuo.engine.dispatchers
 
 import com.criteo.perpetuo.engine.executors.ExecutionTrigger
 import com.criteo.perpetuo.engine.{Provider, UnprocessableIntent}
-import com.criteo.perpetuo.model.{TargetExpr, Version}
+import com.criteo.perpetuo.model.{TargetAtomSet, TargetExpr, TargetTerm, TargetUnion, Version}
 
 
 trait ParameterFreezer {
@@ -28,21 +28,35 @@ trait TargetDispatcher extends Provider[TargetDispatcher] with ParameterFreezer 
   def dispatch(targetExpr: TargetExpr, frozenParameters: String): Iterable[(ExecutionTrigger, TargetExpr)]
 
   def dispatchExpression(targetExpr: TargetExpr, frozenParameters: String): Iterable[(ExecutionTrigger, TargetExpr)] = {
-    val dispatched = dispatch(targetExpr, frozenParameters)
-      .toStream
-      .filter { case (_, select) => select.nonEmpty }
+    val dispatched = dispatch(targetExpr, frozenParameters).filter { case (_, subExpr) => subExpr.nonEmpty }
 
-    val flattened: TargetExpr = dispatched.map { case (_, group) => group }.foldLeft(Stream.empty[String])(_ ++ _).toSet
+    if (dispatched.size != 1 || dispatched.head._2 != targetExpr) { // cut short in the case of a trivial dispatcher
+      val normalizedBefore = Dispatch.normalizeExpr(targetExpr)
+      val normalizedAfter = dispatched
+        .map { case (_, group) => Dispatch.normalizeExpr(group) }
+        .reduceOption(_ ++ _) // instead of fold() to not build from an empty set
+        .getOrElse(Set())
 
-    // check that we have the same targets before and after the dispatch (but one can be dispatched in several groups)
-    if (!flattened.subsetOf(targetExpr))
-      throw new RuntimeException("The dispatcher augmented the original intent, which is forbidden. The targets introduced after dispatching are: " +
-        (flattened -- targetExpr).map(_.toString).mkString(", "))
-    if (flattened.size != targetExpr.size)
-      throw UnprocessableIntent("The following target(s) were not dispatched: " +
-        (targetExpr -- flattened).map(_.toString).mkString(", "))
+      // check that we have the same targets before and after the dispatch (but one can be dispatched in several groups)
+      if (!normalizedAfter.subsetOf(normalizedBefore))
+        throw new RuntimeException("The dispatcher augmented the original intent, which is forbidden. The targets introduced after dispatching are: " +
+          (normalizedAfter -- normalizedBefore).mkString(", "))
+      if (normalizedAfter.size != normalizedBefore.size)
+        throw UnprocessableIntent("The following target(s) were not dispatched: " +
+          (normalizedBefore -- normalizedAfter).mkString(", "))
+    }
 
     dispatched
+  }
+}
+
+
+// fixme: temporarily, while we go from untyped to typed and back to untyped expression (migration)!
+object Dispatch {
+  val normalizeExpr: TargetExpr => Set[TargetTerm] = {
+    case t: TargetTerm => Set(t)
+    case TargetUnion(items) => items.flatMap(normalizeExpr)
+    case TargetAtomSet(items) => items.toSet
   }
 }
 

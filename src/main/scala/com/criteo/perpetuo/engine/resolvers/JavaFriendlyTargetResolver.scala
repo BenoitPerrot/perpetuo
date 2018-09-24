@@ -4,7 +4,7 @@ import java.lang.{Iterable => JavaIterable}
 import java.util.{Map => JavaMap, Set => JavaSet}
 
 import com.criteo.perpetuo.engine._
-import com.criteo.perpetuo.model.{TargetAtom, TargetExpr, Version}
+import com.criteo.perpetuo.model._
 import com.twitter.inject.Logging
 
 import scala.collection.JavaConverters._
@@ -15,14 +15,22 @@ abstract class JavaFriendlyTargetResolver extends Provider[TargetResolver] with 
     val delegate = this
 
     new TargetResolver {
-      override def toAtoms(productName: String, productVersion: Version, targetExpr: TargetExpr): Option[Map[String, Set[TargetAtom]]] =
-        Option(delegate.toAtoms(productName, productVersion, targetExpr.asJava)).map(_.iterateAsScala.toMap)
+      // temporary conversion but it doesn't make sense to keep this layer with a structured expression
+      override def resolveTerms(productName: String, productVersion: Version, targetTerms: Set[TargetWord]): Option[Map[TargetWord, Set[TargetAtom]]] = {
+        val toTerm = targetTerms.map(term => term.toString -> term).toMap
+        Option(delegate
+          .resolveTerms(productName, productVersion, targetTerms.map(_.toString).asJava)
+          .iterateAsScala
+          .map { case (term, atoms) => toTerm(term) -> atoms.map(TargetAtom) }
+          .toMap
+        )
+      }
     }
   }
 
   /**
-    * A method easier to implement in Java or Groovy than com.criteo.perpetuo.engine.resolvers.TargetResolver.toAtoms;
+    * A method easier to implement in Java or Groovy than [[com.criteo.perpetuo.engine.resolvers.TargetResolver.resolveTerms]];
     * the difference is in the types used: for instance, it must return null where the documentation mentions None.
     */
-  protected def toAtoms(productName: String, productVersion: Version, targetWords: JavaSet[String]): JavaMap[String, JavaIterable[TargetAtom]]
+  protected def resolveTerms(productName: String, productVersion: Version, targetTerms: JavaSet[String]): JavaMap[String, JavaIterable[String]]
 }

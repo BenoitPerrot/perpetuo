@@ -1,6 +1,6 @@
 package com.criteo.perpetuo.engine.executors
 
-import com.criteo.perpetuo.model.Version
+import com.criteo.perpetuo.model.{TargetUnion, TargetWord, Version}
 import com.twitter.finagle.http.{Request, Response, Status}
 import com.twitter.inject.Test
 import com.twitter.util.Future
@@ -31,7 +31,7 @@ class RundeckTriggerSpec extends Test {
     def testTrigger: Option[String] = {
       val productName = "My\"Beautiful\"Project"
       val version = Version(JsString("the 042nd version"))
-      val target = Set("a", "b")
+      val target = TargetUnion(Set("a", "b").map(TargetWord))
       Await.result(trigger(42, productName, version, target, "guy next door"), 1.second)
     }
   }

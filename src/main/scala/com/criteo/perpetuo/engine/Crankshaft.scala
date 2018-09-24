@@ -10,8 +10,6 @@ import com.google.common.annotations.VisibleForTesting
 import com.twitter.inject.Logging
 import javax.inject.{Inject, Singleton}
 import slick.dbio.{DBIOAction, Effect, NoStream}
-import spray.json.DefaultJsonProtocol._
-import spray.json._
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
@@ -464,7 +462,7 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
                                  executionSpecs: Seq[ExecutionSpecification]): OperationCreationParams = {
 
     val specAndInvocations = executionSpecs.map(spec =>
-      (spec, dispatcher.dispatchExpression(expandedTarget.map(_.items.map(_.name)).getOrElse(planStep.parsedTarget), spec.specificParameters).toVector)
+      (spec, dispatcher.dispatchExpression(expandedTarget.getOrElse(planStep.parsedTarget), spec.specificParameters).toVector)
     )
     (Operation.deploy, specAndInvocations, expandedTarget)
   }
@@ -496,7 +494,7 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
     dbBinding
       .findingExecutionSpecificationsForRevert(deploymentRequest)
       .flatMap { case (undetermined, determined) =>
-        if (undetermined.items.nonEmpty)
+        if (undetermined.nonEmpty)
           defaultVersion.map { version =>
             val specificParameters = targetDispatcher.freezeParameters(deploymentRequest.product.name, version)
             // Create the execution specification outside of any transaction: it's not an issue if the request
@@ -513,7 +511,7 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
       }
       .flatMap { groups =>
         val specAndInvocations = groups.map { case (spec, targets) =>
-          (spec, targetDispatcher.dispatchExpression(targets.items.map(_.name), spec.specificParameters).toVector)
+          (spec, targetDispatcher.dispatchExpression(targets, spec.specificParameters).toVector)
         }
         val atoms = TargetAtomSet(groups.flatMap { case (_, targets) => targets.items }.toSet)
         dbBinding.findingOperatedPlanSteps(deploymentRequest).map(steps =>
@@ -557,7 +555,7 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
             (false, s"failed (${e.getMessage})", Some((ExecutionState.initFailed, e.getMessage, None)))
         }
         .map { case (succeeded, identifier, toUpdate) =>
-          logger.debug(s"Triggering job $identifier for execution #$execTraceId: $executor <- ${target.toJson.compactPrint}")
+          logger.debug(s"Triggering job $identifier for execution #$execTraceId: $executor <- $target")
           (succeeded, execTraceId, toUpdate)
         }
     }

@@ -118,8 +118,8 @@ trait EffectInserter
                         executionId,
                         invocations
                           .toStream
-                          .flatMap { case (_, target) => target }
-                          .map(TargetAtom(_) -> TargetAtomStatus(Status.notDone, ""))
+                          .flatMap { case (_, target) => extractAtomsFromTargetExpr(target) }
+                          .map(_ -> TargetAtomStatus(Status.notDone, ""))
                           .toMap
                       )
                         .andThen(ret)
@@ -132,4 +132,12 @@ trait EffectInserter
             .map(effects => (newOp, effects.flatten))
         )
       }
+
+  // fixme: not true anymore if there are other operations than unions
+  private val extractAtomsFromTargetExpr: TargetExpr => Set[TargetAtom] = {
+    case TargetWord(s) => Set(TargetAtom(s)) // fixme: temporary, while everything is not typed
+    case a: TargetAtom => Set(a)
+    case TargetUnion(items) => items.flatMap(extractAtomsFromTargetExpr)
+    case TargetAtomSet(items) => items
+  }
 }

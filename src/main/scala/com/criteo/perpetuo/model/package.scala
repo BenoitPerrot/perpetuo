@@ -8,8 +8,6 @@ import scala.collection.JavaConverters._
 
 package object model {
 
-  type TargetExpr = Set[String]
-
   implicit class TargetGroups[A, B](javaTargetGroups: JavaMap[A, JavaIterable[B]]) {
     def iterateAsScala: Iterator[(A, Set[B])] =
       javaTargetGroups.entrySet.iterator.asScala

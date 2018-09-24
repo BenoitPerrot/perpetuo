@@ -32,11 +32,13 @@ object DeploymentRequestParser {
 
   def parseTargetExpression(target: JsValue): TargetExpr = {
     target match {
-      case JsString(string) if string.nonEmpty => Set(string)
-      case JsArray(arr) if arr.nonEmpty => arr.map {
-        case JsString(string) if string.nonEmpty => string
-        case unknown => throw new ParsingException(s"Expected a non-empty JSON string in the `target` array, got: $unknown")
-      }.toSet
+      case JsString(string) if string.nonEmpty => TargetWord(string)
+      case JsArray(arr) if arr.nonEmpty => TargetUnion(
+        arr.map {
+          case JsString(string) if string.nonEmpty => TargetWord(string)
+          case unknown => throw new ParsingException(s"Expected a non-empty JSON string in the `target` array, got: $unknown")
+        }.toSet
+      )
       case unknown => throw new ParsingException(s"Expected `target` to be a non-empty JSON array or string, got: $unknown")
     }
   }

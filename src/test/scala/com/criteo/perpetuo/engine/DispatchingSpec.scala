@@ -1,7 +1,7 @@
 package com.criteo.perpetuo.engine
 
 import com.criteo.perpetuo.SimpleScenarioTesting
-import com.criteo.perpetuo.engine.dispatchers.TargetDispatcher
+import com.criteo.perpetuo.engine.dispatchers.{Dispatch, TargetDispatcher}
 import com.criteo.perpetuo.engine.executors.{DummyExecutionTrigger, ExecutionTrigger}
 import com.criteo.perpetuo.engine.resolvers.TargetResolver
 import com.criteo.perpetuo.model._
@@ -25,14 +25,14 @@ object TestTargetDispatcher extends TargetDispatcher {
   override def dispatch(targetExpr: TargetExpr, frozenParameters: String): Iterable[(ExecutionTrigger, TargetExpr)] = {
     assert(frozenParameters == "foobar")
     // associate executors to target words wrt the each target word's characters
-    targetExpr.flatMap { targetAtom =>
-      targetAtom.flatMap {
+    Dispatch.normalizeExpr(targetExpr).flatMap { term =>
+      term.toString.flatMap {
         case 'a' => Some(aTrigger)
         case 'b' => Some(bTrigger)
         case 'c' => Some(cTrigger)
         case _ => None
-      }.map(executor => (executor, targetAtom))
-    }.groupBy(_._1).map { case (executor, it) => executor.asInstanceOf[ExecutionTrigger] -> it.map(_._2) }
+      }.map(executor => (executor, term))
+    }.groupBy(_._1).map { case (executor, it) => executor -> TargetUnion(it.map(_._2)) }
   }
 }
 
@@ -44,18 +44,18 @@ class DispatchingSpec extends SimpleScenarioTesting {
   override lazy val targetDispatcher: TargetDispatcher = TestTargetDispatcher
 
   private val testResolver = new TargetResolver {
-    override def toAtoms(productName: String, productVersion: Version, targetExpr: TargetExpr): Option[Map[String, Set[TargetAtom]]] = {
+    override def resolveTerms(productName: String, productVersion: Version, targetTerms: Set[TargetWord]): Option[Map[TargetWord, Set[TargetAtom]]] = {
       // the atomic targets are the input word split on dashes
-      Some(targetExpr.map(word => word -> word.split("-").collect { case name if name.nonEmpty => TargetAtom(name) }.toSet).toMap)
+      Some(targetTerms.map(term => term -> term.word.split("-").collect { case name if name.nonEmpty => TargetAtom(name) }.toSet).toMap)
     }
   }
 
   private val product: Product = Await.result(crankshaft.dbBinding.upsertProduct("perpetuo-app"), 1.second)
 
-  implicit class DispatchTest(private val target: TargetExpr) {
+  implicit class DispatchTest(private val target: Set[String]) {
     private val request = ProtoDeploymentRequest(product.name, Version("\"v42\""), Seq(ProtoDeploymentPlanStep("", target.toJson, "")), "No fear", "c.norris")
 
-    def dispatchedAs(that: Map[ExecutionTrigger, TargetExpr]): Unit = {
+    def dispatchedAs(that: Map[ExecutionTrigger, Set[String]]): Unit = {
       Await.result(
         crankshaft.dbBinding.insertDeploymentRequest(request)
           .flatMap { deploymentPlan =>
@@ -67,7 +67,7 @@ class DispatchingSpec extends SimpleScenarioTesting {
           }
           .map { case (_, executionsToTrigger, _) =>
             val toTrigger = executionsToTrigger.flatMap { case (_, executionToTrigger) => executionToTrigger }
-            assertEqual(toTrigger.toMap, that)
+            assertEqual(toTrigger.toMap, that.mapValues(terms => TargetUnion(terms.map(TargetAtom))))
             assertEqual(toTrigger.size, that.size) // look for unexpected duplicates
           },
         1.second
@@ -92,13 +92,20 @@ class DispatchingSpec extends SimpleScenarioTesting {
   }
 
   test("An execution raises if a target cannot be solved to atomic targets") {
-    val thrown = the[UnprocessableIntent] thrownBy testResolver.resolveExpression(null, Version("\"\""), Set("ab", "-"))
+    val target = TargetUnion(Set("ab", "-").map(TargetWord))
+    val thrown = the[UnprocessableIntent] thrownBy testResolver.resolveExpression(null, Version("\"\""), target)
     thrown.getMessage shouldEqual "The following target(s) were not resolved: -"
+  }
+
+  test("The resolver cuts short on atoms and sends them back") {
+    val targets = Set("ab", "-").map(TargetAtom)
+    testResolver.resolveExpression(null, Version("\"\""), TargetUnion(targets.toSet)) shouldEqual
+      Some(TargetAtomSet(targets)) // the fact it doesn't throw proves the shortcut (see test above)
   }
 
   test("An execution raises if a target is not fully covered by executors") {
     val params = TestTargetDispatcher.freezeParameters("", Version(""""42""""))
-    val thrown = the[UnprocessableIntent] thrownBy TestTargetDispatcher.dispatchExpression(Set("def"), params)
+    val thrown = the[UnprocessableIntent] thrownBy TestTargetDispatcher.dispatchExpression(TargetWord("def"), params)
     thrown.getMessage shouldEqual "The following target(s) were not dispatched: def"
   }
 

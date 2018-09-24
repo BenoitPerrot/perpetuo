@@ -2,7 +2,7 @@ package com.criteo.perpetuo.engine.resolvers
 
 import com.criteo.perpetuo.dao
 import com.criteo.perpetuo.engine.{Provider, UnprocessableIntent}
-import com.criteo.perpetuo.model.{TargetAtom, TargetAtomSet, TargetExpr, Version}
+import com.criteo.perpetuo.model.{TargetAtom, TargetAtomSet, TargetExpr, TargetUnion, TargetWord, Version}
 
 
 trait TargetResolver extends Provider[TargetResolver] {
@@ -27,27 +27,45 @@ trait TargetResolver extends Provider[TargetResolver] {
     *         product and version;
     *         - None if it's NOT CERTAIN that ANY TARGET can be resolved to atoms for the given product.
     */
-  def toAtoms(productName: String, productVersion: Version, targetExpr: TargetExpr): Option[Map[String, Set[TargetAtom]]] = None
+  def resolveTerms(productName: String, productVersion: Version, targetTerms: Set[TargetWord]): Option[Map[TargetWord, Set[TargetAtom]]] = None
 
   def resolveExpression(productName: String, productVersion: Version, targetExpr: TargetExpr): Option[TargetAtomSet] = {
-    toAtoms(productName, productVersion, targetExpr).map { toAtoms =>
-      val resolvedTerms = toAtoms.keySet
-      if (!resolvedTerms.subsetOf(targetExpr))
-        throw new RuntimeException("The resolver augmented the original intent, which is forbidden. The targets introduced by the resolver are: " +
-          (resolvedTerms -- targetExpr).map(_.toString).mkString(", "))
+    // resolve what's unresolved
+    val words = extractNonAtoms(targetExpr)
+    resolveTerms(productName, productVersion, words).map { wordsToAtoms =>
 
-      val emptyWords = toAtoms.flatMap {
+      // check resolution's consistency
+      val resolvedWords = wordsToAtoms.keySet
+      if (!resolvedWords.subsetOf(words))
+        throw new RuntimeException("The resolver augmented the original intent, which is forbidden. The targets introduced by the resolver are: " +
+          (resolvedWords -- words).mkString(", "))
+
+      val emptyWords = wordsToAtoms.flatMap {
         case (_, atoms) if atoms.nonEmpty =>
           atoms.foreach(atom => assert(atom.name.length <= dao.targetAtomMaxLength, s"Target `$atom` is too long"))
           None
         case (word, _) =>
           Some(word)
       }
-      if (emptyWords.nonEmpty || resolvedTerms.size != targetExpr.size)
+      if (emptyWords.nonEmpty || resolvedWords.size != words.size)
         throw UnprocessableIntent("The following target(s) were not resolved: " +
-          (emptyWords.iterator ++ (targetExpr -- resolvedTerms)).map(_.toString).mkString(", "))
+          (emptyWords.iterator ++ (words -- resolvedWords)).mkString(", "))
 
-      TargetAtomSet(targetExpr.flatMap(toAtoms))
+      // transform the expression to a set of atoms
+      TargetAtomSet(transform(targetExpr, wordsToAtoms))
     }
+  }
+
+  private val extractNonAtoms: TargetExpr => Set[TargetWord] = {
+    case w: TargetWord => Set(w)
+    case TargetUnion(items) => items.flatMap(extractNonAtoms)
+    case _: TargetAtom | _: TargetAtomSet => Set.empty
+  }
+
+  private def transform(targetExpr: TargetExpr, f: TargetWord => Set[TargetAtom]): Set[TargetAtom] = targetExpr match {
+    case w: TargetWord => f(w)
+    case a: TargetAtom => Set(a)
+    case TargetUnion(items) => items.flatMap(transform(_, f))
+    case TargetAtomSet(items) => items
   }
 }
