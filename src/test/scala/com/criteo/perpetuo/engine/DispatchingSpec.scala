@@ -31,15 +31,21 @@ object TestTargetDispatcher extends TargetDispatcher {
       case TargetUnion(items) => items
       case _ => throw new RuntimeException(s"This expression is not yet supported in the test helper: $targetExpr")
     }
-    set.flatMap { term =>
-      assert(term.isInstanceOf[TargetTerm])
-      term.toString.flatMap {
-        case 'a' => Some(aTrigger)
-        case 'b' => Some(bTrigger)
-        case 'c' => Some(cTrigger)
-        case _ => None
-      }.map(executor => (executor, term))
-    }.groupBy(_._1).map { case (executor, it) => executor -> TargetUnion(it.map(_._2)) }
+    set
+      .flatMap { term =>
+        assert(term.isInstanceOf[TargetTerm])
+        term
+          .toString
+          .flatMap {
+            case 'a' => Some(aTrigger)
+            case 'b' => Some(bTrigger)
+            case 'c' => Some(cTrigger)
+            case _ => None
+          }
+          .map(executor => (executor, term))
+      }
+      .groupBy(_._1)
+      .map { case (executor, it) => executor -> TargetUnion(it.map(_._2)) }
   }
 }
 
