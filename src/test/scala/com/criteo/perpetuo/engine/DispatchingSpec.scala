@@ -1,7 +1,7 @@
 package com.criteo.perpetuo.engine
 
 import com.criteo.perpetuo.SimpleScenarioTesting
-import com.criteo.perpetuo.engine.dispatchers.{Dispatch, TargetDispatcher}
+import com.criteo.perpetuo.engine.dispatchers.TargetDispatcher
 import com.criteo.perpetuo.engine.executors.{DummyExecutionTrigger, ExecutionTrigger}
 import com.criteo.perpetuo.engine.resolvers.TargetResolver
 import com.criteo.perpetuo.model._
@@ -25,7 +25,14 @@ object TestTargetDispatcher extends TargetDispatcher {
   protected override def dispatch(targetExpr: TargetExpr, frozenParameters: String): Iterable[(ExecutionTrigger, TargetExpr)] = {
     assert(frozenParameters == "foobar")
     // associate executors to target words wrt the each target word's characters
-    Dispatch.normalizeExpr(targetExpr).flatMap { term =>
+    val set = targetExpr match {
+      case t: TargetTerm => Set(t)
+      case TargetAtomSet(atoms) => atoms
+      case TargetUnion(items) => items
+      case _ => throw new RuntimeException(s"This expression is not yet supported in the test helper: $targetExpr")
+    }
+    set.flatMap { term =>
+      assert(term.isInstanceOf[TargetTerm])
       term.toString.flatMap {
         case 'a' => Some(aTrigger)
         case 'b' => Some(bTrigger)
