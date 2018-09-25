@@ -17,10 +17,9 @@ abstract class JavaFriendlyTargetResolver extends Provider[TargetResolver] with 
     new TargetResolver {
       // temporary conversion but it doesn't make sense to keep this layer with a structured expression
       protected override def resolveTerms(productName: String, productVersion: Version, targetTerms: Set[TargetWord]): Option[Map[TargetWord, Set[TargetAtom]]] = {
-        val toTerm = targetTerms.map(term => term.toString -> term).toMap
-        Option(delegate.resolveTerms(productName, productVersion, targetTerms.map(_.toString).asJava)).map(_
-          .iterateAsScala
-          .map { case (term, atoms) => toTerm(term) -> atoms.map(TargetAtom) }
+        Option(delegate.resolveTerms(productName, productVersion, targetTerms.asJava)).map(_
+          .entrySet.iterator.asScala
+          .map(entry => entry.getKey -> entry.getValue.iterator.asScala.map(TargetAtom).toSet)
           .toMap
         )
       }
@@ -31,5 +30,5 @@ abstract class JavaFriendlyTargetResolver extends Provider[TargetResolver] with 
     * A method easier to implement in Java or Groovy than [[com.criteo.perpetuo.engine.resolvers.TargetResolver.resolveTerms]];
     * the difference is in the types used: for instance, it must return null where the documentation mentions None.
     */
-  protected def resolveTerms(productName: String, productVersion: Version, targetTerms: JavaSet[String]): JavaMap[String, JavaIterable[String]]
+  protected def resolveTerms(productName: String, productVersion: Version, targetTerms: JavaSet[TargetWord]): JavaMap[TargetWord, JavaIterable[String]]
 }

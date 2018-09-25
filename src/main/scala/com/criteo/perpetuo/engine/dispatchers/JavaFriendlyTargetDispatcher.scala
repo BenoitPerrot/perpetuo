@@ -1,7 +1,6 @@
 package com.criteo.perpetuo.engine.dispatchers
 
-import java.lang.{Iterable => JavaIterable}
-import java.util.{Map => JavaMap, Set => JavaSet}
+import java.util.{Map => JavaMap}
 
 import com.criteo.perpetuo.engine._
 import com.criteo.perpetuo.engine.executors.ExecutionTrigger
@@ -19,17 +18,14 @@ abstract class JavaFriendlyTargetDispatcher extends Provider[TargetDispatcher] w
       override def freezeParameters(productName: String, version: Version): String =
         delegate.freezeParameters(productName, version)
 
-      // temporary conversion but it doesn't make sense to keep this layer with a structured expression
       protected override def dispatch(targetExpr: TargetExpr, frozenParameters: String): Iterable[(ExecutionTrigger, TargetExpr)] = {
-        val normalized = Dispatch.normalizeExpr(targetExpr)
-        val toTerm = normalized.map(term => term.toString -> term).toMap
-        delegate.dispatch(normalized.map(_.toString).asJava, frozenParameters)
-          .iterateAsScala
+        delegate.dispatch(targetExpr, frozenParameters)
+          .entrySet.iterator.asScala
+          .map(entry => (entry.getKey, entry.getValue))
           .toIterable
-          .map { case (et, te) => (et, TargetUnion(te.map(toTerm))) }
       }
     }
   }
 
-  protected def dispatch(targetExpr: JavaSet[String], frozenParameters: String): JavaMap[ExecutionTrigger, JavaIterable[String]]
+  protected def dispatch(targetExpr: TargetExpr, frozenParameters: String): JavaMap[ExecutionTrigger, TargetExpr]
 }
