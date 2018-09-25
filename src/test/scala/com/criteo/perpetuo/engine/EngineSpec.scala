@@ -7,7 +7,7 @@ import com.criteo.perpetuo.SimpleScenarioTesting
 import com.criteo.perpetuo.auth.{Unrestricted, User}
 import com.criteo.perpetuo.model.{ExecutionState, ProtoDeploymentPlanStep, ProtoDeploymentRequest, Version}
 import com.google.common.base.Ticker
-import com.google.common.cache.CacheBuilder
+import com.google.common.cache.{CacheBuilder, LoadingCache}
 import spray.json.JsString
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -32,25 +32,25 @@ class EngineSpec extends SimpleScenarioTesting {
   }
 
   override lazy val engine: Engine = new Engine(crankshaft, Unrestricted) {
-    override protected val cachedState = CacheBuilder.newBuilder()
-      .maximumSize(128)
-      .expireAfterAccess(2, TimeUnit.SECONDS)
-      .concurrencyLevel(10)
-      .ticker(MockTicker)
-      .build(stateCacheLoader)
+    override protected val cachedState: LoadingCache[java.lang.Long, Future[Option[DeploymentState]]] =
+      CacheBuilder.newBuilder()
+        .maximumSize(128)
+        .expireAfterAccess(2, TimeUnit.SECONDS)
+        .concurrencyLevel(10)
+        .ticker(MockTicker)
+        .build(stateCacheLoader)
   }
 
-  val someone = User("s.omeone")
-  val starter = User("s.tarter")
+  private val someone = User("s.omeone")
+  private val starter = User("s.tarter")
 
   test("Testing the cache is keeping state for 2 seconds") {
-
     await(
       for {
         product <- engine.upsertProduct(starter, "product #1")
         depReq <- engine.requestDeployment(someone, ProtoDeploymentRequest(product.name, Version("\"1000\""), Seq(ProtoDeploymentPlanStep("", JsString("*"), "")), "", someone.name))
         notStarted <- engine.findDeploymentRequestState(depReq.id).map(_.get)
-        operationTrace <- engine.step(starter, depReq.id, Some(0))
+        _ <- engine.step(starter, depReq.id, Some(0))
 
         stillNotStarted <- engine.findDeploymentRequestState(depReq.id).map(_.get)
 
@@ -64,16 +64,14 @@ class EngineSpec extends SimpleScenarioTesting {
         _ <- MockTicker.advanceTime()
 
         completed <- engine.findDeploymentRequestState(depReq.id).map(_.get)
-
       } yield {
-        notStarted.isInstanceOf[NotStarted] shouldBe true
-        stillNotStarted.isInstanceOf[NotStarted] shouldBe true
-        onGoing.isInstanceOf[DeployInProgress] shouldBe true
-        stillOnGoing.isInstanceOf[DeployInProgress] shouldBe true
-        completed.isInstanceOf[DeployFlopped] shouldBe true
+        notStarted shouldBe a[NotStarted]
+        stillNotStarted shouldBe a[NotStarted]
+        onGoing shouldBe a[DeployInProgress]
+        stillOnGoing shouldBe a[DeployInProgress]
+        completed shouldBe a[DeployFlopped]
       }
     )
-
   }
 
 }
