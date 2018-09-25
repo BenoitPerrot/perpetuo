@@ -25,9 +25,9 @@ trait TargetDispatcher extends Provider[TargetDispatcher] with ParameterFreezer 
     * @return all the provided target atoms grouped by their dedicated executors
     * @throws NoAvailableExecutor if a target could not be dispatched
     */
-  def dispatch(targetExpr: TargetExpr, frozenParameters: String): Iterable[(ExecutionTrigger, TargetExpr)]
+  protected def dispatch(targetExpr: TargetExpr, frozenParameters: String): Iterable[(ExecutionTrigger, TargetExpr)]
 
-  def dispatchExpression(targetExpr: TargetExpr, frozenParameters: String): Iterable[(ExecutionTrigger, TargetExpr)] = {
+  final def dispatchExpression(targetExpr: TargetExpr, frozenParameters: String): Iterable[(ExecutionTrigger, TargetExpr)] = {
     val dispatched = dispatch(targetExpr, frozenParameters).filter { case (_, subExpr) => subExpr.nonEmpty }
 
     if (dispatched.size != 1 || dispatched.head._2 != targetExpr) { // cut short in the case of a trivial dispatcher

@@ -16,7 +16,7 @@ abstract class JavaFriendlyTargetResolver extends Provider[TargetResolver] with 
 
     new TargetResolver {
       // temporary conversion but it doesn't make sense to keep this layer with a structured expression
-      override def resolveTerms(productName: String, productVersion: Version, targetTerms: Set[TargetWord]): Option[Map[TargetWord, Set[TargetAtom]]] = {
+      protected override def resolveTerms(productName: String, productVersion: Version, targetTerms: Set[TargetWord]): Option[Map[TargetWord, Set[TargetAtom]]] = {
         val toTerm = targetTerms.map(term => term.toString -> term).toMap
         Option(delegate
           .resolveTerms(productName, productVersion, targetTerms.map(_.toString).asJava)

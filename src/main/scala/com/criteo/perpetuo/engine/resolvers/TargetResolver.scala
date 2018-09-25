@@ -27,7 +27,7 @@ trait TargetResolver extends Provider[TargetResolver] {
     *         product and version;
     *         - None if it's NOT CERTAIN that ANY TARGET can be resolved to atoms for the given product.
     */
-  def resolveTerms(productName: String, productVersion: Version, targetTerms: Set[TargetWord]): Option[Map[TargetWord, Set[TargetAtom]]] = None
+  protected def resolveTerms(productName: String, productVersion: Version, targetTerms: Set[TargetWord]): Option[Map[TargetWord, Set[TargetAtom]]] = None
 
   def resolveExpression(productName: String, productVersion: Version, targetExpr: TargetExpr): Option[TargetAtomSet] = {
     // resolve what's unresolved

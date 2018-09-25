@@ -22,7 +22,7 @@ object TestTargetDispatcher extends TargetDispatcher {
 
   override def freezeParameters(productName: String, version: Version): String = "foobar"
 
-  override def dispatch(targetExpr: TargetExpr, frozenParameters: String): Iterable[(ExecutionTrigger, TargetExpr)] = {
+  protected override def dispatch(targetExpr: TargetExpr, frozenParameters: String): Iterable[(ExecutionTrigger, TargetExpr)] = {
     assert(frozenParameters == "foobar")
     // associate executors to target words wrt the each target word's characters
     Dispatch.normalizeExpr(targetExpr).flatMap { term =>
@@ -44,7 +44,7 @@ class DispatchingSpec extends SimpleScenarioTesting {
   override lazy val targetDispatcher: TargetDispatcher = TestTargetDispatcher
 
   private val testResolver = new TargetResolver {
-    override def resolveTerms(productName: String, productVersion: Version, targetTerms: Set[TargetWord]): Option[Map[TargetWord, Set[TargetAtom]]] = {
+    protected override def resolveTerms(productName: String, productVersion: Version, targetTerms: Set[TargetWord]): Option[Map[TargetWord, Set[TargetAtom]]] = {
       // the atomic targets are the input word split on dashes
       Some(targetTerms.map(term => term -> term.word.split("-").collect { case name if name.nonEmpty => TargetAtom(name) }.toSet).toMap)
     }
