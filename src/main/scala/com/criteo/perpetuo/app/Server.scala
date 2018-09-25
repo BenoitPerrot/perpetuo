@@ -3,6 +3,7 @@ package com.criteo.perpetuo.app
 import com.criteo.perpetuo.auth.{UserFilter, Controller => AuthenticationController}
 import com.criteo.perpetuo.config.AppConfigProvider
 import com.criteo.perpetuo.config.ConfigSyntacticSugar._
+import com.twitter.finagle.http.filter.Cors
 import com.twitter.finagle.http.{Request, Response}
 import com.twitter.finatra.http.filters.{LoggingMDCFilter, TraceIdMDCFilter}
 import com.twitter.finatra.http.routing.HttpRouter
@@ -41,6 +42,10 @@ class Server extends ServerConfigurator with HttpServer {
   )
 
   override def configureHttp(router: HttpRouter) {
+    //TODO: Allow better CORS policy tuning
+    //Allow CORS for custom UIs, note that beforeRouting is necessary to handle pre-flight requests
+    router.filter(new Cors.HttpFilter(Cors.UnsafePermissivePolicy), beforeRouting = true)
+
     if (config.getBoolean("logging")) {
       // Activate "Mapped Diagnostic Context" and access and stats logging
       router
