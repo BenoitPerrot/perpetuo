@@ -2,6 +2,7 @@ package com.criteo.perpetuo.engine
 
 import com.criteo.perpetuo.SimpleScenarioTesting
 import com.criteo.perpetuo.engine.executors._
+import com.criteo.perpetuo.engine.resolvers.TargetResolver
 import com.criteo.perpetuo.model._
 import org.mockito.Mockito.when
 import spray.json.DefaultJsonProtocol._
@@ -430,6 +431,84 @@ class CrankshaftWithFailingExecutorSpec extends SimpleScenarioTesting {
 }
 
 
+class CrankshaftWithFailingTargetSpec extends SimpleScenarioTesting {
+
+  override val resolver = new TargetResolver {
+    override def resolveTerms(productName: String, productVersion: Version, targetTerms: Set[TargetNonAtom]): Option[Map[TargetNonAtom, Set[TargetAtom]]] = {
+      Some(targetTerms.map { case term: TargetWord => term -> term.word.split("-").collect { case name if name.nonEmpty => TargetAtom(name) }.toSet }.toMap)
+    }
+  }
+
+  private val step1 = Set("north", "south")
+  private val step2 = Set("east-west")
+
+  private def getDeployedVersions(productName: String) =
+    crankshaft.dbBinding.findCurrentVersionForEachKnownTarget(productName, (step1 ++ step2).map(TargetAtom))
+      .map(_.map { case (k, v) => k.name -> v.structured.head.value })
+
+  private def findTargetsByOperationTrace(op: OperationTrace) = {
+    crankshaft.dbBinding.findExecutionIdsByOperationTrace(op.id)
+      .flatMap { executionIds =>
+        val executionId = executionIds.head
+        findTargetsByExecution(executionId).map(_.map(_.name))
+      }
+  }
+
+  test("Crankshaft retries on failed targets only") {
+    val r = request("big-brother", "new", step1, step2)
+
+    r.eligibleOperations should become(Seq(Operation.deploy))
+    r.step(Map("north" -> Status.success, "south" -> Status.productFailure))
+    getDeployedVersions("big-brother") should become(Map("north" -> "new", "south" -> "new"))
+
+    val op = r.step()
+    findTargetsByOperationTrace(op) should become(Seq("south"))
+
+    r.step(Map("east" -> Status.success, "west" -> Status.productFailure))
+    val op2 = r.step()
+    findTargetsByOperationTrace(op2) should become(Seq("west"))
+  }
+}
+
+
+class CrankshaftWithDynamicResolutionSpec extends SimpleScenarioTesting {
+
+  private var targetToAtoms: Map[TargetNonAtom, Set[TargetAtom]] = Map(TargetWord("world") -> Set(TargetAtom("europe"), TargetAtom("asia"), TargetAtom("africa")))
+
+  override val resolver = new TargetResolver {
+  override def resolveTerms(productName: String, productVersion: Version, targetTerms: Set[TargetNonAtom]): Option[Map[TargetNonAtom, Set[TargetAtom]]] = {
+      Some(targetToAtoms)
+    }
+  }
+
+  private val step1 = Set("world")
+
+  private def getDeployedVersions(productName: String) =
+    crankshaft.dbBinding.findCurrentVersionForEachKnownTarget(productName, step1.map(TargetAtom))
+      .map(_.map { case (k, v) => k.name -> v.structured.head.value })
+
+  private def findTargetsByOperationTrace(op: OperationTrace) = {
+    crankshaft.dbBinding.findExecutionIdsByOperationTrace(op.id)
+      .flatMap { executionIds =>
+        val executionId = executionIds.head
+        findTargetsByExecution(executionId).map(_.map(_.name))
+      }
+  }
+
+  test("Crankshaft retries on failed targets only") {
+    val r = request("big-brother", "new", step1)
+
+    r.eligibleOperations should become(Seq(Operation.deploy))
+    r.step(Map("europe" -> Status.success, "asia" -> Status.productFailure, "africa" -> Status.productFailure))
+
+    // Target resolution changes in the second run
+    targetToAtoms = Map(TargetWord("world") -> Set(TargetAtom("europe"), TargetAtom("asia")))
+    val op = r.step()
+    findTargetsByOperationTrace(op) should become(Seq("asia"))
+  }
+}
+
+
 class CrankshaftWithMultiStepSpec extends SimpleScenarioTesting {
   private val step1 = Set("north", "south")
   private val step2 = Set("east", "west")
@@ -507,6 +586,23 @@ class CrankshaftWithMultiStepSpec extends SimpleScenarioTesting {
 
     r.eligibleOperations should become(Seq[Operation.Kind]())
     (the[UnavailableAction] thrownBy r.step()).msg shouldBe "the deployment transaction is closed"
+  }
+
+  test("Crankshaft retries on all unresolvable targets") {
+    val r = request("colossal-beast", "new", step1, step2)
+
+    r.eligibleOperations should become(Seq(Operation.deploy))
+    r.step(Map("north" -> Status.success, "south" -> Status.productFailure))
+
+    r.eligibleOperations should become(Seq(Operation.deploy, Operation.revert))
+
+    val op = r.step()
+
+    crankshaft.dbBinding.findExecutionIdsByOperationTrace(op.id)
+      .flatMap { executionIds =>
+        val executionId = executionIds.head
+        findTargetsByExecution(executionId).map(_.map(_.name))
+      } should become(Seq("north", "south"))
   }
 }
 

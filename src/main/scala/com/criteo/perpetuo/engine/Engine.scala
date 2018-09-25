@@ -87,10 +87,10 @@ class Engine @Inject()(val crankshaft: Crankshaft,
               DBIOAction.failed(UnavailableAction("another operation is already running", Map("deploymentRequestId" -> deploymentRequest.id)))
 
             case s: DeployFailed =>
-              resolveTargetAndRejectIfPermissionDenied(s.step).flatMap(resolvedTarget => crankshaft.getRetrySpecifics(resolvedTarget, s.step).map((_, Some(s.step), s.step)))
+              resolveTargetAndRejectIfPermissionDenied(s.step).flatMap(resolvedTarget => crankshaft.getRetrySpecifics(resolvedTarget, s.step, s.effects).map((_, Some(s.step), s.step)))
 
             case s: DeployFlopped =>
-              resolveTargetAndRejectIfPermissionDenied(s.step).flatMap(resolvedTarget => crankshaft.getRetrySpecifics(resolvedTarget, s.step).map((_, Some(s.step), s.step)))
+              resolveTargetAndRejectIfPermissionDenied(s.step).flatMap(resolvedTarget => crankshaft.getRetrySpecifics(resolvedTarget, s.step, s.effects).map((_, Some(s.step), s.step)))
 
             case s: NotStarted =>
               resolveTargetAndRejectIfPermissionDenied(s.toDo).flatMap(resolvedTarget => crankshaft.getStepSpecifics(resolvedTarget, s.toDo).map((_, None, s.toDo)))

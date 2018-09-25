@@ -54,11 +54,12 @@ trait SimpleScenarioTesting extends TestHelpers with TestDb with MockitoSugar {
   val executionFinder = new TriggeredExecutionFinder(loader)
 
   lazy val targetDispatcher: TargetDispatcher = new SingleTargetDispatcher(executionTrigger)
+  val resolver = plugins.resolver
 
   lazy val crankshaft: Crankshaft = {
     when(executionTrigger.trigger(anyLong, anyString, any[Version], any[TargetExpr], anyString))
       .thenReturn(Future(triggerMock))
-    new Crankshaft(dbBinding, plugins.resolver, targetDispatcher, plugins.listeners, executionFinder)
+    new Crankshaft(dbBinding, resolver, targetDispatcher, plugins.listeners, executionFinder)
   }
 
   lazy val engine = new Engine(crankshaft, Unrestricted)
@@ -145,11 +146,19 @@ trait SimpleScenarioTesting extends TestHelpers with TestDb with MockitoSugar {
     }
 
     def step(finalStatus: Status.Code = Status.success): OperationTrace = {
+      val targetStatus = try {
+        stepsTargets(currentStep).map(_ -> finalStatus).toMap
+      } catch {
+        case _: ArrayIndexOutOfBoundsException => Map[String, Status.Code]()  // This shouldn't be necessary. If there isn't anymore steps, the deployment transaction is closed.
+      }
+      step(targetStatus)
+    }
+
+    def step(s: Map[String, Status.Code]): OperationTrace = {
       val operationTrace = startStep()
-      val targetStatus = stepsTargets(currentStep).map(_ -> finalStatus).toMap
-      if (finalStatus == Status.success)
+      if (s.values.forall(_ == Status.success))
         currentStep += 1
-      await(closeOperation(operationTrace, targetStatus))
+      await(closeOperation(operationTrace, s))
       operationTrace
     }
 
