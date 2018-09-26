@@ -1,8 +1,7 @@
 package com.criteo.perpetuo.engine.executors
 
 import com.criteo.perpetuo.app.RestApi
-import com.criteo.perpetuo.engine.dispatchers.Dispatch
-import com.criteo.perpetuo.model.{TargetExpr, Version}
+import com.criteo.perpetuo.model._
 import com.twitter.conversions.time._
 import com.twitter.finagle.http.Status
 import com.twitter.util.Await
@@ -49,9 +48,13 @@ class RundeckTrigger(name: String,
     }
   }
 
-  override def trigger(execTraceId: Long, productName: String, version: Version, target: TargetExpr, initiator: String): Future[Option[String]] = {
-    // todo: while we only support deployment tactics, we directly give the select dimension, and formatted differently
+  private def serializeTarget(targetExpr: TargetExpr): String =
+    targetExpr match {
+      case t: TargetTerm => t.toString
+      case op: TargetOp => op.items.map(serializeTarget).mkString(",")
+    }
 
+  override def trigger(execTraceId: Long, productName: String, version: Version, target: TargetExpr, initiator: String): Future[Option[String]] = {
     def squote(s: String) = s"'$s'"
 
     var quotedVersion = version.toString
@@ -61,7 +64,7 @@ class RundeckTrigger(name: String,
     val triggerParameters = Map(
       "callback-url" -> squote(RestApi.executionCallbackUrl(execTraceId)),
       "product-name" -> squote(productName),
-      "target" -> squote(Dispatch.normalizeExpr(target).mkString(",")),
+      "target" -> squote(serializeTarget(target)),
       "product-version" -> quotedVersion
     ) ++ specificParameters.map { case (parameterName, value) =>
       parameterName.replaceAll("([A-Z])", "-$1").toLowerCase -> value
