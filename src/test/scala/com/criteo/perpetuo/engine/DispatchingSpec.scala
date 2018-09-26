@@ -96,12 +96,10 @@ class DispatchingSpec extends SimpleScenarioTesting {
     )
   }
 
-  test("An execution gathers target words on executors") {
-    Set("abc-ab", "cb") dispatchedAs Map(
-      aTrigger -> Set("abc", "ab"),
-      bTrigger -> Set("abc", "ab", "cb"),
-      cTrigger -> Set("abc", "cb")
-    )
+  test("An execution cannot distribute an atom to multiple executors") {
+    val params = TestTargetDispatcher.freezeParameters("", Version(""""42""""))
+    val thrown = the[RuntimeException] thrownBy TestTargetDispatcher.dispatchExpression(TargetAtomSet(Set("abc", "ab", "cb").map(TargetAtom)), params)
+    thrown.getMessage shouldEqual "Wrong partition of atoms: `ab, abc, cb` has been dispatched as `ab, ab, abc, abc, abc, cb, cb`"
   }
 
   test("An execution raises if a target cannot be solved to atomic targets") {
@@ -119,7 +117,7 @@ class DispatchingSpec extends SimpleScenarioTesting {
   test("An execution raises if a target is not fully covered by executors") {
     val params = TestTargetDispatcher.freezeParameters("", Version(""""42""""))
     val thrown = the[UnprocessableIntent] thrownBy TestTargetDispatcher.dispatchExpression(TargetWord("def"), params)
-    thrown.getMessage shouldEqual "The following target(s) were not dispatched: def"
+    thrown.getMessage shouldEqual "No executor associated to the target `def`"
   }
 
   private def assertEqual(challenger: Any, expected: Any, path: String = "root"): Unit = {

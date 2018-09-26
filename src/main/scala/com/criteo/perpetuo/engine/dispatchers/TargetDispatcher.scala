@@ -2,7 +2,7 @@ package com.criteo.perpetuo.engine.dispatchers
 
 import com.criteo.perpetuo.engine.executors.ExecutionTrigger
 import com.criteo.perpetuo.engine.{Provider, UnprocessableIntent}
-import com.criteo.perpetuo.model.{TargetAtomSet, TargetExpr, TargetTerm, TargetUnion, Version}
+import com.criteo.perpetuo.model._
 
 
 trait ParameterFreezer {
@@ -30,33 +30,39 @@ trait TargetDispatcher extends Provider[TargetDispatcher] with ParameterFreezer 
   final def dispatchExpression(targetExpr: TargetExpr, frozenParameters: String): Iterable[(ExecutionTrigger, TargetExpr)] = {
     val dispatched = dispatch(targetExpr, frozenParameters).filter { case (_, subExpr) => subExpr.nonEmpty }
 
-    if (dispatched.size != 1 || dispatched.head._2 != targetExpr) { // cut short in the case of a trivial dispatcher
-      val normalizedBefore = Dispatch.normalizeExpr(targetExpr)
-      val normalizedAfter = dispatched
-        .map { case (_, group) => Dispatch.normalizeExpr(group) }
-        .reduceOption(_ ++ _) // instead of fold() to not build from an empty set
-        .getOrElse(Set())
-
-      // check that we have the same targets before and after the dispatch (but one can be dispatched in several groups)
-      if (!normalizedAfter.subsetOf(normalizedBefore))
-        throw new RuntimeException("The dispatcher augmented the original intent, which is forbidden. The targets introduced after dispatching are: " +
-          (normalizedAfter -- normalizedBefore).mkString(", "))
-      if (normalizedAfter.size != normalizedBefore.size)
-        throw UnprocessableIntent("The following target(s) were not dispatched: " +
-          (normalizedBefore -- normalizedAfter).mkString(", "))
+    val partition = targetExpr match {
+      case a: TargetAtom => Some(Seq(a))
+      case TargetAtomSet(atoms) => Some(atoms.toSeq.sortBy(_.name))
+      case _ => None
     }
+    partition
+      .orElse {
+        if (dispatched.forall { case (_, e) => e.isEmpty })
+          throw UnprocessableIntent(s"No executor associated to the target `$targetExpr`")
+        if (dispatched.size != 1 || dispatched.head._2 != targetExpr)
+          throw new RuntimeException(s"Dispatching unresolved expression `$targetExpr` to: ${dispatched.map(_._2).mkString(", ")}")
+        None
+      }
+      .foreach { atoms =>
+        val dispatchedAtoms = dispatched
+          .toSeq
+          .flatMap { case (_, subExpr) =>
+            subExpr match {
+              case a: TargetAtom => Seq(a)
+              case TargetUnion(items) => items.map {
+                case a: TargetAtom => a
+                case _ => throw new RuntimeException(s"Wrong dispatching: unexpected sub-expression `$subExpr` generated out of `$targetExpr`")
+              }
+              case TargetAtomSet(items) => items
+              case _ => throw new RuntimeException(s"Wrong dispatching: unexpected sub-expression `$subExpr` generated out of `$targetExpr`")
+            }
+          }
+          .sortBy(_.name)
+        if (dispatchedAtoms != atoms)
+          throw new RuntimeException(s"Wrong partition of atoms: `${atoms.mkString(", ")}` has been dispatched as `${dispatchedAtoms.mkString(", ")}`")
+      }
 
     dispatched
-  }
-}
-
-
-// fixme: temporarily, while we go from untyped to typed and back to untyped expression (migration)!
-object Dispatch {
-  val normalizeExpr: TargetExpr => Set[TargetTerm] = {
-    case t: TargetTerm => Set(t)
-    case TargetUnion(items) => items.flatMap(normalizeExpr)
-    case TargetAtomSet(items) => items.toSet
   }
 }
 
