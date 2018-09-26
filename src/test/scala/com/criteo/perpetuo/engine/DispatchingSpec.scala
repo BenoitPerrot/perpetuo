@@ -129,6 +129,7 @@ class DispatchingSpec extends SimpleScenarioTesting {
       case cSet: scala.collection.Set[_] =>
         assertEqualSets(cSet.asInstanceOf[scala.collection.Set[Any]], as[scala.collection.Set[Any]](expected, path), path)
       case cTuple: scala.Product =>
+        challenger.getClass shouldEqual expected.getClass
         assertEqual(cTuple.productIterator, as[scala.Product](expected, path).productIterator, path)
       case cIt: TraversableOnce[Any] =>
         val lc = cIt.toSeq
