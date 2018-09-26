@@ -2,7 +2,7 @@ package com.criteo.perpetuo.engine.resolvers
 
 import com.criteo.perpetuo.dao
 import com.criteo.perpetuo.engine.{Provider, UnprocessableIntent}
-import com.criteo.perpetuo.model.{TargetAtom, TargetAtomSet, TargetExpr, TargetUnion, TargetWord, Version}
+import com.criteo.perpetuo.model._
 
 
 trait TargetResolver extends Provider[TargetResolver] {
@@ -27,43 +27,43 @@ trait TargetResolver extends Provider[TargetResolver] {
     *         product and version;
     *         - None if it's NOT CERTAIN that ANY TARGET can be resolved to atoms for the given product.
     */
-  protected def resolveTerms(productName: String, productVersion: Version, targetTerms: Set[TargetWord]): Option[Map[TargetWord, Set[TargetAtom]]] = None
+  protected def resolveTerms(productName: String, productVersion: Version, targetTerms: Set[TargetNonAtom]): Option[Map[TargetNonAtom, Set[TargetAtom]]] = None
 
   def resolveExpression(productName: String, productVersion: Version, targetExpr: TargetExpr): Option[TargetAtomSet] = {
     // resolve what's unresolved
-    val words = extractNonAtoms(targetExpr)
-    resolveTerms(productName, productVersion, words).map { wordsToAtoms =>
+    val nonAtoms = extractNonAtoms(targetExpr)
+    resolveTerms(productName, productVersion, nonAtoms).map { nonAtomsToAtoms =>
 
       // check resolution's consistency
-      val resolvedWords = wordsToAtoms.keySet
-      if (!resolvedWords.subsetOf(words))
+      val resolvedWords = nonAtomsToAtoms.keySet
+      if (!resolvedWords.subsetOf(nonAtoms))
         throw new RuntimeException("The resolver augmented the original intent, which is forbidden. The targets introduced by the resolver are: " +
-          (resolvedWords -- words).mkString(", "))
+          (resolvedWords -- nonAtoms).mkString(", "))
 
-      val emptyWords = wordsToAtoms.flatMap {
+      val emptyWords = nonAtomsToAtoms.flatMap {
         case (_, atoms) if atoms.nonEmpty =>
           atoms.foreach(atom => assert(atom.name.length <= dao.targetAtomMaxLength, s"Target `$atom` is too long"))
           None
         case (word, _) =>
           Some(word)
       }
-      if (emptyWords.nonEmpty || resolvedWords.size != words.size)
+      if (emptyWords.nonEmpty || resolvedWords.size != nonAtoms.size)
         throw UnprocessableIntent("The following target(s) were not resolved: " +
-          (emptyWords.iterator ++ (words -- resolvedWords)).mkString(", "))
+          (emptyWords.iterator ++ (nonAtoms -- resolvedWords)).mkString(", "))
 
       // transform the expression to a set of atoms
-      TargetAtomSet(transform(targetExpr, wordsToAtoms))
+      TargetAtomSet(transform(targetExpr, nonAtomsToAtoms))
     }
   }
 
-  private val extractNonAtoms: TargetExpr => Set[TargetWord] = {
-    case w: TargetWord => Set(w)
+  private val extractNonAtoms: TargetExpr => Set[TargetNonAtom] = {
+    case n: TargetNonAtom => Set(n)
     case TargetUnion(items) => items.flatMap(extractNonAtoms)
     case _: TargetAtom | _: TargetAtomSet => Set.empty
   }
 
-  private def transform(targetExpr: TargetExpr, f: TargetWord => Set[TargetAtom]): Set[TargetAtom] = targetExpr match {
-    case w: TargetWord => f(w)
+  private def transform(targetExpr: TargetExpr, f: TargetNonAtom => Set[TargetAtom]): Set[TargetAtom] = targetExpr match {
+    case n: TargetNonAtom => f(n)
     case a: TargetAtom => Set(a)
     case TargetUnion(items) => items.flatMap(transform(_, f))
     case TargetAtomSet(items) => items

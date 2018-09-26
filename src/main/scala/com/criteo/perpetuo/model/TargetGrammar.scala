@@ -14,8 +14,10 @@ final case class TargetAtom(name: String) extends AnyVal with TargetTerm {
   override def toString: String = name
 }
 
+sealed trait TargetNonAtom extends Any with TargetTerm
+
 // temporarily, while migrating toward typed expressions:
-final case class TargetWord(word: String) extends AnyVal with TargetTerm {
+final case class TargetWord(word: String) extends AnyVal with TargetNonAtom {
   override def toString: String = word
 }
 
