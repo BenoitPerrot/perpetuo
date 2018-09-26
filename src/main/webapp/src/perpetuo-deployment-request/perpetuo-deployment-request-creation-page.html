@@ -7,7 +7,6 @@
 <link rel="import" href="../perpetuo-client/perpetuo-client.html">
 <link rel="import" href="../perpetuo-deployment-request/perpetuo-deployment-request-comment-editor.html">
 <link rel="import" href="../perpetuo-deployment-request/perpetuo-deployment-request-creation-error.html">
-<link rel="import" href="../perpetuo-deployment-request/perpetuo-deployment-request-creator.html">
 <link rel="import" href="../perpetuo-deployment-request/perpetuo-deployment-request-product-selector.html">
 <link rel="import" href="../perpetuo-deployment-request/perpetuo-deployment-request-strategy-selector.html">
 <link rel="import" href="../perpetuo-deployment-request/perpetuo-deployment-request-version-selector.html">
@@ -152,20 +151,20 @@
       }
 
       create() {
-        new Perpetuo.DeploymentRequestCreator()
-                    .create(this.selectedProductName,
-                            this.selectedVersion,
-                            this.selectedStrategy,
-                            this.$.commentEditor.value)
-                    .then(_ => _.json())
-                    .then(o => {
-                      window.location.replace(`/deployment-requests/${o.id}`);
-                    })
-                    .catch(e => {
-                      this.$.errorDialog.errors = e.detail.errors;
-                      this.$.errorDialog.open();
-                      this.$.stepper.reset();
-                    });
+        this.client
+            .createDeploymentRequest(this.selectedProductName,
+                                     this.selectedVersion,
+                                     this.selectedStrategy,
+                                     this.$.commentEditor.value)
+            .then(_ => _.json())
+            .then(o => {
+              window.location.replace(`/deployment-requests/${o.id}`);
+            })
+            .catch(e => {
+              this.$.errorDialog.errors = e.detail.errors;
+              this.$.errorDialog.open();
+              this.$.stepper.reset();
+            });
       }
 
       clear() {
