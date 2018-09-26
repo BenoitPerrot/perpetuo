@@ -378,6 +378,8 @@
             return this.onRevertTap(e);
           case 'stop':
             return this.onStopTap(e);
+          case 'abandon':
+            return this.onAbandonTap(e);
         }
       }
 
@@ -441,6 +443,12 @@
       onStopTap(e) {
         this.actionLock(() =>
           this.client.stopDeploymentRequest(this.deploymentRequestId, this.data.operations.length)
+        );
+      }
+
+      onAbandonTap(e) {
+        this.actionLock(() =>
+          this.client.abandonDeploymentRequest(this.deploymentRequestId)
         );
       }
 
