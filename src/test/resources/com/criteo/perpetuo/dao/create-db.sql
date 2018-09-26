@@ -15,7 +15,8 @@ CREATE TABLE "deployment_request" (
   "version"       NVARCHAR(1024) NOT NULL,
   "comment"       NVARCHAR(4000) NOT NULL,
   "creator"       NVARCHAR(64)   NOT NULL,
-  "creation_date" DATETIME       NOT NULL
+  "creation_date" DATETIME       NOT NULL,
+  "state"         SMALLINT
 )
 ALTER TABLE "deployment_request"
   ADD CONSTRAINT "pk_deployment_request" PRIMARY KEY ("id")

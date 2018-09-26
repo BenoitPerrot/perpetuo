@@ -11,9 +11,10 @@ private[dao] case class DeploymentRequestRecord(id: Option[Long],
                                                 version: VersionField,
                                                 comment: Comment, // Not an `Option` because it's easier to consider that no comment <=> empty
                                                 creator: UserName,
-                                                creationDate: java.sql.Timestamp) {
+                                                creationDate: java.sql.Timestamp,
+                                                state: Option[Short]) {
   def toDeploymentRequest(product: ProductRecord) =
-    DeploymentRequest(id.get, product.toProduct, version.toModel, comment.toString, creator.toString, creationDate)
+    DeploymentRequest(id.get, product.toProduct, version.toModel, comment.toString, creator.toString, creationDate, state)
 }
 
 
@@ -37,7 +38,9 @@ trait DeploymentRequestBinder extends TableBinder {
     def creationDate = column[java.sql.Timestamp]("creation_date")
     protected def creationIdx = index(creationDate)
 
-    def * = (id.?, productId, version, comment, creator, creationDate) <> (DeploymentRequestRecord.tupled, DeploymentRequestRecord.unapply)
+    def state = column[Option[Short]]("state")
+
+    def * = (id.?, productId, version, comment, creator, creationDate, state) <> (DeploymentRequestRecord.tupled, DeploymentRequestRecord.unapply)
   }
 
   val deploymentRequestQuery = TableQuery[DeploymentRequestTable]
