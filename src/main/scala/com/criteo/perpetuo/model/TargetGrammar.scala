@@ -3,6 +3,8 @@ package com.criteo.perpetuo.model
 
 sealed trait TargetExpr extends Any {
   def nonEmpty: Boolean
+
+  final def isEmpty: Boolean = !nonEmpty
 }
 
 
