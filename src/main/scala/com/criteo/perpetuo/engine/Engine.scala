@@ -77,6 +77,9 @@ class Engine @Inject()(val crankshaft: Crankshaft,
             case _: Outdated =>
               DBIOAction.failed(Conflict("a newer one has already been applied", deploymentRequest.id))
 
+            case _: Abandoned =>
+              DBIOAction.failed(UnavailableAction("the deployment request has been abandoned", Map("deploymentRequestId" -> deploymentRequest.id)))
+
             case _: Reverted | _: Deployed =>
               DBIOAction.failed(UnavailableAction("the deployment transaction is closed", Map("deploymentRequestId" -> deploymentRequest.id)))
 
@@ -120,6 +123,9 @@ class Engine @Inject()(val crankshaft: Crankshaft,
           .flatMap {
             case _: Outdated =>
               DBIOAction.failed(Conflict("a newer one has already been applied", deploymentRequest.id))
+
+            case _: Abandoned =>
+              DBIOAction.failed(UnavailableAction("the deployment request has been abandoned", Map("deploymentRequestId" -> deploymentRequest.id)))
 
             case _: Reverted =>
               DBIOAction.failed(UnavailableAction("the deployment transaction is closed", Map("deploymentRequestId" -> deploymentRequest.id)))
@@ -194,6 +200,9 @@ class Engine @Inject()(val crankshaft: Crankshaft,
           case s: Outdated =>
             // TODO: no applicable actions
             (s, Seq(Operation.deploy.toString, Operation.revert.toString).map((_, Some("a newer one has already been applied"))))
+
+          case s: Abandoned =>
+            (s, Seq())
 
           case s: Reverted =>
             (s, Seq())

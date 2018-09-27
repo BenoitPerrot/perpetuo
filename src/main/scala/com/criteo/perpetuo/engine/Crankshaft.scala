@@ -83,7 +83,9 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
         assert(deploymentPlanSteps.nonEmpty)
         val sortedEffects = effects.sortBy(-_.operationTrace.id)
 
-        if (isOutdated)
+        if (deploymentRequest.state.contains(DeploymentRequestState.abandoned))
+          Abandoned(deploymentRequest, deploymentPlanSteps, sortedEffects)
+        else if (isOutdated)
           Outdated(deploymentRequest, deploymentPlanSteps, sortedEffects)
         else {
           val idToDeploymentPlanStep = deploymentPlanSteps.map(planStep => planStep.id -> planStep).toMap
@@ -362,6 +364,9 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
         .flatMap {
           case _: Outdated =>
             DBIO.failed(Conflict("a newer one has already been applied", deploymentRequest.id))
+
+          case _: Abandoned =>
+            DBIO.failed(UnavailableAction("the deployment request has been abandoned", Map("deploymentRequestId" -> deploymentRequest.id)))
 
           case _: Reverted =>
             DBIO.failed(UnavailableAction("the deployment transaction is closed", Map("deploymentRequestId" -> deploymentRequest.id)))

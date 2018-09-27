@@ -99,6 +99,11 @@ case class Deployed(deploymentRequest: DeploymentRequest,
                     revertScope: Seq[DeploymentPlanStep])
   extends DeploymentState
 
+case class Abandoned(deploymentRequest: DeploymentRequest,
+                     deploymentPlanSteps: Seq[DeploymentPlanStep],
+                     effects: Seq[OperationEffect])
+  extends DeploymentState
+
 
 // TODO: replace with DeploymentState
 case class DeploymentRequestStatus(deploymentRequest: DeploymentRequest,
