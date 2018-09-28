@@ -60,19 +60,19 @@ class DeploymentRequestParserSpec extends Test {
   }
 
   test("DeploymentRequestParser loads and types correct targets") {
-    Seq(
+    foreach(
       ("foo".toJson, TargetWord("foo")),
       (Seq("foo", "bar").toJson, TargetUnion(Set(TargetWord("foo"), TargetWord("bar")))),
       (JsObject(), TargetTop),
       (Map("union" -> Seq("a", "b")).toJson, TargetUnion(Set(TargetWord("a"), TargetWord("b")))),
       (Map("union" -> Seq("a".toJson, JsObject())).toJson, TargetUnion(Set(TargetWord("a"), TargetTop)))
-    ).foreach { case (input, output) =>
+    ) { case (input, output) =>
       DeploymentRequestParser.parseRootTargetExpression(input) shouldEqual output
     }
   }
 
   test("DeploymentRequestParser rejects incorrect targets") {
-    Seq(
+    foreach(
       (JsArray(), "Unexpected element in the target expression: []"),
       (60.toJson, "Unexpected element in the target expression: 60"),
       ("".toJson, "Unexpected element in the target expression: \"\""),
@@ -81,9 +81,20 @@ class DeploymentRequestParserSpec extends Test {
       (Seq(Seq("foo")).toJson, "Unexpected element in the target expression: [\"foo\"]"),
       (Map("k" -> Seq("abc")).toJson, "In target expressions, non-empty objects must have `union` as key and an array as value; got: {\"k\":[\"abc\"]}"),
       (Map("union" -> "abc").toJson, "In target expressions, non-empty objects must have `union` as key and an array as value; got: {\"union\":\"abc\"}")
-    ).foreach { case (input, errorMsg) =>
-      the[ParsingException] thrownBy DeploymentRequestParser.parseRootTargetExpression(input) should
-        have message errorMsg
+    ) { case (input, errorMsg) =>
+      the[ParsingException] thrownBy DeploymentRequestParser.parseRootTargetExpression(input) should have message errorMsg
     }
   }
+
+  private def foreach[T](testCases: T*)(f: T => Unit): Unit =
+    testCases
+      .zipWithIndex
+      .foreach { case (testCase, i) =>
+        try {
+          f(testCase)
+        }
+        catch {
+          case e: Throwable => throw new AssertionError(s"Test case #${i + 1}: $e", e)
+        }
+      }
 }
