@@ -1,9 +1,10 @@
 package com.criteo.perpetuo.app
 
-import com.criteo.perpetuo.auth.{UserFilter, Controller => AuthenticationController}
+import com.criteo.perpetuo.auth.{Controller => AuthenticationController}
 import com.criteo.perpetuo.config.AppConfigProvider
 import com.criteo.perpetuo.config.ConfigSyntacticSugar._
 import com.twitter.finagle.http.filter.Cors
+import com.twitter.finagle.SimpleFilter
 import com.twitter.finagle.http.{Request, Response}
 import com.twitter.finatra.http.filters.{LoggingMDCFilter, TraceIdMDCFilter}
 import com.twitter.finatra.http.routing.HttpRouter
@@ -53,7 +54,13 @@ class Server extends ServerConfigurator with HttpServer {
         .filter[TraceIdMDCFilter[Request, Response]]
         .filter[CommonFilters]
     }
-    router.filter[UserFilter]
+
+    config.tryGetStringList("extraFilters")
+      .foreach(_
+        .foreach(extraFilterClassName =>
+          router.filter(injector.instance(Class.forName(extraFilterClassName)).asInstanceOf[SimpleFilter[Request, Response]])
+        )
+      )
 
     config.tryGetStringList("extraControllers")
       .foreach(_
