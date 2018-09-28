@@ -485,7 +485,7 @@ class CrankshaftWithDynamicResolutionSpec extends SimpleScenarioTesting {
     crankshaft.dbBinding.findExecutionIdsByOperationTrace(op.id)
       .flatMap { executionIds =>
         val executionId = executionIds.head
-        findTargetsByExecution(executionId).map(_.map(_.name))
+        findTargetsByExecution(executionId).map(_.map(_.name).toSet)
       }
   }
 
@@ -493,13 +493,24 @@ class CrankshaftWithDynamicResolutionSpec extends SimpleScenarioTesting {
     val r = request("big-brother", "new", Set("world"))
 
     targetToAtoms = Map(TargetWord("world") -> Set(TargetAtom("europe"), TargetAtom("asia"), TargetAtom("africa")))
-    r.eligibleOperations should become(Seq(Operation.deploy))
     r.step(Map("europe" -> Status.success, "asia" -> Status.productFailure, "africa" -> Status.productFailure))
 
     // Target resolution changes in the second run
     targetToAtoms = Map(TargetWord("world") -> Set(TargetAtom("europe"), TargetAtom("asia")))
     val op = r.step()
-    findTargetsByOperationTrace(op) should become(Seq("asia"))
+    findTargetsByOperationTrace(op) should become(Set("asia"))
+  }
+
+  test("A retry can deploy on new nodes") {
+    val r = request("big-brother", "newer", Set("world"))
+
+    targetToAtoms = Map(TargetWord("world") -> Set(TargetAtom("europe"), TargetAtom("asia")))
+    r.step(Map("europe" -> Status.productFailure, "asia" -> Status.success))
+
+    targetToAtoms = Map(TargetWord("world") -> Set(TargetAtom("europe"), TargetAtom("asia"), TargetAtom("africa")))
+    val op = r.step()
+
+    findTargetsByOperationTrace(op) should become(Set("europe", "africa"))
   }
 }
 
