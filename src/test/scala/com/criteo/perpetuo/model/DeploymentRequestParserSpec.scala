@@ -65,7 +65,9 @@ class DeploymentRequestParserSpec extends Test {
       (Seq("foo", "bar").toJson, TargetUnion(Set(TargetWord("foo"), TargetWord("bar")))),
       (JsObject(), TargetTop),
       (Map("union" -> Seq("a", "b")).toJson, TargetUnion(Set(TargetWord("a"), TargetWord("b")))),
-      (Map("union" -> Seq("a".toJson, JsObject())).toJson, TargetUnion(Set(TargetWord("a"), TargetTop)))
+      (Map("union" -> Seq("a".toJson, JsObject())).toJson, TargetUnion(Set(TargetWord("a"), TargetTop))),
+      (Map("intersection" -> Seq("a".toJson, Map("union" -> Seq(JsObject(), "b".toJson)).toJson)).toJson,
+        TargetIntersection(Set(TargetWord("a"), TargetUnion(Set(TargetTop, TargetWord("b"))))))
     ) { case (input, output) =>
       DeploymentRequestParser.parseRootTargetExpression(input) shouldEqual output
     }
@@ -79,8 +81,11 @@ class DeploymentRequestParserSpec extends Test {
       (Seq(42).toJson, "Unexpected element in the target expression: 42"),
       (Seq("").toJson, "Unexpected element in the target expression: \"\""),
       (Seq(Seq("foo")).toJson, "Unexpected element in the target expression: [\"foo\"]"),
-      (Map("k" -> Seq("abc")).toJson, "In target expressions, non-empty objects must have `union` as key and an array as value; got: {\"k\":[\"abc\"]}"),
-      (Map("union" -> "abc").toJson, "In target expressions, non-empty objects must have `union` as key and an array as value; got: {\"union\":\"abc\"}")
+      (Map("k" -> Seq("abc")).toJson, "In target expressions, non-empty objects must contain exactly one operator key and an array as value; got the object {\"k\":[\"abc\"]}"),
+      (Map("a" -> Seq("abc").toJson, "b" -> JsObject()).toJson, "In target expressions, objects must contain at most one key; got the object {\"a\":[\"abc\"],\"b\":{}}"),
+      (Map("union" -> "abc").toJson, "In target expressions, non-empty objects must contain exactly one operator key and an array as value; got the object {\"union\":\"abc\"}"),
+      (Map("intersection" -> 42).toJson, "In target expressions, non-empty objects must contain exactly one operator key and an array as value; got the object {\"intersection\":42}"),
+      (Map("union" -> Seq("a".toJson, Map("intersection" -> 42).toJson)).toJson, "In target expressions, non-empty objects must contain exactly one operator key and an array as value; got the object {\"intersection\":42}")
     ) { case (input, errorMsg) =>
       the[ParsingException] thrownBy DeploymentRequestParser.parseRootTargetExpression(input) should have message errorMsg
     }

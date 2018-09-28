@@ -37,6 +37,12 @@ sealed trait TargetOp extends TargetExpr {
   override def nonEmpty: Boolean = items.exists(_.nonEmpty)
 }
 
+final case class TargetIntersection(items: Set[TargetExpr]) extends TargetOp {
+  val sep = " ∩ "
+
+  override def toString: String = if (items.nonEmpty) super.toString else TargetTop.toString
+}
+
 final case class TargetUnion(items: Set[TargetExpr]) extends TargetOp {
   val sep = " ∪ "
 }

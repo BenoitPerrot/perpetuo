@@ -49,11 +49,13 @@ object DeploymentRequestParser {
           fields.head match {
             case ("union", JsArray(arr)) =>
               TargetUnion(arr.map(parseTargetExpression).toSet)
+            case ("intersection", JsArray(arr)) =>
+              TargetIntersection(arr.map(parseTargetExpression).toSet)
             case _ =>
-              throw new ParsingException(s"In target expressions, non-empty objects must have `union` as key and an array as value; got: $target")
+              throw new ParsingException(s"In target expressions, non-empty objects must contain exactly one operator key and an array as value; got the object $target")
           }
         else
-          throw new ParsingException(s"In target expressions, objects must contain at most one key (`union`); got the object $target")
+          throw new ParsingException(s"In target expressions, objects must contain at most one key; got the object $target")
       case unknown => throw new ParsingException(s"Unexpected element in the target expression: $unknown")
     }
   }

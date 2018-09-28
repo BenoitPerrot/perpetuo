@@ -58,13 +58,18 @@ trait TargetResolver extends Provider[TargetResolver] {
 
   private val extractNonAtoms: TargetExpr => Set[TargetNonAtom] = {
     case n: TargetNonAtom => Set(n)
-    case TargetUnion(items) => items.flatMap(extractNonAtoms)
+    case i: TargetIntersection if i.isEmpty => Set(TargetTop)
+    case op: TargetOp => op.items.flatMap(extractNonAtoms).toSet
     case _: TargetAtom | _: TargetAtomSet => Set.empty
   }
 
   private def transform(targetExpr: TargetExpr, f: TargetNonAtom => Set[TargetAtom]): Set[TargetAtom] = targetExpr match {
     case n: TargetNonAtom => f(n)
     case a: TargetAtom => Set(a)
+    case TargetIntersection(items) => items
+      .map(transform(_, f))
+      .reduceOption((res, x) => res & x)
+      .getOrElse(f(TargetTop))
     case TargetUnion(items) => items.flatMap(transform(_, f))
     case TargetAtomSet(items) => items
   }

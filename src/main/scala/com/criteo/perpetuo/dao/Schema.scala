@@ -135,11 +135,17 @@ trait EffectInserter
         )
       }
 
-  // fixme: not true anymore if there are other operations than unions
   private val extractAtomsFromTargetExpr: TargetExpr => Set[TargetAtom] = {
     case TargetWord(s) => Set(TargetAtom(s)) // fixme: temporary, while everything is not typed
     case a: TargetAtom => Set(a)
     case TargetTop => Set()
+    case TargetIntersection(items) => items
+      .foldLeft(None: Option[Set[TargetAtom]]) {
+        case (res, x) =>
+          val y = extractAtomsFromTargetExpr(x)
+          Some(res.map(_.intersect(y)).getOrElse(y))
+      }
+      .getOrElse(Set())
     case TargetUnion(items) => items.flatMap(extractAtomsFromTargetExpr)
     case TargetAtomSet(items) => items
   }

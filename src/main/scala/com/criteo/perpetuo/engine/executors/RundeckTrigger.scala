@@ -48,10 +48,13 @@ class RundeckTrigger(name: String,
     }
   }
 
+  // fixme: that is so Criteo-specific
   private def serializeTarget(targetExpr: TargetExpr): String =
     targetExpr match {
       case t: TargetTerm => t.toString
-      case op: TargetOp => op.items.map(serializeTarget).mkString(",")
+      case _: TargetIntersection => throw new RuntimeException(s"Unprocessable target expression; it should be resolved at this stage: $targetExpr")
+      case u: TargetUnion => u.items.map(serializeTarget).mkString(",")
+      case u: TargetAtomSet => u.items.map(serializeTarget).mkString(",")
     }
 
   override def trigger(execTraceId: Long, productName: String, version: Version, target: TargetExpr, initiator: String): Future[Option[String]] = {
