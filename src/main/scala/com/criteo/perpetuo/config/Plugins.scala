@@ -45,10 +45,7 @@ class Plugins @Inject()(loader: PluginLoader) {
 
   val identityProvider: IdentityProvider =
     config.tryGetConfig("auth.identityProvider").map { desc =>
-      loader.load[IdentityProvider](desc, "type of identity provider") {
-        case t@"openAm" =>
-          OpenAmIdentityProvider.fromConfig(desc.getConfig(t))
-      }
+      loader.load[IdentityProvider](desc, "type of identity provider")()
     }.getOrElse(AnonymousIdentityProvider)
 
   val permissions: Permissions =
