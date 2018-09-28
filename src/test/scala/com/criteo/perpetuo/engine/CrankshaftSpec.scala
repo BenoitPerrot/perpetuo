@@ -432,8 +432,7 @@ class CrankshaftWithFailingExecutorSpec extends SimpleScenarioTesting {
 
 
 class CrankshaftWithFailingTargetSpec extends SimpleScenarioTesting {
-
-  override val resolver = new TargetResolver {
+  override val resolver: TargetResolver = new TargetResolver {
     override def resolveTerms(productName: String, productVersion: Version, targetTerms: Set[TargetNonAtom]): Option[Map[TargetNonAtom, Set[TargetAtom]]] = {
       Some(targetTerms
         .map(term => term -> term.toString.split("-").collect { case name if name.nonEmpty => TargetAtom(name) }.toSet)
@@ -475,20 +474,12 @@ class CrankshaftWithFailingTargetSpec extends SimpleScenarioTesting {
 
 
 class CrankshaftWithDynamicResolutionSpec extends SimpleScenarioTesting {
-
-  private var targetToAtoms: Map[TargetNonAtom, Set[TargetAtom]] = Map(TargetWord("world") -> Set(TargetAtom("europe"), TargetAtom("asia"), TargetAtom("africa")))
-
-  override val resolver = new TargetResolver {
-  override def resolveTerms(productName: String, productVersion: Version, targetTerms: Set[TargetNonAtom]): Option[Map[TargetNonAtom, Set[TargetAtom]]] = {
+  var targetToAtoms: Map[TargetNonAtom, Set[TargetAtom]] = _
+  override val resolver: TargetResolver = new TargetResolver {
+    override def resolveTerms(productName: String, productVersion: Version, targetTerms: Set[TargetNonAtom]): Option[Map[TargetNonAtom, Set[TargetAtom]]] = {
       Some(targetToAtoms)
     }
   }
-
-  private val step1 = Set("world")
-
-  private def getDeployedVersions(productName: String) =
-    crankshaft.dbBinding.findCurrentVersionForEachKnownTarget(productName, step1.map(TargetAtom))
-      .map(_.map { case (k, v) => k.name -> v.structured.head.value })
 
   private def findTargetsByOperationTrace(op: OperationTrace) = {
     crankshaft.dbBinding.findExecutionIdsByOperationTrace(op.id)
@@ -499,8 +490,9 @@ class CrankshaftWithDynamicResolutionSpec extends SimpleScenarioTesting {
   }
 
   test("Crankshaft retries on failed targets only") {
-    val r = request("big-brother", "new", step1)
+    val r = request("big-brother", "new", Set("world"))
 
+    targetToAtoms = Map(TargetWord("world") -> Set(TargetAtom("europe"), TargetAtom("asia"), TargetAtom("africa")))
     r.eligibleOperations should become(Seq(Operation.deploy))
     r.step(Map("europe" -> Status.success, "asia" -> Status.productFailure, "africa" -> Status.productFailure))
 
@@ -629,7 +621,7 @@ class CrankshaftWithStopperSpec extends SimpleScenarioTesting {
   private val executionMock = mock[TriggeredExecution]
   when(executionMock.href).thenReturn(href)
 
-  override val executionFinder = new TriggeredExecutionFinder(null) {
+  override val executionFinder: TriggeredExecutionFinder = new TriggeredExecutionFinder(null) {
     override def apply[T](executionTrace: ShallowExecutionTrace): TriggeredExecution =
       executionMock
   }
@@ -709,7 +701,7 @@ class CrankshaftWithUncontrollableTriggeredExecutionSpec extends SimpleScenarioT
 
   override protected def triggerMock = Some(href)
 
-  override val executionFinder = new TriggeredExecutionFinder(null) {
+  override val executionFinder: TriggeredExecutionFinder = new TriggeredExecutionFinder(null) {
     override def apply[T](executionTrace: ShallowExecutionTrace): TriggeredExecution =
       new UncontrollableTriggeredExecution(href)
   }

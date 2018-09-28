@@ -6,6 +6,7 @@ import com.criteo.perpetuo.dao.{DbBinding, DbContext, DbContextProvider, Testing
 import com.criteo.perpetuo.engine._
 import com.criteo.perpetuo.engine.dispatchers.{SingleTargetDispatcher, TargetDispatcher}
 import com.criteo.perpetuo.engine.executors.{ExecutionTrigger, TriggeredExecutionFinder}
+import com.criteo.perpetuo.engine.resolvers.TargetResolver
 import com.criteo.perpetuo.model._
 import com.twitter.inject.Test
 import org.mockito.Matchers._
@@ -54,7 +55,7 @@ trait SimpleScenarioTesting extends TestHelpers with TestDb with MockitoSugar {
   val executionFinder = new TriggeredExecutionFinder(loader)
 
   lazy val targetDispatcher: TargetDispatcher = new SingleTargetDispatcher(executionTrigger)
-  val resolver = plugins.resolver
+  val resolver: TargetResolver = plugins.resolver
 
   lazy val crankshaft: Crankshaft = {
     when(executionTrigger.trigger(anyLong, anyString, any[Version], any[TargetExpr], anyString))
