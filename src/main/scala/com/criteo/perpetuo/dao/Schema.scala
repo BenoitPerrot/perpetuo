@@ -139,6 +139,7 @@ trait EffectInserter
   private val extractAtomsFromTargetExpr: TargetExpr => Set[TargetAtom] = {
     case TargetWord(s) => Set(TargetAtom(s)) // fixme: temporary, while everything is not typed
     case a: TargetAtom => Set(a)
+    case TargetTop => Set()
     case TargetUnion(items) => items.flatMap(extractAtomsFromTargetExpr)
     case TargetAtomSet(items) => items
   }

@@ -435,7 +435,10 @@ class CrankshaftWithFailingTargetSpec extends SimpleScenarioTesting {
 
   override val resolver = new TargetResolver {
     override def resolveTerms(productName: String, productVersion: Version, targetTerms: Set[TargetNonAtom]): Option[Map[TargetNonAtom, Set[TargetAtom]]] = {
-      Some(targetTerms.map { case term: TargetWord => term -> term.word.split("-").collect { case name if name.nonEmpty => TargetAtom(name) }.toSet }.toMap)
+      Some(targetTerms
+        .map(term => term -> term.toString.split("-").collect { case name if name.nonEmpty => TargetAtom(name) }.toSet)
+        .toMap
+      )
     }
   }
 

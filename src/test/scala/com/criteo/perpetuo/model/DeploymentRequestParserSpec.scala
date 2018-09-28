@@ -63,7 +63,9 @@ class DeploymentRequestParserSpec extends Test {
     Seq(
       ("foo".toJson, TargetWord("foo")),
       (Seq("foo", "bar").toJson, TargetUnion(Set(TargetWord("foo"), TargetWord("bar")))),
-      (Map("union" -> Seq("a", "b")).toJson, TargetUnion(Set(TargetWord("a"), TargetWord("b"))))
+      (JsObject(), TargetTop),
+      (Map("union" -> Seq("a", "b")).toJson, TargetUnion(Set(TargetWord("a"), TargetWord("b")))),
+      (Map("union" -> Seq("a".toJson, JsObject())).toJson, TargetUnion(Set(TargetWord("a"), TargetTop)))
     ).foreach { case (input, output) =>
       DeploymentRequestParser.parseRootTargetExpression(input) shouldEqual output
     }
@@ -72,14 +74,13 @@ class DeploymentRequestParserSpec extends Test {
   test("DeploymentRequestParser rejects incorrect targets") {
     Seq(
       (JsArray(), "Unexpected element in the target expression: []"),
-      (JsObject(), "In target expressions, objects must contain exactly one key (`union`); got the object {}"),
       (60.toJson, "Unexpected element in the target expression: 60"),
       ("".toJson, "Unexpected element in the target expression: \"\""),
       (Seq(42).toJson, "Unexpected element in the target expression: 42"),
       (Seq("").toJson, "Unexpected element in the target expression: \"\""),
       (Seq(Seq("foo")).toJson, "Unexpected element in the target expression: [\"foo\"]"),
-      (Map("k" -> Seq("abc")).toJson, "In target expressions, objects must have `union` as key and an array as value; got: {\"k\":[\"abc\"]}"),
-      (Map("union" -> "abc").toJson, "In target expressions, objects must have `union` as key and an array as value; got: {\"union\":\"abc\"}")
+      (Map("k" -> Seq("abc")).toJson, "In target expressions, non-empty objects must have `union` as key and an array as value; got: {\"k\":[\"abc\"]}"),
+      (Map("union" -> "abc").toJson, "In target expressions, non-empty objects must have `union` as key and an array as value; got: {\"union\":\"abc\"}")
     ).foreach { case (input, errorMsg) =>
       the[ParsingException] thrownBy DeploymentRequestParser.parseRootTargetExpression(input) should
         have message errorMsg
