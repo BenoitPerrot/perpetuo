@@ -18,7 +18,7 @@ this.Perpetuo.Client = this.Perpetuo.Client || (function () {
         headers: {'Accept': 'application/json', 'Content-Type': 'application/json'},
         credentials: 'include'
       }).then(r => {
-        if (r.status === 401) {
+        if (!r.headers.get('X-Perpetuo-JWT')) {
           const url = r.headers.get('X-Perpetuo-Login')
           win.location.replace(`${url}&redirect_uri=${window.location.origin}/identify&state=${window.location.href}`);
         }

@@ -12,10 +12,19 @@ import javax.inject.Inject
 case class TokenRequest(token: String)
 case class LocalUserIdentificationRequest(@RouteParam name: String, request: Request)
 
-class Controller @Inject()() extends BaseController {
+class Controller @Inject()(jwtEncoder: JWTEncoder) extends BaseController {
 
   get("/api/auth/identity") { r: Request =>
-    r.user.map(user => response.ok.plain(user)).getOrElse(response.unauthorized)
+    r.user
+      .map(user =>
+        response
+          .ok
+          .plain(user)
+          .headers(Map("X-Perpetuo-JWT" -> user.toJWT(jwtEncoder)))
+      )
+      .getOrElse(
+        response.unauthorized
+      )
   }
 }
 
