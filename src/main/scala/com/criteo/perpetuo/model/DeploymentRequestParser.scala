@@ -30,16 +30,19 @@ object DeploymentRequestParser {
       case unknown => throw new ParsingException(s"Expected a JSON object as request body, got: $unknown")
     }
 
+  // todo? standardize expressions (in DB history)
+  def parseRootTargetExpression(target: JsValue): TargetExpr = {
+    target match {
+      case JsArray(arr) if arr.nonEmpty =>
+        TargetUnion(arr.map(parseTargetExpression).toSet)
+      case _ => parseTargetExpression(target)
+    }
+  }
+
   def parseTargetExpression(target: JsValue): TargetExpr = {
     target match {
       case JsString(string) if string.nonEmpty => TargetWord(string)
-      case JsArray(arr) if arr.nonEmpty => TargetUnion(
-        arr.map {
-          case JsString(string) if string.nonEmpty => TargetWord(string)
-          case unknown => throw new ParsingException(s"Expected a non-empty JSON string in the `target` array, got: $unknown")
-        }.toSet
-      )
-      case unknown => throw new ParsingException(s"Expected `target` to be a non-empty JSON array or string, got: $unknown")
+      case unknown => throw new ParsingException(s"Unexpected element in the target expression: $unknown")
     }
   }
 
@@ -47,7 +50,7 @@ object DeploymentRequestParser {
     val name = step.getString("name", Some(""))
     val targetExpr = step.get("target")
     val comment = step.getString("comment", Some(""))
-    parseTargetExpression(targetExpr) // validate the target
+    parseRootTargetExpression(targetExpr) // validate the target
     ProtoDeploymentPlanStep(name, targetExpr, comment)
   }
 }

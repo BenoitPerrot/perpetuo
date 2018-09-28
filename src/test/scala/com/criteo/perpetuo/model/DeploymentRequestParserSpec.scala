@@ -64,20 +64,21 @@ class DeploymentRequestParserSpec extends Test {
       ("foo".toJson, TargetWord("foo")),
       (Seq("foo", "bar").toJson, TargetUnion(Set(TargetWord("foo"), TargetWord("bar"))))
     ).foreach { case (input, output) =>
-      DeploymentRequestParser.parseTargetExpression(input) shouldEqual output
+      DeploymentRequestParser.parseRootTargetExpression(input) shouldEqual output
     }
   }
 
   test("DeploymentRequestParser rejects incorrect targets") {
     Seq(
-      (JsArray(), "Expected `target` to be a non-empty JSON array or string, got: []"),
-      (JsObject(), "Expected `target` to be a non-empty JSON array or string, got: {}"),
-      (60.toJson, "Expected `target` to be a non-empty JSON array or string, got: 60"),
-      ("".toJson, "Expected `target` to be a non-empty JSON array or string, got: \"\""),
-      (Seq(42).toJson, "Expected a non-empty JSON string in the `target` array, got: 42"),
-      (Seq("").toJson, "Expected a non-empty JSON string in the `target` array, got: \"\"")
+      (JsArray(), "Unexpected element in the target expression: []"),
+      (JsObject(), "Unexpected element in the target expression: {}"),
+      (60.toJson, "Unexpected element in the target expression: 60"),
+      ("".toJson, "Unexpected element in the target expression: \"\""),
+      (Seq(42).toJson, "Unexpected element in the target expression: 42"),
+      (Seq("").toJson, "Unexpected element in the target expression: \"\""),
+      (Seq(Seq("foo")).toJson, "Unexpected element in the target expression: [\"foo\"]")
     ).foreach { case (input, errorMsg) =>
-      the[ParsingException] thrownBy DeploymentRequestParser.parseTargetExpression(input) should
+      the[ParsingException] thrownBy DeploymentRequestParser.parseRootTargetExpression(input) should
         have message errorMsg
     }
   }

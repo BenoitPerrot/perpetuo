@@ -8,7 +8,7 @@ trait ParsedTarget {
   val targetExpression: JsValue
 
   def parsedTarget: TargetExpr = // TODO: once the target is removed from DeploymentRequest (DREDD-982), check whether a cache is needed here too
-    DeploymentRequestParser.parseTargetExpression(targetExpression)
+    DeploymentRequestParser.parseRootTargetExpression(targetExpression)
 }
 
 case class ProtoDeploymentPlanStep(name: String,
