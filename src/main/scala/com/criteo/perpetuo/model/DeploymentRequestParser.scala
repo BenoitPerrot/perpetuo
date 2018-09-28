@@ -42,6 +42,16 @@ object DeploymentRequestParser {
   def parseTargetExpression(target: JsValue): TargetExpr = {
     target match {
       case JsString(string) if string.nonEmpty => TargetWord(string)
+      case JsObject(fields) =>
+        if (fields.size == 1)
+          fields.head match {
+            case ("union", JsArray(arr)) =>
+              TargetUnion(arr.map(parseTargetExpression).toSet)
+            case _ =>
+              throw new ParsingException(s"In target expressions, objects must have `union` as key and an array as value; got: $target")
+          }
+        else
+          throw new ParsingException(s"In target expressions, objects must contain exactly one key (`union`); got the object $target")
       case unknown => throw new ParsingException(s"Unexpected element in the target expression: $unknown")
     }
   }
