@@ -265,16 +265,8 @@ class RestControllerSpec extends Test with TestDb {
   }
 
   test("The DeploymentRequest's POST entry-point properly rejects bad targets") {
-    Seq(
-      (JsArray(), "Expected `target` to be a non-empty JSON array or string, got: []"),
-      (JsObject(), "Expected `target` to be a non-empty JSON array or string, got: {}"),
-      (60.toJson, "Expected `target` to be a non-empty JSON array or string, got: 60"),
-      ("".toJson, "Expected `target` to be a non-empty JSON array or string, got: \"\""),
-      (Seq(42).toJson, "Expected a non-empty JSON string in the `target` array, got: 42"),
-      (Seq("").toJson, "Expected a non-empty JSON string in the `target` array, got: \"\"")
-    ).foreach { case (badTarget, errorMsg) =>
-      requestAndWaitDeployment("my product", "b", badTarget, None, Some(JsString(errorMsg).toString))
-    }
+    // just one case of bad target is tested here to check the controller's output, but parsing of targets is exhaustively tested in DeploymentRequestParserSpec
+    requestAndWaitDeployment("my product", "b", JsArray(), None, Some("Expected `target` to be a non-empty JSON array or string, got: []"))
   }
 
   test("The DeploymentRequest's actions entry-point starts a deployment that was not started yet") {
