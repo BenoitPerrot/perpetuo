@@ -6,6 +6,7 @@
 <link rel="import" href="../../bower_components/paper-icon-button/paper-icon-button.html">
 
 <link rel="import" href="../perpetuo-deployment-request/perpetuo-deployment-request-step-edition-dialog.html">
+<link rel="import" href="../perpetuo-util/perpetuo-util.html">
 
 <dom-module id="perpetuo-deployment-request-strategy-editor">
   <template>
@@ -88,7 +89,7 @@
       }
 
       computeTargetSummary(target) {
-        return target;
+        return Perpetuo.Util.computeTargetExpressionLabel(target);
       }
 
       onAddStepTap() {

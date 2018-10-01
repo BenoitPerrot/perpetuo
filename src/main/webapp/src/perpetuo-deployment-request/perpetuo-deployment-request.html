@@ -13,6 +13,7 @@
 <link rel="import" href="../perpetuo-deployment-request/perpetuo-deployment-operation.html">
 <link rel="import" href="../perpetuo-deployment-request/perpetuo-revert-plan-dialog.html">
 <link rel="import" href="../perpetuo-markdown/perpetuo-markdown-viewer.html">
+<link rel="import" href="../perpetuo-util/perpetuo-util.html">
 
 <dom-module id="perpetuo-deployment-request">
   <template>
@@ -291,13 +292,7 @@
   <script>
   (function () {
     function computePlanStepLabel(planStep) {
-      return planStep.name || (
-        // TODO: remove once data in the DB gets rewritten <<
-        (planStep.targetExpression === '*' || (
-          Array.isArray(planStep.targetExpression) && planStep.targetExpression.length === 1 && planStep.targetExpression[0] === '*'
-        )) ? 'All configured targets' :
-        // >>
-        planStep.targetExpression);
+      return planStep.name || Perpetuo.Util.computeTargetExpressionLabel(planStep.targetExpression);
     }
 
     function computeOperationGroupLabel(planStepIds, plan) {

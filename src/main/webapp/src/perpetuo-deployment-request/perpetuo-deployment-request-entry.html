@@ -4,6 +4,7 @@
 <link rel="import" href="../../bower_components/iron-icons/iron-icons.html">
 
 <link rel="import" href="../perpetuo-client/perpetuo-client.html">
+<link rel="import" href="../perpetuo-util/perpetuo-util.html">
 
 <dom-module id="perpetuo-deployment-request-entry">
   <template>
@@ -139,7 +140,7 @@
 
       computePlanLabel(plan) {
         return plan
-          .map(planStep => planStep.name ? planStep.name : planStep.targetExpression)
+          .map(planStep => planStep.name ? planStep.name : Perpetuo.Util.computeTargetExpressionLabel(planStep.targetExpression))
           .join(', ');
       }
 
