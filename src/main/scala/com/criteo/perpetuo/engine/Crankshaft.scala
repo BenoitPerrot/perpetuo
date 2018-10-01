@@ -587,7 +587,10 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
           assessingDeploymentState(deploymentRequest).flatMap {
             case _: NotStarted | _: DeployFlopped =>
               dbBinding.abandoningDeploymentRequest(deploymentRequest.id)
-                .flatMap(_ => fuelFilter.releasingLocks(deploymentRequest, false)).map(_ => ())
+                .flatMap { _ =>
+                  listeners.foreach(_.onDeploymentRequestAbandoned(deploymentRequest))
+                  fuelFilter.releasingLocks(deploymentRequest, false)
+                }.map(_ => ())
             case _: Abandoned =>
               DBIO.successful(())
             case _ =>
