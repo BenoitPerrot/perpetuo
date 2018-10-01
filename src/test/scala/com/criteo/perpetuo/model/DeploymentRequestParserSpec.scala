@@ -75,17 +75,17 @@ class DeploymentRequestParserSpec extends Test {
 
   test("DeploymentRequestParser rejects incorrect targets") {
     foreach(
-      (JsArray(), "Unexpected element in the target expression: []"),
-      (60.toJson, "Unexpected element in the target expression: 60"),
-      ("".toJson, "Unexpected element in the target expression: \"\""),
-      (Seq(42).toJson, "Unexpected element in the target expression: 42"),
-      (Seq("").toJson, "Unexpected element in the target expression: \"\""),
-      (Seq(Seq("foo")).toJson, "Unexpected element in the target expression: [\"foo\"]"),
-      (Map("k" -> Seq("abc")).toJson, "In target expressions, non-empty objects must contain exactly one operator key and an array as value; got the object {\"k\":[\"abc\"]}"),
+      (JsArray(), "Unexpected target element: []"),
+      (60.toJson, "Unexpected target element: 60"),
+      ("".toJson, "Unexpected target element: \"\""),
+      (Seq(42).toJson, "Unexpected target element: 42"),
+      (Seq("").toJson, "Unexpected target element: \"\""),
+      (Seq(Seq("foo")).toJson, "Unexpected target element: [\"foo\"]"),
+      (Map("k" -> Seq("abc")).toJson, "Unexpected target element: {\"k\":[\"abc\"]}"),
       (Map("a" -> Seq("abc").toJson, "b" -> JsObject()).toJson, "In target expressions, objects must contain at most one key; got the object {\"a\":[\"abc\"],\"b\":{}}"),
-      (Map("union" -> "abc").toJson, "In target expressions, non-empty objects must contain exactly one operator key and an array as value; got the object {\"union\":\"abc\"}"),
-      (Map("intersection" -> 42).toJson, "In target expressions, non-empty objects must contain exactly one operator key and an array as value; got the object {\"intersection\":42}"),
-      (Map("union" -> Seq("a".toJson, Map("intersection" -> 42).toJson)).toJson, "In target expressions, non-empty objects must contain exactly one operator key and an array as value; got the object {\"intersection\":42}")
+      (Map("union" -> "abc").toJson, "Unexpected target element: {\"union\":\"abc\"}"),
+      (Map("intersection" -> 42).toJson, "Unexpected target element: {\"intersection\":42}"),
+      (Map("union" -> Seq("a".toJson, Map("intersection" -> 42).toJson)).toJson, "Unexpected target element: {\"intersection\":42}")
     ) { case (input, errorMsg) =>
       the[ParsingException] thrownBy DeploymentRequestParser.parseRootTargetExpression(input) should have message errorMsg
     }

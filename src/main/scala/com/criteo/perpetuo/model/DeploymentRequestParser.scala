@@ -52,11 +52,11 @@ object DeploymentRequestParser {
             case ("intersection", JsArray(arr)) =>
               TargetIntersection(arr.map(parseTargetExpression).toSet)
             case _ =>
-              throw new ParsingException(s"In target expressions, non-empty objects must contain exactly one operator key and an array as value; got the object $target")
+              throw new ParsingException(s"Unexpected target element: $target")
           }
         else
           throw new ParsingException(s"In target expressions, objects must contain at most one key; got the object $target")
-      case unknown => throw new ParsingException(s"Unexpected element in the target expression: $unknown")
+      case _ => throw new ParsingException(s"Unexpected target element: $target")
     }
   }
 

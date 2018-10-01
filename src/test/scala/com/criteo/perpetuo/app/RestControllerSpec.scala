@@ -266,7 +266,7 @@ class RestControllerSpec extends Test with TestDb {
 
   test("The DeploymentRequest's POST entry-point properly rejects bad targets") {
     // just one case of bad target is tested here to check the controller's output, but parsing of targets is exhaustively tested in DeploymentRequestParserSpec
-    requestAndWaitDeployment("my product", "b", JsArray(), None, Some("Unexpected element in the target expression: []"))
+    requestAndWaitDeployment("my product", "b", JsArray(), None, Some("Unexpected target element: []"))
   }
 
   test("The DeploymentRequest's actions entry-point starts a deployment that was not started yet") {
