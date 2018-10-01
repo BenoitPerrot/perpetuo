@@ -53,6 +53,8 @@ object DeploymentRequestParser {
               TargetIntersection(arr.map(parseTargetExpression).toSet)
             case ("tag", JsString(name)) =>
               TargetTag(name)
+            case ("icontains", JsString(sub)) =>
+              TargetIcontains(sub)
             case _ =>
               throw new ParsingException(s"Unexpected target element: $target")
           }

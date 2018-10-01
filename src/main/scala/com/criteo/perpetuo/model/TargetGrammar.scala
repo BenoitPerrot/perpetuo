@@ -22,6 +22,10 @@ final case class TargetTag(tag: String) extends AnyVal with TargetNonAtom {
   override def toString: String = s"tag:$tag"
 }
 
+final case class TargetIcontains(sub: String) extends AnyVal with TargetNonAtom { // i.e. the target insensitively contains "xxx"
+  override def toString: String = s"~$sub"
+}
+
 object TargetTop extends TargetNonAtom {
   override def toString: String = "*"
 }
