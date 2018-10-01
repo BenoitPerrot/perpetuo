@@ -51,6 +51,8 @@ object DeploymentRequestParser {
               TargetUnion(arr.map(parseTargetExpression).toSet)
             case ("intersection", JsArray(arr)) =>
               TargetIntersection(arr.map(parseTargetExpression).toSet)
+            case ("tag", JsString(name)) =>
+              TargetTag(name)
             case _ =>
               throw new ParsingException(s"Unexpected target element: $target")
           }

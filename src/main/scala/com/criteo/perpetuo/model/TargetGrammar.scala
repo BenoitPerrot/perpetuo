@@ -18,6 +18,10 @@ final case class TargetAtom(name: String) extends AnyVal with TargetTerm {
 
 sealed trait TargetNonAtom extends Any with TargetTerm
 
+final case class TargetTag(tag: String) extends AnyVal with TargetNonAtom {
+  override def toString: String = s"tag:$tag"
+}
+
 object TargetTop extends TargetNonAtom {
   override def toString: String = "*"
 }

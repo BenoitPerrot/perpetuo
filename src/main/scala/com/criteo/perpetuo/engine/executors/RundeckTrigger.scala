@@ -51,6 +51,7 @@ class RundeckTrigger(name: String,
   // fixme: that is so Criteo-specific
   private def serializeTarget(targetExpr: TargetExpr): String =
     targetExpr match {
+      case TargetTag(tag) => tag
       case t: TargetTerm => t.toString
       case _: TargetIntersection => throw new RuntimeException(s"Unprocessable target expression; it should be resolved at this stage: $targetExpr")
       case u: TargetUnion => u.items.map(serializeTarget).mkString(",")
