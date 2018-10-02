@@ -9,7 +9,6 @@ import com.criteo.perpetuo.model._
 import com.google.common.annotations.VisibleForTesting
 import com.twitter.inject.Logging
 import javax.inject.{Inject, Singleton}
-import slick.dbio.{DBIOAction, Effect, NoStream}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
@@ -66,6 +65,8 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
                            val targetDispatcher: TargetDispatcher,
                            val listeners: Seq[AsyncListener],
                            val findTriggeredExecution: TriggeredExecutionFinder) extends Logging {
+
+  import dbBinding.dbContext.profile.api._
 
   val fuelFilter = new FuelFilter(dbBinding)
 
@@ -245,7 +246,7 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
               dbBinding.countingOperationTraces(deploymentRequest)
                 .map(checkState(deploymentRequest, _, expectedCount))
             )
-            .getOrElse(DBIOAction.successful(()))
+            .getOrElse(DBIO.successful(()))
         )
         .andThen(getOperationSpecifics)
         .flatMap { case ((deploymentPlanSteps, (operation, specAndInvocations, atoms)), actionSpecifics) =>
@@ -360,16 +361,16 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
       assessingDeploymentState(deploymentRequest)
         .flatMap {
           case _: Outdated =>
-            DBIOAction.failed(Conflict("a newer one has already been applied", deploymentRequest.id))
+            DBIO.failed(Conflict("a newer one has already been applied", deploymentRequest.id))
 
           case _: Reverted =>
-            DBIOAction.failed(UnavailableAction("the deployment transaction is closed", Map("deploymentRequestId" -> deploymentRequest.id)))
+            DBIO.failed(UnavailableAction("the deployment transaction is closed", Map("deploymentRequestId" -> deploymentRequest.id)))
 
           case _: NotStarted | _: DeployFlopped =>
-            DBIOAction.failed(UnavailableAction("Nothing to revert", Map("deploymentRequestId" -> deploymentRequest.id)))
+            DBIO.failed(UnavailableAction("Nothing to revert", Map("deploymentRequestId" -> deploymentRequest.id)))
 
           case _: RevertInProgress | _: DeployInProgress =>
-            DBIOAction.failed(UnavailableAction("another operation is already running", Map("deploymentRequestId" -> deploymentRequest.id)))
+            DBIO.failed(UnavailableAction("another operation is already running", Map("deploymentRequestId" -> deploymentRequest.id)))
 
           case _: RevertFailed | _: DeployFailed | _: Paused | _: Deployed =>
             dbBinding.findingExecutionSpecificationsForRevert(deploymentRequest)
@@ -401,7 +402,7 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
             .andThen(dbBinding.hasOpenExecutionTracesForOperation(op.id))
             .flatMap(hasOpenExecutions =>
               if (hasOpenExecutions)
-                DBIOAction.successful(op)
+                DBIO.successful(op)
               else
                 closingOperation(op)
             )
@@ -415,7 +416,7 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
               Some(op.id)
             }
         }
-        .getOrElse(DBIOAction.successful(None))
+        .getOrElse(DBIO.successful(None))
       )
     )
 
@@ -514,7 +515,7 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
             "defaultVersion"
           ))
         else
-          DBIOAction.successful(determined)
+          DBIO.successful(determined)
       }
       .flatMap { groups =>
         val specAndInvocations = groups.map { case (spec, targets) =>
