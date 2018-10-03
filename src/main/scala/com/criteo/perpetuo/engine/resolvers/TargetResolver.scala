@@ -3,10 +3,13 @@ package com.criteo.perpetuo.engine.resolvers
 import com.criteo.perpetuo.dao
 import com.criteo.perpetuo.engine.{Provider, UnprocessableIntent}
 import com.criteo.perpetuo.model._
+import com.twitter.util.{Await, Future}
 
 
 trait TargetResolver extends Provider[TargetResolver] {
   def get: TargetResolver = this
+
+  def getAllAtomsAndTags(productName: String): Future[TargetSet] = Future.value(TargetSet(Map.empty))
 
   /**
     * A given target word can express the union of multiple targets; resolving a target consists
@@ -27,7 +30,36 @@ trait TargetResolver extends Provider[TargetResolver] {
     *         product and version;
     *         - None if it's NOT CERTAIN that ANY TARGET can be resolved to atoms for the given product.
     */
-  protected def resolveTerms(productName: String, productVersion: Version, targetTerms: Set[TargetNonAtom]): Option[Map[TargetNonAtom, Set[TargetAtom]]] = None
+  // todo: make it asynchronous
+  protected def resolveTerms(productName: String, productVersion: Version, targetTerms: Set[TargetNonAtom]): Option[Map[TargetNonAtom, Set[TargetAtom]]] = {
+    val TargetSet(atomsToTags, isExact) = Await.result(getAllAtomsAndTags(productName))
+
+    if (isExact) {
+      lazy val targetAtoms = atomsToTags.keySet.map(TargetAtom)
+      lazy val tagsToAtoms = atomsToTags
+        .toStream
+        .flatMap { case (atom, tags) =>
+          tags.iterator.map(_ -> atom)
+        }
+        .groupBy { case (tag, _) => tag }
+        .map { case (tag, tagsAtoms) =>
+          tag -> tagsAtoms.map { case (_, atom) => TargetAtom(atom) }
+        }
+
+      Some(targetTerms.map {
+        case tag@TargetTag(name) =>
+          tag -> tagsToAtoms.getOrElse(name, throw UnprocessableIntent(s"Unknown tag `$name` in target expression")).toSet
+        case icontains@TargetIcontains(sub) =>
+          icontains -> targetAtoms.filter(_.name.contains(sub))
+        case TargetTop =>
+          TargetTop -> targetAtoms
+        case word@TargetWord(w) => // fixme: for migration only
+          word -> tagsToAtoms.getOrElse(w, Set(TargetAtom(w))).toSet
+      }.toMap)
+    }
+    else
+      None
+  }
 
   def resolveExpression(productName: String, productVersion: Version, targetExpr: TargetExpr): Option[TargetAtomSet] = {
     // resolve what's unresolved
@@ -74,3 +106,10 @@ trait TargetResolver extends Provider[TargetResolver] {
     case TargetAtomSet(items) => items
   }
 }
+
+/**
+  * Return type of [[TargetResolver.getAllAtomsAndTags]]: the map from atoms to tags and a boolean
+  * which is true if and only if it's certain that all atoms are relevant for the product
+  * (otherwise, it would be a mere suggestion of targets as a best effort for the end user).
+  */
+case class TargetSet(atomsToTags: Map[String, Seq[String]], isExact: Boolean = false)
