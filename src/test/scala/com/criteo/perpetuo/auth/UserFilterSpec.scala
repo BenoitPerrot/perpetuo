@@ -3,12 +3,13 @@ package com.criteo.perpetuo.auth
 import com.criteo.perpetuo.app.AuthModule
 import com.criteo.perpetuo.auth.UserFilter._
 import com.criteo.perpetuo.config.AppConfigProvider
+import com.google.inject.{Provides, Singleton}
 import com.twitter.finagle.http.Status.{Ok, Unauthorized}
 import com.twitter.finagle.http.{Request, Response}
 import com.twitter.finatra.http.filters.{CommonFilters, LoggingMDCFilter, TraceIdMDCFilter}
 import com.twitter.finatra.http.routing.HttpRouter
 import com.twitter.finatra.http.{EmbeddedHttpServer, HttpServer, Controller => BaseController}
-import com.twitter.inject.Test
+import com.twitter.inject.{Test, TwitterModule}
 
 
 /**
@@ -23,7 +24,14 @@ class UserFilterSpec extends Test {
 
   val server = new EmbeddedHttpServer(new HttpServer {
 
-    override def modules = Seq(authModule)
+    override def modules = Seq(
+      authModule,
+      new TwitterModule() {
+        @Singleton
+        @Provides
+        def providesIdentityProvider: IdentityProvider = AnonymousIdentityProvider
+      }
+    )
 
     override def configureHttp(router: HttpRouter) {
       router

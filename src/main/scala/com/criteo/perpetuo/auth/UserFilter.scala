@@ -2,7 +2,7 @@ package com.criteo.perpetuo.auth
 
 import com.google.inject.Inject
 import com.twitter.finagle.http.Request.Schema
-import com.twitter.finagle.http.{Request, Response}
+import com.twitter.finagle.http.{Request, Response, Status}
 import com.twitter.finagle.{Service, SimpleFilter}
 import com.twitter.util.Future
 import javax.inject.Singleton
@@ -18,7 +18,9 @@ object UserFilter {
 }
 
 @Singleton
-class UserFilter @Inject() (jwtEncoder: JWTEncoder) extends SimpleFilter[Request, Response] {
+class UserFilter @Inject() (jwtEncoder: JWTEncoder, identityProvider: IdentityProvider) extends SimpleFilter[Request, Response] {
+
+  private val loginHeader = "X-Perpetuo-Login"
 
   private def setUser(request: Request) = {
     request.ctx.update(UserFilter.UserField,
@@ -29,5 +31,12 @@ class UserFilter @Inject() (jwtEncoder: JWTEncoder) extends SimpleFilter[Request
   override def apply(request: Request, service: Service[Request, Response]): Future[Response] = {
     setUser(request)
     service(request)
+      .map { resp =>
+        if (resp.status == Status.Unauthorized) {
+          resp.headerMap.set(loginHeader, identityProvider.authorizeUrl)
+          resp.headerMap.set("Access-Control-Expose-Headers", loginHeader)
+        }
+        resp
+      }
   }
 }

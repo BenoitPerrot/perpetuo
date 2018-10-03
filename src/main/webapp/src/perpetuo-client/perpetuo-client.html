@@ -6,18 +6,6 @@
 this.Perpetuo = this.Perpetuo || {};
 this.Perpetuo.Client = this.Perpetuo.Client || (function () {
 
-  function memoize(f) {
-    const memoized = () => {
-      if (!memoized.hasOwnProperty('__cache')) {
-        memoized.__cache = f();
-      }
-      return memoized.__cache;
-    };
-    return memoized;
-  }
-
-  const fetchAuthorizeURL = memoize(() => Perpetuo.Client.fetch('/api/auth/authorize-url').then(_ => _.json()).then(_ => _.url));
-
   return class Client {
     constructor(host) {
       this.host = host;
@@ -26,8 +14,14 @@ this.Perpetuo.Client = this.Perpetuo.Client || (function () {
     }
 
     redirectToAuthorizeURL(win) {
-      fetchAuthorizeURL().then(url => {
-        win.location.replace(`${url}&redirect_uri=${window.location.origin}/identify&state=${window.location.href}`);
+      return fetch('/api/auth/identity', {
+        headers: {'Accept': 'application/json', 'Content-Type': 'application/json'},
+        credentials: 'include'
+      }).then(r => {
+        if (r.status === 401) {
+          const url = r.headers.get('X-Perpetuo-Login')
+          win.location.replace(`${url}&redirect_uri=${window.location.origin}/identify&state=${window.location.href}`);
+        }
       });
     }
 

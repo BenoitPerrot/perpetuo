@@ -51,10 +51,4 @@ class Controller @Inject()(identityProvider: IdentityProvider, permissions: Perm
       )
       .getOrElse(Future.value(response.unauthorized))
   }
-
-  val jsonAuthorizeUrl: String = JsObject("url" -> JsString(identityProvider.authorizeUrl.toString)).compactPrint
-
-  get("/api/auth/authorize-url") { _: Request =>
-    response.ok.json(jsonAuthorizeUrl)
-  }
 }
