@@ -430,7 +430,7 @@
         this.actionLock(() => {
           const deploymentRequestId = this.deploymentRequestId
           const operationCount = this.data.operations.length
-          this.client.deviseRevertPlan(deploymentRequestId)
+          return this.client.deviseRevertPlan(deploymentRequestId)
               .then(r => r.json())
               .then(revertPlan => this.showRevertPlan(revertPlan))
               .then(defaultVersion => // possibly undefined
