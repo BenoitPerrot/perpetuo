@@ -311,6 +311,12 @@ class RestControllerSpec extends Test with TestDb {
     respJson2("error") should startWith("a default rollback version is required")
     respJson2("required") shouldEqual "defaultVersion"
 
+    val revertPlan = actOnDeploymentRequest(id, "devise-revert-plan", JsObject(), Ok).contentString.parseJson
+    revertPlan shouldEqual Map(
+      "undetermined" -> Seq("targetB", "targetA"),
+      "determined" -> Seq()
+    ).toJson
+
     actOnDeploymentRequest(id, "revert", JsObject("defaultVersion" -> JsString("42"), "operationCount" -> JsNumber(1)), Ok)
   }
 

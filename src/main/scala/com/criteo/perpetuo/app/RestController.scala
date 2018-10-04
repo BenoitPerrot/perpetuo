@@ -149,9 +149,9 @@ class RestController @Inject()(val engine: Engine)
           .deviseRevertPlan(id)
           .map(_.map { case (undetermined, determined) =>
             Some(Map(
-              "undetermined" -> undetermined,
+              "undetermined" -> undetermined.items,
               "determined" -> determined.toStream.map { case (execSpec, targets) =>
-                Map("version" -> execSpec.version, "targetAtoms" -> targets)
+                Map("version" -> execSpec.version, "targetAtoms" -> targets.items)
               }
             ))
           })
