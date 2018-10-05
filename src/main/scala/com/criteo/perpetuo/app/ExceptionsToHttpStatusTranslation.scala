@@ -30,6 +30,7 @@ trait ExceptionsToHttpStatusTranslation extends Logging {
     }
     catch {
       case _: PermissionDenied => throw ForbiddenException()
+      case _: Unidentified => throw HttpException(Status.Unauthorized)
       case _: OperationLockAlreadyTaken =>
         throw HttpException(Status.Conflict, "Cannot be processed for the moment because another operation is running for the same deployment request")
       case _: DeploymentRequestOutdated =>

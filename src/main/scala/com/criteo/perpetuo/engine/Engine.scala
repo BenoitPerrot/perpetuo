@@ -14,6 +14,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.util.{Failure, Success}
 
+case class Unidentified() extends RuntimeException("unidentified")
 case class PermissionDenied() extends RuntimeException("permission denied")
 
 @Singleton
@@ -251,10 +252,14 @@ class Engine @Inject()(val crankshaft: Crankshaft,
     withDeploymentRequest(id) { deploymentRequest =>
       def rejectIfPermissionDenied(action: DeploymentAction.Value, kind: Operation.Kind, scope: Seq[DeploymentPlanStep]) = {
         val targetSuperset = getTargetSuperset(deploymentRequest.product.name, deploymentRequest.version, scope.map(_.parsedTarget))
-        if (!user.exists(permissions.isAuthorized(_, action, kind, deploymentRequest.product.name, targetSuperset)))
-          Some("permission denied")
-        else
-          None
+        user
+          .map(u =>
+            if (permissions.isAuthorized(u, action, kind, deploymentRequest.product.name, targetSuperset))
+              None
+            else
+              Some(PermissionDenied().getMessage)
+          )
+          .getOrElse(Some(Unidentified().getMessage))
       }
 
       // TODO: rework: let caller decide how to serialize
