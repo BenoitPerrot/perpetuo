@@ -160,7 +160,7 @@ trait SimpleScenarioTesting extends TestHelpers with TestDb with MockitoSugar {
       val targetStatus = try {
         stepsTargets(currentStep).map(_ -> finalStatus).toMap
       } catch {
-        case _: ArrayIndexOutOfBoundsException => Map[String, Status.Code]()  // This shouldn't be necessary. If there isn't anymore steps, the deployment transaction is closed.
+        case _: ArrayIndexOutOfBoundsException => Map[String, Status.Code]() // This shouldn't be necessary. If there isn't anymore steps, the deployment transaction is closed.
       }
       step(targetStatus)
     }

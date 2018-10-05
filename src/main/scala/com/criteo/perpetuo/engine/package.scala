@@ -1,7 +1,7 @@
 package com.criteo.perpetuo
 
 import com.criteo.perpetuo.engine.executors.ExecutionTrigger
-import com.criteo.perpetuo.model.{ExecutionSpecification, Operation, TargetAtomSet, TargetExpr, Version}
+import com.criteo.perpetuo.model._
 
 
 package object engine {

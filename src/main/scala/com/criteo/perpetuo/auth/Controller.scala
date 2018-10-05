@@ -8,7 +8,6 @@ import com.twitter.finatra.http.{Controller => BaseController}
 import com.twitter.finatra.request.RouteParam
 import com.twitter.util.Future
 import javax.inject.Inject
-import spray.json.{JsObject, JsString}
 
 case class TokenRequest(token: String)
 case class LocalUserIdentificationRequest(@RouteParam name: String, request: Request)

@@ -3,8 +3,8 @@ package com.criteo.perpetuo.app
 import com.criteo.perpetuo.auth.{Controller => AuthenticationController}
 import com.criteo.perpetuo.config.AppConfigProvider
 import com.criteo.perpetuo.config.ConfigSyntacticSugar._
-import com.twitter.finagle.http.filter.Cors
 import com.twitter.finagle.SimpleFilter
+import com.twitter.finagle.http.filter.Cors
 import com.twitter.finagle.http.{Request, Response}
 import com.twitter.finatra.http.filters.{LoggingMDCFilter, TraceIdMDCFilter}
 import com.twitter.finatra.http.routing.HttpRouter
