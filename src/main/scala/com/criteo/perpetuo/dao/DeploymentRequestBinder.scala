@@ -12,7 +12,7 @@ private[dao] case class DeploymentRequestRecord(id: Option[Long],
                                                 comment: Comment, // Not an `Option` because it's easier to consider that no comment <=> empty
                                                 creator: UserName,
                                                 creationDate: java.sql.Timestamp,
-                                                state: Option[Short]) {
+                                                state: Option[DeploymentRequestState.Code]) {
   def toDeploymentRequest(product: ProductRecord) =
     DeploymentRequest(id.get, product.toProduct, version.toModel, comment.toString, creator.toString, creationDate, state)
 }
@@ -22,6 +22,11 @@ trait DeploymentRequestBinder extends TableBinder {
   this: ProductBinder with DbContextProvider =>
 
   import dbContext.profile.api._
+
+  protected implicit lazy val stateCodeMapper = MappedColumnType.base[DeploymentRequestState.Code, Short](
+    code => code.id.toShort,
+    short => DeploymentRequestState(short.toInt)
+  )
 
   class DeploymentRequestTable(tag: Tag) extends Table[DeploymentRequestRecord](tag, "deployment_request") {
     def id = column[Long]("id", O.AutoInc)
@@ -38,7 +43,7 @@ trait DeploymentRequestBinder extends TableBinder {
     def creationDate = column[java.sql.Timestamp]("creation_date")
     protected def creationIdx = index(creationDate)
 
-    def state = column[Option[Short]]("state")
+    def state = column[Option[DeploymentRequestState.Code]]("state")
 
     def * = (id.?, productId, version, comment, creator, creationDate, state) <> (DeploymentRequestRecord.tupled, DeploymentRequestRecord.unapply)
   }
