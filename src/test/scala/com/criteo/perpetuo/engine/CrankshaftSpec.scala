@@ -21,16 +21,6 @@ class CrankshaftSpec extends SimpleScenarioTesting {
   private def closeOperationTrace(operationTrace: OperationTrace): Future[Option[OperationTrace]] =
     dbContext.db.run(crankshaft.dbBinding.closingOperationTrace(operationTrace))
 
-  private def findCurrentVersionForEachKnownTarget(productName: String, amongAtoms: Iterable[String]) =
-    crankshaft.dbBinding.findCurrentVersionForEachKnownTarget(productName, amongAtoms.map(TargetAtom))
-      .map(_.map { case (k, v) => k.name -> v })
-
-  private def computeDominantVersion(productName: String, referenceAtoms: Iterable[Iterable[String]]) =
-    crankshaft.computeDominantVersion(productName, referenceAtoms.map(_.map(TargetAtom))).map(_.map { version =>
-      val v :: Nil = version.structured
-      v.value
-    })
-
   test("A trivial execution triggers a job with no href when there is no href provided") {
     await(
       for {
@@ -332,6 +322,71 @@ class CrankshaftSpec extends SimpleScenarioTesting {
       }
     )
   }
+}
+
+
+class CrankshaftWithFailingExecutorSpec extends SimpleScenarioTesting {
+  override protected def triggerMock = throw new RuntimeException("too bad, dude")
+
+  test("Crankshaft keeps the created records in DB and marks an execution trace as failed if the trigger fails") {
+    await(
+      for {
+        product <- crankshaft.upsertProduct("airplane")
+        deploymentRequest <- crankshaft.createDeploymentRequest(ProtoDeploymentRequest(product.name, Version(JsString("42").compactPrint), Seq(ProtoDeploymentPlanStep("", JsArray(JsString("moon"), JsString("mars")), "")), "", "bob"))
+        operationTrace <- step(deploymentRequest, Some(0), "ignace")
+        hasOpenExecution <- dbContext.db.run(crankshaft.dbBinding.hasOpenExecutionTracesForOperation(operationTrace.id))
+        executionTraces <- crankshaft.dbBinding.findExecutionTracesByOperationTrace(operationTrace.id)
+      } yield {
+        hasOpenExecution shouldBe false
+        executionTraces.map(_.state) shouldEqual Seq(ExecutionState.initFailed)
+      }
+    )
+  }
+}
+
+
+class CrankshaftWithResolverSpec extends SimpleScenarioTesting {
+  override val resolver: TargetResolver = TestTargetResolver
+
+  private val step1 = Set("north", "south")
+  private val step2 = Set("east-west")
+
+  private def findCurrentVersionForEachKnownTarget(productName: String, amongAtoms: Iterable[String]) =
+    crankshaft.dbBinding.findCurrentVersionForEachKnownTarget(productName, amongAtoms.map(TargetAtom))
+      .map(_.map { case (k, v) => k.name -> v })
+
+  private def computeDominantVersion(productName: String, referenceAtoms: Iterable[Iterable[String]]) =
+    crankshaft.computeDominantVersion(productName, referenceAtoms.map(_.map(TargetAtom))).map(_.map { version =>
+      val v :: Nil = version.structured
+      v.value
+    })
+
+  private def getDeployedVersions(productName: String) =
+    crankshaft.dbBinding.findCurrentVersionForEachKnownTarget(productName, (step1 ++ step2).map(TargetAtom))
+      .map(_.map { case (k, v) => k.name -> v.structured.head.value })
+
+  private def findTargetsByOperationTrace(op: OperationTrace) = {
+    crankshaft.dbBinding.findExecutionIdsByOperationTrace(op.id)
+      .flatMap { executionIds =>
+        val executionId = executionIds.head
+        findTargetsByExecution(executionId).map(_.map(_.name))
+      }
+  }
+
+  test("Crankshaft retries on failed targets only") {
+    val r = request("big-brother", "new", step1, step2)
+
+    r.eligibleOperations should become(Seq(Operation.deploy))
+    r.step(Map("north" -> Status.success, "south" -> Status.productFailure))
+    getDeployedVersions("big-brother") should become(Map("north" -> "new", "south" -> "new"))
+
+    val op = r.step()
+    findTargetsByOperationTrace(op) should become(Seq("south"))
+
+    r.step(Map("east" -> Status.success, "west" -> Status.productFailure))
+    val op2 = r.step()
+    findTargetsByOperationTrace(op2) should become(Seq("west"))
+  }
 
   test("Crankshaft's binding provides the last version deployed on a given target") {
     def v(versionName: String): Version = Version(JsString(versionName))
@@ -407,61 +462,6 @@ class CrankshaftSpec extends SimpleScenarioTesting {
       Seq("earth", "mars", "uranus"), // sunny (from revert), sunny (from revert), cold
       Seq("jupiter", "saturn", "neptune") // cold, cold, cold
     )) should become[Option[String]](Some("sunny"))
-  }
-}
-
-
-class CrankshaftWithFailingExecutorSpec extends SimpleScenarioTesting {
-  override protected def triggerMock = throw new RuntimeException("too bad, dude")
-
-  test("Crankshaft keeps the created records in DB and marks an execution trace as failed if the trigger fails") {
-    await(
-      for {
-        product <- crankshaft.upsertProduct("airplane")
-        deploymentRequest <- crankshaft.createDeploymentRequest(ProtoDeploymentRequest(product.name, Version(JsString("42").compactPrint), Seq(ProtoDeploymentPlanStep("", JsArray(JsString("moon"), JsString("mars")), "")), "", "bob"))
-        operationTrace <- step(deploymentRequest, Some(0), "ignace")
-        hasOpenExecution <- dbContext.db.run(crankshaft.dbBinding.hasOpenExecutionTracesForOperation(operationTrace.id))
-        executionTraces <- crankshaft.dbBinding.findExecutionTracesByOperationTrace(operationTrace.id)
-      } yield {
-        hasOpenExecution shouldBe false
-        executionTraces.map(_.state) shouldEqual Seq(ExecutionState.initFailed)
-      }
-    )
-  }
-}
-
-
-class CrankshaftWithFailingTargetSpec extends SimpleScenarioTesting {
-  override val resolver: TargetResolver = TestTargetResolver
-
-  private val step1 = Set("north", "south")
-  private val step2 = Set("east-west")
-
-  private def getDeployedVersions(productName: String) =
-    crankshaft.dbBinding.findCurrentVersionForEachKnownTarget(productName, (step1 ++ step2).map(TargetAtom))
-      .map(_.map { case (k, v) => k.name -> v.structured.head.value })
-
-  private def findTargetsByOperationTrace(op: OperationTrace) = {
-    crankshaft.dbBinding.findExecutionIdsByOperationTrace(op.id)
-      .flatMap { executionIds =>
-        val executionId = executionIds.head
-        findTargetsByExecution(executionId).map(_.map(_.name))
-      }
-  }
-
-  test("Crankshaft retries on failed targets only") {
-    val r = request("big-brother", "new", step1, step2)
-
-    r.eligibleOperations should become(Seq(Operation.deploy))
-    r.step(Map("north" -> Status.success, "south" -> Status.productFailure))
-    getDeployedVersions("big-brother") should become(Map("north" -> "new", "south" -> "new"))
-
-    val op = r.step()
-    findTargetsByOperationTrace(op) should become(Seq("south"))
-
-    r.step(Map("east" -> Status.success, "west" -> Status.productFailure))
-    val op2 = r.step()
-    findTargetsByOperationTrace(op2) should become(Seq("west"))
   }
 }
 
