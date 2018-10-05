@@ -11,6 +11,33 @@ trait TargetResolver extends Provider[TargetResolver] {
 
   def getAllAtomsAndTags(productName: String): Future[TargetSet] = Future.value(TargetSet(Map.empty))
 
+  def resolveExpression(productName: String, productVersion: Version, targetExpr: TargetExpr): Option[TargetAtomSet] = {
+    // resolve what's unresolved
+    val nonAtoms = extractNonAtoms(targetExpr)
+    resolveTerms(productName, productVersion, nonAtoms).map { nonAtomsToAtoms =>
+
+      // check resolution's consistency
+      val resolvedWords = nonAtomsToAtoms.keySet
+      if (!resolvedWords.subsetOf(nonAtoms))
+        throw new RuntimeException("The resolver augmented the original intent, which is forbidden. The targets introduced by the resolver are: " +
+          (resolvedWords -- nonAtoms).mkString(", "))
+
+      val emptyWords = nonAtomsToAtoms.flatMap {
+        case (_, atoms) if atoms.nonEmpty =>
+          atoms.foreach(atom => assert(atom.name.length <= dao.targetAtomMaxLength, s"Target `$atom` is too long"))
+          None
+        case (word, _) =>
+          Some(word)
+      }
+      if (emptyWords.nonEmpty || resolvedWords.size != nonAtoms.size)
+        throw UnprocessableIntent("The following target(s) were not resolved: " +
+          (emptyWords.iterator ++ (nonAtoms -- resolvedWords)).mkString(", "))
+
+      // transform the expression to a set of atoms
+      TargetAtomSet(transform(targetExpr, nonAtomsToAtoms))
+    }
+  }
+
   /**
     * A given target word can express the union of multiple targets; resolving a target consists
     * in computing the list of all the underlying targets (e.g. the European Union
@@ -59,33 +86,6 @@ trait TargetResolver extends Provider[TargetResolver] {
     }
     else
       None
-  }
-
-  def resolveExpression(productName: String, productVersion: Version, targetExpr: TargetExpr): Option[TargetAtomSet] = {
-    // resolve what's unresolved
-    val nonAtoms = extractNonAtoms(targetExpr)
-    resolveTerms(productName, productVersion, nonAtoms).map { nonAtomsToAtoms =>
-
-      // check resolution's consistency
-      val resolvedWords = nonAtomsToAtoms.keySet
-      if (!resolvedWords.subsetOf(nonAtoms))
-        throw new RuntimeException("The resolver augmented the original intent, which is forbidden. The targets introduced by the resolver are: " +
-          (resolvedWords -- nonAtoms).mkString(", "))
-
-      val emptyWords = nonAtomsToAtoms.flatMap {
-        case (_, atoms) if atoms.nonEmpty =>
-          atoms.foreach(atom => assert(atom.name.length <= dao.targetAtomMaxLength, s"Target `$atom` is too long"))
-          None
-        case (word, _) =>
-          Some(word)
-      }
-      if (emptyWords.nonEmpty || resolvedWords.size != nonAtoms.size)
-        throw UnprocessableIntent("The following target(s) were not resolved: " +
-          (emptyWords.iterator ++ (nonAtoms -- resolvedWords)).mkString(", "))
-
-      // transform the expression to a set of atoms
-      TargetAtomSet(transform(targetExpr, nonAtomsToAtoms))
-    }
   }
 
   private val extractNonAtoms: TargetExpr => Set[TargetNonAtom] = {
