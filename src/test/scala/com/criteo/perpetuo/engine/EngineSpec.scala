@@ -5,13 +5,14 @@ import java.util.concurrent.atomic.AtomicLong
 
 import com.criteo.perpetuo.SimpleScenarioTesting
 import com.criteo.perpetuo.auth.{Unrestricted, User}
-import com.criteo.perpetuo.model.{ExecutionState, ProtoDeploymentPlanStep, ProtoDeploymentRequest, Version}
+import com.criteo.perpetuo.model.{ExecutionState, OperationTrace, ProtoDeploymentPlanStep, ProtoDeploymentRequest, Version}
 import com.google.common.base.Ticker
 import com.google.common.cache.{CacheBuilder, LoadingCache}
 import spray.json.JsString
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
+import scala.util.Failure
 
 class EngineSpec extends SimpleScenarioTesting {
 
@@ -41,8 +42,12 @@ class EngineSpec extends SimpleScenarioTesting {
         .build(stateCacheLoader)
   }
 
+  private def closeOperationTrace(operationTrace: OperationTrace): Future[Option[OperationTrace]] =
+    dbContext.db.run(engine.crankshaft.dbBinding.closingOperationTrace(operationTrace))
+
   private val someone = User("s.omeone")
   private val starter = User("s.tarter")
+  private val releaser = User("r.eleaser")
 
   test("Testing the cache is keeping state for 2 seconds") {
     await(
@@ -70,6 +75,67 @@ class EngineSpec extends SimpleScenarioTesting {
         onGoing shouldBe a[DeployInProgress]
         stillOnGoing shouldBe a[DeployInProgress]
         completed shouldBe a[DeployFlopped]
+      }
+    )
+  }
+
+  test("A not started request is abandoned") {
+    await(
+      for {
+        product <- engine.upsertProduct(starter, "product")
+        depReq <- engine.requestDeployment(someone, ProtoDeploymentRequest(product.name, Version("\"1000\""), Seq(ProtoDeploymentPlanStep("", JsString("*"), "")), "", someone.name))
+        notStarted <- engine.findDeploymentRequestState(depReq.id).map(_.get)
+        _ <- engine.abandon(someone, depReq.id)
+        depReq <- engine.crankshaft.findDeploymentRequestById(depReq.id).map(_.get)  // Refresh the Deployment request instance
+        abandoned <- engine.crankshaft.assessDeploymentState(depReq)
+      } yield {
+        notStarted shouldBe a[NotStarted]
+        abandoned shouldBe a[Abandoned]
+      }
+    )
+  }
+
+  test("A flopped request is abandoned") {
+    await(
+      for {
+        product <- engine.upsertProduct(starter, "product")
+        depReq <- engine.requestDeployment(someone, ProtoDeploymentRequest(product.name, Version("\"1000\""), Seq(ProtoDeploymentPlanStep("", JsString("*"), "")), "", someone.name))
+        notStarted <- engine.findDeploymentRequestState(depReq.id).map(_.get)
+        _ <- engine.step(starter, depReq.id, None)
+        depReqStatus <- engine.queryDeploymentRequestStatus(Some(starter), depReq.id).map(_.get)
+        execTraceId = depReqStatus.operationEffects.head.executionTraces.head.id
+        _ <- engine.tryUpdateExecutionTrace(execTraceId, ExecutionState.aborted, "", None)
+        depReq <- engine.crankshaft.findDeploymentRequestById(depReq.id).map(_.get)  // Refresh the Deployment request instance
+        flopped <- engine.crankshaft.assessDeploymentState(depReq)
+        _ <- engine.abandon(someone, depReq.id)
+        depReq <- engine.crankshaft.findDeploymentRequestById(depReq.id).map(_.get)
+        abandoned <- engine.crankshaft.assessDeploymentState(depReq)
+      } yield {
+        notStarted shouldBe a[NotStarted]
+        flopped shouldBe a[DeployFlopped]
+        abandoned shouldBe a[Abandoned]
+      }
+    )
+  }
+
+  test("A request which is not started nor flopped cannot be abandoned") {
+    await(
+      for {
+        product <- engine.upsertProduct(starter, "product")
+        depReq <- engine.requestDeployment(someone, ProtoDeploymentRequest(product.name, Version("\"1000\""), Seq(ProtoDeploymentPlanStep("", JsString("*"), "")), "", someone.name))
+        notStarted <- engine.findDeploymentRequestState(depReq.id).map(_.get)
+        operationTrace <- engine.step(starter, depReq.id, None).map(_.get)
+        depReq <- engine.crankshaft.findDeploymentRequestById(depReq.id).map(_.get)
+        inProgress <- engine.crankshaft.assessDeploymentState(depReq)
+        err <- engine.abandon(starter, depReq.id).failed
+        depReq <- engine.crankshaft.findDeploymentRequestById(depReq.id).map(_.get)
+        finalState <- engine.crankshaft.assessDeploymentState(depReq)
+        _ <- closeOperationTrace(operationTrace)
+      } yield {
+        notStarted shouldBe a[NotStarted]
+        inProgress shouldBe a[DeployInProgress]
+        err shouldBe a[Conflict]
+        finalState shouldBe a[DeployInProgress]
       }
     )
   }

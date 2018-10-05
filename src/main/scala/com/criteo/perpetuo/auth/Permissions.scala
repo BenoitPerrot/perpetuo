@@ -13,6 +13,7 @@ object DeploymentAction extends Enumeration {
   val requestOperation = Value("requestOperation")
   val applyOperation = Value("applyOperation")
   val stopOperation = Value("stopOperation")
+  val abandonOperation = Value("abandonOperation")
 }
 
 

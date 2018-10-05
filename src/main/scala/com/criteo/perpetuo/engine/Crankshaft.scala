@@ -573,4 +573,30 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
         }
     }
   }
+
+  def abandoning(deploymentRequest: DeploymentRequest): DBIOAction[Unit, NoStream, Effect.Read with Effect.Write with Effect.Transactional] =
+    if (deploymentRequest.state.contains(DeploymentRequestState.abandoned))
+      DBIO.successful(()) // The request is already abandoned, we silently quit the operation
+    else
+      fuelFilter.acquiringOperationLock(deploymentRequest)
+        .andThen(
+          assessingDeploymentState(deploymentRequest).flatMap {
+            case _: NotStarted | _: DeployFlopped =>
+              dbBinding.abandoningDeploymentRequest(deploymentRequest.id)
+                .flatMap(_ => fuelFilter.releasingLocks(deploymentRequest, false)).map(_ => ())
+            case _: Abandoned =>
+              DBIO.successful(())
+            case _ =>
+              DBIO.failed(UnavailableAction("cannot abandon request in the current state"))
+          }
+        )
+        .transactionally
+
+
+  /**
+    * Abandon deployment request if it's either in NotStarted or DeployFlopped state.
+    * We acquire an operation lock to prevent any other operation to be launched while the deployment is being abandoned.
+    */
+  def abandon(deploymentRequest: DeploymentRequest): Future[Unit] =
+    dbBinding.dbContext.db.run(abandoning(deploymentRequest))
 }

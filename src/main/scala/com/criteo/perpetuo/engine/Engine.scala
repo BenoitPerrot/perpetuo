@@ -178,6 +178,17 @@ class Engine @Inject()(val crankshaft: Crankshaft,
     }
   }
 
+  def abandon(user: User, deploymentRequestId: Long): Future[Option[Unit]] =
+    withDeploymentRequest(deploymentRequestId) { deploymentRequest =>
+      crankshaft.assessDeploymentState(deploymentRequest).flatMap { state =>
+        val resolvedTarget = resolveTarget(deploymentRequest.product.name, deploymentRequest.version, state.deploymentPlanSteps.map(_.parsedTarget))
+        if (permissions.isAuthorized(user, DeploymentAction.abandonOperation, Operation.deploy, deploymentRequest.product.name, resolvedTarget))
+          crankshaft.abandon(deploymentRequest)
+        else
+          Future.failed(PermissionDenied())
+      }
+    }
+
   def findDeploymentRequestsWithStatuses(where: Seq[Map[String, Any]], limit: Int, offset: Int): Future[Seq[(DeploymentPlan, DeploymentStatus.Value, Option[Operation.Kind])]] =
     crankshaft.findDeploymentRequestsWithStatuses(where, limit, offset)
 

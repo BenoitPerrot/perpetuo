@@ -76,4 +76,7 @@ trait DeploymentRequestBinder extends TableBinder {
           count == 1
       }
   }
+
+  def abandoningDeploymentRequest(id: Long): DBIOAction[Int, NoStream, Effect.Write] =
+    deploymentRequestQuery.filter(_.id === id).map(_.state).update(Some(DeploymentRequestState.abandoned))
 }
