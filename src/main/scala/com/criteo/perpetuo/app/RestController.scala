@@ -191,6 +191,12 @@ class RestController @Inject()(val engine: Engine)
       })
   }
 
+  post("/api/deployment-requests/:id/actions/abandon", 5.seconds) { (id: Long, _: RequestWithId, user: User) =>
+    engine
+      .abandon(user, id)
+      .map(_.map(_ => Map("id" -> id)))
+  }
+
   /**
     * Respond a:
     * - HTTP 204 if the update is a success
