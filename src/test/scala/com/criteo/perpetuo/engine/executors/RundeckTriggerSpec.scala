@@ -1,6 +1,7 @@
 package com.criteo.perpetuo.engine.executors
 
-import com.criteo.perpetuo.model.{TargetAtom, TargetAtomSet, Version}
+import com.criteo.perpetuo.engine.TargetAtomSet
+import com.criteo.perpetuo.model.{TargetAtom, Version}
 import com.twitter.finagle.http.{Request, Response, Status}
 import com.twitter.inject.Test
 import com.twitter.util.Future

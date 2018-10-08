@@ -1,7 +1,7 @@
 package com.criteo.perpetuo.engine.resolvers
 
 import com.criteo.perpetuo.dao
-import com.criteo.perpetuo.engine.{Provider, UnprocessableIntent}
+import com.criteo.perpetuo.engine.{Provider, TargetAtomSet, UnprocessableIntent}
 import com.criteo.perpetuo.model._
 import com.twitter.util.{Await, Future}
 
@@ -89,7 +89,7 @@ trait TargetResolver extends Provider[TargetResolver] {
     case n: TargetNonAtom => Set(n)
     case i: TargetIntersection if i.isEmpty => Set(TargetTop)
     case op: TargetOp => op.items.flatMap(extractNonAtoms).toSet
-    case _: TargetAtom | _: TargetAtomSet => Set.empty
+    case _: TargetAtom => Set.empty
   }
 
   private def transform(targetExpr: TargetExpr, f: TargetNonAtom => Set[TargetAtom]): Set[TargetAtom] = targetExpr match {
@@ -100,7 +100,6 @@ trait TargetResolver extends Provider[TargetResolver] {
       .reduceOption((res, x) => res & x)
       .getOrElse(f(TargetTop))
     case TargetUnion(items) => items.flatMap(transform(_, f))
-    case TargetAtomSet(items, _) => items
   }
 }
 

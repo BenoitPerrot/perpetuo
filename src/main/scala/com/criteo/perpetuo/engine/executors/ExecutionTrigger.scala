@@ -1,6 +1,7 @@
 package com.criteo.perpetuo.engine.executors
 
-import com.criteo.perpetuo.model.{TargetAtomSet, Version}
+import com.criteo.perpetuo.engine.TargetAtomSet
+import com.criteo.perpetuo.model.Version
 
 import scala.concurrent.Future
 

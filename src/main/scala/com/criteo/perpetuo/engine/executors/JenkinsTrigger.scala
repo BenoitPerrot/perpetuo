@@ -2,7 +2,8 @@ package com.criteo.perpetuo.engine.executors
 
 import com.criteo.perpetuo.app.RestApi
 import com.criteo.perpetuo.config.AppConfigProvider
-import com.criteo.perpetuo.model.{TargetAtomSet, Version}
+import com.criteo.perpetuo.engine.TargetAtomSet
+import com.criteo.perpetuo.model.Version
 import com.twitter.conversions.time._
 import com.twitter.finagle.http.Status
 import com.twitter.util.Await

@@ -3,7 +3,8 @@ package com.criteo.perpetuo.auth
 import java.util.regex.Pattern
 
 import com.criteo.perpetuo.config.ConfigSyntacticSugar._
-import com.criteo.perpetuo.model.{Operation, TargetAtomSet}
+import com.criteo.perpetuo.engine.TargetAtomSet
+import com.criteo.perpetuo.model.Operation
 import com.twitter.inject.Logging
 import com.typesafe.config.Config
 

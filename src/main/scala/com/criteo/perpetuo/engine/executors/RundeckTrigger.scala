@@ -1,6 +1,7 @@
 package com.criteo.perpetuo.engine.executors
 
 import com.criteo.perpetuo.app.RestApi
+import com.criteo.perpetuo.engine.TargetAtomSet
 import com.criteo.perpetuo.model._
 import com.twitter.conversions.time._
 import com.twitter.finagle.http.Status

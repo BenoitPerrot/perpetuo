@@ -2,7 +2,8 @@ package com.criteo.perpetuo.auth
 
 import java.util.regex.Pattern
 
-import com.criteo.perpetuo.model.{Operation, TargetAtom, TargetAtomSet}
+import com.criteo.perpetuo.engine.TargetAtomSet
+import com.criteo.perpetuo.model.{Operation, TargetAtom}
 import com.twitter.inject.Test
 import com.typesafe.config.ConfigFactory
 

@@ -1,6 +1,6 @@
 package com.criteo.perpetuo.dao
 
-import com.criteo.perpetuo.engine.{ExecutionsToTrigger, SpecAndInvocations, UnprocessableIntent}
+import com.criteo.perpetuo.engine.{ExecutionsToTrigger, SpecAndInvocations, TargetAtomSet, UnprocessableIntent}
 import com.criteo.perpetuo.model._
 
 import scala.concurrent.ExecutionContext.Implicits.global

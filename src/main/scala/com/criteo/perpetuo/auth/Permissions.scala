@@ -1,6 +1,7 @@
 package com.criteo.perpetuo.auth
 
-import com.criteo.perpetuo.model.{Operation, TargetAtomSet}
+import com.criteo.perpetuo.engine.TargetAtomSet
+import com.criteo.perpetuo.model.Operation
 
 
 object GeneralAction extends Enumeration {

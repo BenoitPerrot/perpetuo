@@ -1,7 +1,7 @@
 package com.criteo.perpetuo.engine.dispatchers
 
 import com.criteo.perpetuo.engine.executors.ExecutionTrigger
-import com.criteo.perpetuo.engine.{Provider, UnprocessableIntent}
+import com.criteo.perpetuo.engine.{Provider, TargetAtomSet, UnprocessableIntent}
 import com.criteo.perpetuo.model._
 
 
@@ -28,7 +28,7 @@ trait TargetDispatcher extends Provider[TargetDispatcher] with ParameterFreezer 
   protected def dispatch(targetAtoms: TargetAtomSet, frozenParameters: String): Iterable[(ExecutionTrigger, TargetAtomSet)]
 
   final def dispatchAtoms(targetAtoms: TargetAtomSet, frozenParameters: String): Iterable[(ExecutionTrigger, TargetAtomSet)] = {
-    val dispatched = dispatch(targetAtoms, frozenParameters).filter { case (_, subSet) => subSet.nonEmpty }
+    val dispatched = dispatch(targetAtoms, frozenParameters).filter { case (_, subSet) => subSet.items.nonEmpty }
 
     val orderedAtoms = targetAtoms
       .items

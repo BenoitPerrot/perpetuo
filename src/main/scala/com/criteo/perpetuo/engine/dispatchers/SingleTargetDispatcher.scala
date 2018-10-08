@@ -1,7 +1,8 @@
 package com.criteo.perpetuo.engine.dispatchers
 
+import com.criteo.perpetuo.engine.TargetAtomSet
 import com.criteo.perpetuo.engine.executors.ExecutionTrigger
-import com.criteo.perpetuo.model.{TargetAtomSet, Version}
+import com.criteo.perpetuo.model.Version
 
 
 class SingleTargetDispatcher(executionTrigger: ExecutionTrigger) extends TargetDispatcher {

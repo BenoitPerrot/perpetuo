@@ -54,16 +54,3 @@ final case class TargetIntersection(items: Set[TargetExpr]) extends TargetOp {
 final case class TargetUnion(items: Set[TargetExpr]) extends TargetOp {
   val sep = " ∪ "
 }
-
-final case class TargetAtomSet(items: Set[TargetAtom], isExact: Boolean = true) extends TargetOp {
-  // - isExact = true <=> exact set of atoms, directly usable everywhere
-  // - otherwise <=> superset but may contain a "*", so only usable for dispatching (must be considered unresolved elsewhere)
-
-  val sep = ", "
-
-  def union(x: TargetAtomSet) = {
-    if (isExact != x.isEmpty) // fixme: do better than that if something like isExact remains
-      throw new RuntimeException("Cannot merge two targets of two different resolution levels") // will never occur because they come from the same product
-    TargetAtomSet(items.union(x.items), isExact)
-  }
-}
