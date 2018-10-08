@@ -358,7 +358,7 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
         operationTrace
       }
 
-  def deviseRevertPlan(deploymentRequest: DeploymentRequest): Future[(TargetAtomSet, Iterable[(ExecutionSpecification, TargetAtomSet)])] = {
+  def deviseRevertPlan(deploymentRequest: DeploymentRequest): Future[(Set[TargetAtom], Iterable[(ExecutionSpecification, Set[TargetAtom])])] = {
     val devisingRevertPlan =
       assessingDeploymentState(deploymentRequest)
         .flatMap {
@@ -516,7 +516,7 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
               Stream.cons((executionSpecification, undetermined), determined.toStream)
             )
           }.getOrElse(throw MissingInfo(
-            s"a default rollback version is required, as some targets have no known previous state (e.g. `${undetermined.items.head}`)",
+            s"a default rollback version is required, as some targets have no known previous state (e.g. `${undetermined.head}`)",
             "defaultVersion"
           ))
         else
@@ -524,9 +524,9 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
       }
       .flatMap { groups =>
         val specAndInvocations = groups.map { case (spec, targets) =>
-          (spec, targetDispatcher.dispatchExpression(targets, spec.specificParameters).toVector)
+          (spec, targetDispatcher.dispatchExpression(TargetAtomSet(targets), spec.specificParameters).toVector)
         }
-        val atoms = TargetAtomSet(groups.flatMap { case (_, targets) => targets.items }.toSet)
+        val atoms = TargetAtomSet(groups.flatMap { case (_, targets) => targets }.toSet)
         dbBinding.findingOperatedPlanSteps(deploymentRequest).map(steps =>
           (steps, (Operation.revert, specAndInvocations, Some(atoms)))
         )
