@@ -1,7 +1,6 @@
 package com.criteo.perpetuo.dao
 
-import com.criteo.perpetuo.engine.executors.ExecutionTrigger
-import com.criteo.perpetuo.engine.{ExecutionsToTrigger, UnprocessableIntent}
+import com.criteo.perpetuo.engine.{ExecutionsToTrigger, SpecAndInvocations, UnprocessableIntent}
 import com.criteo.perpetuo.model._
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -101,7 +100,7 @@ trait EffectInserter
                       deploymentPlanSteps: Iterable[DeploymentPlanStep],
                       operation: Operation.Kind,
                       userName: String,
-                      specAndInvocations: Iterable[(ExecutionSpecification, Vector[(ExecutionTrigger, TargetAtomSet)])]): DBIOrw[(OperationTrace, ExecutionsToTrigger)] =
+                      specAndInvocations: SpecAndInvocations): DBIOrw[(OperationTrace, ExecutionsToTrigger)] =
     insertOperationTrace(deploymentRequest, operation, userName)
       .flatMap { newOp =>
         insertStepOperationXRefs(deploymentPlanSteps, newOp).andThen(

@@ -11,6 +11,7 @@ package object engine {
   }
 
   type ExecutionsToTrigger = Iterable[(Long, Version, TargetAtomSet, ExecutionTrigger)]
-  type OperationCreationParams = (Operation.Kind, Iterable[(ExecutionSpecification, Vector[(ExecutionTrigger, TargetAtomSet)])])
+  type SpecAndInvocations = Iterable[(ExecutionSpecification, Vector[(ExecutionTrigger, TargetAtomSet)])]
+  type OperationCreationParams = (Operation.Kind, SpecAndInvocations)
 
 }
