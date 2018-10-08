@@ -182,14 +182,14 @@ class RestControllerSpec extends Test with TestDb {
 
   private def updateExecutionTrace(execTraceId: Long, state: String,
                                    href: Option[String],
-                                   targetStatus: Option[Map[String, JsValue]],
+                                   targetStatus: Option[Map[String, (String, String)]],
                                    executionDetail: Option[String] = None,
                                    expectedRequestStatus: Status = NoContent): Unit = {
     val params = Map(
       "state" -> Some(state.toJson),
       "href" -> href.map(_.toJson),
       "detail" -> executionDetail.map(_.toJson),
-      "targetStatus" -> targetStatus.map(_.toJson)
+      "targetStatus" -> targetStatus.map(_.mapValues { case (s, d) => Map("code" -> s, "detail" -> d) }.toJson)
     ).collect {
       case (k, v) if v.isDefined => k -> v.get
     }
@@ -202,7 +202,7 @@ class RestControllerSpec extends Test with TestDb {
 
   private def checkExecutionTraceUpdate(deploymentRequestId: Long, execTraceId: Long, state: String,
                                         href: Option[String] = None,
-                                        targetStatus: Option[Map[String, JsValue]] = None,
+                                        targetStatus: Option[Map[String, (String, String)]] = None,
                                         executionDetail: Option[String] = None,
                                         expectedTargetStatus: Map[String, (String, String)] = Map(),
                                         expectedRequestStatus: Status = NoContent): Unit = {
@@ -215,8 +215,9 @@ class RestControllerSpec extends Test with TestDb {
     val depReq = deepGetDepReq(deploymentRequestId)
     val operations = depReq.fields("operations").asInstanceOf[JsArray].elements.map(_.asJsObject.fields)
     operations.size shouldEqual 1
+    val operation = operations.head
 
-    expectedTargetStatus.mapValues { case (s, d) => Map("code" -> s, "detail" -> d) }.toJson shouldEqual operations.head("targetStatus")
+    expectedTargetStatus.mapValues { case (s, d) => Map("code" -> s, "detail" -> d) }.toJson shouldEqual operation("targetStatus")
 
     JsArray(
       JsObject(
@@ -225,10 +226,10 @@ class RestControllerSpec extends Test with TestDb {
         "state" -> state.toJson,
         "detail" -> executionDetail.getOrElse("").toJson
       )
-    ) shouldEqual operations.head("executions")
+    ) shouldEqual operation("executions")
 
     val isRunning = state == ExecutionState.running.toString
-    isRunning shouldEqual operations.head.get("closingDate").isEmpty
+    isRunning shouldEqual operation.get("closingDate").isEmpty
   }
 
   test("The Product's entry-point returns 201 when creating a Product") {
@@ -303,8 +304,8 @@ class RestControllerSpec extends Test with TestDb {
     val execTraceId = getExecutionTracesByDeploymentRequestId(id.toString, Ok).get.head.idAsLong
     checkExecutionTraceUpdate(
       id, execTraceId, "completed", None, Some(
-        Map("targetA" -> Map("code" -> "success", "detail" -> "").toJson,
-          "targetB" -> Map("code" -> "productFailure", "detail" -> "").toJson)),
+        Map("targetA" -> ("success", ""),
+          "targetB" -> ("productFailure", ""))),
       None, Map("targetA" -> ("success", ""), "targetB" -> ("productFailure", ""))
     )
     val respJson2 = getRespJson(actOnDeploymentRequest(id, "revert", JsObject(), UnprocessableEntity))
@@ -411,7 +412,7 @@ class RestControllerSpec extends Test with TestDb {
     getExecutionTracesByDeploymentRequestId(depReqId.toString).map(_.idAsLong).foreach(
       checkExecutionTraceUpdate(
         depReqId, _, "initFailed", None,
-        Some(Map("paris" -> Map("code" -> "success", "detail" -> "").toJson)),
+        Some(Map("paris" -> ("success", ""))),
         None, Map("paris" -> ("success", ""))
       )
     )
@@ -423,7 +424,7 @@ class RestControllerSpec extends Test with TestDb {
     val execTraceId = getExecutionTracesByDeploymentRequestId(depReqId.toString)(0).idAsLong
     checkExecutionTraceUpdate(
       depReqId, execTraceId, "conflicting", Some("http://"),
-      Some(Map("amsterdam" -> Map("code" -> "notDone", "detail" -> "").toJson)),
+      Some(Map("amsterdam" -> ("notDone", ""))),
       None, Map("amsterdam" -> ("notDone", ""))
     )
   }
@@ -434,19 +435,19 @@ class RestControllerSpec extends Test with TestDb {
     val execTraceId = getExecutionTracesByDeploymentRequestId(depReqId.toString)(0).idAsLong
     checkExecutionTraceUpdate(
       depReqId, execTraceId, "running", None,
-      Some(Map("amsterdam" -> Map("code" -> "notDone", "detail" -> "").toJson)),
+      Some(Map("amsterdam" -> ("notDone", ""))),
       None, Map("amsterdam" -> ("notDone", "pending"))
     )
     checkExecutionTraceUpdate(
       depReqId, execTraceId, "running", None,
-      Some(Map("amsterdam" -> Map("code" -> "running", "detail" -> "").toJson, "paris" -> Map("code" -> "notDone", "detail" -> "waiting...").toJson)),
+      Some(Map("amsterdam" -> ("running", ""), "paris" -> ("notDone", "waiting..."))),
       None, Map("amsterdam" -> ("running", ""), "paris" -> ("notDone", "waiting..."))
     )
     checkExecutionTraceUpdate(
       depReqId, execTraceId, "aborted", Some("http://final"),
       Some(Map(
-        "tokyo" -> Map("code" -> "notDone", "detail" -> "crashed").toJson,
-        "london" -> Map("code" -> "running", "detail" -> "am I too late?").toJson
+        "tokyo" -> ("notDone", "crashed"),
+        "london" -> ("running", "am I too late?")
       )),
       None,
       Map(
@@ -465,12 +466,12 @@ class RestControllerSpec extends Test with TestDb {
     val execTraceId = getExecutionTracesByDeploymentRequestId(depReqId.toString)(0).idAsLong
     checkExecutionTraceUpdate(
       depReqId, execTraceId, "conflicting", None,
-      Some(Map("amsterdam" -> Map("code" -> "notDone", "detail" -> "").toJson)),
+      Some(Map("amsterdam" -> ("notDone", ""))),
       None, Map("amsterdam" -> ("notDone", ""))
     )
     updateExecutionTrace(
       execTraceId, "completed", Some("http://final"),
-      Some(Map("paris" -> Map("code" -> "hostFailure", "detail" -> "crashed").toJson)), None,
+      Some(Map("paris" -> ("hostFailure", "crashed"))), None,
       UnprocessableEntity
     )
   }
@@ -555,7 +556,7 @@ class RestControllerSpec extends Test with TestDb {
     executionTraceIds.foreach(execTraceId =>
       updateExecutionTrace(
         execTraceId, "running", Some("http://final"),
-        Some(Map("paris" -> Map("code" -> "running", "detail" -> "").toJson))
+        Some(Map("paris" -> ("running", "")))
       )
     )
     actOnDeploymentRequest(depReqId, "stop", JsObject("operationCount" -> JsNumber(1)), Status.Ok).contentString.parseJson.asJsObject shouldEqual
@@ -603,8 +604,8 @@ class RestControllerSpec extends Test with TestDb {
     checkExecutionTraceUpdate(
       depReqId, execTraceId, "completed", Some("http://final"),
       Some(Map(
-        "paris" -> Map("code" -> "success", "detail" -> "").toJson,
-        "amsterdam" -> Map("code" -> "hostFailure", "detail" -> "some interesting details").toJson)),
+        "paris" -> ("success", ""),
+        "amsterdam" -> ("hostFailure", "some interesting details"))),
       None, Map(
         "paris" -> ("success", ""),
         "amsterdam" -> ("hostFailure", "some interesting details"))
