@@ -1,7 +1,7 @@
 package com.criteo.perpetuo.dao
 
-import com.criteo.perpetuo.engine.UnprocessableIntent
 import com.criteo.perpetuo.engine.executors.ExecutionTrigger
+import com.criteo.perpetuo.engine.{ExecutionsToTrigger, UnprocessableIntent}
 import com.criteo.perpetuo.model._
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -101,8 +101,7 @@ trait EffectInserter
                       deploymentPlanSteps: Iterable[DeploymentPlanStep],
                       operation: Operation.Kind,
                       userName: String,
-                      specAndInvocations: Iterable[(ExecutionSpecification, Vector[(ExecutionTrigger, TargetExpr)])],
-                      createTargetStatuses: Boolean = false): DBIOrw[(OperationTrace, Iterable[(Long, Version, TargetExpr, ExecutionTrigger)])] =
+                      specAndInvocations: Iterable[(ExecutionSpecification, Vector[(ExecutionTrigger, TargetAtomSet)])]): DBIOrw[(OperationTrace, ExecutionsToTrigger)] =
     insertOperationTrace(deploymentRequest, operation, userName)
       .flatMap { newOp =>
         insertStepOperationXRefs(deploymentPlanSteps, newOp).andThen(
@@ -111,22 +110,23 @@ trait EffectInserter
               specAndInvocations.map { case (spec, invocations) =>
                 insertExecution(newOp.id, spec.id)
                   .flatMap { executionId =>
-                    // create as many traces as needed, all at the same time
-                    val ret = insertingExecutionTraces(
-                      invocations.map { case (trigger, _) => ExecutionTraceRecord(None, executionId, trigger.executorType) }
-                    )
-                    if (createTargetStatuses)
-                      updatingTargetStatuses(
-                        executionId,
-                        invocations
-                          .toStream
-                          .flatMap { case (_, target) => extractAtomsFromTargetExpr(target) }
-                          .map(_ -> TargetAtomStatus(Status.notDone, ""))
-                          .toMap
-                      )
-                        .andThen(ret)
+                    val atoms = invocations
+                      .toStream
+                      .flatMap { case (_, target) => extractAtoms(target) }
+                      .map(_ -> TargetAtomStatus(Status.notDone, ""))
+                      .toMap
+
+                    val initiateTargetStatuses = if (atoms.nonEmpty)
+                      updatingTargetStatuses(executionId, atoms)
                     else
-                      ret
+                      DBIO.successful(())
+
+                    initiateTargetStatuses.andThen(
+                      // create as many traces as needed, all at the same time
+                      insertingExecutionTraces(
+                        invocations.map { case (trigger, _) => ExecutionTraceRecord(None, executionId, trigger.executorType) }
+                      )
+                    )
                   }
                   .map(_.zip(invocations).map { case (execTraceId, (trigger, target)) => (execTraceId, spec.version, target, trigger) })
               }
@@ -135,18 +135,6 @@ trait EffectInserter
         )
       }
 
-  private val extractAtomsFromTargetExpr: TargetExpr => Set[TargetAtom] = {
-    case TargetWord(s) => Set(TargetAtom(s)) // fixme: temporary, while everything is not typed
-    case a: TargetAtom => Set(a)
-    case _: TargetNonAtom => Set()
-    case TargetIntersection(items) => items
-      .foldLeft(None: Option[Set[TargetAtom]]) {
-        case (res, x) =>
-          val y = extractAtomsFromTargetExpr(x)
-          Some(res.map(_.intersect(y)).getOrElse(y))
-      }
-      .getOrElse(Set())
-    case TargetUnion(items) => items.flatMap(extractAtomsFromTargetExpr)
-    case TargetAtomSet(items, _) => items
-  }
+  private def extractAtoms(atoms: TargetAtomSet): Set[TargetAtom] =
+    atoms.items.filter(_.name != "*") // fixme: temporarily (migration ongoing)
 }

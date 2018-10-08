@@ -585,23 +585,6 @@ class CrankshaftWithMultiStepSpec extends SimpleScenarioTesting {
     r.eligibleOperations should become(Seq[Operation.Kind]())
     (the[UnavailableAction] thrownBy r.step()).msg shouldBe "the deployment transaction is closed"
   }
-
-  test("Crankshaft retries on all unresolvable targets") {
-    val r = request("colossal-beast", "new", step1, step2)
-
-    r.eligibleOperations should become(Seq(Operation.deploy))
-    r.step(Map("north" -> Status.success, "south" -> Status.productFailure))
-
-    r.eligibleOperations should become(Seq(Operation.deploy, Operation.revert))
-
-    val op = r.step()
-
-    crankshaft.dbBinding.findExecutionIdsByOperationTrace(op.id)
-      .flatMap { executionIds =>
-        val executionId = executionIds.head
-        findTargetsByExecution(executionId).map(_.map(_.name))
-      } should become(Seq("north", "south"))
-  }
 }
 
 

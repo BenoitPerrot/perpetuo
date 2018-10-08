@@ -10,7 +10,7 @@ package object engine {
     def get: T
   }
 
-  type ExecutionsToTrigger = Iterable[(Long, Version, TargetExpr, ExecutionTrigger)]
+  type ExecutionsToTrigger = Iterable[(Long, Version, TargetAtomSet, ExecutionTrigger)]
   type OperationCreationParams = (Operation.Kind, Iterable[(ExecutionSpecification, Vector[(ExecutionTrigger, TargetAtomSet)])])
 
 }

@@ -310,7 +310,8 @@ class RestControllerSpec extends Test with TestDb {
     val execTraceId = getExecutionTracesByDeploymentRequestId(id.toString, Ok).get.head.idAsLong
     checkExecutionTraceUpdate(
       id, execTraceId, "completed", None,
-      Some(Map("targetA" -> ("success", ""), "targetB" -> ("productFailure", "")))
+      Some(Map("targetA" -> ("success", ""), "targetB" -> ("productFailure", ""))),
+      Some(Map("targetA" -> ("success", ""), "targetB" -> ("productFailure", ""), "par" -> ("notDone", "")))
     )
     val respJson2 = getRespJson(actOnDeploymentRequest(id, "revert", JsObject(), UnprocessableEntity))
     respJson2("error") should startWith("a default rollback version is required")
@@ -416,7 +417,8 @@ class RestControllerSpec extends Test with TestDb {
     getExecutionTracesByDeploymentRequestId(depReqId.toString).map(_.idAsLong).foreach(
       checkExecutionTraceUpdate(
         depReqId, _, "initFailed", None,
-        Some(Map("paris" -> ("success", "")))
+        Some(Map("paris" -> ("success", ""))),
+        Some(Map("paris" -> ("success", ""), "ams" -> ("notDone", "")))
       )
     )
   }
@@ -427,7 +429,8 @@ class RestControllerSpec extends Test with TestDb {
     val execTraceId = getExecutionTracesByDeploymentRequestId(depReqId.toString)(0).idAsLong
     checkExecutionTraceUpdate(
       depReqId, execTraceId, "conflicting", Some("http://"),
-      Some(Map("amsterdam" -> ("notDone", "foo")))
+      Some(Map("amsterdam" -> ("notDone", "foo"))),
+      Some(Map("amsterdam" -> ("notDone", "foo"), "paris" -> ("notDone", "")))
     )
   }
 
@@ -437,7 +440,8 @@ class RestControllerSpec extends Test with TestDb {
     val execTraceId = getExecutionTracesByDeploymentRequestId(depReqId.toString)(0).idAsLong
     checkExecutionTraceUpdate(
       depReqId, execTraceId, "running", None,
-      Some(Map("amsterdam" -> ("notDone", "pending")))
+      Some(Map("amsterdam" -> ("notDone", ""))),
+      Some(Map("amsterdam" -> ("notDone", "pending"), "paris" -> ("notDone", "pending")))
     )
     checkExecutionTraceUpdate(
       depReqId, execTraceId, "running", None,
@@ -465,7 +469,8 @@ class RestControllerSpec extends Test with TestDb {
     val execTraceId = getExecutionTracesByDeploymentRequestId(depReqId.toString)(0).idAsLong
     checkExecutionTraceUpdate(
       depReqId, execTraceId, "conflicting", None,
-      Some(Map("amsterdam" -> ("notDone", "")))
+      Some(Map("amsterdam" -> ("notDone", ""))),
+      Some(Map("paris" -> ("notDone", ""), "amsterdam" -> ("notDone", "")))
     )
     updateExecutionTrace(
       execTraceId, "completed", Some("http://final"),
@@ -646,7 +651,7 @@ class RestControllerSpec extends Test with TestDb {
         "creator" -> "r.eleaser".toJson,
         "creationDate" -> T,
         "status" -> "inProgress".toJson,
-        "targetStatus" -> JsObject(),
+        "targetStatus" -> Map("tokyo" -> Map("code" -> "notDone", "detail" -> "pending")).toJson,
         "executions" -> JsArray(
           JsObject(
             "id" -> T,
