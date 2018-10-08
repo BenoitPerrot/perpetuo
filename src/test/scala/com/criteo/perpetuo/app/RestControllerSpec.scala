@@ -200,11 +200,13 @@ class RestControllerSpec extends Test with TestDb {
     )
   }
 
-  private def checkExecutionTraceUpdate(deploymentRequestId: Long, execTraceId: Long, state: String,
+  private def checkExecutionTraceUpdate(deploymentRequestId: Long,
+                                        execTraceId: Long,
+                                        state: String,
                                         href: Option[String] = None,
                                         targetStatus: Option[Map[String, (String, String)]] = None,
+                                        expectedTargetStatus: Option[Map[String, (String, String)]] = None,
                                         executionDetail: Option[String] = None,
-                                        expectedTargetStatus: Map[String, (String, String)] = Map(),
                                         expectedRequestStatus: Status = NoContent): Unit = {
     val previousHrefJson = hrefHistory.getOrElse(execTraceId, JsNull)
     val expectedHrefJson = href.map(_.toJson).getOrElse(previousHrefJson)
@@ -217,7 +219,10 @@ class RestControllerSpec extends Test with TestDb {
     operations.size shouldEqual 1
     val operation = operations.head
 
-    expectedTargetStatus.mapValues { case (s, d) => Map("code" -> s, "detail" -> d) }.toJson shouldEqual operation("targetStatus")
+    expectedTargetStatus
+      .orElse(targetStatus)
+      .getOrElse(Map.empty)
+      .mapValues { case (s, d) => Map("code" -> s, "detail" -> d) }.toJson shouldEqual operation("targetStatus")
 
     JsArray(
       JsObject(
@@ -303,10 +308,8 @@ class RestControllerSpec extends Test with TestDb {
     startDeploymentRequest(id, Ok)
     val execTraceId = getExecutionTracesByDeploymentRequestId(id.toString, Ok).get.head.idAsLong
     checkExecutionTraceUpdate(
-      id, execTraceId, "completed", None, Some(
-        Map("targetA" -> ("success", ""),
-          "targetB" -> ("productFailure", ""))),
-      None, Map("targetA" -> ("success", ""), "targetB" -> ("productFailure", ""))
+      id, execTraceId, "completed", None,
+      Some(Map("targetA" -> ("success", ""), "targetB" -> ("productFailure", "")))
     )
     val respJson2 = getRespJson(actOnDeploymentRequest(id, "revert", JsObject(), UnprocessableEntity))
     respJson2("error") should startWith("a default rollback version is required")
@@ -412,8 +415,7 @@ class RestControllerSpec extends Test with TestDb {
     getExecutionTracesByDeploymentRequestId(depReqId.toString).map(_.idAsLong).foreach(
       checkExecutionTraceUpdate(
         depReqId, _, "initFailed", None,
-        Some(Map("paris" -> ("success", ""))),
-        None, Map("paris" -> ("success", ""))
+        Some(Map("paris" -> ("success", "")))
       )
     )
   }
@@ -424,8 +426,7 @@ class RestControllerSpec extends Test with TestDb {
     val execTraceId = getExecutionTracesByDeploymentRequestId(depReqId.toString)(0).idAsLong
     checkExecutionTraceUpdate(
       depReqId, execTraceId, "conflicting", Some("http://"),
-      Some(Map("amsterdam" -> ("notDone", ""))),
-      None, Map("amsterdam" -> ("notDone", ""))
+      Some(Map("amsterdam" -> ("notDone", "foo")))
     )
   }
 
@@ -435,13 +436,11 @@ class RestControllerSpec extends Test with TestDb {
     val execTraceId = getExecutionTracesByDeploymentRequestId(depReqId.toString)(0).idAsLong
     checkExecutionTraceUpdate(
       depReqId, execTraceId, "running", None,
-      Some(Map("amsterdam" -> ("notDone", ""))),
-      None, Map("amsterdam" -> ("notDone", "pending"))
+      Some(Map("amsterdam" -> ("notDone", "pending")))
     )
     checkExecutionTraceUpdate(
       depReqId, execTraceId, "running", None,
-      Some(Map("amsterdam" -> ("running", ""), "paris" -> ("notDone", "waiting..."))),
-      None, Map("amsterdam" -> ("running", ""), "paris" -> ("notDone", "waiting..."))
+      Some(Map("amsterdam" -> ("running", ""), "paris" -> ("notDone", "waiting...")))
     )
     checkExecutionTraceUpdate(
       depReqId, execTraceId, "aborted", Some("http://final"),
@@ -449,13 +448,12 @@ class RestControllerSpec extends Test with TestDb {
         "tokyo" -> ("notDone", "crashed"),
         "london" -> ("running", "am I too late?")
       )),
-      None,
-      Map(
+      Some(Map(
         "paris" -> ("notDone", "waiting..."), // untouched; example of a case where the detail doesn't make sense anymore (while it still might)
         "amsterdam" -> ("undetermined", "No feedback from the executor"), // auto-updated on close
         "tokyo" -> ("notDone", "crashed"), // "manually" updated on close
         "london" -> ("undetermined", "No feedback from the executor") // "manually" but then automatically updated on close
-      )
+      ))
     )
   }
 
@@ -466,8 +464,7 @@ class RestControllerSpec extends Test with TestDb {
     val execTraceId = getExecutionTracesByDeploymentRequestId(depReqId.toString)(0).idAsLong
     checkExecutionTraceUpdate(
       depReqId, execTraceId, "conflicting", None,
-      Some(Map("amsterdam" -> ("notDone", ""))),
-      None, Map("amsterdam" -> ("notDone", ""))
+      Some(Map("amsterdam" -> ("notDone", "")))
     )
     updateExecutionTrace(
       execTraceId, "completed", Some("http://final"),
@@ -605,10 +602,8 @@ class RestControllerSpec extends Test with TestDb {
       depReqId, execTraceId, "completed", Some("http://final"),
       Some(Map(
         "paris" -> ("success", ""),
-        "amsterdam" -> ("hostFailure", "some interesting details"))),
-      None, Map(
-        "paris" -> ("success", ""),
-        "amsterdam" -> ("hostFailure", "some interesting details"))
+        "amsterdam" -> ("hostFailure", "some interesting details")
+      ))
     )
 
     val depReq = deepGetDepReq(depReqId)
