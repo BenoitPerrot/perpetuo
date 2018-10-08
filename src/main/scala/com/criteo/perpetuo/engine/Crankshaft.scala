@@ -493,7 +493,11 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
   def getRetrySpecifics(expandedTarget: TargetAtomSet,
                         planStep: DeploymentPlanStep,
                         effects: Seq[OperationEffect]): DBIOrw[OperationCreationParams] = {
-    val successfulTargetAtoms = effects.filter(effect => effect.deploymentPlanStepIds.contains(planStep.id)).flatMap(_.targetStatuses).filter(_.code == Status.success).map(_.targetAtom)
+    val successfulTargetAtoms = effects
+      .filter(effect => effect.deploymentPlanStepIds.contains(planStep.id))
+      .flatMap(_.targetStatuses)
+      .filter(_.code == Status.success)
+      .map(_.targetAtom)
     // todo: map the right target to the right specification
     dbBinding.findingDeploySpecifications(planStep).map(executionSpecs =>
       getDeploySpecifics(
