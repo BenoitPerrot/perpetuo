@@ -48,16 +48,6 @@ class RundeckTrigger(name: String,
     }
   }
 
-  // fixme: that is so Criteo-specific
-  private def serializeTarget(targetExpr: TargetExpr): String =
-    targetExpr match {
-      case TargetTag(tag) => tag
-      case t: TargetTerm => t.toString
-      case _: TargetIntersection => throw new RuntimeException(s"Unprocessable target expression; it should be resolved at this stage: $targetExpr")
-      case u: TargetUnion => u.items.map(serializeTarget).mkString(",")
-      case u: TargetAtomSet => u.items.map(serializeTarget).mkString(",")
-    }
-
   override def trigger(execTraceId: Long, productName: String, version: Version, target: TargetAtomSet, initiator: String): Future[Option[String]] = {
     def squote(s: String) = s"'$s'"
 
@@ -68,7 +58,7 @@ class RundeckTrigger(name: String,
     val triggerParameters = Map(
       "callback-url" -> squote(RestApi.executionCallbackUrl(execTraceId)),
       "product-name" -> squote(productName),
-      "target" -> squote(serializeTarget(target)),
+      "target" -> squote(target.items.mkString(",")),
       "product-version" -> quotedVersion
     ) ++ specificParameters.map { case (parameterName, value) =>
       parameterName.replaceAll("([A-Z])", "-$1").toLowerCase -> value
