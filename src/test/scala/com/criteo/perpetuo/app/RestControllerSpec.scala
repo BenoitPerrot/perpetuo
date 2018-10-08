@@ -221,8 +221,9 @@ class RestControllerSpec extends Test with TestDb {
 
     expectedTargetStatus
       .orElse(targetStatus)
-      .getOrElse(Map.empty)
-      .mapValues { case (s, d) => Map("code" -> s, "detail" -> d) }.toJson shouldEqual operation("targetStatus")
+      .foreach(
+        _.mapValues { case (s, d) => Map("code" -> s, "detail" -> d) }.toJson shouldEqual operation("targetStatus")
+      )
 
     JsArray(
       JsObject(
