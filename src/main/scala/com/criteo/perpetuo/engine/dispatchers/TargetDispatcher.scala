@@ -25,22 +25,22 @@ trait TargetDispatcher extends Provider[TargetDispatcher] with ParameterFreezer 
     * @return all the provided target atoms grouped by their dedicated executors
     * @throws NoAvailableExecutor if a target could not be dispatched
     */
-  protected def dispatch(targetAtoms: TargetAtomSet, frozenParameters: String): Iterable[(ExecutionTrigger, TargetAtomSet)]
+  protected def dispatch(targetAtoms: Set[TargetAtom], frozenParameters: String): Iterable[(ExecutionTrigger, Set[TargetAtom])]
 
-  final def dispatchAtoms(targetAtoms: TargetAtomSet, frozenParameters: String): Iterable[(ExecutionTrigger, TargetAtomSet)] = {
-    val dispatched = dispatch(targetAtoms, frozenParameters).filter { case (_, subSet) => subSet.items.nonEmpty }
+  final def dispatchAtomSet(targetAtomSet: TargetAtomSet, frozenParameters: String): Iterable[(ExecutionTrigger, TargetAtomSet)] = {
+    val atoms = targetAtomSet.items
+    val dispatched = dispatch(atoms, frozenParameters).filter { case (_, subSet) => subSet.nonEmpty }
 
-    val orderedAtoms = targetAtoms
-      .items
+    val orderedAtoms = atoms
       .toSeq
       .sortBy(_.name)
     val orderedDispatchedAtoms = dispatched
       .toSeq
-      .flatMap { case (_, subSet) => subSet.items }
+      .flatMap { case (_, subSet) => subSet }
       .sortBy(_.name)
 
-    if (orderedDispatchedAtoms.size < targetAtoms.items.size) {
-      val diff = (targetAtoms.items -- orderedDispatchedAtoms).mkString(", ")
+    if (orderedDispatchedAtoms.size < atoms.size) {
+      val diff = (atoms -- orderedDispatchedAtoms).mkString(", ")
       throw UnprocessableIntent(s"No executor associated to some target(s): $diff")
     }
 
@@ -50,7 +50,7 @@ trait TargetDispatcher extends Provider[TargetDispatcher] with ParameterFreezer 
       throw new RuntimeException(s"Wrong partition of atoms: `$expected` has been dispatched as `$got`")
     }
 
-    dispatched
+    dispatched.map { case (trigger, items) => (trigger, TargetAtomSet(items, targetAtomSet.isExact)) }
   }
 }
 

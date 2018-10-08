@@ -471,7 +471,7 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
                                  executionSpecs: Seq[ExecutionSpecification]): OperationCreationParams = {
 
     val specAndInvocations = executionSpecs.map(spec =>
-      (spec, dispatcher.dispatchAtoms(expandedTarget, spec.specificParameters).toVector)
+      (spec, dispatcher.dispatchAtomSet(expandedTarget, spec.specificParameters).toVector)
     )
     (Operation.deploy, specAndInvocations)
   }
@@ -533,7 +533,7 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
       .flatMap { groups =>
         val specAndInvocations = groups.map { case (spec, targets) =>
           val atomSet = TargetAtomSet(targets, isExact) // fixme: temporary conversion for the dispatcher, which doesn't look at isExact anyway...
-          (spec, targetDispatcher.dispatchAtoms(atomSet, spec.specificParameters).toVector)
+          (spec, targetDispatcher.dispatchAtomSet(atomSet, spec.specificParameters).toVector)
         }
         dbBinding.findingOperatedPlanSteps(deploymentRequest).map(steps =>
           (steps, (Operation.revert, specAndInvocations))

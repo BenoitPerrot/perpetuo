@@ -21,11 +21,10 @@ object TestTargetDispatcher extends TargetDispatcher {
 
   override def freezeParameters(productName: String, version: Version): String = "foobar"
 
-  protected override def dispatch(targetAtoms: TargetAtomSet, frozenParameters: String): Iterable[(ExecutionTrigger, TargetAtomSet)] = {
+  protected override def dispatch(targetAtoms: Set[TargetAtom], frozenParameters: String): Iterable[(ExecutionTrigger, Set[TargetAtom])] = {
     assert(frozenParameters == "foobar")
     // associate executors to target words wrt the each target word's characters
-    val set = targetAtoms.items
-    set
+    targetAtoms
       .flatMap(atom =>
         atom
           .name
@@ -38,7 +37,7 @@ object TestTargetDispatcher extends TargetDispatcher {
           .map(executor => (executor, atom))
       )
       .groupBy(_._1)
-      .map { case (executor, it) => executor -> TargetAtomSet(it.map(_._2), targetAtoms.isExact) }
+      .map { case (executor, it) => executor -> it.map(_._2) }
   }
 }
 
@@ -84,7 +83,7 @@ class DispatchingSpec extends SimpleScenarioTesting {
 
   test("An execution cannot distribute an atom to multiple executors") {
     val params = TestTargetDispatcher.freezeParameters("", Version(""""42""""))
-    val thrown = the[RuntimeException] thrownBy TestTargetDispatcher.dispatchAtoms(TargetAtomSet(Set("abc", "ab", "cb").map(TargetAtom)), params)
+    val thrown = the[RuntimeException] thrownBy TestTargetDispatcher.dispatchAtomSet(TargetAtomSet(Set("abc", "ab", "cb").map(TargetAtom)), params)
     thrown.getMessage shouldEqual "Wrong partition of atoms: `ab, abc, cb` has been dispatched as `ab, ab, abc, abc, abc, cb, cb`"
   }
 
@@ -102,7 +101,7 @@ class DispatchingSpec extends SimpleScenarioTesting {
 
   test("An execution raises if a target is not fully covered by executors") {
     val params = TestTargetDispatcher.freezeParameters("", Version(""""42""""))
-    val thrown = the[UnprocessableIntent] thrownBy TestTargetDispatcher.dispatchAtoms(TargetAtomSet(Set(TargetAtom("def"))), params)
+    val thrown = the[UnprocessableIntent] thrownBy TestTargetDispatcher.dispatchAtomSet(TargetAtomSet(Set(TargetAtom("def"))), params)
     thrown.getMessage shouldEqual "No executor associated to some target(s): def"
   }
 
