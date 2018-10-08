@@ -1,6 +1,6 @@
 package com.criteo.perpetuo.engine.executors
 
-import com.criteo.perpetuo.model.{TargetExpr, Version}
+import com.criteo.perpetuo.model.{TargetAtomSet, Version}
 
 import scala.concurrent.Future
 
@@ -15,7 +15,7 @@ trait ExecutionTrigger {
     *
     * @return a possible href to uniquely identify the execution, if available.
     */
-  def trigger(execTraceId: Long, productName: String, version: Version, target: TargetExpr, initiator: String): Future[Option[String]]
+  def trigger(execTraceId: Long, productName: String, version: Version, target: TargetAtomSet, initiator: String): Future[Option[String]]
 
   /**
     * The executorName should be stable because it's persisted in the DB and used

@@ -58,7 +58,7 @@ class RundeckTrigger(name: String,
       case u: TargetAtomSet => u.items.map(serializeTarget).mkString(",")
     }
 
-  override def trigger(execTraceId: Long, productName: String, version: Version, target: TargetExpr, initiator: String): Future[Option[String]] = {
+  override def trigger(execTraceId: Long, productName: String, version: Version, target: TargetAtomSet, initiator: String): Future[Option[String]] = {
     def squote(s: String) = s"'$s'"
 
     var quotedVersion = version.toString

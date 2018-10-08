@@ -2,7 +2,7 @@ package com.criteo.perpetuo.engine.executors
 
 import com.criteo.perpetuo.app.RestApi
 import com.criteo.perpetuo.config.AppConfigProvider
-import com.criteo.perpetuo.model.{TargetExpr, Version}
+import com.criteo.perpetuo.model.{TargetAtomSet, Version}
 import com.twitter.conversions.time._
 import com.twitter.finagle.http.Status
 import com.twitter.util.Await
@@ -27,7 +27,7 @@ class JenkinsTrigger(name: String,
     *
     * @return None. Jenkins doesn't return any href immediately.
     */
-  override def trigger(execTraceId: Long, productName: String, version: Version, target: TargetExpr, initiator: String): Future[Option[String]] = {
+  override def trigger(execTraceId: Long, productName: String, version: Version, target: TargetAtomSet, initiator: String): Future[Option[String]] = {
 
     val parameters = Map(
       "callbackUrl" -> RestApi.executionCallbackUrl(execTraceId),

@@ -1,6 +1,6 @@
 package com.criteo.perpetuo.engine.executors
 
-import com.criteo.perpetuo.model.{TargetExpr, Version}
+import com.criteo.perpetuo.model.{TargetAtomSet, Version}
 import com.twitter.inject.Logging
 import com.typesafe.config.Config
 
@@ -16,7 +16,7 @@ class DummyExecutionTrigger(name: String) extends ExecutionTrigger with Logging 
 
   override def toString: String = name
 
-  override def trigger(execTraceId: Long, productName: String, version: Version, target: TargetExpr, initiator: String): Future[Option[String]] = {
+  override def trigger(execTraceId: Long, productName: String, version: Version, target: TargetAtomSet, initiator: String): Future[Option[String]] = {
     logger.info(s"Hi, I'm $name! I will run operation #$execTraceId on behalf of: $initiator")
     Future.successful(None)
   }
