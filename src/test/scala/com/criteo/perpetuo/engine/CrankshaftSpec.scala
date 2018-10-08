@@ -58,12 +58,12 @@ class CrankshaftSpec extends SimpleScenarioTesting {
     )
   }
 
-  def mockDeployExecution(productName: String, v: String, targetAtomToStatus: Map[String, Status.Code], updateTargetStatuses: Boolean = true): Future[(DeploymentRequest, Long)] = {
+  def mockDeployExecution(productName: String, v: String, targetAtomToStatus: Map[String, Status.Code]): Future[(DeploymentRequest, Long)] = {
     for {
       deploymentRequest <- crankshaft.createDeploymentRequest(ProtoDeploymentRequest(productName, Version(JsString(v)), Seq(ProtoDeploymentPlanStep("", targetAtomToStatus.keys.toJson, "")), "", "r.equestor"))
       operationTrace <- step(deploymentRequest, Some(0), "s.tarter")
       executionSpecIds <- crankshaft.dbBinding.findExecutionSpecIdsByOperationTrace(operationTrace.id)
-      _ <- closeOperation(operationTrace, if (updateTargetStatuses) targetAtomToStatus else Map())
+      _ <- closeOperation(operationTrace, targetAtomToStatus)
     } yield (deploymentRequest, executionSpecIds.head)
   }
 
@@ -198,7 +198,7 @@ class CrankshaftSpec extends SimpleScenarioTesting {
         otherDeploymentRequest <- crankshaft.dbBinding.findDeploymentRequestById(otherDeploymentRequest.id).map(_.get)
         otherState <- crankshaft.assessDeploymentState(otherDeploymentRequest)
 
-        (nothingDoneDeploymentRequest, _) <- mockDeployExecution(product.name, "51", Map("pluto" -> Status.notDone), updateTargetStatuses = false)
+        (nothingDoneDeploymentRequest, _) <- mockDeployExecution(product.name, "51", Map("pluto" -> Status.notDone))
         // Status = early failure
 
         // Verify we can't revert a request if no targetStatuses exists
