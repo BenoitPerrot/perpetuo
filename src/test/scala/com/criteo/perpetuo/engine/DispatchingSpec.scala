@@ -1,10 +1,9 @@
 package com.criteo.perpetuo.engine
 
-import com.criteo.perpetuo.SimpleScenarioTesting
 import com.criteo.perpetuo.engine.dispatchers.TargetDispatcher
 import com.criteo.perpetuo.engine.executors.{DummyExecutionTrigger, ExecutionTrigger}
-import com.criteo.perpetuo.engine.resolvers.TargetResolver
 import com.criteo.perpetuo.model._
+import com.criteo.perpetuo.{SimpleScenarioTesting, TestTargetResolver}
 import spray.json.DefaultJsonProtocol._
 import spray.json._
 
@@ -55,14 +54,7 @@ class DispatchingSpec extends SimpleScenarioTesting {
   import TestTargetDispatcher._
 
   override lazy val targetDispatcher: TargetDispatcher = TestTargetDispatcher
-
-  private val testResolver = new TargetResolver {
-    protected override def resolveTerms(productName: String, productVersion: Version, targetTerms: Set[TargetNonAtom]): Option[Map[TargetNonAtom, Set[TargetAtom]]] = {
-      // the atomic targets are the input word split on dashes
-      Some(targetTerms.map(term => term -> term.toString.split("-").collect { case name if name.nonEmpty => TargetAtom(name) }.toSet).toMap)
-    }
-  }
-
+  private val testResolver = TestTargetResolver
   private val product: Product = Await.result(crankshaft.dbBinding.upsertProduct("perpetuo-app"), 1.second)
 
   implicit class DispatchTest(private val target: Set[String]) {

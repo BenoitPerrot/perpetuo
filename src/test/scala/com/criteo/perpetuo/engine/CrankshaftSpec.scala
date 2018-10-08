@@ -1,9 +1,9 @@
 package com.criteo.perpetuo.engine
 
-import com.criteo.perpetuo.SimpleScenarioTesting
 import com.criteo.perpetuo.engine.executors._
 import com.criteo.perpetuo.engine.resolvers.TargetResolver
 import com.criteo.perpetuo.model._
+import com.criteo.perpetuo.{SimpleScenarioTesting, TestTargetResolver}
 import org.mockito.Mockito.when
 import spray.json.DefaultJsonProtocol._
 import spray.json._
@@ -432,14 +432,7 @@ class CrankshaftWithFailingExecutorSpec extends SimpleScenarioTesting {
 
 
 class CrankshaftWithFailingTargetSpec extends SimpleScenarioTesting {
-  override val resolver: TargetResolver = new TargetResolver {
-    override def resolveTerms(productName: String, productVersion: Version, targetTerms: Set[TargetNonAtom]): Option[Map[TargetNonAtom, Set[TargetAtom]]] = {
-      Some(targetTerms
-        .map(term => term -> term.toString.split("-").collect { case name if name.nonEmpty => TargetAtom(name) }.toSet)
-        .toMap
-      )
-    }
-  }
+  override val resolver: TargetResolver = TestTargetResolver
 
   private val step1 = Set("north", "south")
   private val step2 = Set("east-west")

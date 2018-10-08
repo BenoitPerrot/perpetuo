@@ -42,6 +42,16 @@ trait TestHelpers extends Test {
 }
 
 
+object TestTargetResolver extends TargetResolver {
+  override def resolveTerms(productName: String, productVersion: Version, targetTerms: Set[TargetNonAtom]): Option[Map[TargetNonAtom, Set[TargetAtom]]] = {
+    Some(targetTerms
+      .map(term => term -> term.toString.split("-").collect { case name if name.nonEmpty => TargetAtom(name) }.toSet)
+      .toMap
+    )
+  }
+}
+
+
 trait SimpleScenarioTesting extends TestHelpers with TestDb with MockitoSugar {
 
   import dbContext.profile.api._
