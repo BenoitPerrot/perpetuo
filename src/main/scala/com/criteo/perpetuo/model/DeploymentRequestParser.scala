@@ -42,8 +42,9 @@ object DeploymentRequestParser {
   def parseTargetExpression(target: JsValue): TargetExpr = {
     target match {
       case JsString(string) if string.nonEmpty =>
-        // fixme: cannot remove that if the DB is not migrated
-        if (string == "*") TargetTop else TargetWord(string)
+        // fixme: when the original intent will be kept: if (string == "*") TargetTop else
+        // fixme: then remove it when the DB is migrated
+        TargetWord(string)
       case JsObject(fields) =>
         if (fields.isEmpty)
           TargetTop

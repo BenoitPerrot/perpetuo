@@ -251,8 +251,11 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
             .getOrElse(DBIO.successful(()))
         )
         .andThen(getOperationSpecifics)
-        .flatMap { case ((deploymentPlanSteps, (operation, specAndInvocations, atoms)), actionSpecifics) =>
-          fuelFilter.acquiringDeploymentTransactionLock(deploymentRequest, atoms.map(_.items))
+        .flatMap { case ((deploymentPlanSteps, (operation, specAndInvocations)), actionSpecifics) =>
+          val atoms = specAndInvocations.flatMap { case (_, executions) => executions }.flatMap { case (_, atomSet) =>
+            if (atomSet.isExact) atomSet.items else Set.empty[TargetAtom]
+          }
+          fuelFilter.acquiringDeploymentTransactionLock(deploymentRequest, atoms.headOption.map(_ => atoms.toSet))
             .andThen(dbBinding.insertingEffect(deploymentRequest, deploymentPlanSteps, operation, initiatorName, specAndInvocations, atoms.nonEmpty))
             .map((_, actionSpecifics))
         }
@@ -464,16 +467,16 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
 
   private def getDeploySpecifics(dispatcher: TargetDispatcher,
                                  planStep: DeploymentPlanStep,
-                                 expandedTarget: Option[TargetAtomSet],
+                                 expandedTarget: TargetAtomSet,
                                  executionSpecs: Seq[ExecutionSpecification]): OperationCreationParams = {
 
     val specAndInvocations = executionSpecs.map(spec =>
-      (spec, dispatcher.dispatchExpression(expandedTarget.getOrElse(planStep.parsedTarget), spec.specificParameters).toVector)
+      (spec, dispatcher.dispatchAtoms(expandedTarget, spec.specificParameters).toVector)
     )
-    (Operation.deploy, specAndInvocations, expandedTarget)
+    (Operation.deploy, specAndInvocations)
   }
 
-  def getStepSpecifics(expandedTarget: Option[TargetAtomSet],
+  def getStepSpecifics(expandedTarget: TargetAtomSet,
                        planStep: DeploymentPlanStep): DBIOrw[OperationCreationParams] = {
     // generation of specific parameters
     val specificParameters = targetDispatcher.freezeParameters(planStep.deploymentRequest.product.name, planStep.deploymentRequest.version)
@@ -487,7 +490,7 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
     )
   }
 
-  def getRetrySpecifics(expandedTarget: Option[TargetAtomSet],
+  def getRetrySpecifics(expandedTarget: TargetAtomSet,
                         planStep: DeploymentPlanStep,
                         effects: Seq[OperationEffect]): DBIOrw[OperationCreationParams] = {
     val successfulTargetAtoms = effects.filter(effect => effect.deploymentPlanStepIds.contains(planStep.id)).flatMap(_.targetStatuses).filter(_.code == Status.success).map(_.targetAtom)
@@ -496,14 +499,15 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
       getDeploySpecifics(
         targetDispatcher,
         planStep,
-        expandedTarget.map(atoms => TargetAtomSet(atoms.items -- successfulTargetAtoms)),
+        TargetAtomSet(expandedTarget.items -- successfulTargetAtoms, expandedTarget.isExact),
         executionSpecs
       )
     )
   }
 
   def getRevertSpecifics(deploymentRequest: DeploymentRequest,
-                         defaultVersion: Option[Version]): DBIOrw[(Iterable[DeploymentPlanStep], OperationCreationParams)] = {
+                         defaultVersion: Option[Version],
+                         isExact: Boolean): DBIOrw[(Iterable[DeploymentPlanStep], OperationCreationParams)] = {
     dbBinding
       .findingExecutionSpecificationsForRevert(deploymentRequest)
       .flatMap { case (undetermined, determined) =>
@@ -524,11 +528,11 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
       }
       .flatMap { groups =>
         val specAndInvocations = groups.map { case (spec, targets) =>
-          (spec, targetDispatcher.dispatchExpression(TargetAtomSet(targets), spec.specificParameters).toVector)
+          val atomSet = TargetAtomSet(targets, isExact) // fixme: temporary conversion for the dispatcher, which doesn't look at isExact anyway...
+          (spec, targetDispatcher.dispatchAtoms(atomSet, spec.specificParameters).toVector)
         }
-        val atoms = TargetAtomSet(groups.flatMap { case (_, targets) => targets }.toSet)
         dbBinding.findingOperatedPlanSteps(deploymentRequest).map(steps =>
-          (steps, (Operation.revert, specAndInvocations, Some(atoms)))
+          (steps, (Operation.revert, specAndInvocations))
         )
       }
   }

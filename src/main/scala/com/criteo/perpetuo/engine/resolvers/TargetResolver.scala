@@ -11,31 +11,30 @@ trait TargetResolver extends Provider[TargetResolver] {
 
   def getAllAtomsAndTags(productName: String): Future[TargetSet] = Future.value(TargetSet(Map.empty))
 
-  def resolveExpression(productName: String, productVersion: Version, targetExpr: TargetExpr): Option[TargetAtomSet] = {
+  def resolveExpression(productName: String, productVersion: Version, targetExpr: TargetExpr): TargetAtomSet = {
     // resolve what's unresolved
     val nonAtoms = extractNonAtoms(targetExpr)
-    resolveTerms(productName, productVersion, nonAtoms).map { nonAtomsToAtoms =>
+    val (nonAtomsToAtoms, isExact) = resolveNonAtoms(productName, productVersion, nonAtoms)
 
-      // check resolution's consistency
-      val resolvedWords = nonAtomsToAtoms.keySet
-      if (!resolvedWords.subsetOf(nonAtoms))
-        throw new RuntimeException("The resolver augmented the original intent, which is forbidden. The targets introduced by the resolver are: " +
-          (resolvedWords -- nonAtoms).mkString(", "))
+    // check resolution's consistency
+    val resolvedWords = nonAtomsToAtoms.keySet
+    if (!resolvedWords.subsetOf(nonAtoms))
+      throw new RuntimeException("The resolver augmented the original intent, which is forbidden. The targets introduced by the resolver are: " +
+        (resolvedWords -- nonAtoms).mkString(", "))
 
-      val emptyWords = nonAtomsToAtoms.flatMap {
-        case (_, atoms) if atoms.nonEmpty =>
-          atoms.foreach(atom => assert(atom.name.length <= dao.targetAtomMaxLength, s"Target `$atom` is too long"))
-          None
-        case (word, _) =>
-          Some(word)
-      }
-      if (emptyWords.nonEmpty || resolvedWords.size != nonAtoms.size)
-        throw UnprocessableIntent("The following target(s) were not resolved: " +
-          (emptyWords.iterator ++ (nonAtoms -- resolvedWords)).mkString(", "))
-
-      // transform the expression to a set of atoms
-      TargetAtomSet(transform(targetExpr, nonAtomsToAtoms))
+    val emptyWords = nonAtomsToAtoms.flatMap {
+      case (_, atoms) if atoms.nonEmpty =>
+        atoms.foreach(atom => assert(atom.name.length <= dao.targetAtomMaxLength, s"Target `$atom` is too long"))
+        None
+      case (word, _) =>
+        Some(word)
     }
+    if (emptyWords.nonEmpty || resolvedWords.size != nonAtoms.size)
+      throw UnprocessableIntent("The following target(s) were not resolved: " +
+        (emptyWords.iterator ++ (nonAtoms -- resolvedWords)).mkString(", "))
+
+    // transform the expression to a set of atoms
+    TargetAtomSet(transform(targetExpr, nonAtomsToAtoms), isExact)
   }
 
   /**
@@ -58,34 +57,32 @@ trait TargetResolver extends Provider[TargetResolver] {
     *         - None if it's NOT CERTAIN that ANY TARGET can be resolved to atoms for the given product.
     */
   // todo: make it asynchronous
-  protected def resolveTerms(productName: String, productVersion: Version, targetTerms: Set[TargetNonAtom]): Option[Map[TargetNonAtom, Set[TargetAtom]]] = {
+  protected def resolveNonAtoms(productName: String, productVersion: Version, targetTerms: Set[TargetNonAtom]): (Map[TargetNonAtom, Set[TargetAtom]], Boolean) = {
     val TargetSet(atomsToTags, isExact) = Await.result(getAllAtomsAndTags(productName))
 
-    if (isExact) {
-      lazy val targetAtoms = atomsToTags.keySet.map(TargetAtom)
-      lazy val tagsToAtoms = atomsToTags
-        .toStream
-        .flatMap { case (atom, tags) =>
-          tags.iterator.map(_ -> atom)
-        }
-        .groupBy { case (tag, _) => tag }
-        .map { case (tag, tagsAtoms) =>
-          tag -> tagsAtoms.map { case (_, atom) => TargetAtom(atom) }
-        }
+    lazy val targetAtoms = atomsToTags.keySet.map(TargetAtom)
+    lazy val tagsToAtoms = atomsToTags
+      .toStream
+      .flatMap { case (atom, tags) =>
+        tags.iterator.map(_ -> atom)
+      }
+      .groupBy { case (tag, _) => tag }
+      .map { case (tag, tagsAtoms) =>
+        tag -> tagsAtoms.map { case (_, atom) => TargetAtom(atom) }
+      }
 
-      Some(targetTerms.map {
-        case tag@TargetTag(name) =>
-          tag -> tagsToAtoms.getOrElse(name, throw UnprocessableIntent(s"Unknown tag `$name` in target expression")).toSet
-        case icontains@TargetIcontains(sub) =>
-          icontains -> targetAtoms.filter(_.name.contains(sub))
-        case TargetTop =>
-          TargetTop -> targetAtoms
-        case word@TargetWord(w) => // fixme: for migration only
-          word -> tagsToAtoms.getOrElse(w, Set(TargetAtom(w))).toSet
-      }.toMap)
-    }
-    else
-      None
+    val resolved = targetTerms.map {
+      case tag@TargetTag(name) =>
+        tag -> tagsToAtoms.getOrElse(name, throw UnprocessableIntent(s"Unknown tag `$name` in target expression")).toSet
+      case icontains@TargetIcontains(sub) =>
+        icontains -> targetAtoms.filter(_.name.contains(sub))
+      case TargetTop =>
+        TargetTop -> targetAtoms
+      case word@TargetWord(w) => // fixme: for migration only
+        word -> (if (w == "*" && isExact) targetAtoms else tagsToAtoms.getOrElse(w, Set(TargetAtom(w))).toSet)
+    }.toMap
+
+    (resolved, isExact)
   }
 
   private val extractNonAtoms: TargetExpr => Set[TargetNonAtom] = {
@@ -103,7 +100,7 @@ trait TargetResolver extends Provider[TargetResolver] {
       .reduceOption((res, x) => res & x)
       .getOrElse(f(TargetTop))
     case TargetUnion(items) => items.flatMap(transform(_, f))
-    case TargetAtomSet(items) => items
+    case TargetAtomSet(items, _) => items
   }
 }
 

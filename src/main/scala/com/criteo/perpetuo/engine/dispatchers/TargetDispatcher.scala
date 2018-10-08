@@ -25,42 +25,30 @@ trait TargetDispatcher extends Provider[TargetDispatcher] with ParameterFreezer 
     * @return all the provided target atoms grouped by their dedicated executors
     * @throws NoAvailableExecutor if a target could not be dispatched
     */
-  protected def dispatch(targetExpr: TargetExpr, frozenParameters: String): Iterable[(ExecutionTrigger, TargetExpr)]
+  protected def dispatch(targetAtoms: TargetAtomSet, frozenParameters: String): Iterable[(ExecutionTrigger, TargetAtomSet)]
 
-  final def dispatchExpression(targetExpr: TargetExpr, frozenParameters: String): Iterable[(ExecutionTrigger, TargetExpr)] = {
-    val dispatched = dispatch(targetExpr, frozenParameters).filter { case (_, subExpr) => subExpr.nonEmpty }
+  final def dispatchAtoms(targetAtoms: TargetAtomSet, frozenParameters: String): Iterable[(ExecutionTrigger, TargetAtomSet)] = {
+    val dispatched = dispatch(targetAtoms, frozenParameters).filter { case (_, subSet) => subSet.nonEmpty }
 
-    val partition = targetExpr match {
-      case a: TargetAtom => Some(Seq(a))
-      case TargetAtomSet(atoms) => Some(atoms.toSeq.sortBy(_.name))
-      case _ => None
+    val orderedAtoms = targetAtoms
+      .items
+      .toSeq
+      .sortBy(_.name)
+    val orderedDispatchedAtoms = dispatched
+      .toSeq
+      .flatMap { case (_, subSet) => subSet.items }
+      .sortBy(_.name)
+
+    if (orderedDispatchedAtoms.size < targetAtoms.items.size) {
+      val diff = (targetAtoms.items -- orderedDispatchedAtoms).mkString(", ")
+      throw UnprocessableIntent(s"No executor associated to some target(s): $diff")
     }
-    partition
-      .orElse {
-        if (dispatched.forall { case (_, e) => e.isEmpty })
-          throw UnprocessableIntent(s"No executor associated to the target `$targetExpr`")
-        if (dispatched.size != 1 || dispatched.head._2 != targetExpr)
-          throw new RuntimeException(s"Dispatching unresolved expression `$targetExpr` to: ${dispatched.map(_._2).mkString(", ")}")
-        None
-      }
-      .foreach { atoms =>
-        val dispatchedAtoms = dispatched
-          .toSeq
-          .flatMap { case (_, subExpr) =>
-            subExpr match {
-              case a: TargetAtom => Seq(a)
-              case TargetUnion(items) => items.map {
-                case a: TargetAtom => a
-                case _ => throw new RuntimeException(s"Wrong dispatching: unexpected sub-expression `$subExpr` generated out of `$targetExpr`")
-              }
-              case TargetAtomSet(items) => items
-              case _ => throw new RuntimeException(s"Wrong dispatching: unexpected sub-expression `$subExpr` generated out of `$targetExpr`")
-            }
-          }
-          .sortBy(_.name)
-        if (dispatchedAtoms != atoms)
-          throw new RuntimeException(s"Wrong partition of atoms: `${atoms.mkString(", ")}` has been dispatched as `${dispatchedAtoms.mkString(", ")}`")
-      }
+
+    if (orderedDispatchedAtoms != orderedAtoms) {
+      val expected = orderedAtoms.mkString(", ")
+      val got = orderedDispatchedAtoms.mkString(", ")
+      throw new RuntimeException(s"Wrong partition of atoms: `$expected` has been dispatched as `$got`")
+    }
 
     dispatched
   }

@@ -19,14 +19,17 @@ case class PermissionDenied() extends RuntimeException("permission denied")
 class Engine @Inject()(val crankshaft: Crankshaft,
                        val permissions: Permissions) {
 
-  private def resolveTarget(productName: String, version: Version, target: Iterable[TargetExpr]) =
-    target.foldLeft(Option(TargetAtomSet(Set()))) { (result, expr) =>
-      result.flatMap(atoms =>
-        crankshaft.targetResolver
-          .resolveExpression(productName, version, expr)
-          .map(_.union(atoms))
-      )
-    }
+  // used for permissions only
+  private def resolveTarget(productName: String, version: Version, target: Iterable[TargetExpr]): Option[TargetAtomSet] =
+    target
+      .flatMap { expr =>
+        val resolved = crankshaft.targetResolver.resolveExpression(productName, version, expr)
+        if (resolved.isExact) // isExact is constant in the sequence (it's temporary anyway, don't worry)
+          Some(resolved)
+        else
+          None
+      }
+      .reduceOption((acc, x) => acc.union(x))
 
   def requestDeployment(user: User, protoDeploymentRequest: ProtoDeploymentRequest): Future[DeploymentRequest] = {
     val resolvedTarget = resolveTarget(protoDeploymentRequest.productName, protoDeploymentRequest.version, protoDeploymentRequest.plan.map(_.parsedTarget))
@@ -65,7 +68,8 @@ class Engine @Inject()(val crankshaft: Crankshaft,
     withDeploymentRequest(deploymentRequestId) { deploymentRequest =>
       def resolveTargetAndRejectIfPermissionDenied(step: DeploymentPlanStep) = {
         val resolvedTarget = crankshaft.targetResolver.resolveExpression(deploymentRequest.product.name, deploymentRequest.version, step.parsedTarget)
-        if (!permissions.isAuthorized(user, DeploymentAction.applyOperation, Operation.deploy, deploymentRequest.product.name, resolvedTarget))
+        val targetToAllow = if (resolvedTarget.isExact) Some(resolvedTarget) else None
+        if (!permissions.isAuthorized(user, DeploymentAction.applyOperation, Operation.deploy, deploymentRequest.product.name, targetToAllow))
           DBIOAction.failed(PermissionDenied())
         else
           DBIOAction.successful(resolvedTarget)
@@ -110,12 +114,13 @@ class Engine @Inject()(val crankshaft: Crankshaft,
 
   def revert(user: User, deploymentRequestId: Long, operationCount: Option[Int], defaultVersion: Option[Version]): Future[Option[OperationTrace]] =
     withDeploymentRequest(deploymentRequestId) { deploymentRequest =>
+      // fixme: temporarily return whether the resolution is exact for the product
       def rejectIfPermissionDenied(scope: Seq[DeploymentPlanStep]) = {
         val resolvedTarget = Engine.this.resolveTarget(deploymentRequest.product.name, deploymentRequest.version, scope.map(_.parsedTarget))
         if (!permissions.isAuthorized(user, DeploymentAction.applyOperation, Operation.revert, deploymentRequest.product.name, resolvedTarget))
           DBIOAction.failed(PermissionDenied())
         else
-          DBIOAction.successful(())
+          DBIOAction.successful(resolvedTarget.nonEmpty)
       }
 
       val gettingRevertSpecifics =
@@ -137,16 +142,16 @@ class Engine @Inject()(val crankshaft: Crankshaft,
               DBIOAction.failed(UnavailableAction("another operation is already running", Map("deploymentRequestId" -> deploymentRequest.id)))
 
             case s: RevertFailed =>
-              rejectIfPermissionDenied(s.scope).flatMap(_ => crankshaft.getRevertSpecifics(deploymentRequest, defaultVersion).map((_, ())))
+              rejectIfPermissionDenied(s.scope).flatMap(isExact => crankshaft.getRevertSpecifics(deploymentRequest, defaultVersion, isExact).map((_, ())))
 
             case s: DeployFailed =>
-              rejectIfPermissionDenied(s.revertScope).flatMap(_ => crankshaft.getRevertSpecifics(deploymentRequest, defaultVersion).map((_, ())))
+              rejectIfPermissionDenied(s.revertScope).flatMap(isExact => crankshaft.getRevertSpecifics(deploymentRequest, defaultVersion, isExact).map((_, ())))
 
             case s: Paused =>
-              rejectIfPermissionDenied(s.revertScope).flatMap(_ => crankshaft.getRevertSpecifics(deploymentRequest, defaultVersion).map((_, ())))
+              rejectIfPermissionDenied(s.revertScope).flatMap(isExact => crankshaft.getRevertSpecifics(deploymentRequest, defaultVersion, isExact).map((_, ())))
 
             case s: Deployed =>
-              rejectIfPermissionDenied(s.revertScope).flatMap(_ => crankshaft.getRevertSpecifics(deploymentRequest, defaultVersion).map((_, ())))
+              rejectIfPermissionDenied(s.revertScope).flatMap(isExact => crankshaft.getRevertSpecifics(deploymentRequest, defaultVersion, isExact).map((_, ())))
           }
 
       crankshaft.revert(deploymentRequest, operationCount, user.name, gettingRevertSpecifics)

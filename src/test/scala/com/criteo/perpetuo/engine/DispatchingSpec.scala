@@ -21,30 +21,24 @@ object TestTargetDispatcher extends TargetDispatcher {
 
   override def freezeParameters(productName: String, version: Version): String = "foobar"
 
-  protected override def dispatch(targetExpr: TargetExpr, frozenParameters: String): Iterable[(ExecutionTrigger, TargetExpr)] = {
+  protected override def dispatch(targetAtoms: TargetAtomSet, frozenParameters: String): Iterable[(ExecutionTrigger, TargetAtomSet)] = {
     assert(frozenParameters == "foobar")
     // associate executors to target words wrt the each target word's characters
-    val set = targetExpr match {
-      case t: TargetTerm => Set(t)
-      case TargetAtomSet(atoms) => atoms
-      case TargetUnion(items) => items
-      case _ => throw new RuntimeException(s"This expression is not yet supported in the test helper: $targetExpr")
-    }
+    val set = targetAtoms.items
     set
-      .flatMap { term =>
-        assert(term.isInstanceOf[TargetTerm])
-        term
-          .toString
+      .flatMap(atom =>
+        atom
+          .name
           .flatMap {
             case 'a' => Some(aTrigger)
             case 'b' => Some(bTrigger)
             case 'c' => Some(cTrigger)
             case _ => None
           }
-          .map(executor => (executor, term))
-      }
+          .map(executor => (executor, atom))
+      )
       .groupBy(_._1)
-      .map { case (executor, it) => executor -> TargetUnion(it.map(_._2)) }
+      .map { case (executor, it) => executor -> TargetAtomSet(it.map(_._2), targetAtoms.isExact) }
   }
 }
 
@@ -70,9 +64,9 @@ class DispatchingSpec extends SimpleScenarioTesting {
               crankshaft.getStepSpecifics(expandedTarget, firstStep)
             )
           }
-          .map { case (_, executionsToTrigger, _) =>
+          .map { case (_, executionsToTrigger) =>
             val toTrigger = executionsToTrigger.flatMap { case (_, executionToTrigger) => executionToTrigger }
-            assertEqual(toTrigger.toMap, that.mapValues(terms => TargetUnion(terms.map(TargetAtom))))
+            assertEqual(toTrigger.toMap, that.mapValues(terms => TargetAtomSet(terms.map(TargetAtom))))
             assertEqual(toTrigger.size, that.size) // look for unexpected duplicates
           },
         1.second
@@ -90,7 +84,7 @@ class DispatchingSpec extends SimpleScenarioTesting {
 
   test("An execution cannot distribute an atom to multiple executors") {
     val params = TestTargetDispatcher.freezeParameters("", Version(""""42""""))
-    val thrown = the[RuntimeException] thrownBy TestTargetDispatcher.dispatchExpression(TargetAtomSet(Set("abc", "ab", "cb").map(TargetAtom)), params)
+    val thrown = the[RuntimeException] thrownBy TestTargetDispatcher.dispatchAtoms(TargetAtomSet(Set("abc", "ab", "cb").map(TargetAtom)), params)
     thrown.getMessage shouldEqual "Wrong partition of atoms: `ab, abc, cb` has been dispatched as `ab, ab, abc, abc, abc, cb, cb`"
   }
 
@@ -103,13 +97,13 @@ class DispatchingSpec extends SimpleScenarioTesting {
   test("The resolver cuts short on atoms and sends them back") {
     val targets = Set("ab", "-").map(TargetAtom)
     testResolver.resolveExpression(null, Version("\"\""), TargetUnion(targets.toSet)) shouldEqual
-      Some(TargetAtomSet(targets)) // the fact it doesn't throw proves the shortcut (see test above)
+      TargetAtomSet(targets) // the fact it doesn't throw proves the shortcut (see test above)
   }
 
   test("An execution raises if a target is not fully covered by executors") {
     val params = TestTargetDispatcher.freezeParameters("", Version(""""42""""))
-    val thrown = the[UnprocessableIntent] thrownBy TestTargetDispatcher.dispatchExpression(TargetWord("def"), params)
-    thrown.getMessage shouldEqual "No executor associated to the target `def`"
+    val thrown = the[UnprocessableIntent] thrownBy TestTargetDispatcher.dispatchAtoms(TargetAtomSet(Set(TargetAtom("def"))), params)
+    thrown.getMessage shouldEqual "No executor associated to some target(s): def"
   }
 
   private def assertEqual(challenger: Any, expected: Any, path: String = "root"): Unit = {

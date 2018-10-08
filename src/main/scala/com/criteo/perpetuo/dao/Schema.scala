@@ -147,6 +147,6 @@ trait EffectInserter
       }
       .getOrElse(Set())
     case TargetUnion(items) => items.flatMap(extractAtomsFromTargetExpr)
-    case TargetAtomSet(items) => items
+    case TargetAtomSet(items, _) => items
   }
 }

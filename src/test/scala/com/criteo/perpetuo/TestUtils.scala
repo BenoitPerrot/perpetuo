@@ -43,11 +43,9 @@ trait TestHelpers extends Test {
 
 
 object TestTargetResolver extends TargetResolver {
-  override def resolveTerms(productName: String, productVersion: Version, targetTerms: Set[TargetNonAtom]): Option[Map[TargetNonAtom, Set[TargetAtom]]] = {
-    Some(targetTerms
-      .map(term => term -> term.toString.split("-").collect { case name if name.nonEmpty => TargetAtom(name) }.toSet)
-      .toMap
-    )
+  protected override def resolveNonAtoms(productName: String, productVersion: Version, targetTerms: Set[TargetNonAtom]): (Map[TargetNonAtom, Set[TargetAtom]], Boolean) = {
+    // the atomic targets are the input word split on dashes
+    (targetTerms.map(term => term -> term.toString.split("-").collect { case name if name.nonEmpty => TargetAtom(name) }.toSet).toMap, true)
   }
 }
 
