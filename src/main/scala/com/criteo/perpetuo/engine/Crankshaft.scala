@@ -264,16 +264,13 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
     }
 
   def step(deploymentRequest: DeploymentRequest,
-           operationCount: Option[Int],
            initiatorName: String,
            getSpecifics: DBIOrw[(OperationCreationParams, Option[DeploymentPlanStep], DeploymentPlanStep)],
            emitEvent: Boolean = true): Future[OperationTrace] =
     act(
       deploymentRequest,
       initiatorName,
-      checkOperationCount(deploymentRequest, operationCount).andThen(
-        getSpecifics.map { case (creationParams, lastDone, toDo) => ((Seq(toDo), creationParams), (lastDone, toDo)) }
-      )
+      getSpecifics.map { case (creationParams, lastDone, toDo) => ((Seq(toDo), creationParams), (lastDone, toDo)) }
     )
       .map { case ((operationTrace, started, failed), (lastDone, toDo)) =>
         if (emitEvent) {
