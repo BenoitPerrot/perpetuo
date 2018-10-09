@@ -59,10 +59,44 @@ class Engine @Inject()(val crankshaft: Crankshaft,
   private def withDeploymentRequest[T](id: Long)(callback: DeploymentRequest => Future[T]): Future[Option[T]] =
     flatWithDeploymentRequest(id)(deploymentRequest => callback(deploymentRequest).map(Some.apply))
 
+  private def failOnUnexpectedOperationCount(operationCount: Option[Int], effects: Seq[OperationEffect]) =
+    operationCount
+      .filter(_ != effects.size)
+      .map(_ => DBIOAction.failed(UnexpectedOperationCount(effects)))
+      .getOrElse(DBIOAction.successful(()))
+
+  private def recoverOnSimilarOperation(user: User, deploymentRequest: DeploymentRequest, kind: Operation.Kind, operationCount: Option[Int]): PartialFunction[Throwable, Future[OperationTrace]] = {
+    def isSimilar(operationTrace: OperationTrace) =
+      operationTrace.kind == kind && operationTrace.creator == user.name
+
+    {
+      case e: OperationLockAlreadyTaken =>
+        operationCount
+          .map(c =>
+            crankshaft
+              .findOperationTraceForExpectedCount(deploymentRequest, c + 1)
+              .map(_.filter(isSimilar))
+          )
+          .getOrElse(Future.successful(None))
+          .flatMap(_
+            .map(Future.successful)
+            .getOrElse(Future.failed(e))
+          )
+
+      case e: OperationInapplicableForEffects =>
+        operationCount
+          .flatMap(e.effects.reverse.lift)
+          .map(_.operationTrace)
+          .filter(isSimilar)
+          .map(Future.successful)
+          .getOrElse(Future.failed(e))
+    }
+  }
+
   def step(user: User, deploymentRequestId: Long, operationCount: Option[Int]): Future[Option[OperationTrace]] =
     withDeploymentRequest(deploymentRequestId) { deploymentRequest =>
-      def evaluatePreconditionsForResolvedTarget(step: DeploymentPlanStep) =
-        crankshaft.checkOperationCount(deploymentRequest, operationCount).andThen {
+      def evaluatePreconditionsForResolvedTarget(step: DeploymentPlanStep, effects: Seq[OperationEffect]) =
+        failOnUnexpectedOperationCount(operationCount, effects).andThen {
           val resolvedTarget = crankshaft.targetResolver.resolveExpression(deploymentRequest.product.name, deploymentRequest.version, step.parsedTarget)
           if (!permissions.isAuthorized(user, DeploymentAction.applyOperation, Operation.deploy, deploymentRequest.product.name, resolvedTarget.superset))
             DBIOAction.failed(PermissionDenied())
@@ -71,29 +105,29 @@ class Engine @Inject()(val crankshaft: Crankshaft,
         }
 
       def getRetrySpecifics(step: DeploymentPlanStep, effects: Seq[OperationEffect]) =
-        evaluatePreconditionsForResolvedTarget(step).flatMap(resolvedTarget =>
+        evaluatePreconditionsForResolvedTarget(step, effects).flatMap(resolvedTarget =>
           crankshaft.getRetrySpecifics(resolvedTarget, step, effects).map((_, Some(step), step))
         )
 
-      def getStepSpecifics(toDo: DeploymentPlanStep, lastDone: Option[DeploymentPlanStep]) =
-        evaluatePreconditionsForResolvedTarget(toDo).flatMap(resolvedTarget =>
+      def getStepSpecifics(toDo: DeploymentPlanStep, lastDone: Option[DeploymentPlanStep], lastEffects: Seq[OperationEffect]) =
+        evaluatePreconditionsForResolvedTarget(toDo, lastEffects).flatMap(resolvedTarget =>
           crankshaft.getStepSpecifics(resolvedTarget, toDo).map((_, lastDone, toDo))
         )
 
       val getSpecifics =
         crankshaft.assessingDeploymentState(deploymentRequest)
           .flatMap {
-            case _: Outdated =>
-              DBIOAction.failed(DeploymentRequestOutdated())
+            case s: Outdated =>
+              DBIOAction.failed(DeploymentRequestOutdated(s.effects))
 
-            case _: Abandoned =>
-              DBIOAction.failed(DeploymentRequestAbandoned())
+            case s: Abandoned =>
+              DBIOAction.failed(DeploymentRequestAbandoned(s.effects))
 
-            case _: Reverted | _: Deployed | _: RevertFailed =>
-              DBIOAction.failed(DeploymentTransactionClosed())
+            case s@(_: Reverted | _: Deployed | _: RevertFailed) =>
+              DBIOAction.failed(DeploymentTransactionClosed(s.effects))
 
-            case _: RevertInProgress | _: DeployInProgress =>
-              DBIOAction.failed(OperationRunning())
+            case s@(_: RevertInProgress | _: DeployInProgress) =>
+              DBIOAction.failed(OperationRunning(s.effects))
 
             case s: DeployFailed =>
               getRetrySpecifics(s.step, s.effects)
@@ -102,13 +136,15 @@ class Engine @Inject()(val crankshaft: Crankshaft,
               getRetrySpecifics(s.step, s.effects)
 
             case s: NotStarted =>
-              getStepSpecifics(s.toDo, None)
+              getStepSpecifics(s.toDo, None, s.effects)
 
             case s: Paused =>
-              getStepSpecifics(s.toDo, Some(s.lastDone))
+              getStepSpecifics(s.toDo, Some(s.lastDone), s.effects)
           }
 
-      crankshaft.step(deploymentRequest, user.name, getSpecifics)
+      crankshaft
+        .step(deploymentRequest, user.name, getSpecifics)
+        .recoverWith(recoverOnSimilarOperation(user, deploymentRequest, Operation.deploy, operationCount))
     }
 
   def deviseRevertPlan(id: Long): Future[Option[(Set[TargetAtom], Iterable[(ExecutionSpecification, Set[TargetAtom])])]] =
@@ -127,20 +163,20 @@ class Engine @Inject()(val crankshaft: Crankshaft,
       val gettingRevertSpecifics =
         crankshaft.assessingDeploymentState(deploymentRequest)
           .flatMap {
-            case _: Outdated =>
-              DBIOAction.failed(DeploymentRequestOutdated())
+            case s: Outdated =>
+              DBIOAction.failed(DeploymentRequestOutdated(s.effects))
 
-            case _: Abandoned =>
-              DBIOAction.failed(DeploymentRequestAbandoned())
+            case s: Abandoned =>
+              DBIOAction.failed(DeploymentRequestAbandoned(s.effects))
 
-            case _: Reverted =>
-              DBIOAction.failed(DeploymentTransactionClosed())
+            case s: Reverted =>
+              DBIOAction.failed(DeploymentTransactionClosed(s.effects))
 
-            case _: NotStarted | _: DeployFlopped =>
-              DBIOAction.failed(NothingToRevert())
+            case s@(_: NotStarted | _: DeployFlopped) =>
+              DBIOAction.failed(NothingToRevert(s.effects))
 
-            case _: RevertInProgress | _: DeployInProgress =>
-              DBIOAction.failed(OperationRunning())
+            case s@(_: RevertInProgress | _: DeployInProgress) =>
+              DBIOAction.failed(OperationRunning(s.effects))
 
             case s: RevertFailed =>
               rejectIfPermissionDenied(s.scope).flatMap(_ => crankshaft.getRevertSpecifics(deploymentRequest, defaultVersion).map((_, ())))

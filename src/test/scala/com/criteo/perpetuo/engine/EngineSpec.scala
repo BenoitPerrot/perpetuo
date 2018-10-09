@@ -8,7 +8,8 @@ import com.criteo.perpetuo.auth.{Unrestricted, User}
 import com.criteo.perpetuo.model._
 import com.google.common.base.Ticker
 import com.google.common.cache.{CacheBuilder, LoadingCache}
-import spray.json.JsString
+import spray.json.DefaultJsonProtocol._
+import spray.json._
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
@@ -46,6 +47,7 @@ class EngineSpec extends SimpleScenarioTesting {
 
   private val someone = User("s.omeone")
   private val starter = User("s.tarter")
+  private val releaser = User("r.eleaser")
 
   private def tryUpdateExecutionTraces(engine: Engine, executionTraces: Iterable[ShallowExecutionTrace],
                                        state: ExecutionState.Value, detail: String = "", href: Option[String] = None, statusMap: Map[TargetAtom, TargetAtomStatus] = Map()) =
@@ -141,4 +143,84 @@ class EngineSpec extends SimpleScenarioTesting {
     )
   }
 
+  test("Step-stammering while running is idempotent") {
+    await(
+      for {
+        product <- engine.upsertProduct(starter, "step-stammering")
+        depReq <- engine.requestDeployment(someone, ProtoDeploymentRequest(product.name, Version("2".toJson), Seq(ProtoDeploymentPlanStep("", JsString("cdg"), "")), "", someone.name))
+
+        operationTrace0 <- engine.step(releaser, depReq.id, Some(0)).map(_.get)
+        inProgress0 <- engine.crankshaft.assessDeploymentState(depReq)
+        step0Again <- engine.step(releaser, depReq.id, Some(0)).map(_.get)
+
+        step0AgainForAnotherUser <- engine.step(someone, depReq.id, Some(0)).map(_.get).failed
+        step1Locked <- engine.step(releaser, depReq.id, Some(1)).map(_.get).failed
+        revert0Locked <- engine.revert(releaser, depReq.id, Some(0), None).map(_.get).failed
+
+        _ <- tryUpdateExecutionTraces(engine, inProgress0.effects.head.executionTraces, ExecutionState.completed, statusMap = Map(TargetAtom("cdg") -> TargetAtomStatus(Status.success, "")))
+
+        _ <- engine.revert(releaser, depReq.id, Some(1), Some(Version("1".toJson))).map(_.get)
+        inProgress1 <- engine.crankshaft.assessDeploymentState(depReq)
+        nextStep1Locked <- engine.step(releaser, depReq.id, Some(1)).map(_.get).failed
+      } yield {
+        inProgress0 shouldBe a[DeployInProgress]
+        step0Again shouldBe operationTrace0
+
+        step0AgainForAnotherUser shouldBe a[OperationLockAlreadyTaken]
+        step1Locked shouldBe a[OperationLockAlreadyTaken]
+        revert0Locked shouldBe a[OperationLockAlreadyTaken]
+
+        inProgress1 shouldBe a[RevertInProgress]
+        nextStep1Locked shouldBe a[OperationLockAlreadyTaken]
+      }
+    )
+  }
+
+  test("Out-of-order stepping is idempotent") {
+    await(
+      for {
+        product <- engine.upsertProduct(starter, "out-of-order-stepping")
+        depReq <- engine.requestDeployment(someone,
+          ProtoDeploymentRequest(product.name, Version("2".toJson), Seq(
+            ProtoDeploymentPlanStep("", JsString("nrt"), ""),
+            ProtoDeploymentPlanStep("", JsString("hnd"), "")),
+          "", someone.name))
+
+        operationTrace0 <- engine.step(releaser, depReq.id, Some(0)).map(_.get)
+        inProgress0 <- engine.crankshaft.assessDeploymentState(depReq)
+        _ <- tryUpdateExecutionTraces(engine, inProgress0.effects.head.executionTraces, ExecutionState.completed, statusMap = Map(TargetAtom("nrt") -> TargetAtomStatus(Status.success, "")))
+
+        operationTrace1 <- engine.step(releaser, depReq.id, Some(1)).map(_.get)
+        inProgress1 <- engine.crankshaft.assessDeploymentState(depReq)
+        _ <- tryUpdateExecutionTraces(engine, inProgress1.effects.head.executionTraces, ExecutionState.completed, statusMap = Map(TargetAtom("hnd") -> TargetAtomStatus(Status.success, "")))
+
+        step1Again <- engine.step(releaser, depReq.id, Some(1)).map(_.get)
+
+        step0Again <- engine.step(releaser, depReq.id, Some(0)).map(_.get)
+
+        _ <- engine.revert(releaser, depReq.id, Some(2), Some(Version("1".toJson))).map(_.get)
+        inProgress2 <- engine.crankshaft.assessDeploymentState(depReq)
+        _ <- tryUpdateExecutionTraces(engine, inProgress2.effects.head.executionTraces, ExecutionState.completed, statusMap = Map(
+          TargetAtom("nrt") -> TargetAtomStatus(Status.success, ""),
+          TargetAtom("hnd") -> TargetAtomStatus(Status.success, ""))
+        )
+
+        // TODO: support idempotency for revert, and check
+
+        step1AgainAgain <- engine.step(releaser, depReq.id, Some(1)).map(_.get)
+
+        step0AgainAgain <- engine.step(releaser, depReq.id, Some(0)).map(_.get)
+
+      } yield {
+        inProgress0 shouldBe a[DeployInProgress]
+        step0Again.id shouldBe operationTrace0.id
+
+        inProgress1 shouldBe a[DeployInProgress]
+        step1Again.id shouldBe operationTrace1.id
+
+        step0AgainAgain.id shouldBe operationTrace0.id
+        step1AgainAgain.id shouldBe operationTrace1.id
+      }
+    )
+  }
 }

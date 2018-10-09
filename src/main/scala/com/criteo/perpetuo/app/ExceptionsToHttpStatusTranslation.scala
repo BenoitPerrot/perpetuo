@@ -42,6 +42,8 @@ trait ExceptionsToHttpStatusTranslation extends Logging {
         throw HttpException(Status.UnprocessableEntity, "Another operation is already running")
       case _: NothingToRevert =>
         throw HttpException(Status.UnprocessableEntity, "Nothing to revert")
+      case _: UnexpectedOperationCount =>
+        throw HttpException(Status.Conflict, "The state of the deployment has just changed; have another look before choosing an action to trigger")
       case e: Conflict => throw toHttpResponseException(e, Status.Conflict)
       case e: MissingInfo => throw toHttpResponseException(e, Status.UnprocessableEntity)
       case _: NoAvailableExecutor =>

@@ -302,7 +302,7 @@ class CrankshaftSpec extends SimpleScenarioTesting {
         firstExecutionTraces <- closeOperation(operationTrace, Map("moon" -> Status.success, "mars" -> Status.hostFailure))
         retriedOperation <- step(deploymentRequest, Some(1), "b.lightning")
         secondExecutionTraces <- closeOperation(retriedOperation, Map("moon" -> Status.success, "mars" -> Status.success))
-        raceConditionError <- step(deploymentRequest, Some(1), "b.lightning").failed
+        alreadyInitiatedOperation <- step(deploymentRequest, Some(1), "b.lightning")
         hasOpenExecutionAfter <- hasOpenExecutionTracesForOperation(retriedOperation.id)
         operationReClosingSucceeded <- closeOperationTrace(retriedOperation)
         initialExecutionSpecIds <- crankshaft.dbBinding.findExecutionSpecIdsByOperationTrace(operationTrace.id)
@@ -316,7 +316,8 @@ class CrankshaftSpec extends SimpleScenarioTesting {
         operationReClosingSucceeded.isDefined shouldBe false
         initialExecutionSpecIds.length == retriedExecutionSpecIds.length shouldBe true
         initialExecutionSpecIds == retriedExecutionSpecIds shouldBe true
-        raceConditionError should be(a[DeploymentTransactionClosed])
+        alreadyInitiatedOperation.id shouldBe retriedOperation.id
+        alreadyInitiatedOperation shouldNot be(retriedOperation)
       }
     )
   }

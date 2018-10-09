@@ -59,15 +59,21 @@ case class Veto(msg: String, reason: String) extends RejectingException {
   val detail: Map[String, String] = Map("reason" -> reason)
 }
 
-case class DeploymentRequestOutdated() extends RuntimeException
+trait OperationInapplicableForEffects extends RuntimeException {
+  val effects: Seq[OperationEffect]
+}
 
-case class DeploymentRequestAbandoned() extends RuntimeException
+case class DeploymentRequestOutdated(effects: Seq[OperationEffect]) extends OperationInapplicableForEffects
 
-case class DeploymentTransactionClosed() extends RuntimeException
+case class DeploymentRequestAbandoned(effects: Seq[OperationEffect]) extends OperationInapplicableForEffects
 
-case class OperationRunning() extends RuntimeException
+case class DeploymentTransactionClosed(effects: Seq[OperationEffect]) extends OperationInapplicableForEffects
 
-case class NothingToRevert() extends RuntimeException
+case class OperationRunning(effects: Seq[OperationEffect]) extends OperationInapplicableForEffects
+
+case class NothingToRevert(effects: Seq[OperationEffect]) extends OperationInapplicableForEffects
+
+case class UnexpectedOperationCount(effects: Seq[OperationEffect]) extends OperationInapplicableForEffects
 
 @Singleton
 class Crankshaft @Inject()(val dbBinding: DbBinding,
@@ -256,6 +262,14 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
       )
       .getOrElse(DBIO.successful(()))
 
+  def findOperationTraceForExpectedCount(deploymentRequest: DeploymentRequest, expectedOperationCount: Int): Future[Option[OperationTrace]] =
+    dbBinding.dbContext.db
+      .run(dbBinding.findingLastOperationTraceAndCurrentCountByDeploymentRequestId(deploymentRequest.id))
+      .map(_
+        .filter { case (_, observedOperationCount) => observedOperationCount == expectedOperationCount }
+        .map { case (operationTrace, _) => operationTrace }
+      )
+
   private def act[T](deploymentRequest: DeploymentRequest, initiatorName: String,
                      getOperationSpecifics: DBIOrw[((Iterable[DeploymentPlanStep], OperationCreationParams), T)]) =
     dbBinding.executeInSerializableTransaction(
@@ -374,20 +388,20 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
     val devisingRevertPlan =
       assessingDeploymentState(deploymentRequest)
         .flatMap {
-          case _: Outdated =>
-            DBIO.failed(DeploymentRequestOutdated())
+          case s: Outdated =>
+            DBIO.failed(DeploymentRequestOutdated(s.effects))
 
-          case _: Abandoned =>
-            DBIO.failed(DeploymentRequestAbandoned())
+          case s: Abandoned =>
+            DBIO.failed(DeploymentRequestAbandoned(s.effects))
 
-          case _: Reverted =>
-            DBIO.failed(DeploymentTransactionClosed())
+          case s: Reverted =>
+            DBIO.failed(DeploymentTransactionClosed(s.effects))
 
-          case _: NotStarted | _: DeployFlopped =>
-            DBIO.failed(NothingToRevert())
+          case s@(_: NotStarted | _: DeployFlopped) =>
+            DBIO.failed(NothingToRevert(s.effects))
 
-          case _: RevertInProgress | _: DeployInProgress =>
-            DBIO.failed(OperationRunning())
+          case s@(_: RevertInProgress | _: DeployInProgress) =>
+            DBIO.failed(OperationRunning(s.effects))
 
           case _: RevertFailed | _: DeployFailed | _: Paused | _: Deployed =>
             dbBinding.findingExecutionSpecificationsForRevert(deploymentRequest)
