@@ -53,15 +53,15 @@ class EngineSpec extends SimpleScenarioTesting {
         product <- engine.upsertProduct(starter, "product #1")
         depReq <- engine.requestDeployment(someone, ProtoDeploymentRequest(product.name, Version("\"1000\""), Seq(ProtoDeploymentPlanStep("", JsString("*"), "")), "", someone.name))
         notStarted <- engine.findDeploymentRequestState(depReq.id).map(_.get)
-        _ <- engine.step(starter, depReq.id, Some(0))
+        op <- engine.step(starter, depReq.id, Some(0)).map(_.get)
 
         stillNotStarted <- engine.findDeploymentRequestState(depReq.id).map(_.get)
 
         _ <- MockTicker.advanceTime()
         onGoing <- engine.findDeploymentRequestState(depReq.id).map(_.get)
 
-        _ <- engine.findExecutionTracesByDeploymentRequest(depReq.id)
-          .map(_.get.map(execTrace => engine.tryUpdateExecutionTrace(execTrace.id, ExecutionState.completed, "", None)))
+        _ <- dbBinding.findExecutionTracesByOperationTrace(op.id)
+          .map(_.map(execTrace => engine.tryUpdateExecutionTrace(execTrace.id, ExecutionState.completed, "", None)))
 
         stillOnGoing <- engine.findDeploymentRequestState(depReq.id).map(_.get)
         _ <- MockTicker.advanceTime()

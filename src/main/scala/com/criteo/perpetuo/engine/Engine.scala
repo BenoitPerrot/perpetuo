@@ -274,9 +274,6 @@ class Engine @Inject()(val crankshaft: Crankshaft,
         }
     }
 
-  def findExecutionTracesByDeploymentRequest(deploymentRequestId: Long): Future[Option[Seq[ShallowExecutionTrace]]] =
-    crankshaft.findExecutionTracesByDeploymentRequest(deploymentRequestId)
-
   def tryUpdateExecutionTrace(id: Long, executionState: ExecutionState, detail: String, href: Option[String], statusMap: Map[TargetAtom, TargetAtomStatus] = Map()): Future[Option[Long]] =
     crankshaft.tryUpdateExecutionTrace(id, executionState, detail, href, statusMap)
 

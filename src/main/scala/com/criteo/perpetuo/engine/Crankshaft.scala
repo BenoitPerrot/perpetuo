@@ -384,16 +384,6 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
     dbBinding.dbContext.db.run(devisingRevertPlan)
   }
 
-  def findExecutionTracesByDeploymentRequest(deploymentRequestId: Long): Future[Option[Seq[ShallowExecutionTrace]]] =
-    dbBinding.findExecutionTracesByDeploymentRequest(deploymentRequestId).flatMap { traces =>
-      if (traces.isEmpty) {
-        // if there is a deployment request with that ID, return the empty list, otherwise a 404
-        dbBinding.deploymentRequestExists(deploymentRequestId).map(if (_) Some(traces) else None)
-      }
-      else
-        Future.successful(Some(traces))
-    }
-
   def updateExecutionTrace(id: Long, executionState: ExecutionState, detail: String, href: Option[String], statusMap: Map[TargetAtom, TargetAtomStatus] = Map()): Future[Long] =
     tryUpdateExecutionTrace(id, executionState, detail, href, statusMap)
       .map(_.getOrElse(throw new IllegalArgumentException(s"Trying to update an execution trace ($id) that doesn't exist")))

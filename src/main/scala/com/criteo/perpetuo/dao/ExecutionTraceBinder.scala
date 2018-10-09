@@ -54,17 +54,6 @@ trait ExecutionTraceBinder extends TableBinder {
   def insertingExecutionTraces(traces: Iterable[ExecutionTraceRecord]): FixedSqlAction[Seq[Long], NoStream, Effect.Write] =
     (executionTraceQuery returning executionTraceQuery.map(_.id)) ++= traces
 
-  // todo: this method should actually not exist, it's a dangerous shortcut: migrate clients and remove
-  def findExecutionTracesByDeploymentRequest(deploymentRequestId: Long): Future[Seq[ShallowExecutionTrace]] =
-    dbContext.db.run(
-      operationTraceQuery
-        .filter(_.deploymentRequestId === deploymentRequestId)
-        .join(executionQuery).on { case (operationTrace, execution) => operationTrace.id === execution.operationTraceId }
-        .join(executionTraceQuery).on { case ((_, execution), executionTrace) => execution.id === executionTrace.executionId }
-        .map { case (_, executionTrace) => executionTrace }
-        .result
-    ).map(_.map(_.toExecutionTrace))
-
   private def openExecutionTracesQuery(operationTraceId: Long) =
     executionQuery
       .join(executionTraceQuery)
