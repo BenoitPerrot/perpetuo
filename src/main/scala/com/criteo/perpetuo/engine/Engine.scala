@@ -227,10 +227,16 @@ class Engine @Inject()(val crankshaft: Crankshaft,
             (s, Seq((Operation.revert.toString, rejectIfPermissionDenied(DeploymentAction.applyOperation, Operation.revert, s.deploymentPlanSteps))))
 
           case s: NotStarted =>
-            (s, Seq((Operation.deploy.toString, rejectIfPermissionDenied(DeploymentAction.applyOperation, Operation.deploy, Seq(s.toDo)))))
+            (s, Seq(
+              (Operation.deploy.toString, rejectIfPermissionDenied(DeploymentAction.applyOperation, Operation.deploy, Seq(s.toDo))),
+              ("abandon", rejectIfPermissionDenied(DeploymentAction.abandonOperation, Operation.deploy, s.deploymentPlanSteps))
+            ))
 
           case s: DeployFlopped =>
-            (s, Seq((Operation.deploy.toString, rejectIfPermissionDenied(DeploymentAction.applyOperation, Operation.deploy, Seq(s.step)))))
+            (s, Seq(
+              (Operation.deploy.toString, rejectIfPermissionDenied(DeploymentAction.applyOperation, Operation.deploy, Seq(s.step))),
+              ("abandon", rejectIfPermissionDenied(DeploymentAction.abandonOperation, Operation.deploy, s.deploymentPlanSteps))
+            ))
 
           case s: RevertInProgress =>
             (s, Seq(("stop", rejectIfPermissionDenied(DeploymentAction.stopOperation, Operation.revert, toPlanSteps(s, s.scope.deploymentPlanStepIds)))))
