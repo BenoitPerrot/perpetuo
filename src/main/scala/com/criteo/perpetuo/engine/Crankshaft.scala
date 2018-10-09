@@ -238,18 +238,18 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
     if (currentState != expectedState)
       throw Conflict("the state of the deployment has just changed; have another look before choosing an action to trigger", deploymentRequest.id)
 
-  private def act[T](deploymentRequest: DeploymentRequest, expectedOperationCount: Option[Int], initiatorName: String,
+  def checkOperationCount(deploymentRequest: DeploymentRequest, expectedOperationCount: Option[Int]): DBIOAction[Unit, NoStream, Effect.Read] =
+    expectedOperationCount
+      .map(expectedCount =>
+        dbBinding.countingOperationTraces(deploymentRequest)
+          .map(checkState(deploymentRequest, _, expectedCount))
+      )
+      .getOrElse(DBIO.successful(()))
+
+  private def act[T](deploymentRequest: DeploymentRequest, initiatorName: String,
                      getOperationSpecifics: DBIOrw[((Iterable[DeploymentPlanStep], OperationCreationParams), T)]) =
     dbBinding.executeInSerializableTransaction(
       fuelFilter.acquiringOperationLock(deploymentRequest)
-        .andThen(
-          expectedOperationCount
-            .map(expectedCount =>
-              dbBinding.countingOperationTraces(deploymentRequest)
-                .map(checkState(deploymentRequest, _, expectedCount))
-            )
-            .getOrElse(DBIO.successful(()))
-        )
         .andThen(getOperationSpecifics)
         .flatMap { case ((deploymentPlanSteps, (operation, specAndInvocations)), actionSpecifics) =>
           val atoms = specAndInvocations.flatMap { case (_, executions) => executions }.flatMap { case (_, atomSet) =>
@@ -270,9 +270,10 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
            emitEvent: Boolean = true): Future[OperationTrace] =
     act(
       deploymentRequest,
-      operationCount,
       initiatorName,
-      getSpecifics.map { case (creationParams, lastDone, toDo) => ((Seq(toDo), creationParams), (lastDone, toDo)) }
+      checkOperationCount(deploymentRequest, operationCount).andThen(
+        getSpecifics.map { case (creationParams, lastDone, toDo) => ((Seq(toDo), creationParams), (lastDone, toDo)) }
+      )
     )
       .map { case ((operationTrace, started, failed), (lastDone, toDo)) =>
         if (emitEvent) {
@@ -355,7 +356,7 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
 
   def revert(deploymentRequest: DeploymentRequest, operationCount: Option[Int], initiatorName: String,
              gettingRevertSpecifics: DBIOrw[((Iterable[DeploymentPlanStep], OperationCreationParams), Unit)]): Future[OperationTrace] =
-    act(deploymentRequest, operationCount, initiatorName, gettingRevertSpecifics)
+    act(deploymentRequest, initiatorName, checkOperationCount(deploymentRequest, operationCount).andThen(gettingRevertSpecifics))
       .map { case ((operationTrace, started, failed), _) =>
         listeners.foreach(_.onDeploymentRequestReverted(deploymentRequest, started, failed))
         operationTrace
