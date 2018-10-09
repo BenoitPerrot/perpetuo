@@ -27,12 +27,24 @@ class Engine @Inject()(val crankshaft: Crankshaft,
       .reduceOption(_ union _)
       .getOrElse(Set.empty)
 
+  private def evaluatePreconditions(user: Option[User], action: DeploymentAction.Value, operation: Operation.Kind, productName: String, targets: Set[TargetAtom]) =
+    user
+      .map(u =>
+        if (permissions.isAuthorized(u, action, operation, productName, targets))
+          Success(())
+        else
+          Failure(PermissionDenied())
+      )
+      .getOrElse(
+        Failure(Unidentified())
+      )
+
   def requestDeployment(user: User, protoDeploymentRequest: ProtoDeploymentRequest): Future[DeploymentRequest] = {
     val targetSuperset = getTargetSuperset(protoDeploymentRequest.productName, protoDeploymentRequest.version, protoDeploymentRequest.plan.map(_.parsedTarget))
-    if (!permissions.isAuthorized(user, DeploymentAction.requestOperation, Operation.deploy, protoDeploymentRequest.productName, targetSuperset))
-      Future.failed(PermissionDenied())
-    else
-      crankshaft.createDeploymentRequest(protoDeploymentRequest)
+    evaluatePreconditions(Some(user), DeploymentAction.requestOperation, Operation.deploy, protoDeploymentRequest.productName, targetSuperset) match {
+      case Failure(t) => Future.failed(t)
+      case Success(_) => crankshaft.createDeploymentRequest(protoDeploymentRequest)
+    }
   }
 
   protected val stateCacheLoader: CacheLoader[java.lang.Long, Future[Option[DeploymentState]]] =
@@ -97,14 +109,13 @@ class Engine @Inject()(val crankshaft: Crankshaft,
   def step(user: User, deploymentRequestId: Long, operationCount: Option[Int]): Future[Option[OperationTrace]] =
     withDeploymentRequest(deploymentRequestId) { deploymentRequest =>
       def evaluatePreconditionsForResolvedTarget(step: DeploymentPlanStep, effects: Seq[OperationEffect]) =
-        failOnUnexpectedOperationCount(operationCount, effects) match {
+        failOnUnexpectedOperationCount(operationCount, effects).flatMap { _ =>
+          val resolvedTarget = crankshaft.targetResolver.resolveExpression(deploymentRequest.product.name, deploymentRequest.version, step.parsedTarget)
+          evaluatePreconditions(Some(user), DeploymentAction.applyOperation, Operation.deploy, deploymentRequest.product.name, resolvedTarget.superset)
+            .map(_ => resolvedTarget)
+        } match {
           case Failure(t) => DBIOAction.failed(t)
-          case Success(_) =>
-            val resolvedTarget = crankshaft.targetResolver.resolveExpression(deploymentRequest.product.name, deploymentRequest.version, step.parsedTarget)
-            if (!permissions.isAuthorized(user, DeploymentAction.applyOperation, Operation.deploy, deploymentRequest.product.name, resolvedTarget.superset))
-              DBIOAction.failed(PermissionDenied())
-            else
-              DBIOAction.successful(resolvedTarget)
+          case Success(resolvedTarget) => DBIOAction.successful(resolvedTarget)
         }
 
       def getRetrySpecifics(step: DeploymentPlanStep, effects: Seq[OperationEffect]) =
@@ -155,15 +166,13 @@ class Engine @Inject()(val crankshaft: Crankshaft,
 
   def revert(user: User, deploymentRequestId: Long, operationCount: Option[Int], defaultVersion: Option[Version]): Future[Option[OperationTrace]] =
     withDeploymentRequest(deploymentRequestId) { deploymentRequest =>
-      def rejectIfPermissionDenied(scope: Seq[DeploymentPlanStep], effects: Seq[OperationEffect]) =
-        failOnUnexpectedOperationCount(operationCount, effects) match {
+      def evaluatePreconditions(scope: Seq[DeploymentPlanStep], effects: Seq[OperationEffect]) =
+        failOnUnexpectedOperationCount(operationCount, effects).flatMap { _ =>
+          val targetSuperset = getTargetSuperset(deploymentRequest.product.name, deploymentRequest.version, scope.map(_.parsedTarget))
+          Engine.this.evaluatePreconditions(Some(user), DeploymentAction.applyOperation, Operation.revert, deploymentRequest.product.name, targetSuperset)
+        } match {
           case Failure(t) => DBIOAction.failed(t)
-          case Success(_) =>
-            val targetSuperset = getTargetSuperset(deploymentRequest.product.name, deploymentRequest.version, scope.map(_.parsedTarget))
-            if (!permissions.isAuthorized(user, DeploymentAction.applyOperation, Operation.revert, deploymentRequest.product.name, targetSuperset))
-              DBIOAction.failed(PermissionDenied())
-            else
-              DBIOAction.successful(())
+          case Success(_) => DBIOAction.successful(())
         }
 
       val gettingRevertSpecifics =
@@ -185,16 +194,16 @@ class Engine @Inject()(val crankshaft: Crankshaft,
               DBIOAction.failed(OperationRunning(s.effects))
 
             case s: RevertFailed =>
-              rejectIfPermissionDenied(s.scope, s.effects).flatMap(_ => crankshaft.getRevertSpecifics(deploymentRequest, defaultVersion).map((_, ())))
+              evaluatePreconditions(s.scope, s.effects).flatMap(_ => crankshaft.getRevertSpecifics(deploymentRequest, defaultVersion).map((_, ())))
 
             case s: DeployFailed =>
-              rejectIfPermissionDenied(s.revertScope, s.effects).flatMap(_ => crankshaft.getRevertSpecifics(deploymentRequest, defaultVersion).map((_, ())))
+              evaluatePreconditions(s.revertScope, s.effects).flatMap(_ => crankshaft.getRevertSpecifics(deploymentRequest, defaultVersion).map((_, ())))
 
             case s: Paused =>
-              rejectIfPermissionDenied(s.revertScope, s.effects).flatMap(_ => crankshaft.getRevertSpecifics(deploymentRequest, defaultVersion).map((_, ())))
+              evaluatePreconditions(s.revertScope, s.effects).flatMap(_ => crankshaft.getRevertSpecifics(deploymentRequest, defaultVersion).map((_, ())))
 
             case s: Deployed =>
-              rejectIfPermissionDenied(s.revertScope, s.effects).flatMap(_ => crankshaft.getRevertSpecifics(deploymentRequest, defaultVersion).map((_, ())))
+              evaluatePreconditions(s.revertScope, s.effects).flatMap(_ => crankshaft.getRevertSpecifics(deploymentRequest, defaultVersion).map((_, ())))
           }
 
       crankshaft
@@ -250,16 +259,12 @@ class Engine @Inject()(val crankshaft: Crankshaft,
 
   def queryDeploymentRequestStatus(user: Option[User], id: Long): Future[Option[DeploymentRequestStatus]] =
     withDeploymentRequest(id) { deploymentRequest =>
-      def rejectIfPermissionDenied(action: DeploymentAction.Value, kind: Operation.Kind, scope: Seq[DeploymentPlanStep]) = {
+      def evaluatePreconditions(action: DeploymentAction.Value, kind: Operation.Kind, scope: Seq[DeploymentPlanStep]) = {
         val targetSuperset = getTargetSuperset(deploymentRequest.product.name, deploymentRequest.version, scope.map(_.parsedTarget))
-        user
-          .map(u =>
-            if (permissions.isAuthorized(u, action, kind, deploymentRequest.product.name, targetSuperset))
-              None
-            else
-              Some(PermissionDenied().getMessage)
-          )
-          .getOrElse(Some(Unidentified().getMessage))
+        Engine.this.evaluatePreconditions(user, action, kind, deploymentRequest.product.name, targetSuperset) match {
+          case Failure(t) => Some(t.getMessage)
+          case Success(_) => None
+        }
       }
 
       // TODO: rework: let caller decide how to serialize
@@ -277,39 +282,39 @@ class Engine @Inject()(val crankshaft: Crankshaft,
             (s, Seq())
 
           case s: Deployed =>
-            (s, Seq((Operation.revert.toString, rejectIfPermissionDenied(DeploymentAction.applyOperation, Operation.revert, s.deploymentPlanSteps))))
+            (s, Seq((Operation.revert.toString, evaluatePreconditions(DeploymentAction.applyOperation, Operation.revert, s.deploymentPlanSteps))))
 
           case s: NotStarted =>
             (s, Seq(
-              (Operation.deploy.toString, rejectIfPermissionDenied(DeploymentAction.applyOperation, Operation.deploy, Seq(s.toDo))),
-              ("abandon", rejectIfPermissionDenied(DeploymentAction.abandonOperation, Operation.deploy, s.deploymentPlanSteps))
+              (Operation.deploy.toString, evaluatePreconditions(DeploymentAction.applyOperation, Operation.deploy, Seq(s.toDo))),
+              ("abandon", evaluatePreconditions(DeploymentAction.abandonOperation, Operation.deploy, s.deploymentPlanSteps))
             ))
 
           case s: DeployFlopped =>
             (s, Seq(
-              (Operation.deploy.toString, rejectIfPermissionDenied(DeploymentAction.applyOperation, Operation.deploy, Seq(s.step))),
-              ("abandon", rejectIfPermissionDenied(DeploymentAction.abandonOperation, Operation.deploy, s.deploymentPlanSteps))
+              (Operation.deploy.toString, evaluatePreconditions(DeploymentAction.applyOperation, Operation.deploy, Seq(s.step))),
+              ("abandon", evaluatePreconditions(DeploymentAction.abandonOperation, Operation.deploy, s.deploymentPlanSteps))
             ))
 
           case s: RevertInProgress =>
-            (s, Seq(("stop", rejectIfPermissionDenied(DeploymentAction.stopOperation, Operation.revert, toPlanSteps(s, s.scope.deploymentPlanStepIds)))))
+            (s, Seq(("stop", evaluatePreconditions(DeploymentAction.stopOperation, Operation.revert, toPlanSteps(s, s.scope.deploymentPlanStepIds)))))
 
           case s: DeployInProgress =>
-            (s, Seq(("stop", rejectIfPermissionDenied(DeploymentAction.stopOperation, Operation.deploy, toPlanSteps(s, s.scope.deploymentPlanStepIds)))))
+            (s, Seq(("stop", evaluatePreconditions(DeploymentAction.stopOperation, Operation.deploy, toPlanSteps(s, s.scope.deploymentPlanStepIds)))))
 
           case s: RevertFailed =>
-            (s, Seq((Operation.revert.toString, rejectIfPermissionDenied(DeploymentAction.applyOperation, Operation.revert, s.scope))))
+            (s, Seq((Operation.revert.toString, evaluatePreconditions(DeploymentAction.applyOperation, Operation.revert, s.scope))))
 
           case s: DeployFailed =>
             (s, Seq(
-              (Operation.deploy.toString, rejectIfPermissionDenied(DeploymentAction.applyOperation, Operation.deploy, Seq(s.step))),
-              (Operation.revert.toString, rejectIfPermissionDenied(DeploymentAction.applyOperation, Operation.revert, s.revertScope))
+              (Operation.deploy.toString, evaluatePreconditions(DeploymentAction.applyOperation, Operation.deploy, Seq(s.step))),
+              (Operation.revert.toString, evaluatePreconditions(DeploymentAction.applyOperation, Operation.revert, s.revertScope))
             ))
 
           case s: Paused =>
             (s, Seq(
-              (Operation.deploy.toString, rejectIfPermissionDenied(DeploymentAction.applyOperation, Operation.deploy, Seq(s.toDo))),
-              (Operation.revert.toString, rejectIfPermissionDenied(DeploymentAction.applyOperation, Operation.revert, s.revertScope))
+              (Operation.deploy.toString, evaluatePreconditions(DeploymentAction.applyOperation, Operation.deploy, Seq(s.toDo))),
+              (Operation.revert.toString, evaluatePreconditions(DeploymentAction.applyOperation, Operation.revert, s.revertScope))
             ))
         }
         .map { case (s, authorizedActions) =>
