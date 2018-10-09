@@ -66,7 +66,7 @@ class Engine @Inject()(val crankshaft: Crankshaft,
 
   def step(user: User, deploymentRequestId: Long, operationCount: Option[Int]): Future[Option[OperationTrace]] =
     withDeploymentRequest(deploymentRequestId) { deploymentRequest =>
-      def resolveTargetAndRejectIfPermissionDenied(step: DeploymentPlanStep) = {
+      def evaluatePreconditionsForResolvedTarget(step: DeploymentPlanStep) = {
         val resolvedTarget = crankshaft.targetResolver.resolveExpression(deploymentRequest.product.name, deploymentRequest.version, step.parsedTarget)
         val targetToAllow = if (resolvedTarget.isExact) Some(resolvedTarget) else None
         if (!permissions.isAuthorized(user, DeploymentAction.applyOperation, Operation.deploy, deploymentRequest.product.name, targetToAllow))
@@ -76,12 +76,12 @@ class Engine @Inject()(val crankshaft: Crankshaft,
       }
 
       def getRetrySpecifics(step: DeploymentPlanStep, effects: Seq[OperationEffect]) =
-        resolveTargetAndRejectIfPermissionDenied(step).flatMap(resolvedTarget =>
+        evaluatePreconditionsForResolvedTarget(step).flatMap(resolvedTarget =>
           crankshaft.getRetrySpecifics(resolvedTarget, step, effects).map((_, Some(step), step))
         )
 
       def getStepSpecifics(toDo: DeploymentPlanStep, lastDone: Option[DeploymentPlanStep]) =
-        resolveTargetAndRejectIfPermissionDenied(toDo).flatMap(resolvedTarget =>
+        evaluatePreconditionsForResolvedTarget(toDo).flatMap(resolvedTarget =>
           crankshaft.getStepSpecifics(resolvedTarget, toDo).map((_, lastDone, toDo))
         )
 
