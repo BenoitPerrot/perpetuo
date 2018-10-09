@@ -132,7 +132,7 @@ class EngineSpec extends SimpleScenarioTesting {
       } yield {
         notStarted shouldBe a[NotStarted]
         inProgress shouldBe a[DeployInProgress]
-        err shouldBe a[Conflict]
+        err shouldBe a[OperationLockAlreadyTaken]
         finalState shouldBe a[DeployInProgress]
       }
     )

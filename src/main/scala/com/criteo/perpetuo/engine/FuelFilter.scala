@@ -8,6 +8,7 @@ import slick.dbio.{DBIOAction, Effect, NoStream}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 
+case class OperationLockAlreadyTaken() extends RuntimeException
 
 class FuelFilter(dbBinding: DbBinding) {
   private val withTransactions = !AppConfigProvider.config.tryGetBoolean("noTransactions").getOrElse(false)
@@ -15,7 +16,7 @@ class FuelFilter(dbBinding: DbBinding) {
   def acquiringOperationLock(deploymentRequest: DeploymentRequest): DBIOrw[Unit] =
     dbBinding.tryAcquireLocks(Seq(getOperationLockName(deploymentRequest)), deploymentRequest.id, reentrant = false).map(alreadyRunning =>
       if (alreadyRunning.nonEmpty)
-        throw Conflict("Cannot be processed for the moment because another operation is running for the same deployment request", deploymentRequest.id)
+        throw OperationLockAlreadyTaken()
     )
 
   def acquiringDeploymentTransactionLock(deploymentRequest: DeploymentRequest, atoms: Option[Set[TargetAtom]]): DBIOrw[Unit] =
