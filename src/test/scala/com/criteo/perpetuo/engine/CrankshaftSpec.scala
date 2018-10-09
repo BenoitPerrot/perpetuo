@@ -317,8 +317,8 @@ class CrankshaftSpec extends SimpleScenarioTesting {
         operationReClosingSucceeded.isDefined shouldBe false
         initialExecutionSpecIds.length == retriedExecutionSpecIds.length shouldBe true
         initialExecutionSpecIds == retriedExecutionSpecIds shouldBe true
-        raceConditionError should be(a[Conflict])
-        raceConditionError.getMessage should include("the state of the deployment has just changed")
+        raceConditionError should be(a[UnavailableAction])
+        raceConditionError.getMessage should include("the deployment transaction is closed")
       }
     )
   }

@@ -66,14 +66,15 @@ class Engine @Inject()(val crankshaft: Crankshaft,
 
   def step(user: User, deploymentRequestId: Long, operationCount: Option[Int]): Future[Option[OperationTrace]] =
     withDeploymentRequest(deploymentRequestId) { deploymentRequest =>
-      def evaluatePreconditionsForResolvedTarget(step: DeploymentPlanStep) = {
-        val resolvedTarget = crankshaft.targetResolver.resolveExpression(deploymentRequest.product.name, deploymentRequest.version, step.parsedTarget)
-        val targetToAllow = if (resolvedTarget.isExact) Some(resolvedTarget) else None
-        if (!permissions.isAuthorized(user, DeploymentAction.applyOperation, Operation.deploy, deploymentRequest.product.name, targetToAllow))
-          DBIOAction.failed(PermissionDenied())
-        else
-          DBIOAction.successful(resolvedTarget)
-      }
+      def evaluatePreconditionsForResolvedTarget(step: DeploymentPlanStep) =
+        crankshaft.checkOperationCount(deploymentRequest, operationCount).andThen {
+          val resolvedTarget = crankshaft.targetResolver.resolveExpression(deploymentRequest.product.name, deploymentRequest.version, step.parsedTarget)
+          val targetToAllow = if (resolvedTarget.isExact) Some(resolvedTarget) else None
+          if (!permissions.isAuthorized(user, DeploymentAction.applyOperation, Operation.deploy, deploymentRequest.product.name, targetToAllow))
+            DBIOAction.failed(PermissionDenied())
+          else
+            DBIOAction.successful(resolvedTarget)
+        }
 
       def getRetrySpecifics(step: DeploymentPlanStep, effects: Seq[OperationEffect]) =
         evaluatePreconditionsForResolvedTarget(step).flatMap(resolvedTarget =>
@@ -116,7 +117,7 @@ class Engine @Inject()(val crankshaft: Crankshaft,
               getStepSpecifics(s.toDo, Some(s.lastDone))
           }
 
-      crankshaft.step(deploymentRequest, user.name, crankshaft.checkOperationCount(deploymentRequest, operationCount).andThen(getSpecifics))
+      crankshaft.step(deploymentRequest, user.name, getSpecifics)
     }
 
   def deviseRevertPlan(id: Long): Future[Option[(Set[TargetAtom], Iterable[(ExecutionSpecification, Set[TargetAtom])])]] =
