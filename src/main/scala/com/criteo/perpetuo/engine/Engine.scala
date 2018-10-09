@@ -75,6 +75,16 @@ class Engine @Inject()(val crankshaft: Crankshaft,
           DBIOAction.successful(resolvedTarget)
       }
 
+      def getRetrySpecifics(step: DeploymentPlanStep, effects: Seq[OperationEffect]) =
+        resolveTargetAndRejectIfPermissionDenied(step).flatMap(resolvedTarget =>
+          crankshaft.getRetrySpecifics(resolvedTarget, step, effects).map((_, Some(step), step))
+        )
+
+      def getStepSpecifics(toDo: DeploymentPlanStep, lastDone: Option[DeploymentPlanStep]) =
+        resolveTargetAndRejectIfPermissionDenied(toDo).flatMap(resolvedTarget =>
+          crankshaft.getStepSpecifics(resolvedTarget, toDo).map((_, lastDone, toDo))
+        )
+
       val getSpecifics =
         crankshaft.assessingDeploymentState(deploymentRequest)
           .flatMap {
@@ -94,16 +104,16 @@ class Engine @Inject()(val crankshaft: Crankshaft,
               DBIOAction.failed(UnavailableAction("another operation is already running", Map("deploymentRequestId" -> deploymentRequest.id)))
 
             case s: DeployFailed =>
-              resolveTargetAndRejectIfPermissionDenied(s.step).flatMap(resolvedTarget => crankshaft.getRetrySpecifics(resolvedTarget, s.step, s.effects).map((_, Some(s.step), s.step)))
+              getRetrySpecifics(s.step, s.effects)
 
             case s: DeployFlopped =>
-              resolveTargetAndRejectIfPermissionDenied(s.step).flatMap(resolvedTarget => crankshaft.getRetrySpecifics(resolvedTarget, s.step, s.effects).map((_, Some(s.step), s.step)))
+              getRetrySpecifics(s.step, s.effects)
 
             case s: NotStarted =>
-              resolveTargetAndRejectIfPermissionDenied(s.toDo).flatMap(resolvedTarget => crankshaft.getStepSpecifics(resolvedTarget, s.toDo).map((_, None, s.toDo)))
+              getStepSpecifics(s.toDo, None)
 
             case s: Paused =>
-              resolveTargetAndRejectIfPermissionDenied(s.toDo).flatMap(resolvedTarget => crankshaft.getStepSpecifics(resolvedTarget, s.toDo).map((_, Some(s.lastDone), s.toDo)))
+              getStepSpecifics(s.toDo, Some(s.lastDone))
           }
 
       crankshaft.step(deploymentRequest, operationCount, user.name, getSpecifics)
