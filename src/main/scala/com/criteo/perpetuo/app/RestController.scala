@@ -73,17 +73,17 @@ class RestController @Inject()(val engine: Engine)
   private val futurePool = FuturePools.unboundedPool("RequestFuturePool")
 
   private def timeBoxed[T](view: => Future[T], maxDuration: Duration): TwitterFuture[T] =
-    futurePool {
+    futurePool(
       await(view, maxDuration)
-    }
+    )
 
   private def withLongId[T](view: Long => Future[Option[T]], maxDuration: Duration): RequestWithId => TwitterFuture[Option[T]] =
     withIdAndRequest[RequestWithId, T]({ case (id, _) => view(id) }, maxDuration)
 
   private def withIdAndRequest[I <: WithId, O](view: (Long, I) => Future[Option[O]], maxDuration: Duration): I => TwitterFuture[Option[O]] =
-    request => futurePool {
+    request => futurePool(
       Try(request.id.toLong).toOption.map(view(_, request)).flatMap(await(_, maxDuration))
-    }
+    )
 
   private def post[R <: WithId with WithRequest, O: Manifest](route: String, maxDuration: Duration)(callback: (Long, R, User) => Future[Option[O]])(implicit m: Manifest[R]): Unit = {
     post(route) { r: R =>
@@ -123,7 +123,9 @@ class RestController @Inject()(val engine: Engine)
   }
 
   get("/api/products/actions") { r: Request =>
-     futurePool { if (r.user.exists(user => engine.allowedToUpdateProduct(user))) Seq("updateProduct") else Seq() }
+    futurePool(
+      if (r.user.exists(user => engine.allowedToUpdateProduct(user))) Seq("updateProduct") else Seq()
+    )
   }
 
   post("/api/deployment-requests") { r: Request =>
@@ -143,19 +145,17 @@ class RestController @Inject()(val engine: Engine)
   }
 
   post("/api/deployment-requests/:id/actions/devise-revert-plan") { r: RequestWithId =>
-    withIdAndRequest(
-      (id, _: RequestWithId) => {
-        engine
-          .deviseRevertPlan(id)
-          .map(_.map { case (undetermined, determined) =>
-            Some(Map(
-              "undetermined" -> undetermined,
-              "determined" -> determined.toStream.map { case (execSpec, targets) =>
-                Map("version" -> execSpec.version, "targetAtoms" -> targets)
-              }
-            ))
-          })
-      },
+    withLongId(
+      id => engine
+        .deviseRevertPlan(id)
+        .map(_.map { case (undetermined, determined) =>
+          Some(Map(
+            "undetermined" -> undetermined,
+            "determined" -> determined.toStream.map { case (execSpec, targets) =>
+              Map("version" -> execSpec.version, "targetAtoms" -> targets)
+            }
+          ))
+        }),
       5.seconds
     )(r)
   }
