@@ -5,14 +5,13 @@ import java.util.concurrent.atomic.AtomicLong
 
 import com.criteo.perpetuo.SimpleScenarioTesting
 import com.criteo.perpetuo.auth.{Unrestricted, User}
-import com.criteo.perpetuo.model.{ExecutionState, OperationTrace, ProtoDeploymentPlanStep, ProtoDeploymentRequest, Version}
+import com.criteo.perpetuo.model._
 import com.google.common.base.Ticker
 import com.google.common.cache.{CacheBuilder, LoadingCache}
 import spray.json.JsString
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
-import scala.util.Failure
 
 class EngineSpec extends SimpleScenarioTesting {
 
@@ -43,11 +42,10 @@ class EngineSpec extends SimpleScenarioTesting {
   }
 
   private def closeOperationTrace(operationTrace: OperationTrace): Future[Option[OperationTrace]] =
-    dbContext.db.run(engine.crankshaft.dbBinding.closingOperationTrace(operationTrace))
+    dbContext.db.run(dbBinding.closingOperationTrace(operationTrace))
 
   private val someone = User("s.omeone")
   private val starter = User("s.tarter")
-  private val releaser = User("r.eleaser")
 
   test("Testing the cache is keeping state for 2 seconds") {
     await(
@@ -86,7 +84,7 @@ class EngineSpec extends SimpleScenarioTesting {
         depReq <- engine.requestDeployment(someone, ProtoDeploymentRequest(product.name, Version("\"1000\""), Seq(ProtoDeploymentPlanStep("", JsString("*"), "")), "", someone.name))
         notStarted <- engine.findDeploymentRequestState(depReq.id).map(_.get)
         _ <- engine.abandon(someone, depReq.id)
-        depReq <- engine.crankshaft.findDeploymentRequestById(depReq.id).map(_.get)  // Refresh the Deployment request instance
+        depReq <- engine.crankshaft.findDeploymentRequestById(depReq.id).map(_.get) // Refresh the Deployment request instance
         abandoned <- engine.crankshaft.assessDeploymentState(depReq)
       } yield {
         notStarted shouldBe a[NotStarted]
@@ -105,7 +103,7 @@ class EngineSpec extends SimpleScenarioTesting {
         depReqStatus <- engine.queryDeploymentRequestStatus(Some(starter), depReq.id).map(_.get)
         execTraceId = depReqStatus.operationEffects.head.executionTraces.head.id
         _ <- engine.tryUpdateExecutionTrace(execTraceId, ExecutionState.aborted, "", None)
-        depReq <- engine.crankshaft.findDeploymentRequestById(depReq.id).map(_.get)  // Refresh the Deployment request instance
+        depReq <- engine.crankshaft.findDeploymentRequestById(depReq.id).map(_.get) // Refresh the Deployment request instance
         flopped <- engine.crankshaft.assessDeploymentState(depReq)
         _ <- engine.abandon(someone, depReq.id)
         depReq <- engine.crankshaft.findDeploymentRequestById(depReq.id).map(_.get)
