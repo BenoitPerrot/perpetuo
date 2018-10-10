@@ -1,6 +1,6 @@
 package com.criteo.perpetuo.engine.dispatchers
 
-import java.util.{Map => JavaMap}
+import java.util.{Map => JavaMap, Set => JavaSet}
 
 import com.criteo.perpetuo.engine._
 import com.criteo.perpetuo.engine.executors.ExecutionTrigger
@@ -19,12 +19,11 @@ abstract class JavaFriendlyTargetDispatcher extends Provider[TargetDispatcher] w
         delegate.freezeParameters(productName, version)
 
       protected override def dispatch(targetAtoms: Set[TargetAtom], frozenParameters: String): Iterable[(ExecutionTrigger, Set[TargetAtom])] =
-        delegate.dispatch(targetAtoms, frozenParameters)
+        delegate.dispatch(targetAtoms.asJava, frozenParameters)
           .entrySet.iterator.asScala
-          .map(entry => (entry.getKey, entry.getValue))
-          .toIterable
+          .map(entry => (entry.getKey, entry.getValue.asScala.toSet)).toIterable
     }
   }
 
-  protected def dispatch(targetAtoms: Set[TargetAtom], frozenParameters: String): JavaMap[ExecutionTrigger, Set[TargetAtom]]
+  protected def dispatch(targetAtoms: JavaSet[TargetAtom], frozenParameters: String): JavaMap[ExecutionTrigger, JavaSet[TargetAtom]]
 }
