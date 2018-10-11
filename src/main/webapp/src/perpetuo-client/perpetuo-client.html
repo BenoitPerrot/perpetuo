@@ -115,7 +115,7 @@ this.Perpetuo.Client = this.Perpetuo.Client || (function () {
     }
 
     getAllowedActions() {
-      return Perpetuo.Client.fetch('/api/products/actions').then(_ => _.json());
+      return Perpetuo.Client.fetch('/api/actions').then(_ => _.json());
     }
 
     static fetch(url, options) {

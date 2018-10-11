@@ -122,9 +122,9 @@ class RestController @Inject()(val engine: Engine)
     }
   }
 
-  get("/api/products/actions") { r: Request =>
+  get("/api/actions") { r: Request =>
     futurePool(
-      if (r.user.exists(user => engine.allowedToUpdateProduct(user))) Seq("updateProduct") else Seq()
+      r.user.map(user => engine.getAllowedActions(user)).getOrElse(Seq())
     )
   }
 

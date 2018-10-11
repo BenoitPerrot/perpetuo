@@ -297,4 +297,7 @@ class Engine @Inject()(val crankshaft: Crankshaft,
 
   def allowedToUpdateProduct(user: User): Boolean =
     permissions.isAuthorized(user, GeneralAction.updateProduct)
+
+  def getAllowedActions(user: User): Seq[GeneralAction.Value] =
+    GeneralAction.values.filter(permissions.isAuthorized(user, _)).toSeq
 }
