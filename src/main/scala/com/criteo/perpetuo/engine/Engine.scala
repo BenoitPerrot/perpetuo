@@ -90,19 +90,16 @@ class Engine @Inject()(val crankshaft: Crankshaft,
         crankshaft.assessingDeploymentState(deploymentRequest)
           .flatMap {
             case _: Outdated =>
-              DBIOAction.failed(Conflict("a newer one has already been applied", deploymentRequest.id))
+              DBIOAction.failed(DeploymentRequestOutdated())
 
             case _: Abandoned =>
-              DBIOAction.failed(UnavailableAction("the deployment request has been abandoned", Map("deploymentRequestId" -> deploymentRequest.id)))
+              DBIOAction.failed(DeploymentRequestAbandoned())
 
-            case _: Reverted | _: Deployed =>
-              DBIOAction.failed(UnavailableAction("the deployment transaction is closed", Map("deploymentRequestId" -> deploymentRequest.id)))
-
-            case _: RevertFailed =>
-              DBIOAction.failed(UnavailableAction("the deployment transaction is being canceled", Map("deploymentRequestId" -> deploymentRequest.id)))
+            case _: Reverted | _: Deployed | _: RevertFailed =>
+              DBIOAction.failed(DeploymentTransactionClosed())
 
             case _: RevertInProgress | _: DeployInProgress =>
-              DBIOAction.failed(UnavailableAction("another operation is already running", Map("deploymentRequestId" -> deploymentRequest.id)))
+              DBIOAction.failed(OperationRunning())
 
             case s: DeployFailed =>
               getRetrySpecifics(s.step, s.effects)
@@ -138,19 +135,19 @@ class Engine @Inject()(val crankshaft: Crankshaft,
         crankshaft.assessingDeploymentState(deploymentRequest)
           .flatMap {
             case _: Outdated =>
-              DBIOAction.failed(Conflict("a newer one has already been applied", deploymentRequest.id))
+              DBIOAction.failed(DeploymentRequestOutdated())
 
             case _: Abandoned =>
-              DBIOAction.failed(UnavailableAction("the deployment request has been abandoned", Map("deploymentRequestId" -> deploymentRequest.id)))
+              DBIOAction.failed(DeploymentRequestAbandoned())
 
             case _: Reverted =>
-              DBIOAction.failed(UnavailableAction("the deployment transaction is closed", Map("deploymentRequestId" -> deploymentRequest.id)))
+              DBIOAction.failed(DeploymentTransactionClosed())
 
             case _: NotStarted | _: DeployFlopped =>
-              DBIOAction.failed(UnavailableAction("Nothing to revert", Map("deploymentRequestId" -> deploymentRequest.id)))
+              DBIOAction.failed(NothingToRevert())
 
             case _: RevertInProgress | _: DeployInProgress =>
-              DBIOAction.failed(UnavailableAction("another operation is already running", Map("deploymentRequestId" -> deploymentRequest.id)))
+              DBIOAction.failed(OperationRunning())
 
             case s: RevertFailed =>
               rejectIfPermissionDenied(s.scope).flatMap(isExact => crankshaft.getRevertSpecifics(deploymentRequest, defaultVersion, isExact).map((_, ())))
@@ -221,6 +218,7 @@ class Engine @Inject()(val crankshaft: Crankshaft,
           None
       }
 
+      // TODO: rework: let caller decide how to serialize
       crankshaft
         .assessDeploymentState(deploymentRequest)
         .map {

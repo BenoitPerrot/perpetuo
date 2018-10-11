@@ -59,6 +59,16 @@ case class Veto(msg: String, reason: String) extends RejectingException {
   val detail: Map[String, String] = Map("reason" -> reason)
 }
 
+case class DeploymentRequestOutdated() extends RuntimeException
+
+case class DeploymentRequestAbandoned() extends RuntimeException
+
+case class DeploymentTransactionClosed() extends RuntimeException
+
+case class OperationRunning() extends RuntimeException
+
+case class NothingToRevert() extends RuntimeException
+
 @Singleton
 class Crankshaft @Inject()(val dbBinding: DbBinding,
                            val targetResolver: TargetResolver, // TODO: move to Engine
@@ -364,19 +374,19 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
       assessingDeploymentState(deploymentRequest)
         .flatMap {
           case _: Outdated =>
-            DBIO.failed(Conflict("a newer one has already been applied", deploymentRequest.id))
+            DBIO.failed(DeploymentRequestOutdated())
 
           case _: Abandoned =>
-            DBIO.failed(UnavailableAction("the deployment request has been abandoned", Map("deploymentRequestId" -> deploymentRequest.id)))
+            DBIO.failed(DeploymentRequestAbandoned())
 
           case _: Reverted =>
-            DBIO.failed(UnavailableAction("the deployment transaction is closed", Map("deploymentRequestId" -> deploymentRequest.id)))
+            DBIO.failed(DeploymentTransactionClosed())
 
           case _: NotStarted | _: DeployFlopped =>
-            DBIO.failed(UnavailableAction("Nothing to revert", Map("deploymentRequestId" -> deploymentRequest.id)))
+            DBIO.failed(NothingToRevert())
 
           case _: RevertInProgress | _: DeployInProgress =>
-            DBIO.failed(UnavailableAction("another operation is already running", Map("deploymentRequestId" -> deploymentRequest.id)))
+            DBIO.failed(OperationRunning())
 
           case _: RevertFailed | _: DeployFailed | _: Paused | _: Deployed =>
             dbBinding.findingExecutionSpecificationsForRevert(deploymentRequest)

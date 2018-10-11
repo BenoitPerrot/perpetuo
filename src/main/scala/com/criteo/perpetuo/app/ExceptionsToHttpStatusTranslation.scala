@@ -32,6 +32,16 @@ trait ExceptionsToHttpStatusTranslation extends Logging {
       case _: PermissionDenied => throw ForbiddenException()
       case _: OperationLockAlreadyTaken =>
         throw HttpException(Status.Conflict, "Cannot be processed for the moment because another operation is running for the same deployment request")
+      case _: DeploymentRequestOutdated =>
+        throw HttpException(Status.Conflict, "a newer one has already been applied")
+      case _: DeploymentRequestAbandoned =>
+        throw HttpException(Status.UnprocessableEntity, "the deployment request has been abandoned")
+      case _: DeploymentTransactionClosed =>
+        throw HttpException(Status.UnprocessableEntity, "the deployment transaction is being canceled")
+      case _: OperationRunning =>
+        throw HttpException(Status.UnprocessableEntity, "another operation is already running")
+      case _: NothingToRevert =>
+        throw HttpException(Status.UnprocessableEntity, "Nothing to revert")
       case e: Conflict => throw toHttpResponseException(e, Status.Conflict)
       case e: MissingInfo => throw toHttpResponseException(e, Status.UnprocessableEntity)
       case _: NoAvailableExecutor =>

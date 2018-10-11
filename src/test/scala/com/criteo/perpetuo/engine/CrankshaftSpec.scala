@@ -229,11 +229,11 @@ class CrankshaftSpec extends SimpleScenarioTesting {
     request("zestful-zebra", "newer", Seq("unknown-desert"))
     await(
       for {
-        msg <- revert(dr1, Some(1), "foo", None).failed.map(_.asInstanceOf[RejectingException].msg) // outdated by dr2
+        isOutdated <- revert(dr1, Some(1), "foo", None).failed // outdated by dr2
         _ <- revert(dr2, Some(1), "foo", None) // revert the last request for this product
         _ <- revert(dr3, Some(1), "foo", Some(Version(JsString("older")))) // not outdated because the following one is not started
       } yield {
-        msg shouldEqual "a newer one has already been applied"
+        isOutdated shouldBe a[DeploymentRequestOutdated]
       }
     )
   }
@@ -317,8 +317,7 @@ class CrankshaftSpec extends SimpleScenarioTesting {
         operationReClosingSucceeded.isDefined shouldBe false
         initialExecutionSpecIds.length == retriedExecutionSpecIds.length shouldBe true
         initialExecutionSpecIds == retriedExecutionSpecIds shouldBe true
-        raceConditionError should be(a[UnavailableAction])
-        raceConditionError.getMessage should include("the deployment transaction is closed")
+        raceConditionError should be(a[DeploymentTransactionClosed])
       }
     )
   }
@@ -543,7 +542,7 @@ class CrankshaftWithMultiStepSpec extends SimpleScenarioTesting {
     getDeployedVersions("fat-falcon") should become(Map("north" -> "new", "south" -> "new", "east" -> "new", "west" -> "new"))
 
     r.eligibleOperations should become(Seq(Operation.revert))
-    (the[UnavailableAction] thrownBy r.step()).msg shouldBe "the deployment transaction is closed"
+    a[DeploymentTransactionClosed] shouldBe thrownBy(r.step())
   }
 
   test("Crankshaft can retry a failed revert") {
@@ -570,7 +569,7 @@ class CrankshaftWithMultiStepSpec extends SimpleScenarioTesting {
     r.revert("old")
 
     r.eligibleOperations should become(Seq[Operation.Kind]())
-    (the[UnavailableAction] thrownBy r.revert("older")).msg shouldBe "the deployment transaction is closed"
+    a[DeploymentTransactionClosed] shouldBe thrownBy(r.revert("older"))
   }
 
   test("Crankshaft cannot deploy anymore once it has been tentatively reverted") {
@@ -583,7 +582,7 @@ class CrankshaftWithMultiStepSpec extends SimpleScenarioTesting {
     r.revert("old")
 
     r.eligibleOperations should become(Seq[Operation.Kind]())
-    (the[UnavailableAction] thrownBy r.step()).msg shouldBe "the deployment transaction is closed"
+    a[DeploymentTransactionClosed] shouldBe thrownBy(r.step())
   }
 }
 
