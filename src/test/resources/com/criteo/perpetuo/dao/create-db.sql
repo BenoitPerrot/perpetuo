@@ -16,7 +16,8 @@ CREATE TABLE "deployment_request" (
   "comment"       NVARCHAR(4000) NOT NULL,
   "creator"       NVARCHAR(64)   NOT NULL,
   "creation_date" DATETIME       NOT NULL,
-  "state"         SMALLINT
+  "state"         SMALLINT,
+  "auto_revert"   BIT            NOT NULL
 )
 ALTER TABLE "deployment_request"
   ADD CONSTRAINT "pk_deployment_request" PRIMARY KEY ("id")
