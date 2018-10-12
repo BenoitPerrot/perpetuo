@@ -47,6 +47,12 @@ class EngineSpec extends SimpleScenarioTesting {
   private val someone = User("s.omeone")
   private val starter = User("s.tarter")
 
+  private def tryUpdateExecutionTraces(engine: Engine, executionTraces: Iterable[ShallowExecutionTrace],
+                                       state: ExecutionState.Value, detail: String = "", href: Option[String] = None, statusMap: Map[TargetAtom, TargetAtomStatus] = Map()) =
+    Future.sequence(
+      executionTraces.map(executionTrace => engine.tryUpdateExecutionTrace(executionTrace.id, state, detail, href, statusMap))
+    )
+
   test("Testing the cache is keeping state for 2 seconds") {
     await(
       for {
@@ -59,9 +65,7 @@ class EngineSpec extends SimpleScenarioTesting {
 
         _ <- MockTicker.advanceTime()
         onGoing <- engine.findDeploymentRequestState(depReq.id).map(_.get)
-
-        _ <- dbBinding.findExecutionTracesByOperationTrace(op.id)
-          .map(_.map(execTrace => engine.tryUpdateExecutionTrace(execTrace.id, ExecutionState.completed, "", None)))
+        _ <- tryUpdateExecutionTraces(engine, onGoing.effects.head.executionTraces, ExecutionState.completed)
 
         stillOnGoing <- engine.findDeploymentRequestState(depReq.id).map(_.get)
         _ <- MockTicker.advanceTime()
@@ -101,8 +105,7 @@ class EngineSpec extends SimpleScenarioTesting {
         notStarted <- engine.findDeploymentRequestState(depReq.id).map(_.get)
         _ <- engine.step(starter, depReq.id, None)
         depReqStatus <- engine.queryDeploymentRequestStatus(Some(starter), depReq.id).map(_.get)
-        execTraceId = depReqStatus.operationEffects.head.executionTraces.head.id
-        _ <- engine.tryUpdateExecutionTrace(execTraceId, ExecutionState.aborted, "", None)
+        _ <- tryUpdateExecutionTraces(engine, depReqStatus.operationEffects.head.executionTraces, ExecutionState.aborted)
         depReq <- engine.crankshaft.findDeploymentRequestById(depReq.id).map(_.get) // Refresh the Deployment request instance
         flopped <- engine.crankshaft.assessDeploymentState(depReq)
         _ <- engine.abandon(someone, depReq.id)
