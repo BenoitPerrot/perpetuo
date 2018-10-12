@@ -61,13 +61,13 @@ class DeploymentRequestParserSpec extends Test {
 
   test("DeploymentRequestParser loads and types correct targets") {
     foreach(
-      ("foo".toJson, TargetWord("foo")),
-      (Seq("foo", "bar").toJson, TargetUnion(Set(TargetWord("foo"), TargetWord("bar")))),
+      ("foo".toJson, TargetAtom("foo")),
+      (Seq("foo", "bar").toJson, TargetUnion(Set(TargetAtom("foo"), TargetAtom("bar")))),
       (JsObject(), TargetTop),
-      (Map("union" -> Seq("a", "b")).toJson, TargetUnion(Set(TargetWord("a"), TargetWord("b")))),
-      (Map("union" -> Seq("a".toJson, JsObject())).toJson, TargetUnion(Set(TargetWord("a"), TargetTop))),
+      (Map("union" -> Seq("a", "b")).toJson, TargetUnion(Set(TargetAtom("a"), TargetAtom("b")))),
+      (Map("union" -> Seq("a".toJson, JsObject())).toJson, TargetUnion(Set(TargetAtom("a"), TargetTop))),
       (Map("intersection" -> Seq("a".toJson, Map("union" -> Seq(JsObject(), "b".toJson)).toJson)).toJson,
-        TargetIntersection(Set(TargetWord("a"), TargetUnion(Set(TargetTop, TargetWord("b"))))))
+        TargetIntersection(Set(TargetAtom("a"), TargetUnion(Set(TargetTop, TargetAtom("b"))))))
     ) { case (input, output) =>
       DeploymentRequestParser.parseRootTargetExpression(input) shouldEqual output
     }

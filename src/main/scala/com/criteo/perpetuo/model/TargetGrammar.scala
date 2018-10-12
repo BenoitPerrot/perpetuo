@@ -30,11 +30,6 @@ object TargetTop extends TargetNonAtom {
   override def toString: String = "*"
 }
 
-// temporarily, while migrating toward typed expressions:
-final case class TargetWord(word: String) extends AnyVal with TargetNonAtom {
-  override def toString: String = word
-}
-
 
 sealed trait TargetOp extends TargetExpr {
   val items: Iterable[TargetExpr]

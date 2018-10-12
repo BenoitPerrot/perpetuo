@@ -47,7 +47,6 @@ object TestTargetResolver extends TargetResolver {
     // the atomic targets are the input tags split on dashes
     (targetTerms.map {
       case t@TargetTag(tag) => t -> tag.split("-").collect { case name if name.nonEmpty => TargetAtom(name) }.toSet
-      case w@TargetWord(word) => w -> Set(TargetAtom(word)) // temporarily, for the tests while the parser considers words as default
       case t: TargetNonAtom => t -> Set.empty[TargetAtom]
     }.toMap, true)
   }

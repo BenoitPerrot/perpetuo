@@ -30,9 +30,13 @@ object DeploymentRequestParser {
       case unknown => throw new ParsingException(s"Expected a JSON object as request body, got: $unknown")
     }
 
-  // todo? standardize expressions (in DB history)
+  // todo? standardize expressions in DB history
   def parseRootTargetExpression(target: JsValue): TargetExpr = {
     target match {
+      case JsString("*") =>
+        TargetTop
+      case JsArray(arr) if arr.length == 1 && arr.head == JsString("*") =>
+        TargetTop
       case JsArray(arr) if arr.nonEmpty =>
         TargetUnion(arr.map(parseTargetExpression).toSet)
       case _ => parseTargetExpression(target)
@@ -42,9 +46,7 @@ object DeploymentRequestParser {
   def parseTargetExpression(target: JsValue): TargetExpr = {
     target match {
       case JsString(string) if string.nonEmpty =>
-        // fixme: when the original intent will be kept: if (string == "*") TargetTop else
-        // fixme: then remove it when the DB is migrated
-        TargetWord(string)
+        TargetAtom(string)
       case JsObject(fields) =>
         if (fields.isEmpty)
           TargetTop

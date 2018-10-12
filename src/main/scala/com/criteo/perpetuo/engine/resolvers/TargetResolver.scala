@@ -78,8 +78,6 @@ trait TargetResolver extends Provider[TargetResolver] {
         icontains -> targetAtoms.filter(_.name.contains(sub))
       case TargetTop =>
         TargetTop -> targetAtoms
-      case word@TargetWord(w) => // fixme: for migration only
-        word -> (if (w == "*" && isExact) targetAtoms else tagsToAtoms.getOrElse(w, Set(TargetAtom(w))).toSet)
     }.toMap
 
     (resolved, isExact)
