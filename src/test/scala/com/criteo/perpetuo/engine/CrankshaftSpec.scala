@@ -1,7 +1,7 @@
 package com.criteo.perpetuo.engine
 
 import com.criteo.perpetuo.engine.executors._
-import com.criteo.perpetuo.engine.resolvers.TargetResolver
+import com.criteo.perpetuo.engine.resolvers.{TargetResolver, TargetSet}
 import com.criteo.perpetuo.model._
 import com.criteo.perpetuo.{SimpleScenarioTesting, TestTargetResolver}
 import org.mockito.Mockito.when
@@ -25,7 +25,7 @@ class CrankshaftSpec extends SimpleScenarioTesting {
     await(
       for {
         product <- crankshaft.upsertProduct("product #1")
-        depPlan <- crankshaft.dbBinding.insertDeploymentRequest(ProtoDeploymentRequest(product.name, Version("\"1000\""), Seq(ProtoDeploymentPlanStep("", JsString("*"), "")), "", "s.omeone"))
+        depPlan <- crankshaft.dbBinding.insertDeploymentRequest(ProtoDeploymentRequest(product.name, Version("\"1000\""), Seq(ProtoDeploymentPlanStep("", JsString("atom"), "")), "", "s.omeone"))
         NotStarted(_, deploymentPlanSteps, effectsBeforeStart, stepBeforeStart) <- crankshaft.assessDeploymentState(depPlan.deploymentRequest).map(_.asInstanceOf[NotStarted])
         op <- step(depPlan.deploymentRequest, Some(0), "s.tarter")
         DeployInProgress(_, _, effectsAfterStart, inProgress) <- crankshaft.assessDeploymentState(depPlan.deploymentRequest).map(_.asInstanceOf[DeployInProgress])
@@ -349,7 +349,7 @@ class CrankshaftWithResolverSpec extends SimpleScenarioTesting {
   override val resolver: TargetResolver = TestTargetResolver
 
   private val step1 = Set("north", "south")
-  private val step2 = Set("east-west")
+  private val step2 = Set("tag:east-west")
 
   private def findCurrentVersionForEachKnownTarget(productName: String, amongAtoms: Iterable[String]) =
     crankshaft.dbBinding.findCurrentVersionForEachKnownTarget(productName, amongAtoms.map(TargetAtom))
@@ -482,24 +482,24 @@ class CrankshaftWithDynamicResolutionSpec extends SimpleScenarioTesting {
   }
 
   test("Crankshaft retries on failed targets only") {
-    val r = request("big-brother", "new", Set("world"))
+    val r = request("big-brother", "new", Set("tag:world"))
 
-    targetToAtoms = Map(TargetWord("world") -> Set(TargetAtom("europe"), TargetAtom("asia"), TargetAtom("africa")))
+    targetToAtoms = Map(TargetTag("world") -> Set(TargetAtom("europe"), TargetAtom("asia"), TargetAtom("africa")))
     r.step(Map("europe" -> Status.success, "asia" -> Status.productFailure, "africa" -> Status.productFailure))
 
     // Target resolution changes in the second run
-    targetToAtoms = Map(TargetWord("world") -> Set(TargetAtom("europe"), TargetAtom("asia")))
+    targetToAtoms = Map(TargetTag("world") -> Set(TargetAtom("europe"), TargetAtom("asia")))
     val op = r.step()
     findTargetsByOperationTrace(op) should become(Set("asia"))
   }
 
   test("A retry can deploy on new nodes") {
-    val r = request("big-brother", "newer", Set("world"))
+    val r = request("big-brother", "newer", Set("tag:world"))
 
-    targetToAtoms = Map(TargetWord("world") -> Set(TargetAtom("europe"), TargetAtom("asia")))
+    targetToAtoms = Map(TargetTag("world") -> Set(TargetAtom("europe"), TargetAtom("asia")))
     r.step(Map("europe" -> Status.productFailure, "asia" -> Status.success))
 
-    targetToAtoms = Map(TargetWord("world") -> Set(TargetAtom("europe"), TargetAtom("asia"), TargetAtom("africa")))
+    targetToAtoms = Map(TargetTag("world") -> Set(TargetAtom("europe"), TargetAtom("asia"), TargetAtom("africa")))
     val op = r.step()
 
     findTargetsByOperationTrace(op) should become(Set("europe", "africa"))
@@ -749,7 +749,7 @@ class CrankshaftWithUnknownHrefSpec extends SimpleScenarioTesting {
   override protected def triggerMock = Some(href)
 
   test("A trivial execution triggers a job with a href when a href is provided") {
-    val op = request("product #2", "1000", Seq("*")).step()
+    val op = request("product #2", "1000", Seq("china")).step()
     crankshaft.dbBinding.findExecutionTracesByOperationTrace(op.id)
       .map(_.flatMap(_.href).toSet) should eventually(be(Set(href)))
   }

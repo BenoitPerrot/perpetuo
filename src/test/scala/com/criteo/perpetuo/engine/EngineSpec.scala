@@ -51,7 +51,7 @@ class EngineSpec extends SimpleScenarioTesting {
     await(
       for {
         product <- engine.upsertProduct(starter, "product #1")
-        depReq <- engine.requestDeployment(someone, ProtoDeploymentRequest(product.name, Version("\"1000\""), Seq(ProtoDeploymentPlanStep("", JsString("*"), "")), "", someone.name))
+        depReq <- engine.requestDeployment(someone, ProtoDeploymentRequest(product.name, Version("\"1000\""), Seq(ProtoDeploymentPlanStep("", JsString("atom"), "")), "", someone.name))
         notStarted <- engine.findDeploymentRequestState(depReq.id).map(_.get)
         op <- engine.step(starter, depReq.id, Some(0)).map(_.get)
 
@@ -81,7 +81,7 @@ class EngineSpec extends SimpleScenarioTesting {
     await(
       for {
         product <- engine.upsertProduct(starter, "product")
-        depReq <- engine.requestDeployment(someone, ProtoDeploymentRequest(product.name, Version("\"1000\""), Seq(ProtoDeploymentPlanStep("", JsString("*"), "")), "", someone.name))
+        depReq <- engine.requestDeployment(someone, ProtoDeploymentRequest(product.name, Version("\"1000\""), Seq(ProtoDeploymentPlanStep("", JsString("atom"), "")), "", someone.name))
         notStarted <- engine.findDeploymentRequestState(depReq.id).map(_.get)
         _ <- engine.abandon(someone, depReq.id)
         depReq <- engine.crankshaft.findDeploymentRequestById(depReq.id).map(_.get) // Refresh the Deployment request instance
@@ -97,7 +97,7 @@ class EngineSpec extends SimpleScenarioTesting {
     await(
       for {
         product <- engine.upsertProduct(starter, "product")
-        depReq <- engine.requestDeployment(someone, ProtoDeploymentRequest(product.name, Version("\"1000\""), Seq(ProtoDeploymentPlanStep("", JsString("*"), "")), "", someone.name))
+        depReq <- engine.requestDeployment(someone, ProtoDeploymentRequest(product.name, Version("\"1000\""), Seq(ProtoDeploymentPlanStep("", JsString("atom"), "")), "", someone.name))
         notStarted <- engine.findDeploymentRequestState(depReq.id).map(_.get)
         _ <- engine.step(starter, depReq.id, None)
         depReqStatus <- engine.queryDeploymentRequestStatus(Some(starter), depReq.id).map(_.get)
@@ -120,7 +120,7 @@ class EngineSpec extends SimpleScenarioTesting {
     await(
       for {
         product <- engine.upsertProduct(starter, "product")
-        depReq <- engine.requestDeployment(someone, ProtoDeploymentRequest(product.name, Version("\"1000\""), Seq(ProtoDeploymentPlanStep("", JsString("*"), "")), "", someone.name))
+        depReq <- engine.requestDeployment(someone, ProtoDeploymentRequest(product.name, Version("\"1000\""), Seq(ProtoDeploymentPlanStep("", JsString("atom"), "")), "", someone.name))
         notStarted <- engine.findDeploymentRequestState(depReq.id).map(_.get)
         operationTrace <- engine.step(starter, depReq.id, None).map(_.get)
         depReq <- engine.crankshaft.findDeploymentRequestById(depReq.id).map(_.get)

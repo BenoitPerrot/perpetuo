@@ -88,13 +88,13 @@ class DispatchingSpec extends SimpleScenarioTesting {
   }
 
   test("An execution raises if a target cannot be solved to atomic targets") {
-    val target = TargetUnion(Set("ab", "-").map(TargetWord))
-    val thrown = the[UnprocessableIntent] thrownBy testResolver.resolveExpression(null, Version("\"\""), target)
-    thrown.getMessage shouldEqual "The following target(s) were not resolved: -"
+    val targets = Set(TargetAtom("ab"), TargetTag("-"))
+    val thrown = the[UnprocessableIntent] thrownBy testResolver.resolveExpression(null, Version("\"\""), TargetUnion(targets.toSet))
+    thrown.getMessage shouldEqual "The following target(s) were not resolved: tag:-"
   }
 
   test("The resolver cuts short on atoms and sends them back") {
-    val targets = Set("ab", "-").map(TargetAtom)
+    val targets = Set(TargetAtom("ab"), TargetAtom("-"))
     testResolver.resolveExpression(null, Version("\"\""), TargetUnion(targets.toSet)) shouldEqual
       TargetAtomSet(targets) // the fact it doesn't throw proves the shortcut (see test above)
   }

@@ -44,8 +44,12 @@ trait TestHelpers extends Test {
 
 object TestTargetResolver extends TargetResolver {
   protected override def resolveNonAtoms(productName: String, productVersion: Version, targetTerms: Set[TargetNonAtom]): (Map[TargetNonAtom, Set[TargetAtom]], Boolean) = {
-    // the atomic targets are the input word split on dashes
-    (targetTerms.map(term => term -> term.toString.split("-").collect { case name if name.nonEmpty => TargetAtom(name) }.toSet).toMap, true)
+    // the atomic targets are the input tags split on dashes
+    (targetTerms.map {
+      case t@TargetTag(tag) => t -> tag.split("-").collect { case name if name.nonEmpty => TargetAtom(name) }.toSet
+      case w@TargetWord(word) => w -> Set(TargetAtom(word)) // temporarily, for the tests while the parser considers words as default
+      case t: TargetNonAtom => t -> Set.empty[TargetAtom]
+    }.toMap, true)
   }
 }
 
@@ -129,13 +133,22 @@ trait SimpleScenarioTesting extends TestHelpers with TestDb with MockitoSugar {
   }
 
   class RequestTesting(productName: String, version: String, stepsTargets: Seq[Iterable[String]]) {
-    private val deploymentRequest = await(crankshaft.createDeploymentRequest(ProtoDeploymentRequest(
-      productName,
-      Version(version.toJson),
-      stepsTargets.zipWithIndex.map { case (target, i) => ProtoDeploymentPlanStep((i + 1).toString, target.toJson, "") },
-      "",
-      "de.ployer"
-    )))
+    private val deploymentRequest = {
+      val targetExpressions: Seq[JsValue] = stepsTargets.map(_
+        .map {
+          case s if s.startsWith("tag:") => JsObject("tag" -> JsString(s.substring(4, s.length))): JsValue
+          case s => JsString(s): JsValue
+        }
+        .toJson
+      )
+      await(crankshaft.createDeploymentRequest(ProtoDeploymentRequest(
+        productName,
+        Version(version.toJson),
+        targetExpressions.zipWithIndex.map { case (target, i) => ProtoDeploymentPlanStep((i + 1).toString, target, "") },
+        "",
+        "de.ployer"
+      )))
+    }
     private val currentState = Iterator.from(0)
     private var currentStep = 0
 

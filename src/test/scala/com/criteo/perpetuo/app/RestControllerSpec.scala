@@ -261,10 +261,10 @@ class RestControllerSpec extends Test with TestDb {
     requestDeployment("{", Some("Unexpected end-of-input at input"))
     requestDeployment("""{"productName": "abc"}""", Some("no field named `version`"))
     requestDeployment("""{"productName": "abc", "version": "42"}""", Some("no field named `plan`"))
-    requestDeployment("""{"productName": "abc", "plan": [{"target": "*"}], "version": "2"}""", Some("Unknown product `abc`"))
+    requestDeployment("""{"productName": "abc", "plan": [{"target": "atom"}], "version": "2"}""", Some("Unknown product `abc`"))
 
     // rejected at serialization time:
-    requestDeployment(s"""{"productName": "my product", "plan": [{"target": "*"}], "version": "${"x" * 2000}"}""", Some("Too long version"))
+    requestDeployment(s"""{"productName": "my product", "plan": [{"target": "atom"}], "version": "${"x" * 2000}"}""", Some("Too long version"))
   }
 
   test("The DeploymentRequest's POST entry-point handles a compound target expression") {
