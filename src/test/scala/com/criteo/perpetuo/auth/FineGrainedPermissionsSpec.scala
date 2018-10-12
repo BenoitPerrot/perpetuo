@@ -20,7 +20,7 @@ class FineGrainedPermissionsSpec extends Test {
 
   object UserGroups {
     val registeredUsers = "Registered Users"
-    val hipsters ="Hipsters"
+    val hipsters = "Hipsters"
     val generationY = "Generation Y"
   }
 
