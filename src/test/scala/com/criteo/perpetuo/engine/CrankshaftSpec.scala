@@ -86,8 +86,7 @@ class CrankshaftSpec extends SimpleScenarioTesting {
         (second, _) <- mockDeployExecution(product.name, "100", Map("corn-field" -> Status.hostFailure))
 
         // not OK if it's after a deployment failure
-        conflictMsg <- mockDeployExecution(product.name, "101", Map("racing" -> Status.success))
-          .map(_ => "unrejected").recover { case Conflict(msg, _, _) => msg }
+        conflict <- mockDeployExecution(product.name, "101", Map("racing" -> Status.success)).failed
 
         // the failing one must be reverted first
         _ <- mockRevertExecution(second, Map("corn-field" -> Status.hostFailure), Some(Version(JsString("big-bang"))))
@@ -104,7 +103,7 @@ class CrankshaftSpec extends SimpleScenarioTesting {
         // OK after a init failure
         _ <- mockDeployExecution(product.name, "103", Map("racing" -> Status.success))
       } yield {
-        conflictMsg shouldBe "Cannot be processed for the moment because a conflicting transaction is ongoing, which must first succeed or be reverted"
+        conflict.asInstanceOf[Conflict].msg shouldEqual "Cannot be processed for the moment because a conflicting transaction is ongoing, which must first succeed or be reverted"
       }
     )
   }
