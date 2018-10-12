@@ -4,7 +4,7 @@ import com.criteo.perpetuo.model.TargetAtom
 
 final case class TargetAtomSet(items: Set[TargetAtom], isExact: Boolean = true) {
   // - isExact = true <=> exact set of atoms, directly usable everywhere
-  // - otherwise <=> superset but may contain a "*", so only usable for dispatching (must be considered unresolved elsewhere)
+  // - otherwise <=> superset, usable for locks and permissions
 
   def union(x: TargetAtomSet): TargetAtomSet = {
     if (isExact != x.isExact) // fixme: do better than that if something like isExact remains

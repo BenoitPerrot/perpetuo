@@ -85,8 +85,8 @@ class CrankshaftSpec extends SimpleScenarioTesting {
         // OK after a success
         (second, _) <- mockDeployExecution(product.name, "100", Map("corn-field" -> Status.hostFailure))
 
-        // not OK if it's after a deployment failure
-        conflict <- mockDeployExecution(product.name, "101", Map("racing" -> Status.success)).failed
+        // not OK if it's after a deployment failure impacting at least one same target
+        conflict <- mockDeployExecution(product.name, "101", Map("corn-field" -> Status.success, "racing" -> Status.success)).failed
 
         // the failing one must be reverted first
         _ <- mockRevertExecution(second, Map("corn-field" -> Status.hostFailure), Some(Version(JsString("big-bang"))))

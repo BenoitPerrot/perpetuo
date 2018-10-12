@@ -19,7 +19,7 @@ class FuelFilter(dbBinding: DbBinding) {
         throw OperationLockAlreadyTaken()
     )
 
-  def acquiringDeploymentTransactionLock(deploymentRequest: DeploymentRequest, atoms: Option[Set[TargetAtom]]): DBIOrw[Unit] =
+  def acquiringDeploymentTransactionLock(deploymentRequest: DeploymentRequest, atoms: Set[TargetAtom]): DBIOrw[Unit] =
     dbBinding.tryAcquireLocks(getTransactionLockNames(deploymentRequest, atoms), deploymentRequest.id, reentrant = true).map(conflictingRequestIds =>
       if (conflictingRequestIds.nonEmpty)
         throw Conflict("Cannot be processed for the moment because a conflicting transaction is ongoing, which must first succeed or be reverted", deploymentRequest.id, conflictingRequestIds)
@@ -54,8 +54,6 @@ class FuelFilter(dbBinding: DbBinding) {
   private def getOperationLockName(deploymentRequest: DeploymentRequest) =
     s"Operating on ${deploymentRequest.id}"
 
-  private def getTransactionLockNames(deploymentRequest: DeploymentRequest, atoms: Option[Set[TargetAtom]]): Iterable[String] =
-    atoms
-      .map(_.map(atom => s"${atom.hashCode.toHexString}_${deploymentRequest.product.name}"))
-      .getOrElse(Seq("P_" + deploymentRequest.product.name))
+  private def getTransactionLockNames(deploymentRequest: DeploymentRequest, atoms: Set[TargetAtom]): Iterable[String] =
+    atoms.map(atom => s"${atom.hashCode.toHexString}_${deploymentRequest.product.name}")
 }

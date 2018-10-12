@@ -262,10 +262,11 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
       fuelFilter.acquiringOperationLock(deploymentRequest)
         .andThen(getOperationSpecifics)
         .flatMap { case ((deploymentPlanSteps, (operation, specAndInvocations)), actionSpecifics) =>
-          val atoms = specAndInvocations.flatMap { case (_, executions) => executions }.flatMap { case (_, atomSet) =>
-            if (atomSet.isExact) atomSet.items else Set.empty[TargetAtom]
-          }
-          fuelFilter.acquiringDeploymentTransactionLock(deploymentRequest, atoms.headOption.map(_ => atoms.toSet))
+          val atoms = specAndInvocations
+            .flatMap { case (_, executions) => executions }
+            .flatMap { case (_, atomSet) => atomSet.items }
+            .toSet
+          fuelFilter.acquiringDeploymentTransactionLock(deploymentRequest, atoms)
             .andThen(dbBinding.insertingEffect(deploymentRequest, deploymentPlanSteps, operation, initiatorName, specAndInvocations))
             .map((_, actionSpecifics))
         }
