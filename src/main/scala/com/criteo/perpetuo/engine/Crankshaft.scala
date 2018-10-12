@@ -509,8 +509,7 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
   }
 
   def getRevertSpecifics(deploymentRequest: DeploymentRequest,
-                         defaultVersion: Option[Version],
-                         isExact: Boolean): DBIOrw[(Iterable[DeploymentPlanStep], OperationCreationParams)] = {
+                         defaultVersion: Option[Version]): DBIOrw[(Iterable[DeploymentPlanStep], OperationCreationParams)] = {
     dbBinding
       .findingExecutionSpecificationsForRevert(deploymentRequest)
       .flatMap { case (undetermined, determined) =>
@@ -531,7 +530,7 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
       }
       .flatMap { groups =>
         val specAndInvocations = groups.map { case (spec, targets) =>
-          val atomSet = TargetAtomSet(targets, isExact) // fixme: temporary conversion for the dispatcher, which doesn't look at isExact anyway...
+          val atomSet = TargetAtomSet(targets)
           (spec, targetDispatcher.dispatchAtomSet(atomSet, spec.specificParameters).toVector)
         }
         dbBinding.findingOperatedPlanSteps(deploymentRequest).map(steps =>
