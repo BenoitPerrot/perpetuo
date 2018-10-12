@@ -1,6 +1,5 @@
 package com.criteo.perpetuo.engine.dispatchers
 
-import com.criteo.perpetuo.engine.TargetAtomSet
 import com.criteo.perpetuo.engine.executors.ExecutionTrigger
 import com.criteo.perpetuo.model.{TargetAtom, Version}
 

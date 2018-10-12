@@ -469,7 +469,7 @@ class CrankshaftWithResolverSpec extends SimpleScenarioTesting {
 class CrankshaftWithDynamicResolutionSpec extends SimpleScenarioTesting {
   var targetToAtoms: Map[TargetNonAtom, Set[TargetAtom]] = _
   override val resolver: TargetResolver = new TargetResolver {
-    override def resolveNonAtoms(productName: String, productVersion: Version, targetTerms: Set[TargetNonAtom]): (Map[TargetNonAtom, Set[TargetAtom]], Boolean) =
+    protected override def resolveNonAtoms(productName: String, productVersion: Version, targetTerms: Set[TargetNonAtom]): (Map[TargetNonAtom, Set[TargetAtom]], Boolean) =
       (targetToAtoms, true)
   }
 
