@@ -2,7 +2,6 @@ package com.criteo.perpetuo.auth
 
 import java.util.regex.Pattern
 
-import com.criteo.perpetuo.engine.TargetAtomSet
 import com.criteo.perpetuo.model.{Operation, TargetAtom}
 import com.twitter.inject.Test
 import com.typesafe.config.ConfigFactory
@@ -112,17 +111,17 @@ class FineGrainedPermissionsSpec extends Test {
     }
 
     test(s"$subject authorizes users by their name, on specific products") {
-      Operation.values.forall(permissions.isAuthorized(Users.authorizedToProceedOnFoo, DeploymentAction.applyOperation, _, Products.foo, None)) shouldBe true
-      Operation.values.forall(permissions.isAuthorized(Users.authorizedToRequest, DeploymentAction.requestOperation, _, Products.foo, None)) shouldBe true
-      Operation.values.forall(permissions.isAuthorized(Users.authorizedToRequest, DeploymentAction.requestOperation, _, Products.bar, None)) shouldBe true
+      Operation.values.forall(permissions.isAuthorized(Users.authorizedToProceedOnFoo, DeploymentAction.applyOperation, _, Products.foo, Set.empty)) shouldBe true
+      Operation.values.forall(permissions.isAuthorized(Users.authorizedToRequest, DeploymentAction.requestOperation, _, Products.foo, Set.empty)) shouldBe true
+      Operation.values.forall(permissions.isAuthorized(Users.authorizedToRequest, DeploymentAction.requestOperation, _, Products.bar, Set.empty)) shouldBe true
     }
 
     test(s"$subject forbids users by their name, on specific products") {
-      Operation.values.exists(permissions.isAuthorized(Users.authorizedToProceedOnFoo, DeploymentAction.applyOperation, _, Products.bar, None)) shouldBe false
+      Operation.values.exists(permissions.isAuthorized(Users.authorizedToProceedOnFoo, DeploymentAction.applyOperation, _, Products.bar, Set.empty)) shouldBe false
       Products.values.exists(product =>
         DeploymentAction.values.exists(a =>
           Operation.values.exists(op =>
-            permissions.isAuthorized(Users.unauthorized, a, op, product.toString, None)
+            permissions.isAuthorized(Users.unauthorized, a, op, product.toString, Set.empty)
           )
         )
       ) shouldBe false
@@ -158,22 +157,15 @@ class FineGrainedPermissionsSpec extends Test {
       )
     )
 
-    permissions.isAuthorized(Users.authorizedToRequest, DeploymentAction.requestOperation, Operation.deploy, "product1",
-      Some(TargetAtomSet(Set(TargetAtom("par"))))) shouldBe true
-    permissions.isAuthorized(Users.authorizedToRequest, DeploymentAction.requestOperation, Operation.deploy, "product1",
-      Some(TargetAtomSet(Set(TargetAtom("am5"))))) shouldBe false
-    permissions.isAuthorized(Users.authorizedToRequest, DeploymentAction.requestOperation, Operation.deploy, "product1",
-      Some(TargetAtomSet(Set(TargetAtom("par"), TargetAtom("pa4"), TargetAtom("am5"))))) shouldBe false
-    permissions.isAuthorized(Users.unauthorized, DeploymentAction.requestOperation, Operation.deploy, "product1",
-      Some(TargetAtomSet(Set(TargetAtom("pa3"))))) shouldBe false
+    permissions.isAuthorized(Users.authorizedToRequest, DeploymentAction.requestOperation, Operation.deploy, "product1", Set(TargetAtom("par"))) shouldBe true
+    permissions.isAuthorized(Users.authorizedToRequest, DeploymentAction.requestOperation, Operation.deploy, "product1", Set(TargetAtom("am5"))) shouldBe false
+    permissions.isAuthorized(Users.authorizedToRequest, DeploymentAction.requestOperation, Operation.deploy, "product1", Set(TargetAtom("par"), TargetAtom("pa4"), TargetAtom("am5"))) shouldBe false
+    permissions.isAuthorized(Users.unauthorized, DeploymentAction.requestOperation, Operation.deploy, "product1", Set(TargetAtom("pa3"))) shouldBe false
 
-    permissions.isAuthorized(Users.authorizedToAdministrate, DeploymentAction.applyOperation, Operation.deploy, "product1",
-      Some(TargetAtomSet(Set(TargetAtom("target"))))) shouldBe true
-    permissions.isAuthorized(Users.authorizedToRequest, DeploymentAction.applyOperation, Operation.deploy, "product1",
-      Some(TargetAtomSet(Set(TargetAtom("anotherTarget"))))) shouldBe true
+    permissions.isAuthorized(Users.authorizedToAdministrate, DeploymentAction.applyOperation, Operation.deploy, "product1", Set(TargetAtom("target"))) shouldBe true
+    permissions.isAuthorized(Users.authorizedToRequest, DeploymentAction.applyOperation, Operation.deploy, "product1", Set(TargetAtom("anotherTarget"))) shouldBe true
 
-    permissions.isAuthorized(Users.authorizedToStop, DeploymentAction.requestOperation, Operation.deploy, "product2",
-      Some(TargetAtomSet(Set(TargetAtom("par"))))) shouldBe true
+    permissions.isAuthorized(Users.authorizedToStop, DeploymentAction.requestOperation, Operation.deploy, "product2", Set(TargetAtom("par"))) shouldBe true
   }
 
   test("Authorizes users by target using permissions from config") {
@@ -208,9 +200,9 @@ class FineGrainedPermissionsSpec extends Test {
         """.stripMargin))
 
     permissions.isAuthorized(Users.authorizedToAdministrate, GeneralAction.administrate) shouldBe true
-    permissions.isAuthorized(Users.authorizedToRequestInPreProd, DeploymentAction.requestOperation, Operation.deploy, "product", Some(TargetAtomSet(Set(TargetAtom("par"))))) shouldBe true
-    permissions.isAuthorized(Users.authorizedToRequestInPreProd, DeploymentAction.requestOperation, Operation.deploy, "product", Some(TargetAtomSet(Set(TargetAtom("am5"))))) shouldBe false
-    permissions.isAuthorized(Users.authorizedToStop, DeploymentAction.requestOperation, Operation.deploy, "product", Some(TargetAtomSet(Set(TargetAtom("par"))))) shouldBe false
+    permissions.isAuthorized(Users.authorizedToRequestInPreProd, DeploymentAction.requestOperation, Operation.deploy, "product", Set(TargetAtom("par"))) shouldBe true
+    permissions.isAuthorized(Users.authorizedToRequestInPreProd, DeploymentAction.requestOperation, Operation.deploy, "product", Set(TargetAtom("am5"))) shouldBe false
+    permissions.isAuthorized(Users.authorizedToStop, DeploymentAction.requestOperation, Operation.deploy, "product", Set(TargetAtom("par"))) shouldBe false
   }
 
 }

@@ -20,12 +20,11 @@ class Engine @Inject()(val crankshaft: Crankshaft,
                        val permissions: Permissions) {
 
   // used for permissions only
-  private def resolveTarget(productName: String, version: Version, target: Iterable[TargetExpr]): Option[TargetAtomSet] = Some(
+  private def resolveTarget(productName: String, version: Version, target: Iterable[TargetExpr]): Set[TargetAtom] =
     target
-      .map(crankshaft.targetResolver.resolveExpression(productName, version, _))
+      .map(crankshaft.targetResolver.resolveExpression(productName, version, _).items)
       .reduceOption((acc, x) => acc.union(x))
-      .getOrElse(TargetAtomSet(Set.empty))
-  )
+      .getOrElse(Set.empty)
 
   def requestDeployment(user: User, protoDeploymentRequest: ProtoDeploymentRequest): Future[DeploymentRequest] = {
     val resolvedTarget = resolveTarget(protoDeploymentRequest.productName, protoDeploymentRequest.version, protoDeploymentRequest.plan.map(_.parsedTarget))
@@ -65,7 +64,7 @@ class Engine @Inject()(val crankshaft: Crankshaft,
       def evaluatePreconditionsForResolvedTarget(step: DeploymentPlanStep) =
         crankshaft.checkOperationCount(deploymentRequest, operationCount).andThen {
           val resolvedTarget = crankshaft.targetResolver.resolveExpression(deploymentRequest.product.name, deploymentRequest.version, step.parsedTarget)
-          if (!permissions.isAuthorized(user, DeploymentAction.applyOperation, Operation.deploy, deploymentRequest.product.name, Some(resolvedTarget)))
+          if (!permissions.isAuthorized(user, DeploymentAction.applyOperation, Operation.deploy, deploymentRequest.product.name, resolvedTarget.items))
             DBIOAction.failed(PermissionDenied())
           else
             DBIOAction.successful(resolvedTarget)

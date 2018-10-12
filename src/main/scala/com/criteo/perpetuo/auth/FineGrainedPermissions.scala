@@ -3,8 +3,7 @@ package com.criteo.perpetuo.auth
 import java.util.regex.Pattern
 
 import com.criteo.perpetuo.config.ConfigSyntacticSugar._
-import com.criteo.perpetuo.engine.TargetAtomSet
-import com.criteo.perpetuo.model.Operation
+import com.criteo.perpetuo.model.{Operation, TargetAtom}
 import com.twitter.inject.Logging
 import com.typesafe.config.Config
 
@@ -17,15 +16,13 @@ case class Authority(authorizedUserNames: Set[String],
 }
 
 case class TargetMatchers(matchers: Iterable[String => Boolean]) {
-  def authorizes(targets: Option[TargetAtomSet]): Boolean =
+  def authorizes(targets: Set[TargetAtom]): Boolean =
     matchers.isEmpty ||
-      targets.exists(
-        _.items.forall(target => matchers.exists(_(target.name)))
-      )
+      targets.forall(target => matchers.exists(_ (target.name)))
 }
 
 class ProductRule(productPattern: Pattern, val actionRules: Map[DeploymentAction.Value, Iterable[(Authority, TargetMatchers)]]) {
-  def authorizes(user: User, action: DeploymentAction.Value, productName: String, targets: Option[TargetAtomSet]): Boolean =
+  def authorizes(user: User, action: DeploymentAction.Value, productName: String, targets: Set[TargetAtom]): Boolean =
     productPattern.matcher(productName).matches() && actionRules.get(action).exists(rules => rules.exists {
       case (authority, targetMatcher) => authority.authorizes(user) && targetMatcher.authorizes(targets)
     })
@@ -40,7 +37,7 @@ class FineGrainedPermissions(generalActionRules: Map[GeneralAction.Value, Author
   override def isAuthorized(user: User, action: GeneralAction.Value): Boolean =
     generalActionRules.get(action).exists(_.authorizes(user))
 
-  override def isAuthorized(user: User, action: DeploymentAction.Value, operation: Operation.Kind, productName: String, targets: Option[TargetAtomSet]): Boolean =
+  override def isAuthorized(user: User, action: DeploymentAction.Value, operation: Operation.Kind, productName: String, targets: Set[TargetAtom]): Boolean =
     productRules.exists(
       _.authorizes(user, if (action == DeploymentAction.stopOperation) DeploymentAction.applyOperation else action, productName, targets)
     )

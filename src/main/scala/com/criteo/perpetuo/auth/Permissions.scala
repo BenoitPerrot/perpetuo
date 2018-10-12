@@ -1,7 +1,7 @@
 package com.criteo.perpetuo.auth
 
-import com.criteo.perpetuo.engine.TargetAtomSet
 import com.criteo.perpetuo.model.Operation
+import com.criteo.perpetuo.model.TargetAtom
 
 
 object GeneralAction extends Enumeration {
@@ -26,12 +26,12 @@ trait Permissions {
     * on the given targets? Note that the right to stop a deployment is the same as the
     * right to revert a deployment.
     */
-  def isAuthorized(user: User, action: DeploymentAction.Value, operation: Operation.Kind, productName: String, targets: Option[TargetAtomSet]): Boolean
+  def isAuthorized(user: User, action: DeploymentAction.Value, operation: Operation.Kind, productName: String, targets: Set[TargetAtom]): Boolean
 }
 
 
 object Unrestricted extends Permissions {
   override def isAuthorized(user: User, action: GeneralAction.Value) = true
 
-  override def isAuthorized(user: User, action: DeploymentAction.Value, operation: Operation.Kind, productName: String, targets: Option[TargetAtomSet]) = true
+  override def isAuthorized(user: User, action: DeploymentAction.Value, operation: Operation.Kind, productName: String, targets: Set[TargetAtom]): Boolean = true
 }
