@@ -111,7 +111,7 @@ trait EffectInserter
                   .flatMap { executionId =>
                     val atoms = invocations
                       .toStream
-                      .flatMap { case (_, target) => extractAtoms(target) }
+                      .flatMap { case (_, target) => target.items }
                       .map(_ -> TargetAtomStatus(Status.notDone, ""))
                       .toMap
 
@@ -133,7 +133,4 @@ trait EffectInserter
             .map(effects => (newOp, effects.flatten))
         )
       }
-
-  private def extractAtoms(atoms: TargetAtomSet): Set[TargetAtom] =
-    atoms.items.filter(_.name != "*") // fixme: temporarily (migration ongoing)
 }
