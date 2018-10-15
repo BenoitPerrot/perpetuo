@@ -37,7 +37,7 @@ trait ExceptionsToHttpStatusTranslation extends Logging {
       case _: DeploymentRequestAbandoned =>
         throw HttpException(Status.UnprocessableEntity, "the deployment request has been abandoned")
       case _: DeploymentTransactionClosed =>
-        throw HttpException(Status.UnprocessableEntity, "the deployment transaction is being canceled")
+        throw HttpException(Status.UnprocessableEntity, "the deployment transaction is closed")
       case _: OperationRunning =>
         throw HttpException(Status.UnprocessableEntity, "another operation is already running")
       case _: NothingToRevert =>
