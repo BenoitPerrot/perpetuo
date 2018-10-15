@@ -19,16 +19,15 @@ case class PermissionDenied() extends RuntimeException("permission denied")
 class Engine @Inject()(val crankshaft: Crankshaft,
                        val permissions: Permissions) {
 
-  // used for permissions only
-  private def resolveTarget(productName: String, version: Version, target: Iterable[TargetExpr]): Set[TargetAtom] =
+  private def getTargetSuperset(productName: String, version: Version, target: Iterable[TargetExpr]): Set[TargetAtom] =
     target
       .map(crankshaft.targetResolver.resolveExpression(productName, version, _).superset)
       .reduceOption(_ union _)
       .getOrElse(Set.empty)
 
   def requestDeployment(user: User, protoDeploymentRequest: ProtoDeploymentRequest): Future[DeploymentRequest] = {
-    val resolvedTarget = resolveTarget(protoDeploymentRequest.productName, protoDeploymentRequest.version, protoDeploymentRequest.plan.map(_.parsedTarget))
-    if (!permissions.isAuthorized(user, DeploymentAction.requestOperation, Operation.deploy, protoDeploymentRequest.productName, resolvedTarget))
+    val targetSuperset = getTargetSuperset(protoDeploymentRequest.productName, protoDeploymentRequest.version, protoDeploymentRequest.plan.map(_.parsedTarget))
+    if (!permissions.isAuthorized(user, DeploymentAction.requestOperation, Operation.deploy, protoDeploymentRequest.productName, targetSuperset))
       Future.failed(PermissionDenied())
     else
       crankshaft.createDeploymentRequest(protoDeploymentRequest)
@@ -105,13 +104,13 @@ class Engine @Inject()(val crankshaft: Crankshaft,
         }
 
       def getRetrySpecifics(step: DeploymentPlanStep, effects: Seq[OperationEffect]) =
-        evaluatePreconditionsForResolvedTarget(step, effects).flatMap(resolvedTarget =>
-          crankshaft.getRetrySpecifics(resolvedTarget, step, effects).map((_, Some(step), step))
+        evaluatePreconditionsForResolvedTarget(step, effects).flatMap(targetSuperset =>
+          crankshaft.getRetrySpecifics(targetSuperset, step, effects).map((_, Some(step), step))
         )
 
       def getStepSpecifics(toDo: DeploymentPlanStep, lastDone: Option[DeploymentPlanStep], lastEffects: Seq[OperationEffect]) =
-        evaluatePreconditionsForResolvedTarget(toDo, lastEffects).flatMap(resolvedTarget =>
-          crankshaft.getStepSpecifics(resolvedTarget, toDo).map((_, lastDone, toDo))
+        evaluatePreconditionsForResolvedTarget(toDo, lastEffects).flatMap(targetSuperset =>
+          crankshaft.getStepSpecifics(targetSuperset, toDo).map((_, lastDone, toDo))
         )
 
       val getSpecifics =
@@ -153,8 +152,8 @@ class Engine @Inject()(val crankshaft: Crankshaft,
   def revert(user: User, deploymentRequestId: Long, operationCount: Option[Int], defaultVersion: Option[Version]): Future[Option[OperationTrace]] =
     withDeploymentRequest(deploymentRequestId) { deploymentRequest =>
       def rejectIfPermissionDenied(scope: Seq[DeploymentPlanStep]) = {
-        val resolvedTarget = resolveTarget(deploymentRequest.product.name, deploymentRequest.version, scope.map(_.parsedTarget))
-        if (!permissions.isAuthorized(user, DeploymentAction.applyOperation, Operation.revert, deploymentRequest.product.name, resolvedTarget))
+        val targetSuperset = getTargetSuperset(deploymentRequest.product.name, deploymentRequest.version, scope.map(_.parsedTarget))
+        if (!permissions.isAuthorized(user, DeploymentAction.applyOperation, Operation.revert, deploymentRequest.product.name, targetSuperset))
           DBIOAction.failed(PermissionDenied())
         else
           DBIOAction.successful(())
@@ -208,8 +207,8 @@ class Engine @Inject()(val crankshaft: Crankshaft,
           case s: InProgressState =>
             operationCount.foreach(crankshaft.checkState(deploymentRequest, s.effects.length, _))
             val planStepsToStop = toPlanSteps(s, s.scope.deploymentPlanStepIds)
-            val resolvedTarget = resolveTarget(deploymentRequest.product.name, deploymentRequest.version, planStepsToStop.map(_.parsedTarget))
-            if (!permissions.isAuthorized(user, DeploymentAction.stopOperation, s.scope.operationTrace.kind, deploymentRequest.product.name, resolvedTarget))
+            val targetSuperset = getTargetSuperset(deploymentRequest.product.name, deploymentRequest.version, planStepsToStop.map(_.parsedTarget))
+            if (!permissions.isAuthorized(user, DeploymentAction.stopOperation, s.scope.operationTrace.kind, deploymentRequest.product.name, targetSuperset))
               Future.failed(PermissionDenied())
             else
               crankshaft.tryStopOperation(s.scope, user.name).map(Some.apply)
@@ -223,8 +222,8 @@ class Engine @Inject()(val crankshaft: Crankshaft,
   def abandon(user: User, deploymentRequestId: Long): Future[Option[Unit]] =
     withDeploymentRequest(deploymentRequestId) { deploymentRequest =>
       crankshaft.assessDeploymentState(deploymentRequest).flatMap { state =>
-        val resolvedTarget = resolveTarget(deploymentRequest.product.name, deploymentRequest.version, state.deploymentPlanSteps.map(_.parsedTarget))
-        if (permissions.isAuthorized(user, DeploymentAction.abandonOperation, Operation.deploy, deploymentRequest.product.name, resolvedTarget))
+        val targetSuperset = getTargetSuperset(deploymentRequest.product.name, deploymentRequest.version, state.deploymentPlanSteps.map(_.parsedTarget))
+        if (permissions.isAuthorized(user, DeploymentAction.abandonOperation, Operation.deploy, deploymentRequest.product.name, targetSuperset))
           crankshaft.abandon(deploymentRequest)
         else
           Future.failed(PermissionDenied())
@@ -240,8 +239,8 @@ class Engine @Inject()(val crankshaft: Crankshaft,
   def queryDeploymentRequestStatus(user: Option[User], id: Long): Future[Option[DeploymentRequestStatus]] =
     withDeploymentRequest(id) { deploymentRequest =>
       def rejectIfPermissionDenied(action: DeploymentAction.Value, kind: Operation.Kind, scope: Seq[DeploymentPlanStep]) = {
-        val resolvedTarget = resolveTarget(deploymentRequest.product.name, deploymentRequest.version, scope.map(_.parsedTarget))
-        if (!user.exists(permissions.isAuthorized(_, action, kind, deploymentRequest.product.name, resolvedTarget)))
+        val targetSuperset = getTargetSuperset(deploymentRequest.product.name, deploymentRequest.version, scope.map(_.parsedTarget))
+        if (!user.exists(permissions.isAuthorized(_, action, kind, deploymentRequest.product.name, targetSuperset)))
           Some("permission denied")
         else
           None
