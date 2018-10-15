@@ -1,5 +1,6 @@
 package com.criteo.perpetuo.engine.dispatchers
 
+import java.lang.{Iterable => JavaIterable}
 import java.util.{Map => JavaMap, Set => JavaSet}
 
 import com.criteo.perpetuo.engine._
@@ -25,5 +26,5 @@ abstract class JavaFriendlyTargetDispatcher extends Provider[TargetDispatcher] w
     }
   }
 
-  protected def dispatch(targetAtoms: JavaSet[TargetAtom], frozenParameters: String): JavaMap[ExecutionTrigger, JavaSet[TargetAtom]]
+  protected def dispatch(targetAtoms: JavaSet[TargetAtom], frozenParameters: String): JavaMap[ExecutionTrigger, JavaIterable[TargetAtom]]
 }
