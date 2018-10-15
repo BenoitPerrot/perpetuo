@@ -28,7 +28,7 @@ trait TargetDispatcher extends Provider[TargetDispatcher] with ParameterFreezer 
   protected def dispatch(targetAtoms: Set[TargetAtom], frozenParameters: String): Iterable[(ExecutionTrigger, Set[TargetAtom])]
 
   final def dispatchAtomSet(targetAtomSet: TargetAtomSet, frozenParameters: String): Iterable[(ExecutionTrigger, TargetAtomSet)] = {
-    val atoms = targetAtomSet.items
+    val atoms = targetAtomSet.superset
     val dispatched = dispatch(atoms, frozenParameters).filter { case (_, subSet) => subSet.nonEmpty }
 
     val orderedAtoms = atoms
@@ -50,7 +50,9 @@ trait TargetDispatcher extends Provider[TargetDispatcher] with ParameterFreezer 
       throw new RuntimeException(s"Wrong partition of atoms: `$expected` has been dispatched as `$got`")
     }
 
-    dispatched.map { case (trigger, items) => (trigger, TargetAtomSet(items, targetAtomSet.isExact)) }
+    dispatched.map { case (trigger, items) =>
+      (trigger, targetAtomSet & items)
+    }
   }
 }
 

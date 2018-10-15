@@ -59,7 +59,7 @@ class RundeckTrigger(name: String,
     val triggerParameters = Map(
       "callback-url" -> squote(RestApi.executionCallbackUrl(execTraceId)),
       "product-name" -> squote(productName),
-      "target" -> squote(target.items.mkString(",")),
+      "target" -> squote(target.superset.mkString(",")),
       "product-version" -> quotedVersion
     ) ++ specificParameters.map { case (parameterName, value) =>
       parameterName.replaceAll("([A-Z])", "-$1").toLowerCase -> value

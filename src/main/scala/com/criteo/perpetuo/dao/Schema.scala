@@ -94,8 +94,6 @@ trait EffectInserter
 
   import dbContext.profile.api._
 
-  // fixme: type the targets to differentiate atomic from other ones in order to always create atomic targets
-  //        instead of taking the boolean as parameter (to be done later, since it's not trivial)
   def insertingEffect(deploymentRequest: DeploymentRequest,
                       deploymentPlanSteps: Iterable[DeploymentPlanStep],
                       operation: Operation.Kind,
@@ -111,7 +109,7 @@ trait EffectInserter
                   .flatMap { executionId =>
                     val atoms = invocations
                       .toStream
-                      .flatMap { case (_, target) => target.items }
+                      .flatMap { case (_, target) => target.subset }
                       .map(_ -> TargetAtomStatus(Status.notDone, ""))
                       .toMap
 

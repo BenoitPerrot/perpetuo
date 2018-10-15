@@ -33,8 +33,12 @@ trait TargetResolver extends Provider[TargetResolver] {
       throw UnprocessableIntent("The following target(s) were not resolved: " +
         (emptyWords.iterator ++ (nonAtoms -- resolvedWords)).mkString(", "))
 
-    // transform the expression to a set of atoms
-    TargetAtomSet(transform(targetExpr, nonAtomsToAtoms), isExact)
+    // transform the expression to atoms
+    val atomSet = transform(targetExpr, nonAtomsToAtoms)
+    if (isExact)
+      TargetAtomSet(atomSet.superset)
+    else
+      atomSet
   }
 
   /**
@@ -90,20 +94,24 @@ trait TargetResolver extends Provider[TargetResolver] {
     case _: TargetAtom => Set.empty
   }
 
-  private def transform(targetExpr: TargetExpr, f: TargetNonAtom => Set[TargetAtom]): Set[TargetAtom] = targetExpr match {
-    case n: TargetNonAtom => f(n)
-    case a: TargetAtom => Set(a)
+  private def transform(targetExpr: TargetExpr, f: TargetNonAtom => Set[TargetAtom]): TargetAtomSet = targetExpr match {
+    case n: TargetNonAtom => TargetAtomSet(Set.empty, f(n))
+    case a: TargetAtom => TargetAtomSet(Set(a))
     case TargetIntersection(items) => items
       .map(transform(_, f))
-      .reduceOption((res, x) => res & x)
-      .getOrElse(f(TargetTop))
-    case TargetUnion(items) => items.flatMap(transform(_, f))
+      .reduceOption(_ intersect _)
+      .getOrElse(TargetAtomSet(Set.empty, f(TargetTop)))
+    case TargetUnion(items) => items
+      .map(transform(_, f))
+      .reduceOption(_ union _)
+      .getOrElse(TargetAtomSet.empty)
   }
 }
 
 /**
   * Return type of [[TargetResolver.getAllAtomsAndTags]]: the map from atoms to tags and a boolean
   * which is true if and only if it's certain that all atoms are relevant for the product
-  * (otherwise, it would be a mere suggestion of targets as a best effort for the end user).
+  * (otherwise, it is a *superset* of targets as a best effort for the end user but the executor
+  * must take care of filtering the relevant target atoms).
   */
 case class TargetSet(atomsToTags: Map[String, Seq[String]], isExact: Boolean = false)

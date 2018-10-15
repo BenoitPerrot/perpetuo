@@ -32,7 +32,7 @@ class RundeckTriggerSpec extends Test {
     def testTrigger: Option[String] = {
       val productName = "My\"Beautiful\"Project"
       val version = Version(JsString("the 042nd version"))
-      val target = TargetAtomSet(Set("a", "b").map(TargetAtom))
+      val target = TargetAtomSet(Set.empty, Set("a", "b").map(TargetAtom))
       Await.result(trigger(42, productName, version, target, "guy next door"), 1.second)
     }
   }

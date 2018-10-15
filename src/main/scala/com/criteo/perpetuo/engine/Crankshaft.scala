@@ -264,7 +264,7 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
         .flatMap { case ((deploymentPlanSteps, (operation, specAndInvocations)), actionSpecifics) =>
           val atoms = specAndInvocations
             .flatMap { case (_, executions) => executions }
-            .flatMap { case (_, atomSet) => atomSet.items }
+            .flatMap { case (_, atomSet) => atomSet.superset }
             .toSet
           fuelFilter.acquiringDeploymentTransactionLock(deploymentRequest, atoms)
             .andThen(dbBinding.insertingEffect(deploymentRequest, deploymentPlanSteps, operation, initiatorName, specAndInvocations))
@@ -502,7 +502,7 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
       getDeploySpecifics(
         targetDispatcher,
         planStep,
-        TargetAtomSet(expandedTarget.items -- successfulTargetAtoms, expandedTarget.isExact),
+        expandedTarget -- successfulTargetAtoms,
         executionSpecs
       )
     )
@@ -530,8 +530,7 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
       }
       .flatMap { groups =>
         val specAndInvocations = groups.map { case (spec, targets) =>
-          val atomSet = TargetAtomSet(targets)
-          (spec, targetDispatcher.dispatchAtomSet(atomSet, spec.specificParameters).toVector)
+          (spec, targetDispatcher.dispatchAtomSet(TargetAtomSet(targets), spec.specificParameters).toVector)
         }
         dbBinding.findingOperatedPlanSteps(deploymentRequest).map(steps =>
           (steps, (Operation.revert, specAndInvocations))
