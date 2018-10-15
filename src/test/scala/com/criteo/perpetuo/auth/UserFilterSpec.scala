@@ -41,7 +41,7 @@ class UserFilterSpec extends Test {
         // Add the UserFilter and a controller checking the decoration of requests
         .filter[UserFilter]
         .add(new BaseController() {
-          get("/username-from-jwt-cookie") { r: Request =>
+          get("/username") { r: Request =>
             r.user.map(u => response.ok.plain(u.name)).getOrElse(response.unauthorized)
           }
         })
@@ -52,21 +52,37 @@ class UserFilterSpec extends Test {
   private val knownUserJWT = knownUser.toJWT(authModule.jwtEncoder)
 
   test("The UserFilter decorates requests with a known user when the JWT cookie is valid") {
-    server.httpGet("/username-from-jwt-cookie",
+    server.httpGet("/username",
       headers = Map("Cookie" -> s"jwt=$knownUserJWT"),
       andExpect = Ok,
       withBody = knownUser.name
     )
   }
 
+  test("The UserFilter decorates requests with a known user when the Authorization header contains a valid JWT")  {
+    server.httpGet("/username",
+      headers = Map("Authorization" -> knownUserJWT),
+      andExpect = Ok,
+      withBody = knownUser.name
+    )
+  }
+
   test("The UserFilter fails when the JWT cookie is not set") {
-    server.httpGet("/username-from-jwt-cookie",
+    server.httpGet("/username",
       andExpect = Unauthorized
     )
   }
+
   test("The UserFilter fails when the JWT cookie is invalid") {
-    server.httpGet("/username-from-jwt-cookie",
+    server.httpGet("/username",
       headers = Map("Cookie" -> "jwt=DEADBEEF"),
+      andExpect = Unauthorized
+    )
+  }
+
+  test("The UserFilter fails when the Authorization header contains an invalid JWT") {
+    server.httpGet("/username",
+      headers = Map("Authorization" -> "DEADBEEF"),
       andExpect = Unauthorized
     )
   }

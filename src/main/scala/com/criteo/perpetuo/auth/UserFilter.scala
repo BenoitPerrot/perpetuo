@@ -24,8 +24,9 @@ class UserFilter @Inject() (jwtEncoder: JWTEncoder, identityProvider: IdentityPr
 
   private def setUser(request: Request) = {
     request.ctx.update(UserFilter.UserField,
-      request.cookies.get(UserFilter.cookieName)
-        .flatMap(jwt => User.fromJWT(jwtEncoder, jwt.value)))
+      request.headerMap.get("Authorization").orElse(request.cookies.get(UserFilter.cookieName).map(_.value))
+        .flatMap(jwt => User.fromJWT(jwtEncoder, jwt))
+    )
   }
 
   override def apply(request: Request, service: Service[Request, Response]): Future[Response] = {

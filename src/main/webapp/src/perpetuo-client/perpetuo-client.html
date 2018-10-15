@@ -30,12 +30,10 @@ this.Perpetuo.Client = this.Perpetuo.Client || (function () {
                             .then(_ => _.text())
                             .then(jwt => {
                               window.localStorage.jwt = jwt;
-                              document.cookie = 'jwt=' + window.localStorage.jwt;
                             });
     }
 
     signOut() {
-      document.cookie = 'jwt=;expires=' + new Date().toUTCString() + ";path=/";
       window.localStorage.removeItem('jwt');
     }
 
@@ -120,7 +118,7 @@ this.Perpetuo.Client = this.Perpetuo.Client || (function () {
 
     static fetch(url, options) {
       return fetch(url, Object.assign({
-        headers: {'Accept': 'application/json', 'Content-Type': 'application/json'},
+        headers: {'Accept': 'application/json', 'Content-Type': 'application/json', 'Authorization': window.localStorage.jwt},
         credentials: 'include'
       }, options || {})).then(r =>
         r.ok ? r : r.json().then(o => Promise.reject({status: r.status, detail: o}))
