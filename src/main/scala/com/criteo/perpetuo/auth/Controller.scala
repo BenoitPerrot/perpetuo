@@ -12,12 +12,14 @@ import javax.inject.Inject
 case class TokenRequest(token: String)
 case class LocalUserIdentificationRequest(@RouteParam name: String, request: Request)
 
-class Controller @Inject()(identityProvider: IdentityProvider, permissions: Permissions, jwtEncoder: JWTEncoder) extends BaseController {
+class Controller @Inject()() extends BaseController {
 
   get("/api/auth/identity") { r: Request =>
     r.user.map(user => response.ok.plain(user)).getOrElse(response.unauthorized)
   }
+}
 
+class IdentifyingController @Inject()(identityProvider: IdentityProvider, jwtEncoder: JWTEncoder) extends BaseController {
   post("/api/auth/identify") { request: TokenRequest =>
     identityProvider.identify(request.token).map { user: User =>
       response.ok.plain(user.toJWT(jwtEncoder))
@@ -25,7 +27,9 @@ class Controller @Inject()(identityProvider: IdentityProvider, permissions: Perm
       case e => Future.value(response.unauthorized(e.getMessage))
     }
   }
+}
 
+class LocalUsersRetrievingController @Inject()(permissions: Permissions, jwtEncoder: JWTEncoder) extends BaseController {
   private val localUserNames = AppConfigProvider.config.tryGetStringList("auth.localUserNames").getOrElse(Set()).toSet
 
   private def identifyByName(userName: String): Future[User] =

@@ -1,6 +1,6 @@
 package com.criteo.perpetuo.app
 
-import com.criteo.perpetuo.auth.{Controller => AuthenticationController}
+import com.criteo.perpetuo.auth.{IdentifyingController, LocalUsersRetrievingController, Controller => AuthenticationController}
 import com.criteo.perpetuo.config.AppConfigProvider
 import com.criteo.perpetuo.config.ConfigSyntacticSugar._
 import com.twitter.finagle.SimpleFilter

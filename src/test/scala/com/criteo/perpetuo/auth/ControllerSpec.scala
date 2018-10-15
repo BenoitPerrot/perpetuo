@@ -45,6 +45,7 @@ class ControllerSpec extends Test {
         .filter[CommonFilters]
         .filter[UserFilter]
         .add[Controller]
+        .add[LocalUsersRetrievingController]
     }
   })
 
