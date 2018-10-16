@@ -8,9 +8,34 @@ import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, Future}
 
 
+/**
+  * A target name (expressing where to deploy to) can cover more precise targets (e.g. the
+  * European Union as a location includes all its member states, each of which may or may
+  * not make sense as a target for a deployment); a more complex target expression can also
+  * be used to express where to deploy to (i.e. deploy here but not there).
+  * Resolving a target consists in computing the list of all the underlying targets covered
+  * by an expression (which can be as simple as a name).
+  * An atomic target is a target that cannot be resolved to smaller parts of itself because
+  * FOR THE GIVEN PRODUCT, it will NEVER be possible to deploy to a subset of that target.
+  * If the user can choose among "France", "Paris" and "Lyon" for a target and nothing else,
+  * then "Paris" and "Lyon" ARE atoms, and "France" IS NOT. "Paris" and "Lyon" both have the
+  * tag "France".
+  * An atom in a user input is resolved to itself.
+  * A tag in a user input is resolved to the union of all the atoms that have that tag, so
+  * "France" is resolved as "Paris ∪ Lyon".
+  *
+  * In order to support MORE than combinations of atoms in the incoming target expressions,
+  * e.g. tags, at least one of the following methods must be overridden:
+  * - `getAllAtomsAndTags` to get the entire `TargetGrammar` supported out of the box
+  * - `resolveNonAtoms` to provide a custom resolver, possibly allowing a custom grammar
+  **/
 trait TargetResolver extends Provider[TargetResolver] {
   def get: TargetResolver = this
 
+  /**
+    * Return ALL the available atoms and their tags. If the returned map is empty, only atoms
+    * are supported in the user intended target.
+    */
   def getAllAtomsAndTags(productName: String): Future[TargetSet] = Future.successful(TargetSet(Map.empty))
 
   def resolveExpression(productName: String, productVersion: Version, targetExpr: TargetExpr): TargetAtomSet = {
@@ -44,23 +69,13 @@ trait TargetResolver extends Provider[TargetResolver] {
   }
 
   /**
-    * A given target word can express the union of multiple targets; resolving a target consists
-    * in computing the list of all the underlying targets (e.g. the European Union
-    * COULD be "resolved" in this context as the list of all the names of its member states).
-    * An atomic target is a target that cannot be resolved to smaller parts of itself because
-    * FOR THE GIVEN PRODUCT, IT WILL NEVER BE POSSIBLE TO DEPLOY TO A SUBSET OF THAT TARGET.
-    * If you can choose between Paris and Lyon as a target in France, but nothing finer, then
-    * the result of this function `toAtoms` for the input "European Union" CANNOT contain "France"
-    * but MUST contain at least "Paris" and "Lyon".
-    * For a given atomic target (let's say "Lyon"), this function must return the input itself as
-    * only element in the list (i.e. "Lyon" resolves to Iterable("Lyon")).
+    * Resolve non-atoms with respect to the given product and version.
     *
-    * If a target does not exist or must not host the given product, return the empty list or
-    * raise an UnprocessableIntent.
+    * If a target term does not exist or is not applicable to the given product, associate the
+    * empty list to this term in the result or directly raise an UnprocessableIntent (for a
+    * custom error message).
     *
-    * @return - the atomic target words mapped to each input target word being resolved wrt the given
-    *         product and version;
-    *         - None if it's NOT CERTAIN that ANY TARGET can be resolved to atoms for the given product.
+    * @return the set of target atoms mapped to each target term thus resolved
     */
   // todo: make it asynchronous
   protected def resolveNonAtoms(productName: String, productVersion: Version, targetTerms: Set[TargetNonAtom]): (Map[TargetNonAtom, Set[TargetAtom]], Boolean) = {
@@ -113,7 +128,7 @@ trait TargetResolver extends Provider[TargetResolver] {
 /**
   * Return type of [[TargetResolver.getAllAtomsAndTags]]: the map from atoms to tags and a boolean
   * which is true if and only if it's certain that all atoms are relevant for the product
-  * (otherwise, it is a *superset* of targets as a best effort for the end user but the executor
-  * must take care of filtering the relevant target atoms).
+  * (otherwise, it's only guaranteed to be a SUPERSET of targets as a best effort for the end user
+  * but the executor must take care of filtering the relevant target atoms).
   */
 case class TargetSet(atomsToTags: Map[String, Seq[String]], isExact: Boolean = false)
