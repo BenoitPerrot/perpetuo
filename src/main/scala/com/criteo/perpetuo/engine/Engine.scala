@@ -208,13 +208,16 @@ class Engine @Inject()(val crankshaft: Crankshaft,
         .assessDeploymentState(deploymentRequest)
         .flatMap {
           case s: InProgressState =>
-            operationCount.foreach(crankshaft.checkState(deploymentRequest, s.effects.length, _))
-            val planStepsToStop = toPlanSteps(s, s.scope.deploymentPlanStepIds)
-            val targetSuperset = getTargetSuperset(deploymentRequest.product.name, deploymentRequest.version, planStepsToStop.map(_.parsedTarget))
-            if (!permissions.isAuthorized(user, DeploymentAction.stopOperation, s.scope.operationTrace.kind, deploymentRequest.product.name, targetSuperset))
-              Future.failed(PermissionDenied())
-            else
-              crankshaft.tryStopOperation(s.scope, user.name).map(Some.apply)
+            failOnUnexpectedOperationCount(operationCount, s.effects) match {
+              case Failure(t) => Future.failed(t)
+              case Success(_) =>
+                val planStepsToStop = toPlanSteps(s, s.scope.deploymentPlanStepIds)
+                val targetSuperset = getTargetSuperset(deploymentRequest.product.name, deploymentRequest.version, planStepsToStop.map(_.parsedTarget))
+                if (!permissions.isAuthorized(user, DeploymentAction.stopOperation, s.scope.operationTrace.kind, deploymentRequest.product.name, targetSuperset))
+                  Future.failed(PermissionDenied())
+                else
+                  crankshaft.tryStopOperation(s.scope, user.name).map(Some.apply)
+            }
 
           case _ =>
             Future.successful(Some(0, Seq()))
