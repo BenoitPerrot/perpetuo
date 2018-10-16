@@ -257,7 +257,7 @@ class Engine @Inject()(val crankshaft: Crankshaft,
   def findDeploymentRequestState(id: Long): Future[Option[DeploymentState]] =
     cachedState.get(id)
 
-  def queryDeploymentRequestStatus(user: Option[User], id: Long): Future[Option[DeploymentRequestStatus]] =
+  def queryDeploymentRequestStatus(user: Option[User], id: Long): Future[Option[(DeploymentState, Seq[(String, Option[String])])]] =
     withDeploymentRequest(id) { deploymentRequest =>
       def evaluatePreconditions(action: DeploymentAction.Value, kind: Operation.Kind, scope: Seq[DeploymentPlanStep]) = {
         val targetSuperset = getTargetSuperset(deploymentRequest.product.name, deploymentRequest.version, scope.map(_.parsedTarget))
@@ -316,9 +316,6 @@ class Engine @Inject()(val crankshaft: Crankshaft,
               (Operation.deploy.toString, evaluatePreconditions(DeploymentAction.applyOperation, Operation.deploy, Seq(s.toDo))),
               (Operation.revert.toString, evaluatePreconditions(DeploymentAction.applyOperation, Operation.revert, s.revertScope))
             ))
-        }
-        .map { case (s, authorizedActions) =>
-          DeploymentRequestStatus(s.deploymentRequest, s.deploymentPlanSteps, s.effects, s.effects.headOption.map(crankshaft.computeState), authorizedActions)
         }
     }
 

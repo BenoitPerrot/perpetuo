@@ -106,8 +106,8 @@ class EngineSpec extends SimpleScenarioTesting {
         depReq <- engine.requestDeployment(someone, ProtoDeploymentRequest(product.name, Version("\"1000\""), Seq(ProtoDeploymentPlanStep("", JsString("atom"), "")), "", someone.name))
         notStarted <- engine.findDeploymentRequestState(depReq.id).map(_.get)
         _ <- engine.step(starter, depReq.id, None)
-        depReqStatus <- engine.queryDeploymentRequestStatus(Some(starter), depReq.id).map(_.get)
-        _ <- tryUpdateExecutionTraces(engine, depReqStatus.operationEffects.head.executionTraces, ExecutionState.aborted)
+        (state, _) <- engine.queryDeploymentRequestStatus(Some(starter), depReq.id).map(_.get)
+        _ <- tryUpdateExecutionTraces(engine, state.effects.head.executionTraces, ExecutionState.aborted)
         depReq <- engine.crankshaft.findDeploymentRequestById(depReq.id).map(_.get) // Refresh the Deployment request instance
         flopped <- engine.crankshaft.assessDeploymentState(depReq)
         _ <- engine.abandon(someone, depReq.id)

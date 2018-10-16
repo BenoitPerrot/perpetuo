@@ -103,11 +103,3 @@ case class Abandoned(deploymentRequest: DeploymentRequest,
                      deploymentPlanSteps: Seq[DeploymentPlanStep],
                      effects: Seq[OperationEffect])
   extends DeploymentState
-
-
-// TODO: replace with DeploymentState
-case class DeploymentRequestStatus(deploymentRequest: DeploymentRequest,
-                                   deploymentPlanSteps: Seq[DeploymentPlanStep],
-                                   operationEffects: Iterable[OperationEffect],
-                                   lastOperationStatus: Option[(Operation.Kind, OperationEffectState.Value)], // fixme
-                                   eligibleActions: Seq[(String, Option[String])])

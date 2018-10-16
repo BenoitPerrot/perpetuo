@@ -3,7 +3,7 @@ package com.criteo.perpetuo.app
 import com.criteo.perpetuo.auth.UserFilter._
 import com.criteo.perpetuo.auth.{Authenticator, User}
 import com.criteo.perpetuo.config.AppConfigProvider
-import com.criteo.perpetuo.engine.{DeploymentRequestStatus, DeploymentStatus, Engine}
+import com.criteo.perpetuo.engine.{DeploymentState, DeploymentStatus, Engine}
 import com.criteo.perpetuo.model._
 import com.twitter.finagle.http.Request
 import com.twitter.finatra.http.exceptions._
@@ -242,14 +242,15 @@ class RestController @Inject()(val engine: Engine)
       "lastOperationKind" -> lastOperationKind
     )
 
-  private def serialize(status: DeploymentRequestStatus): Map[String, Any] =
+  private def serialize(state: DeploymentState, eligibleActions: Seq[(String, Option[String])]): Map[String, Any] = {
+    val lastOperationStatus = state.effects.headOption.map(engine.crankshaft.computeState)
     serialize(
-      DeploymentPlan(status.deploymentRequest, status.deploymentPlanSteps),
-      status.lastOperationStatus.map { case (_, opStatus) => DeploymentStatus.from(opStatus) }.getOrElse(DeploymentStatus.notStarted),
-      status.lastOperationStatus.map { case (kind, _) => kind }
+      DeploymentPlan(state.deploymentRequest, state.deploymentPlanSteps),
+      lastOperationStatus.map { case (_, opStatus) => DeploymentStatus.from(opStatus) }.getOrElse(DeploymentStatus.notStarted),
+      lastOperationStatus.map { case (kind, _) => kind }
     ) ++
       Map("operations" ->
-        status.operationEffects.map { case effect@OperationEffect(op, planStepIds, executionTraces, targetStatus) =>
+        state.effects.map { case effect@OperationEffect(op, planStepIds, executionTraces, targetStatus) =>
           val getTargetDetail = if (effect.state == OperationEffectState.inProgress)
             (ts: TargetStatus) => if (ts.code == Status.notDone && ts.detail.isEmpty) "pending" else ts.detail
           else
@@ -271,13 +272,14 @@ class RestController @Inject()(val engine: Engine)
           ) ++ op.closingDate.map("closingDate" -> _)
         }
       ) ++
-      Map("actions" -> status.eligibleActions.map { case (actionName, rejectionCause) =>
+      Map("actions" -> eligibleActions.map { case (actionName, rejectionCause) =>
         Map("type" -> actionName) ++ rejectionCause.map("rejected" -> _)
       })
+  }
 
   get("/api/unstable/deployment-requests/:id") { r: RequestWithId =>
     withLongId(
-      id => engine.queryDeploymentRequestStatus(r.request.user, id).map(_.map(serialize)),
+      id => engine.queryDeploymentRequestStatus(r.request.user, id).map(_.map { case (state, eligibleActions) => serialize(state, eligibleActions) }),
       5.seconds
     )(r)
   }
