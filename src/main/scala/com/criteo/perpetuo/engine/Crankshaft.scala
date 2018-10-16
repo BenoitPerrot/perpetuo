@@ -432,10 +432,6 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
   def findDeploymentRequestsWithStatuses(where: Seq[Map[String, Any]], limit: Int, offset: Int): Future[Seq[(DeploymentPlan, DeploymentStatus.Value, Option[Operation.Kind])]] =
     dbBinding.findDeploymentRequestsWithStatuses(where, limit, offset)
 
-  // todo: inline
-  def computeState(operationEffect: OperationEffect): (Operation.Kind, OperationEffectState.Value) =
-    (operationEffect.operationTrace.kind, operationEffect.state)
-
   /**
     * Compute the version that should be used in order to align the given target
     * with the main version deployed lately in reference targets, if applicable.

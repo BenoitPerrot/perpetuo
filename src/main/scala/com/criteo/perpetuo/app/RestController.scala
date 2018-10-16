@@ -243,7 +243,7 @@ class RestController @Inject()(val engine: Engine)
     )
 
   private def serialize(state: DeploymentState, eligibleActions: Seq[(String, Option[String])]): Map[String, Any] = {
-    val lastOperationStatus = state.effects.headOption.map(engine.crankshaft.computeState)
+    val lastOperationStatus = state.effects.headOption.map(lastEffect => (lastEffect.operationTrace.kind, lastEffect.state))
     serialize(
       DeploymentPlan(state.deploymentRequest, state.deploymentPlanSteps),
       lastOperationStatus.map { case (_, opStatus) => DeploymentStatus.from(opStatus) }.getOrElse(DeploymentStatus.notStarted),
