@@ -154,13 +154,16 @@ class Engine @Inject()(val crankshaft: Crankshaft,
 
   def revert(user: User, deploymentRequestId: Long, operationCount: Option[Int], defaultVersion: Option[Version]): Future[Option[OperationTrace]] =
     withDeploymentRequest(deploymentRequestId) { deploymentRequest =>
-      def rejectIfPermissionDenied(scope: Seq[DeploymentPlanStep]) = {
-        val targetSuperset = getTargetSuperset(deploymentRequest.product.name, deploymentRequest.version, scope.map(_.parsedTarget))
-        if (!permissions.isAuthorized(user, DeploymentAction.applyOperation, Operation.revert, deploymentRequest.product.name, targetSuperset))
-          DBIOAction.failed(PermissionDenied())
-        else
-          DBIOAction.successful(())
-      }
+      def rejectIfPermissionDenied(scope: Seq[DeploymentPlanStep], effects: Seq[OperationEffect]) =
+        failOnUnexpectedOperationCount(operationCount, effects) match {
+          case Failure(t) => DBIOAction.failed(t)
+          case Success(_) =>
+            val targetSuperset = getTargetSuperset(deploymentRequest.product.name, deploymentRequest.version, scope.map(_.parsedTarget))
+            if (!permissions.isAuthorized(user, DeploymentAction.applyOperation, Operation.revert, deploymentRequest.product.name, targetSuperset))
+              DBIOAction.failed(PermissionDenied())
+            else
+              DBIOAction.successful(())
+        }
 
       val gettingRevertSpecifics =
         crankshaft.assessingDeploymentState(deploymentRequest)
@@ -181,16 +184,16 @@ class Engine @Inject()(val crankshaft: Crankshaft,
               DBIOAction.failed(OperationRunning(s.effects))
 
             case s: RevertFailed =>
-              rejectIfPermissionDenied(s.scope).flatMap(_ => crankshaft.getRevertSpecifics(deploymentRequest, defaultVersion).map((_, ())))
+              rejectIfPermissionDenied(s.scope, s.effects).flatMap(_ => crankshaft.getRevertSpecifics(deploymentRequest, defaultVersion).map((_, ())))
 
             case s: DeployFailed =>
-              rejectIfPermissionDenied(s.revertScope).flatMap(_ => crankshaft.getRevertSpecifics(deploymentRequest, defaultVersion).map((_, ())))
+              rejectIfPermissionDenied(s.revertScope, s.effects).flatMap(_ => crankshaft.getRevertSpecifics(deploymentRequest, defaultVersion).map((_, ())))
 
             case s: Paused =>
-              rejectIfPermissionDenied(s.revertScope).flatMap(_ => crankshaft.getRevertSpecifics(deploymentRequest, defaultVersion).map((_, ())))
+              rejectIfPermissionDenied(s.revertScope, s.effects).flatMap(_ => crankshaft.getRevertSpecifics(deploymentRequest, defaultVersion).map((_, ())))
 
             case s: Deployed =>
-              rejectIfPermissionDenied(s.revertScope).flatMap(_ => crankshaft.getRevertSpecifics(deploymentRequest, defaultVersion).map((_, ())))
+              rejectIfPermissionDenied(s.revertScope, s.effects).flatMap(_ => crankshaft.getRevertSpecifics(deploymentRequest, defaultVersion).map((_, ())))
           }
 
       crankshaft.revert(deploymentRequest, operationCount, user.name, gettingRevertSpecifics)

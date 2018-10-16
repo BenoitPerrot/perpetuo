@@ -241,10 +241,10 @@ class CrankshaftSpec extends SimpleScenarioTesting {
     val deploymentRequest = request("ocelot", "awesome-version", Seq("norway", "peru")).step().deploymentRequest
     await(
       for {
-        msg <- revert(deploymentRequest, Some(0), "foo", None).failed.map(_.getMessage)
+        outdated <- revert(deploymentRequest, Some(0), "foo", None).failed
         _ <- revert(deploymentRequest, Some(1), "foo", Some(Version(JsString("first-version-ever"))))
       } yield {
-        msg should include("the state of the deployment has just changed")
+        outdated shouldBe an[UnexpectedOperationCount]
       }
     )
   }

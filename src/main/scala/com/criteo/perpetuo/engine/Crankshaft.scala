@@ -250,18 +250,6 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
           .map(_ => trace)
       }
 
-  def checkState(deploymentRequest: DeploymentRequest, currentState: Int, expectedState: Int): Unit =
-    if (currentState != expectedState)
-      throw Conflict("the state of the deployment has just changed; have another look before choosing an action to trigger", deploymentRequest.id)
-
-  def checkOperationCount(deploymentRequest: DeploymentRequest, expectedOperationCount: Option[Int]): DBIOAction[Unit, NoStream, Effect.Read] =
-    expectedOperationCount
-      .map(expectedCount =>
-        dbBinding.countingOperationTraces(deploymentRequest)
-          .map(checkState(deploymentRequest, _, expectedCount))
-      )
-      .getOrElse(DBIO.successful(()))
-
   def findOperationTraceForExpectedCount(deploymentRequest: DeploymentRequest, expectedOperationCount: Int): Future[Option[OperationTrace]] =
     dbBinding.dbContext.db
       .run(dbBinding.findingLastOperationTraceAndCurrentCountByDeploymentRequestId(deploymentRequest.id))
@@ -378,7 +366,7 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
 
   def revert(deploymentRequest: DeploymentRequest, operationCount: Option[Int], initiatorName: String,
              gettingRevertSpecifics: DBIOrw[((Iterable[DeploymentPlanStep], OperationCreationParams), Unit)]): Future[OperationTrace] =
-    act(deploymentRequest, initiatorName, checkOperationCount(deploymentRequest, operationCount).andThen(gettingRevertSpecifics))
+    act(deploymentRequest, initiatorName, gettingRevertSpecifics)
       .map { case ((operationTrace, started, failed), _) =>
         listeners.foreach(_.onDeploymentRequestReverted(deploymentRequest, started, failed))
         operationTrace
