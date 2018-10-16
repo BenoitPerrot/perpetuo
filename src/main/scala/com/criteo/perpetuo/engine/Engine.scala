@@ -12,6 +12,7 @@ import slick.dbio.DBIOAction
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
+import scala.util.{Failure, Success}
 
 case class PermissionDenied() extends RuntimeException("permission denied")
 
@@ -61,8 +62,8 @@ class Engine @Inject()(val crankshaft: Crankshaft,
   private def failOnUnexpectedOperationCount(operationCount: Option[Int], effects: Seq[OperationEffect]) =
     operationCount
       .filter(_ != effects.size)
-      .map(_ => DBIOAction.failed(UnexpectedOperationCount(effects)))
-      .getOrElse(DBIOAction.successful(()))
+      .map(_ => Failure(UnexpectedOperationCount(effects)))
+      .getOrElse(Success(()))
 
   private def recoverOnSimilarOperation(user: User, deploymentRequest: DeploymentRequest, kind: Operation.Kind, operationCount: Option[Int]): PartialFunction[Throwable, Future[OperationTrace]] = {
     def isSimilar(operationTrace: OperationTrace) =
@@ -95,12 +96,14 @@ class Engine @Inject()(val crankshaft: Crankshaft,
   def step(user: User, deploymentRequestId: Long, operationCount: Option[Int]): Future[Option[OperationTrace]] =
     withDeploymentRequest(deploymentRequestId) { deploymentRequest =>
       def evaluatePreconditionsForResolvedTarget(step: DeploymentPlanStep, effects: Seq[OperationEffect]) =
-        failOnUnexpectedOperationCount(operationCount, effects).andThen {
-          val resolvedTarget = crankshaft.targetResolver.resolveExpression(deploymentRequest.product.name, deploymentRequest.version, step.parsedTarget)
-          if (!permissions.isAuthorized(user, DeploymentAction.applyOperation, Operation.deploy, deploymentRequest.product.name, resolvedTarget.superset))
-            DBIOAction.failed(PermissionDenied())
-          else
-            DBIOAction.successful(resolvedTarget)
+        failOnUnexpectedOperationCount(operationCount, effects) match {
+          case Failure(t) => DBIOAction.failed(t)
+          case Success(_) =>
+            val resolvedTarget = crankshaft.targetResolver.resolveExpression(deploymentRequest.product.name, deploymentRequest.version, step.parsedTarget)
+            if (!permissions.isAuthorized(user, DeploymentAction.applyOperation, Operation.deploy, deploymentRequest.product.name, resolvedTarget.superset))
+              DBIOAction.failed(PermissionDenied())
+            else
+              DBIOAction.successful(resolvedTarget)
         }
 
       def getRetrySpecifics(step: DeploymentPlanStep, effects: Seq[OperationEffect]) =
