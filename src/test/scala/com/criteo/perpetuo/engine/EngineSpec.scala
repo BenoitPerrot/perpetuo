@@ -198,25 +198,28 @@ class EngineSpec extends SimpleScenarioTesting {
 
         step0Again <- engine.step(releaser, depReq.id, Some(0)).map(_.get)
 
-        _ <- engine.revert(releaser, depReq.id, Some(2), Some(Version("1".toJson))).map(_.get)
+        operationTrace2 <- engine.revert(releaser, depReq.id, Some(2), Some(Version("1".toJson))).map(_.get)
         inProgress2 <- engine.crankshaft.assessDeploymentState(depReq)
         _ <- tryUpdateExecutionTraces(engine, inProgress2.effects.head.executionTraces, ExecutionState.completed, statusMap = Map(
           TargetAtom("nrt") -> TargetAtomStatus(Status.success, ""),
           TargetAtom("hnd") -> TargetAtomStatus(Status.success, ""))
         )
-
-        // TODO: support idempotency for revert, and check
+        reverted <- engine.crankshaft.assessDeploymentState(depReq)
 
         step1AgainAgain <- engine.step(releaser, depReq.id, Some(1)).map(_.get)
 
         step0AgainAgain <- engine.step(releaser, depReq.id, Some(0)).map(_.get)
 
+        revert2Again <- engine.revert(releaser, depReq.id, Some(2), Some(Version("1".toJson))).map(_.get)
       } yield {
         inProgress0 shouldBe a[DeployInProgress]
         step0Again.id shouldBe operationTrace0.id
 
         inProgress1 shouldBe a[DeployInProgress]
         step1Again.id shouldBe operationTrace1.id
+
+        reverted shouldBe a[Reverted]
+        revert2Again.id shouldBe operationTrace2.id
 
         step0AgainAgain.id shouldBe operationTrace0.id
         step1AgainAgain.id shouldBe operationTrace1.id

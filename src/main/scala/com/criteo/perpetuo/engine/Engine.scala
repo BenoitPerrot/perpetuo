@@ -196,7 +196,9 @@ class Engine @Inject()(val crankshaft: Crankshaft,
               rejectIfPermissionDenied(s.revertScope, s.effects).flatMap(_ => crankshaft.getRevertSpecifics(deploymentRequest, defaultVersion).map((_, ())))
           }
 
-      crankshaft.revert(deploymentRequest, operationCount, user.name, gettingRevertSpecifics)
+      crankshaft
+        .revert(deploymentRequest, operationCount, user.name, gettingRevertSpecifics)
+        .recoverWith(recoverOnSimilarOperation(user, deploymentRequest, Operation.revert, operationCount))
     }
 
   // TODO: put deploymentPlanSteps in a TreeMap[id -> step] in state
