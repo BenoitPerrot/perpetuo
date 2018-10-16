@@ -62,6 +62,9 @@ private case class FilteringPost(where: Seq[Map[String, Any]] = Seq(),
                                  offset: Int = 0,
                                  @Inject request: Request) extends WithRequest
 
+private case class RequestWithProductName(@NotEmpty productName: String,
+                                          @Inject request: Request) extends WithRequest
+
 /**
   * Controller that handles deployment requests as a REST API.
   */
@@ -120,6 +123,13 @@ class RestController @Inject()(val engine: Engine)
         5.seconds
       )
     }
+  }
+
+  post("/api/products/version-per-target") { r: RequestWithProductName =>
+    timeBoxed(
+      engine.getCurrentVersionPerTarget(r.productName),
+      5.seconds
+    )
   }
 
   get("/api/actions") { r: Request =>
