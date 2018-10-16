@@ -26,7 +26,7 @@ this.Perpetuo.Util = this.Perpetuo.Util || (function () {
         return intersected.length === 1 ? intersected[0] : `(${intersected.join(' ∩ ')})`;
       }
       if (e.icontains) {
-        return `${e.icontains}~`;
+        return `~${e.icontains}`;
       }
       if (e.tag) {
         return e.tag;
