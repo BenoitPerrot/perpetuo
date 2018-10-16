@@ -10,6 +10,10 @@ import scala.concurrent.Future
 private[dao] case class LockRecord(name: String,
                                    deploymentRequestId: Long)
 
+object LockName {
+  val maxLength = 128
+}
+
 
 trait LockBinder extends TableBinder with Logging {
   this: DeploymentRequestBinder with DbContextProvider =>
@@ -17,7 +21,7 @@ trait LockBinder extends TableBinder with Logging {
   import dbContext.profile.api._
 
   class LockTable(tag: Tag) extends Table[LockRecord](tag, "lock") {
-    def name = column[String]("name", O.SqlType("nvarchar(128)"))
+    def name = column[String]("name", O.SqlType(s"nvarchar(${LockName.maxLength})"))
     protected def pk = primaryKey(name)
 
     def deploymentRequestId = column[Long]("deployment_request_id")
