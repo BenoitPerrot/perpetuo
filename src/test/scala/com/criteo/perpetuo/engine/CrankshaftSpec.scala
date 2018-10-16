@@ -351,7 +351,7 @@ class CrankshaftWithResolverSpec extends SimpleScenarioTesting {
   private val step2 = Set("tag:east-west")
 
   private def findCurrentVersionForEachKnownTarget(productName: String, amongAtoms: Iterable[String]) =
-    crankshaft.dbBinding.findCurrentVersionForEachKnownTarget(productName, amongAtoms.map(TargetAtom))
+    crankshaft.dbBinding.findCurrentVersionForEachKnownTarget(productName, Some(amongAtoms.map(TargetAtom)))
       .map(_.map { case (k, v) => k.name -> v })
 
   private def computeDominantVersion(productName: String, referenceAtoms: Iterable[Iterable[String]]) =
@@ -361,7 +361,7 @@ class CrankshaftWithResolverSpec extends SimpleScenarioTesting {
     })
 
   private def getDeployedVersions(productName: String) =
-    crankshaft.dbBinding.findCurrentVersionForEachKnownTarget(productName, (step1 ++ step2).map(TargetAtom))
+    crankshaft.dbBinding.findCurrentVersionForEachKnownTarget(productName, Some((step1 ++ step2).map(TargetAtom)))
       .map(_.map { case (k, v) => k.name -> v.structured.head.value })
 
   private def findTargetsByOperationTrace(op: OperationTrace) = {
@@ -511,7 +511,7 @@ class CrankshaftWithMultiStepSpec extends SimpleScenarioTesting {
   private val step2 = Set("east", "west")
 
   private def getDeployedVersions(productName: String) =
-    crankshaft.dbBinding.findCurrentVersionForEachKnownTarget(productName, (step1 ++ step2).map(TargetAtom))
+    crankshaft.dbBinding.findCurrentVersionForEachKnownTarget(productName, Some((step1 ++ step2).map(TargetAtom)))
       .map(_.map { case (k, v) => k.name -> v.structured.head.value })
 
   test("Crankshaft can retry the first step if it's failing and revert it") {

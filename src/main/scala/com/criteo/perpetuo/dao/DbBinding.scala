@@ -478,18 +478,22 @@ class DbBinding @Inject()(val dbContext: DbContext)
     *
     * @return for each target atom, the version assumed to be running (either successfully, failing, or still being deployed)
     */
-  def findCurrentVersionForEachKnownTarget(productName: String, amongAtoms: Iterable[TargetAtom]): Future[Map[TargetAtom, Version]] = {
-    val allStatuses = targetStatusQuery
+  def findCurrentVersionForEachKnownTarget(productName: String, amongAtoms: Option[Iterable[TargetAtom]] = None): Future[Map[TargetAtom, Version]] = {
+    val targetStatuses = targetStatusQuery
       .join(executionQuery)
       .join(operationTraceQuery)
       .join(deploymentRequestQuery)
       .join(productQuery)
       .filter { case ((((ts, ex), op), dr), p) =>
-        ts.targetAtom.inSet(amongAtoms.map(a => a: TargetAtomField)) && ts.code =!= Status.notDone &&
+          ts.code =!= Status.notDone &&
           ts.executionId === ex.id && ex.operationTraceId === op.id &&
           op.deploymentRequestId === dr.id && dr.productId === p.id && p.name === productName
       }
       .map { case ((((ts, _), _), _), _) => ts }
+
+    val allStatuses = amongAtoms
+      .map(atoms => targetStatuses.filter(ts => ts.targetAtom.inSet(atoms.map(a => a: TargetAtomField))))
+      .getOrElse(targetStatuses)
 
     dbContext.db.run(
       latestExecutions(allStatuses)

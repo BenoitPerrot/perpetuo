@@ -350,4 +350,7 @@ class Engine @Inject()(val crankshaft: Crankshaft,
 
   def getAllowedActions(user: User): Seq[GeneralAction.Value] =
     GeneralAction.values.filter(permissions.isAuthorized(user, _)).toSeq
+
+  def getCurrentVersionPerTarget(productName: String): Future[Map[TargetAtom, Version]] =
+    crankshaft.dbBinding.findCurrentVersionForEachKnownTarget(productName)
 }

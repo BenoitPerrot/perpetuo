@@ -269,4 +269,40 @@ class EngineSpec extends SimpleScenarioTesting {
       }
     )
   }
+
+  test("Finding the latest deployed version for one target") {
+    val productName = "product1"
+    request(productName, "1", Seq("atom")).step(Map("atom" -> Status.success))
+    request(productName, "2", Seq("atom")).step(Map("atom" -> Status.success))
+    val versions = engine.getCurrentVersionPerTarget(productName)
+    versions should become(
+      Map(TargetAtom("atom") -> Version("\"2\""))
+    )
+  }
+
+  test("Finding the latest deployed version for multiple targets") {
+    val productName = "product2"
+    request(productName, "2", Seq("atom")).step(Map("atom" -> Status.hostFailure))
+    request(productName, "1", Seq("par")).step(Map("par" -> Status.notDone))
+    request(productName, "4", Seq("target1", "target2")).step(Map("target1" -> Status.productFailure, "target2" -> Status.success))
+
+    val versions = engine.getCurrentVersionPerTarget(productName)
+    versions should become(
+      Map(
+        TargetAtom("atom") -> Version("\"2\""),
+        TargetAtom("target1") -> Version("\"4\""),
+        TargetAtom("target2") -> Version("\"4\"")
+      )
+    )
+  }
+
+  test("Finding the latest deployed version for non completed targets") {
+    val productName = "product3"
+    request(productName, "1", Seq("atom")).step(Map("atom" -> Status.success))
+    request(productName, "2", Seq("atom")).step(Map("atom" -> Status.notDone))
+    val versions = engine.getCurrentVersionPerTarget(productName)
+    versions should become(
+      Map(TargetAtom("atom") -> Version("\"1\""))
+    )
+  }
 }

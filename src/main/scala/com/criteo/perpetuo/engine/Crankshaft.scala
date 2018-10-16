@@ -459,7 +459,7 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
     def chainQueries(acc: Future[Map[TargetAtom, Version]], atomsGroup: Iterable[TargetAtom]) =
       acc.flatMap(lastVersions =>
         if (lastVersions.isEmpty) // run the query below until we get a non-empty result
-          dbBinding.findCurrentVersionForEachKnownTarget(productName, atomsGroup)
+          dbBinding.findCurrentVersionForEachKnownTarget(productName, Some(atomsGroup))
         else
           Future.successful(lastVersions)
       )
