@@ -90,7 +90,7 @@ class DispatchingSpec extends SimpleScenarioTesting {
   test("An execution raises if a target cannot be solved to atomic targets") {
     val targets = Set(TargetAtom("ab"), TargetTag("-"))
     val thrown = the[UnprocessableIntent] thrownBy testResolver.resolveExpression(null, Version("\"\""), TargetUnion(targets.toSet))
-    thrown.getMessage shouldEqual "The following target(s) were not resolved: tag:-"
+    thrown.getMessage shouldEqual "The following target(s) were not resolved: [-]"
   }
 
   test("The resolver cuts short on atoms and sends them back") {
