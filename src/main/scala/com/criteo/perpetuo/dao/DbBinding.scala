@@ -154,6 +154,15 @@ class DbBinding @Inject()(val dbContext: DbContext)
       .take(limit)
   }
 
+  def findDeploymentRequests(where: Seq[Map[String, Any]], limit: Int, offset: Int): Future[Seq[DeploymentRequest]] =
+    dbContext.db.run(
+      queryDeploymentRequests(where, limit, offset).result
+    ).map(
+      _.map { case (deploymentRequest, product) =>
+        deploymentRequest.toDeploymentRequest(product)
+      }
+    )
+
   def findDeploymentRequestsWithStatuses(where: Seq[Map[String, Any]], limit: Int, offset: Int): Future[Seq[(DeploymentPlan, DeploymentStatus.Value, Option[Operation.Kind])]] = {
     val q = queryDeploymentRequests(where, limit, offset)
       .join(deploymentPlanStepQuery)

@@ -254,6 +254,15 @@ class Engine @Inject()(val crankshaft: Crankshaft,
   def findDeploymentRequestsWithStatuses(where: Seq[Map[String, Any]], limit: Int, offset: Int): Future[Seq[(DeploymentPlan, DeploymentStatus.Value, Option[Operation.Kind])]] =
     crankshaft.findDeploymentRequestsWithStatuses(where, limit, offset)
 
+  def findDeploymentRequestsStates(where: Seq[Map[String, Any]], limit: Int, offset: Int): Future[Seq[DeploymentState]] =
+    crankshaft
+      .findDeploymentRequests(where, limit, offset)
+      .flatMap(deploymentRequests =>
+        Future.sequence(
+          deploymentRequests.map(deploymentRequest => findDeploymentRequestState(deploymentRequest.id))
+        ).map(_.flatten)
+      )
+
   def findDeploymentRequestState(id: Long): Future[Option[DeploymentState]] =
     cachedState.get(id)
 

@@ -143,6 +143,49 @@ class EngineSpec extends SimpleScenarioTesting {
     )
   }
 
+  test("Finding deployment request states works") {
+    await(
+      for {
+        product <- engine.upsertProduct(starter, "multi-state")
+
+        r0 <- engine.requestDeployment(someone, ProtoDeploymentRequest(product.name, Version("0".toJson), Seq(ProtoDeploymentPlanStep("", JsString("lcy"), "")), "", someone.name))
+        _ <- engine.step(releaser, r0.id, None).map(_.get)
+        inProgress0 <- engine.crankshaft.assessDeploymentState(r0)
+        _ <- tryUpdateExecutionTraces(engine, inProgress0.effects.head.executionTraces, ExecutionState.completed, statusMap = Map(TargetAtom("lcy") -> TargetAtomStatus(Status.success, "")))
+
+        states0 <- engine.findDeploymentRequestsStates(Seq(Map("field" -> "productName", "equals" -> "multi-state")), 10, 0)
+
+        r1 <- engine.requestDeployment(someone, ProtoDeploymentRequest(product.name, Version("1".toJson), Seq(ProtoDeploymentPlanStep("", JsString("lcy"), "")), "", someone.name))
+        _ <- engine.step(releaser, r1.id, None).map(_.get)
+        inProgress1 <- engine.crankshaft.assessDeploymentState(r1)
+        _ <- tryUpdateExecutionTraces(engine, inProgress1.effects.head.executionTraces, ExecutionState.completed, statusMap = Map(TargetAtom("lcy") -> TargetAtomStatus(Status.productFailure, "")))
+        _ <- engine.revert(releaser, r1.id, None, None).map(_.get)
+        revertInProgress <- engine.crankshaft.assessDeploymentState(r1)
+        _ <- tryUpdateExecutionTraces(engine, revertInProgress.effects.head.executionTraces, ExecutionState.completed, statusMap = Map(TargetAtom("lcy") -> TargetAtomStatus(Status.success, "")))
+
+        _ <- MockTicker.advanceTime()
+        states10 <- engine.findDeploymentRequestsStates(Seq(Map("field" -> "productName", "equals" -> "multi-state")), 10, 0)
+
+        r2 <- engine.requestDeployment(someone, ProtoDeploymentRequest(product.name, Version("2".toJson), Seq(ProtoDeploymentPlanStep("", JsString("lcy"), "")), "", someone.name))
+        _ <- engine.step(releaser, r2.id, None).map(_.get)
+
+        _ <- MockTicker.advanceTime()
+        states21 <- engine.findDeploymentRequestsStates(Seq(Map("field" -> "productName", "equals" -> "multi-state")), 2, 0)
+      } yield {
+        states0.size shouldBe 1
+        states0.head shouldBe an[Deployed]
+
+        states10.size shouldBe 2
+        states10(1) shouldBe an[Outdated]
+        states10.head shouldBe a[Reverted]
+
+        states21.size shouldBe 2
+        states21(1) shouldBe an[Outdated]
+        states21.head shouldBe a[DeployInProgress]
+      }
+    )
+  }
+
   test("Step-stammering while running is idempotent") {
     await(
       for {
