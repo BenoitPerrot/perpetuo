@@ -566,7 +566,7 @@ class RestControllerSpec extends Test with TestDb {
       JsObject(
         "id" -> JsNumber(depReqId),
         "stopped" -> JsNumber(0),
-        "failures" -> JsArray(JsString("Could not find an execution configuration for the type `unknown`"))
+        "failures" -> JsArray(JsString("This kind of execution cannot be stopped: http://final"))
       )
 
     executionTraceIds.foreach(execTraceId =>

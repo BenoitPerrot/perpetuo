@@ -496,4 +496,7 @@ class DbBinding @Inject()(val dbContext: DbContext)
       }
       .exists
       .result
+
+  def findExecutorName(executionTraceId: Long): Future[Option[String]] =
+    dbContext.db.run(executionTraceQuery.filter(_.id === executionTraceId).map(_.executorType).result.headOption)
 }

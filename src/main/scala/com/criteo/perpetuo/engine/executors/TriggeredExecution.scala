@@ -41,15 +41,9 @@ class UncontrollableTriggeredExecution(val href: String) extends TriggeredExecut
   */
 @Singleton
 class TriggeredExecutionFinder @Inject()(loader: PluginLoader) {
-  def apply[T](executionTrace: ShallowExecutionTrace): TriggeredExecution =
+  def apply[T](executionTrace: ShallowExecutionTrace, executionName: String): TriggeredExecution =
     executionTrace.href
       .map { href =>
-        val executionName = href match { // todo: look at the executionName in the record instead
-          case _ if href.contains("/execution/show/") => "rundeck"
-          case _ if href.contains("/job/") => "jenkins"
-          case _ => "unknown"
-        }
-
         val executionConfig = try
           AppConfigProvider.executorsConfig.getConfig(ConfigUtil.joinPath(executionName, "execution"))
         catch // catch bad configuration path as well as missing configuration

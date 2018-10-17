@@ -607,7 +607,7 @@ class CrankshaftWithStopperSpec extends SimpleScenarioTesting {
   when(executionMock.href).thenReturn(href)
 
   override val executionFinder: TriggeredExecutionFinder = new TriggeredExecutionFinder(null) {
-    override def apply[T](executionTrace: ShallowExecutionTrace): TriggeredExecution =
+    override def apply[T](executionTrace: ShallowExecutionTrace, executionName: String): TriggeredExecution =
       executionMock
   }
 
@@ -687,7 +687,7 @@ class CrankshaftWithUncontrollableTriggeredExecutionSpec extends SimpleScenarioT
   override protected def triggerMock = Some(href)
 
   override val executionFinder: TriggeredExecutionFinder = new TriggeredExecutionFinder(null) {
-    override def apply[T](executionTrace: ShallowExecutionTrace): TriggeredExecution =
+    override def apply[T](executionTrace: ShallowExecutionTrace, executionName: String): TriggeredExecution =
       new UncontrollableTriggeredExecution(href)
   }
 
@@ -758,6 +758,6 @@ class CrankshaftWithUnknownHrefSpec extends SimpleScenarioTesting {
     crankshaft.dbBinding.findExecutionTracesByOperationTrace(op.id)
       .map(_.head)
       .flatMap(crankshaft.stopExecution(_, "joe")) should
-      asynchronouslyThrow[RuntimeException]("Could not find an execution configuration for the type `unknown`")
+      asynchronouslyThrow[RuntimeException]("Could not find an execution configuration for the type `testing`")
   }
 }
