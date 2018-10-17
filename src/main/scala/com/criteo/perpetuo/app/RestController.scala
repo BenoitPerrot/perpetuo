@@ -229,7 +229,11 @@ class RestController @Inject()(val engine: Engine)
     )
   }
 
-  private def serialize(deploymentPlan: DeploymentPlan, deploymentStatus: DeploymentStatus.Value, lastOperationKind: Option[Operation.Kind]): Map[String, Any] =
+  private def serialize(state: DeploymentState): Map[String, Any] = {
+    val deploymentPlan = DeploymentPlan(state.deploymentRequest, state.deploymentPlanSteps)
+    val lastOperationStatus = state.effects.headOption.map(lastEffect => (lastEffect.operationTrace.kind, lastEffect.state))
+    val deploymentStatus = lastOperationStatus.map { case (_, opStatus) => DeploymentStatus.from(opStatus) }.getOrElse(DeploymentStatus.notStarted)
+    val lastOperationKind = lastOperationStatus.map { case (kind, _) => kind }
     Map(
       "id" -> deploymentPlan.deploymentRequest.id,
       "comment" -> deploymentPlan.deploymentRequest.comment,
@@ -241,14 +245,10 @@ class RestController @Inject()(val engine: Engine)
       "status" -> deploymentStatus,
       "lastOperationKind" -> lastOperationKind
     )
+  }
 
   private def serialize(state: DeploymentState, eligibleActions: Seq[(String, Option[String])]): Map[String, Any] = {
-    val lastOperationStatus = state.effects.headOption.map(lastEffect => (lastEffect.operationTrace.kind, lastEffect.state))
-    serialize(
-      DeploymentPlan(state.deploymentRequest, state.deploymentPlanSteps),
-      lastOperationStatus.map { case (_, opStatus) => DeploymentStatus.from(opStatus) }.getOrElse(DeploymentStatus.notStarted),
-      lastOperationStatus.map { case (kind, _) => kind }
-    ) ++
+    serialize(state) ++
       Map("operations" ->
         state.effects.map { case effect@OperationEffect(op, planStepIds, executionTraces, targetStatus) =>
           val getTargetDetail = if (effect.state == OperationEffectState.inProgress)
@@ -290,10 +290,8 @@ class RestController @Inject()(val engine: Engine)
           throw BadRequestException("`limit` shall be lower than 1000")
         }
         try {
-          engine.findDeploymentRequestsWithStatuses(r.where, r.limit, r.offset)
-            .map(_.map { case (deploymentPlan, deploymentStatus, lastOperationKind) =>
-              serialize(deploymentPlan, deploymentStatus, lastOperationKind)
-            })
+          engine.findDeploymentRequestsStates(r.where, r.limit, r.offset)
+            .map(_.map(serialize))
         } catch {
           case e: IllegalArgumentException => throw BadRequestException(e.getMessage)
         }

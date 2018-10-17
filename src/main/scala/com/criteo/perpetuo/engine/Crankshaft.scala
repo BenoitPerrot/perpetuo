@@ -442,9 +442,6 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
       )
     )
 
-  def findDeploymentRequestsWithStatuses(where: Seq[Map[String, Any]], limit: Int, offset: Int): Future[Seq[(DeploymentPlan, DeploymentStatus.Value, Option[Operation.Kind])]] =
-    dbBinding.findDeploymentRequestsWithStatuses(where, limit, offset)
-
   def findDeploymentRequests(where: Seq[Map[String, Any]], limit: Int, offset: Int): Future[Seq[DeploymentRequest]] =
     dbBinding.findDeploymentRequests(where, limit, offset)
 
