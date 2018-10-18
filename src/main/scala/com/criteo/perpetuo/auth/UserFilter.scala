@@ -14,6 +14,9 @@ object UserFilter {
     def user: Option[User] = request.ctx(UserField)
   }
 
+  def decorateRequest(r: Request, u: Option[User]): Schema.Record =
+    r.ctx.update(UserFilter.UserField, u)
+
   val cookieName = "jwt"
 }
 
@@ -23,7 +26,7 @@ class UserFilter @Inject() (jwtEncoder: JWTEncoder, identityProvider: IdentityPr
   private val loginHeader = "X-Perpetuo-Login"
 
   private def setUser(request: Request) = {
-    request.ctx.update(UserFilter.UserField,
+    UserFilter.decorateRequest(request,
       request.headerMap.get("Authorization").orElse(request.cookies.get(UserFilter.cookieName).map(_.value))
         .flatMap(jwt => User.fromJWT(jwtEncoder, jwt))
     )
