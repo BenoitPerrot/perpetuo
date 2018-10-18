@@ -8,7 +8,7 @@ import com.criteo.perpetuo.engine.executors.ExecutionTrigger
 import com.criteo.perpetuo.model._
 import com.twitter.inject.Logging
 
-import scala.collection.JavaConverters._
+import scala.collection.JavaConversions._
 
 
 abstract class JavaFriendlyTargetDispatcher extends Provider[TargetDispatcher] with ParameterFreezer with Logging {
@@ -20,9 +20,8 @@ abstract class JavaFriendlyTargetDispatcher extends Provider[TargetDispatcher] w
         delegate.freezeParameters(productName, version)
 
       protected override def dispatch(targetAtoms: Set[TargetAtom], frozenParameters: String): Iterable[(ExecutionTrigger, Set[TargetAtom])] =
-        delegate.dispatch(targetAtoms.map(_.name).asJava, frozenParameters)
-          .entrySet.iterator.asScala
-          .map(entry => (entry.getKey, entry.getValue.iterator().asScala.map(TargetAtom).toSet)).toIterable
+        delegate.dispatch(targetAtoms.map(_.name), frozenParameters).entrySet
+          .map(entry => (entry.getKey, entry.getValue.iterator.map(TargetAtom).toSet))
     }
   }
 

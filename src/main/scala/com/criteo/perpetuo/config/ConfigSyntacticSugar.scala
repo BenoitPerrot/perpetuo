@@ -2,7 +2,7 @@ package com.criteo.perpetuo.config
 
 import com.typesafe.config.Config
 
-import scala.collection.JavaConverters._
+import scala.collection.JavaConversions._
 
 object ConfigSyntacticSugar {
 
@@ -11,10 +11,10 @@ object ConfigSyntacticSugar {
       if (config.hasPath(path)) Some(config.getConfig(path)) else None
 
     def tryGetConfigList(path: String): Option[Seq[Config]] =
-      if (config.hasPath(path)) Some(config.getConfigList(path).asScala) else None
+      if (config.hasPath(path)) Some(config.getConfigList(path)) else None
 
     def tryGetStringList(path: String): Option[Seq[String]] =
-      if (config.hasPath(path)) Some(config.getStringList(path).asScala) else None
+      if (config.hasPath(path)) Some(config.getStringList(path)) else None
 
     def tryGetString(path: String): Option[String] =
       if (config.hasPath(path)) Some(config.getString(path)) else None

@@ -9,7 +9,7 @@ import com.criteo.perpetuo.engine.resolvers.TargetResolver
 import com.criteo.perpetuo.engine.{AsyncListener, Provider}
 import com.google.inject.{Inject, Singleton}
 
-import scala.collection.JavaConverters._
+import scala.collection.JavaConversions._
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionException, Future, blocking}
@@ -58,7 +58,7 @@ class Plugins @Inject()(loader: PluginLoader) {
 
   val listeners: Seq[AsyncListener] =
     if (config.hasPath("engineListeners"))
-      config.getConfigList("engineListeners").asScala.map(desc =>
+      config.getConfigList("engineListeners").map(desc =>
         new ListenerPluginWrapper(loader.load[DefaultListenerPlugin](desc, "engine listener")())
       )
     else

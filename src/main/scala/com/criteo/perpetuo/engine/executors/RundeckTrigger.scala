@@ -9,7 +9,7 @@ import com.twitter.util.Await
 import com.typesafe.config.Config
 import spray.json._
 
-import scala.collection.JavaConverters._
+import scala.collection.JavaConversions._
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
@@ -89,5 +89,5 @@ class RundeckTrigger(name: String,
 
 object RundeckTrigger {
   def fromJavaTypes(name: String, host: String, jobName: String, specificParameters: java.util.Map[String, String]): RundeckTrigger =
-    new RundeckTrigger(name, host, jobName, specificParameters.asScala)
+    new RundeckTrigger(name, host, jobName, specificParameters)
 }
