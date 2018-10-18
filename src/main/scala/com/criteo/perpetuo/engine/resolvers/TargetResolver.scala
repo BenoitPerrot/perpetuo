@@ -3,13 +3,15 @@ package com.criteo.perpetuo.engine.resolvers
 import com.criteo.perpetuo.dao
 import com.criteo.perpetuo.engine.{Provider, TargetAtomSet, UnprocessableIntent}
 import com.criteo.perpetuo.model._
-import com.twitter.util.{Await, Future}
+
+import scala.concurrent.duration.Duration
+import scala.concurrent.{Await, Future}
 
 
 trait TargetResolver extends Provider[TargetResolver] {
   def get: TargetResolver = this
 
-  def getAllAtomsAndTags(productName: String): Future[TargetSet] = Future.value(TargetSet(Map.empty))
+  def getAllAtomsAndTags(productName: String): Future[TargetSet] = Future.successful(TargetSet(Map.empty))
 
   def resolveExpression(productName: String, productVersion: Version, targetExpr: TargetExpr): TargetAtomSet = {
     // resolve what's unresolved
@@ -62,7 +64,7 @@ trait TargetResolver extends Provider[TargetResolver] {
     */
   // todo: make it asynchronous
   protected def resolveNonAtoms(productName: String, productVersion: Version, targetTerms: Set[TargetNonAtom]): (Map[TargetNonAtom, Set[TargetAtom]], Boolean) = {
-    val TargetSet(atomsToTags, isExact) = Await.result(getAllAtomsAndTags(productName))
+    val TargetSet(atomsToTags, isExact) = Await.result(getAllAtomsAndTags(productName), Duration.Inf)
 
     lazy val targetAtoms = atomsToTags.keySet.map(TargetAtom)
     lazy val tagsToAtoms = atomsToTags
