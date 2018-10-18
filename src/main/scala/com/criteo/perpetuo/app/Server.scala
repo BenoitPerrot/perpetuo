@@ -55,22 +55,23 @@ class Server extends ServerConfigurator with HttpServer {
         .filter[CommonFilters]
     }
 
-    config.tryGetStringList("extraFilters")
-      .foreach(_
-        .foreach(extraFilterClassName =>
-          router.filter(injector.instance(Class.forName(extraFilterClassName)).asInstanceOf[SimpleFilter[Request, Response]])
-        )
+    config
+      .tryGetStringList("extraFilters").getOrElse(Seq())
+      .:+(config.getString("auth.filter"))
+      .foreach(extraFilterClassName =>
+        router.filter(injector.instance(Class.forName(extraFilterClassName)).asInstanceOf[SimpleFilter[Request, Response]])
       )
 
-    config.tryGetStringList("extraControllers")
-      .foreach(_
-        .foreach(extraControllerClassName =>
-          router.add(injector.instance(Class.forName(extraControllerClassName)).asInstanceOf[BaseController])
-        )
+    config
+      .tryGetStringList("extraControllers").getOrElse(Seq())
+      .:+(config.getString("auth.controller"))
+      .foreach(extraControllerClassName =>
+        router.add(injector.instance(Class.forName(extraControllerClassName)).asInstanceOf[BaseController])
       )
 
     router
       .add[AuthenticationController]
+      .add[LocalUsersRetrievingController]
       .add[RestController]
 
       // Add controller for serving static assets as the last one / fallback one
