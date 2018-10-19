@@ -133,7 +133,7 @@ class DbBinding @Inject()(val dbContext: DbContext)
       .result
       .map(_.map(_.toDeploymentPlanStep(deploymentRequest)))
 
-  def findDeploymentRequestsWithStatuses(where: Seq[Map[String, Any]], limit: Int, offset: Int): Future[Seq[(DeploymentPlan, DeploymentStatus.Value, Option[Operation.Kind])]] = {
+  private def queryDeploymentRequests(where: Seq[Map[String, Any]], limit: Int, offset: Int) = {
     val filtered = where.foldLeft(this.deploymentRequestQuery join this.productQuery on (_.productId === _.id)) { (queries, spec) =>
       val value = spec.getOrElse("equals", throw new IllegalArgumentException(s"Filters tests must be `equals`"))
       val fieldName = spec.getOrElse("field", throw new IllegalArgumentException(s"Filters must specify ̀`field`"))
@@ -148,11 +148,14 @@ class DbBinding @Inject()(val dbContext: DbContext)
       }
     }
 
-    val q = filtered
+    filtered
       .sortBy { case (depReq, _) => depReq.id.desc }
       .drop(offset)
       .take(limit)
+  }
 
+  def findDeploymentRequestsWithStatuses(where: Seq[Map[String, Any]], limit: Int, offset: Int): Future[Seq[(DeploymentPlan, DeploymentStatus.Value, Option[Operation.Kind])]] = {
+    val q = queryDeploymentRequests(where, limit, offset)
       .join(deploymentPlanStepQuery)
       .on { case ((deploymentRequest, _), planStep) => deploymentRequest.id === planStep.deploymentRequestId }
 
