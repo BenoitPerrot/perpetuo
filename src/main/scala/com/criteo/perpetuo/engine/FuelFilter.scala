@@ -3,7 +3,7 @@ package com.criteo.perpetuo.engine
 import com.criteo.perpetuo.config.AppConfigProvider
 import com.criteo.perpetuo.config.ConfigSyntacticSugar._
 import com.criteo.perpetuo.dao.{DBIOrw, DbBinding, LockName}
-import com.criteo.perpetuo.model.{DeploymentPlanStep, DeploymentRequest, TargetAtom}
+import com.criteo.perpetuo.model.{DeploymentRequest, TargetAtom}
 import slick.dbio.{DBIOAction, Effect, NoStream}
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -38,18 +38,6 @@ class FuelFilter(dbBinding: DbBinding) {
       else
         DBIOAction.successful(())
     )
-
-  //
-  // PRIVATE METHODS:
-
-  // TODO: inline in (at least move closer to) lone caller in Crankshaft
-  def findNextPlanStep(planSteps: Seq[DeploymentPlanStep], referencePlanStepId: Long): Option[DeploymentPlanStep] =
-    planSteps.foldLeft(None: Option[DeploymentPlanStep]) { (result, x) =>
-      if (referencePlanStepId < x.id && result.forall(x.id < _.id))
-        Some(x)
-      else
-        result
-    }
 
   private def getOperationLockName(deploymentRequest: DeploymentRequest) =
     s"Operating on ${deploymentRequest.id}"

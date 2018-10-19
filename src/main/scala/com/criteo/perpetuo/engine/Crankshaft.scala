@@ -129,8 +129,7 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
                       DeployInProgress(deploymentRequest, deploymentPlanSteps, sortedEffects, latestEffect)
 
                     case OperationEffectState.succeeded =>
-                      fuelFilter
-                        .findNextPlanStep(deploymentPlanSteps, latestOperatedPlanStep.id)
+                      findNextPlanStep(deploymentPlanSteps, latestOperatedPlanStep.id)
                         .map(
                           Paused(deploymentRequest, deploymentPlanSteps, sortedEffects, _, latestOperatedPlanStep, operatedPlanSteps)
                         )
@@ -185,6 +184,14 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
             deploymentPlan.deploymentRequest
           }
       }
+
+  private def findNextPlanStep(planSteps: Seq[DeploymentPlanStep], referencePlanStepId: Long): Option[DeploymentPlanStep] =
+    planSteps.foldLeft(None: Option[DeploymentPlanStep]) { (result, x) =>
+      if (referencePlanStepId < x.id && result.forall(x.id < _.id))
+        Some(x)
+      else
+        result
+    }
 
   private def triggerExecutions(deploymentRequest: DeploymentRequest,
                                 operationTrace: OperationTrace,
