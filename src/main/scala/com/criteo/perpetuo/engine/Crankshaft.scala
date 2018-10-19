@@ -14,12 +14,12 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
 object DeploymentStatus extends Enumeration {
-  val notStarted = Value("notStarted")
-  val inProgress = Value("inProgress")
-  val flopped = Value("flopped")
-  val failed = Value("failed")
-  val succeeded = Value("succeeded")
-  val paused = Value("paused")
+  val notStarted: Value = Value("notStarted")
+  val inProgress: Value = Value("inProgress")
+  val flopped: Value = Value("flopped")
+  val failed: Value = Value("failed")
+  val succeeded: Value = Value("succeeded")
+  val paused: Value = Value("paused")
 
   def from(operationState: OperationEffectState.Value): DeploymentStatus.Value =
     operationState match {
@@ -312,32 +312,34 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
   @VisibleForTesting
   def stopExecution(executionTrace: ShallowExecutionTrace, initiatorName: String): Future[Boolean] =
     dbBinding.findExecutorName(executionTrace.id)
-      .flatMap(_.map { executorName =>
-        val triggeredExecution = findTriggeredExecution(executionTrace, executorName)
-        val stop = triggeredExecution.stopper.getOrElse(
-          throw new RuntimeException(s"This kind of execution cannot be stopped: ${triggeredExecution.href}")
-        )
-        stop()
-          .map { incompleteState =>
-            val ret = Future.failed(new RuntimeException(s"Could not stop the execution ${triggeredExecution.href} (current state: $incompleteState)"))
-            if (incompleteState != executionTrace.state) // override anyway the detail if the state is outdated
-              updateExecutionTrace(executionTrace.id, incompleteState, "", None).flatMap(_ => ret)
-            else
-              ret
-          }
-          .getOrElse(
-            updateExecutionTrace(executionTrace.id, ExecutionState.aborted, s"stopped by $initiatorName", None)
-              .map { _ =>
-                logger.info(s"Execution successfully stopped: ${triggeredExecution.href}")
-                true
-              }
-              .recover {
-                case _: UnavailableAction =>
-                  logger.warn(s"Execution already terminated: ${triggeredExecution.href}")
-                  false
-              }
+      .flatMap(_
+        .map { executorName =>
+          val triggeredExecution = findTriggeredExecution(executionTrace, executorName)
+          val stop = triggeredExecution.stopper.getOrElse(
+            throw new RuntimeException(s"This kind of execution cannot be stopped: ${triggeredExecution.href}")
           )
-        }.getOrElse(
+          stop()
+            .map { incompleteState =>
+              val ret = Future.failed(new RuntimeException(s"Could not stop the execution ${triggeredExecution.href} (current state: $incompleteState)"))
+              if (incompleteState != executionTrace.state) // override anyway the detail if the state is outdated
+                updateExecutionTrace(executionTrace.id, incompleteState, "", None).flatMap(_ => ret)
+              else
+                ret
+            }
+            .getOrElse(
+              updateExecutionTrace(executionTrace.id, ExecutionState.aborted, s"stopped by $initiatorName", None)
+                .map { _ =>
+                  logger.info(s"Execution successfully stopped: ${triggeredExecution.href}")
+                  true
+                }
+                .recover {
+                  case _: UnavailableAction =>
+                    logger.warn(s"Execution already terminated: ${triggeredExecution.href}")
+                    false
+                }
+            )
+        }
+        .getOrElse(
           throw new RuntimeException(s"Cannot stop execution because executor name was not found: ${executionTrace.id}")
         )
       )
@@ -599,7 +601,7 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
               dbBinding.abandoningDeploymentRequest(deploymentRequest.id)
                 .flatMap { _ =>
                   listeners.foreach(_.onDeploymentRequestAbandoned(deploymentRequest))
-                  fuelFilter.releasingLocks(deploymentRequest, false)
+                  fuelFilter.releasingLocks(deploymentRequest, transactionOngoing = false)
                 }.map(_ => ())
             case _: Abandoned =>
               DBIO.successful(())
