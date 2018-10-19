@@ -216,7 +216,7 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
       }
     )
 
-  private def closingOperation(operationTrace: OperationTrace): DBIOAction[OperationTrace, NoStream, Effect.Read with Effect.Write with Effect.Transactional] =
+  private def closingOperation(operationTrace: OperationTrace): DBIOAction[(OperationTrace, Boolean), NoStream, Effect.Read with Effect.Write with Effect.Transactional] =
     dbBinding.closingOperationTrace(operationTrace)
       .map(_.map((_, true)).getOrElse((operationTrace, false)))
       .flatMap { case (trace, updated) =>
@@ -253,7 +253,7 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
                 }
               )
           }
-          .map(_ => trace)
+          .map(_ => (trace, updated))
       }
 
   def findOperationTraceForExpectedCount(deploymentRequest: DeploymentRequest, expectedOperationCount: Int): Future[Option[OperationTrace]] =
@@ -410,24 +410,17 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
     dbBinding.dbContext.db.run(devisingRevertPlan)
   }
 
-  def updateExecutionTrace(id: Long, executionState: ExecutionState, detail: String, href: Option[String], statusMap: Map[TargetAtom, TargetAtomStatus] = Map()): Future[Long] =
+  def updateExecutionTrace(id: Long, executionState: ExecutionState, detail: String, href: Option[String], statusMap: Map[TargetAtom, TargetAtomStatus] = Map()): Future[(OperationTrace, Boolean)] =
     tryUpdateExecutionTrace(id, executionState, detail, href, statusMap)
       .map(_.getOrElse(throw new IllegalArgumentException(s"Trying to update an execution trace ($id) that doesn't exist")))
 
-  def tryUpdateExecutionTrace(id: Long, executionState: ExecutionState, detail: String, href: Option[String], statusMap: Map[TargetAtom, TargetAtomStatus] = Map()): Future[Option[Long]] =
+  def tryUpdateExecutionTrace(id: Long, executionState: ExecutionState, detail: String, href: Option[String], statusMap: Map[TargetAtom, TargetAtomStatus] = Map()): Future[Option[(OperationTrace, Boolean)]] =
     dbBinding.dbContext.db.run(
       dbBinding.findingBranchFromExecutionTraceId(id).flatMap(_
         .map { executionTraceBranch =>
           val op = executionTraceBranch.operationTrace
           dbBinding.updatingExecutionTrace(id, executionState, detail, href)
             .andThen(dbBinding.updatingTargetStatuses(executionTraceBranch.executionId, statusMap))
-            .andThen(dbBinding.hasOpenExecutionTracesForOperation(op.id))
-            .flatMap(hasOpenExecutions =>
-              if (hasOpenExecutions)
-                DBIO.successful(op)
-              else
-                closingOperation(op)
-            )
             .map { _ =>
               // Calls listener for target status update
               statusMap.foreach { case (atom, value) =>
@@ -435,9 +428,20 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
                 if (value.code != Status.notDone)
                   listeners.foreach(_.onTargetAtomStatusUpdate(op, atom.name, value))
               }
-              Some(op.id)
+              Some(op)
             }
         }
+        .getOrElse(DBIO.successful(None))
+      )
+      .flatMap(_.map(op =>
+          dbBinding.hasOpenExecutionTracesForOperation(op.id)
+            .flatMap(hasOpenExecutions =>
+              if (hasOpenExecutions)
+                DBIO.successful((op, false))
+              else
+                closingOperation(op)
+            ).map { case (operation, updated) => Some(operation, updated) }
+        )
         .getOrElse(DBIO.successful(None))
       )
     )

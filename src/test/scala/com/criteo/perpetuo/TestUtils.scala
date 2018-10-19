@@ -113,8 +113,7 @@ trait SimpleScenarioTesting extends TestHelpers with TestDb with MockitoSugar {
               val finalStatusMap = statuses.mapValues(TargetAtomStatus(_, ""))
               val executionState = ExecutionState.completed
               Future.traverse(executionTraceIds)(
-                crankshaft.updateExecutionTrace(_, executionState, "", None, finalStatusMap)
-                  .map(Some(_))
+                crankshaft.updateExecutionTrace(_, executionState, "", None, finalStatusMap).map { case (opTrace, _) => Some(opTrace.id) }
                   .recover { case _: UnavailableAction => None }
               )
             }

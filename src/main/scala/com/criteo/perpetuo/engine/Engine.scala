@@ -328,7 +328,7 @@ class Engine @Inject()(val crankshaft: Crankshaft,
         }
     }
 
-  def tryUpdateExecutionTrace(id: Long, executionState: ExecutionState, detail: String, href: Option[String], statusMap: Map[TargetAtom, TargetAtomStatus] = Map()): Future[Option[Long]] =
+  def tryUpdateExecutionTrace(id: Long, executionState: ExecutionState, detail: String, href: Option[String], statusMap: Map[TargetAtom, TargetAtomStatus] = Map()): Future[Option[(OperationTrace, Boolean)]] =
     crankshaft.tryUpdateExecutionTrace(id, executionState, detail, href, statusMap)
 
   def getProducts: Future[Seq[Product]] =
