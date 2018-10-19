@@ -25,12 +25,12 @@ this.Perpetuo.Client = this.Perpetuo.Client || (function () {
       });
     }
 
-    identify(accessToken) {
-      return Perpetuo.Client.fetch('/api/auth/identify', {method: 'POST', body: JSON.stringify({token: accessToken})})
-                            .then(_ => _.text())
-                            .then(jwt => {
-                              window.localStorage.jwt = jwt;
-                            });
+    identify(code) {
+      return Perpetuo.Client
+                     .fetch(`/api/auth/jwt?code=${code}&redirect_uri=${window.location.origin}/identify`)
+                     .then(r => {
+                       window.localStorage.jwt = r.headers.get('X-Perpetuo-JWT');
+                     });
     }
 
     signOut() {

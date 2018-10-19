@@ -36,12 +36,12 @@
       }
 
       acknowledge() {
-        const query = window.location.hash.slice(1).split('&').reduce((m, p) => {
+        const query = window.location.search.slice(1).split('&').reduce((m, p) => {
           const kv = p.split('=');
           return m.set(kv[0], kv[1]);
         }, new Map());
 
-        this.client.identify(query.get('access_token')).then(() => {
+        this.client.identify(query.get('code')).then(() => {
           window.location.replace(decodeURIComponent(query.get('state')));
         });
       }
