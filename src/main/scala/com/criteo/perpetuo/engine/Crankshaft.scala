@@ -576,7 +576,7 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
           // if that answers a href, update the trace with it, and consider that the job
           // is running (i.e. already followable and not yet terminated, really)
           optHref.map(href =>
-            (true, s"`$href` succeeded", Some((ExecutionState.running, "", optHref))) // todo: change to pending once DREDD-725 is implemented
+            (true, s"`$href` succeeded", Some((ExecutionState.running, "", optHref)))
           ).getOrElse(
             (true, "succeeded (but with an unknown href)", None)
           )
