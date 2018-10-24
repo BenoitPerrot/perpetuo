@@ -276,13 +276,10 @@ class RestControllerSpec extends Test with TestDb {
     requestAndWaitDeployment("my product", "b", JsArray(), None, Some("Unexpected target element: []"))
   }
 
-  test("The DeploymentRequest's actions entry-point starts a deployment that was not started yet") {
+  test("The DeploymentRequest's creation entry-point doesn't start the deployment") {
     createProduct("my product B")
     val id = requestDeployment("my product B", "456", "ams".toJson)
     expectState(id, "notStarted")
-
-    startDeploymentRequest(id) shouldEqual JsObject("id" -> id.toJson)
-    expectState(id, "deployInProgress")
   }
 
   test("The DeploymentRequest's actions entry-point returns 404 when trying to start a non-existing DeploymentRequest") {
