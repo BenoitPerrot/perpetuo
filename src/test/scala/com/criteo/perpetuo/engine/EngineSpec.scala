@@ -6,8 +6,9 @@ import java.util.concurrent.atomic.AtomicLong
 import com.criteo.perpetuo.SimpleScenarioTesting
 import com.criteo.perpetuo.auth.{Unrestricted, User}
 import com.criteo.perpetuo.model._
+import com.criteo.perpetuo.util.FutureLoadingCache
 import com.google.common.base.Ticker
-import com.google.common.cache.{CacheBuilder, LoadingCache}
+import com.google.common.cache.CacheBuilder
 import spray.json.DefaultJsonProtocol._
 import spray.json._
 
@@ -33,13 +34,14 @@ class EngineSpec extends SimpleScenarioTesting {
   }
 
   override lazy val engine: Engine = new Engine(crankshaft, Unrestricted) {
-    override protected val cachedState: LoadingCache[java.lang.Long, Future[Option[DeploymentState]]] =
+    override protected val cachedState: FutureLoadingCache[java.lang.Long, Option[DeploymentState]] = new FutureLoadingCache(
       CacheBuilder.newBuilder()
         .maximumSize(128)
         .expireAfterAccess(2, TimeUnit.SECONDS)
         .concurrencyLevel(10)
         .ticker(MockTicker)
         .build(stateCacheLoader)
+    )
   }
 
   private def closeOperationTrace(operationTrace: OperationTrace): Future[Option[OperationTrace]] =

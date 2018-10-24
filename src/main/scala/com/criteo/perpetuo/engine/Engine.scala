@@ -6,7 +6,8 @@ import com.criteo.perpetuo.auth.{DeploymentAction, GeneralAction, Permissions, U
 import com.criteo.perpetuo.config.AppConfigProvider
 import com.criteo.perpetuo.model.ExecutionState.ExecutionState
 import com.criteo.perpetuo.model._
-import com.google.common.cache.{CacheBuilder, CacheLoader, LoadingCache}
+import com.criteo.perpetuo.util.FutureLoadingCache
+import com.google.common.cache.{CacheBuilder, CacheLoader}
 import javax.inject.{Inject, Singleton}
 import slick.dbio.DBIOAction
 
@@ -55,12 +56,14 @@ class Engine @Inject()(val crankshaft: Crankshaft,
 
   private val stateCacheTimeExpiration = AppConfigProvider.config.getLong("engine.cache.stateExpirationTimeInMs")
 
-  protected val cachedState: LoadingCache[java.lang.Long, Future[Option[DeploymentState]]] = CacheBuilder.newBuilder()
-    .initialCapacity(128)
-    .maximumSize(1024)
-    .expireAfterWrite(stateCacheTimeExpiration, TimeUnit.MILLISECONDS)
-    .concurrencyLevel(10)
-    .build(stateCacheLoader)
+  protected val cachedState: FutureLoadingCache[java.lang.Long, Option[DeploymentState]] = new FutureLoadingCache(
+    CacheBuilder.newBuilder()
+      .initialCapacity(128)
+      .maximumSize(1024)
+      .expireAfterWrite(stateCacheTimeExpiration, TimeUnit.MILLISECONDS)
+      .concurrencyLevel(10)
+      .build(stateCacheLoader)
+  )
 
   private def flatWithDeploymentRequest[T](id: Long)(callback: DeploymentRequest => Future[Option[T]]): Future[Option[T]] =
     crankshaft.findDeploymentRequestById(id)
