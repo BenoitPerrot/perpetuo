@@ -1,7 +1,5 @@
 package com.criteo.perpetuo.engine
 
-import java.util.concurrent.TimeUnit
-
 import com.criteo.perpetuo.auth.{DeploymentAction, GeneralAction, Permissions, User}
 import com.criteo.perpetuo.config.AppConfigProvider
 import com.criteo.perpetuo.model.ExecutionState.ExecutionState
@@ -13,6 +11,7 @@ import slick.dbio.DBIOAction
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
+import scala.concurrent.duration._
 import scala.util.{Failure, Success}
 
 case class Unidentified() extends RuntimeException("unidentified")
@@ -54,13 +53,16 @@ class Engine @Inject()(val crankshaft: Crankshaft,
         withDeploymentRequest(id)(crankshaft.assessDeploymentState)
     }
 
-  private val stateCacheTimeExpiration = AppConfigProvider.config.getLong("engine.cache.stateExpirationTimeInMs")
 
+  protected val stateExpirationTime: FiniteDuration = Duration(
+    AppConfigProvider.config.getLong("engine.cache.stateExpirationTimeInMs"),
+    MILLISECONDS
+  )
   protected val cachedState: FutureLoadingCache[java.lang.Long, Option[DeploymentState]] = new FutureLoadingCache(
     CacheBuilder.newBuilder()
       .initialCapacity(128)
       .maximumSize(1024)
-      .expireAfterWrite(stateCacheTimeExpiration, TimeUnit.MILLISECONDS)
+      .expireAfterWrite(stateExpirationTime.toNanos, NANOSECONDS)
       .concurrencyLevel(10)
       .build(stateCacheLoader)
   )
