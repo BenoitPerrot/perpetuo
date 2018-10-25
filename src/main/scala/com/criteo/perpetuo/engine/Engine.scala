@@ -16,6 +16,7 @@ import scala.concurrent.duration._
 import scala.util.{Failure, Success}
 
 case class Unidentified() extends RuntimeException("unidentified")
+
 case class PermissionDenied() extends RuntimeException("permission denied")
 
 @Singleton
@@ -48,27 +49,27 @@ class Engine @Inject()(val crankshaft: Crankshaft,
     }
   }
 
-  protected val stateCacheLoader: CacheLoader[java.lang.Long, Future[Option[DeploymentState]]] =
-    new CacheLoader[java.lang.Long, Future[Option[DeploymentState]]]() {
-      override def load(id: java.lang.Long): Future[Option[DeploymentState]] =
-        withDeploymentRequest(id)(crankshaft.assessDeploymentState)
-    }
-
-
   protected val stateExpirationTime: FiniteDuration = Duration(
     AppConfigProvider.config.getLong("engine.cache.stateExpirationTimeInMs"),
     MILLISECONDS
   )
   protected val ticker: Ticker = Ticker.systemTicker()
-  protected lazy val cachedState: FutureLoadingCache[java.lang.Long, Option[DeploymentState]] = new FutureLoadingCache(
-    CacheBuilder.newBuilder()
-      .initialCapacity(128)
-      .maximumSize(1024)
-      .expireAfterWrite(stateExpirationTime.toNanos, NANOSECONDS)
-      .concurrencyLevel(10)
-      .ticker(ticker)
-      .build(stateCacheLoader)
-  )
+  protected lazy val stateCache: FutureLoadingCache[java.lang.Long, Option[DeploymentState]] = {
+    val stateCacheLoader: CacheLoader[java.lang.Long, Future[Option[DeploymentState]]] =
+      new CacheLoader[java.lang.Long, Future[Option[DeploymentState]]]() {
+        override def load(id: java.lang.Long): Future[Option[DeploymentState]] =
+          withDeploymentRequest(id)(crankshaft.assessDeploymentState)
+      }
+    new FutureLoadingCache(
+      CacheBuilder.newBuilder()
+        .initialCapacity(128)
+        .maximumSize(1024)
+        .expireAfterWrite(stateExpirationTime.toNanos, NANOSECONDS)
+        .concurrencyLevel(10)
+        .ticker(ticker)
+        .build(stateCacheLoader)
+    )
+  }
 
   private def flatWithDeploymentRequest[T](id: Long)(callback: DeploymentRequest => Future[Option[T]]): Future[Option[T]] =
     crankshaft.findDeploymentRequestById(id)
@@ -269,7 +270,7 @@ class Engine @Inject()(val crankshaft: Crankshaft,
       )
 
   def findDeploymentRequestState(id: Long): Future[Option[DeploymentState]] =
-    cachedState.get(id)
+    stateCache.get(id)
 
   def queryDeploymentRequestStatus(user: Option[User], id: Long): Future[Option[(DeploymentState, Seq[(String, Option[String])])]] =
     withDeploymentRequest(id) { deploymentRequest =>

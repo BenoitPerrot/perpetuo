@@ -1,7 +1,7 @@
 package com.criteo.perpetuo.engine
 
 import com.criteo.perpetuo.engine.executors._
-import com.criteo.perpetuo.engine.resolvers.{TargetResolver, TargetSet}
+import com.criteo.perpetuo.engine.resolvers.TargetResolver
 import com.criteo.perpetuo.model._
 import com.criteo.perpetuo.{SimpleScenarioTesting, TestTargetResolver}
 import org.mockito.Mockito.when

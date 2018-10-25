@@ -67,10 +67,10 @@ class RundeckClient(val host: String) {
     // Rundeck before API version 18 does not support invocation with structured arguments
     val body = JsObject(
       "argString" -> JsString(parameters.toStream
-          .map { case (parameterName, value) =>
-            s"-$parameterName $value"
-          }
-          .mkString(" "))
+        .map { case (parameterName, value) =>
+          s"-$parameterName $value"
+        }
+        .mkString(" "))
     )
 
     post(apiPath(s"job/$jobName/executions"), Some(body))

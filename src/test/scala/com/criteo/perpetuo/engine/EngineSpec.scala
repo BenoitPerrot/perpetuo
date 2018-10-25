@@ -30,7 +30,7 @@ class EngineSpec extends SimpleScenarioTesting {
         product <- engine.upsertProduct(starter, "product #1")
         depReq <- engine.requestDeployment(someone, ProtoDeploymentRequest(product.name, Version("\"1000\""), Seq(ProtoDeploymentPlanStep("", JsString("atom"), "")), "", someone.name))
         notStarted <- engine.findDeploymentRequestState(depReq.id).map(_.get)
-        op <- engine.step(starter, depReq.id, Some(0)).map(_.get)
+        _ <- engine.step(starter, depReq.id, Some(0)).map(_.get)
 
         stillNotStarted <- engine.findDeploymentRequestState(depReq.id).map(_.get)
 
@@ -189,14 +189,14 @@ class EngineSpec extends SimpleScenarioTesting {
   }
 
   test("Out-of-order stepping is idempotent") {
+    val steps = Seq(
+      ProtoDeploymentPlanStep("", JsString("nrt"), ""),
+      ProtoDeploymentPlanStep("", JsString("hnd"), "")
+    )
     await(
       for {
         product <- engine.upsertProduct(starter, "out-of-order-stepping")
-        depReq <- engine.requestDeployment(someone,
-          ProtoDeploymentRequest(product.name, Version("2".toJson), Seq(
-            ProtoDeploymentPlanStep("", JsString("nrt"), ""),
-            ProtoDeploymentPlanStep("", JsString("hnd"), "")),
-          "", someone.name))
+        depReq <- engine.requestDeployment(someone, ProtoDeploymentRequest(product.name, Version("2".toJson), steps, "", someone.name))
 
         operationTrace0 <- engine.step(releaser, depReq.id, Some(0)).map(_.get)
         inProgress0 <- engine.crankshaft.assessDeploymentState(depReq)
