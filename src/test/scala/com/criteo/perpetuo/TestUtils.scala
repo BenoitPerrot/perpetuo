@@ -1,5 +1,7 @@
 package com.criteo.perpetuo
 
+import java.util.concurrent.atomic.AtomicLong
+
 import com.criteo.perpetuo.auth.{Unrestricted, User}
 import com.criteo.perpetuo.config.{AppConfigProvider, PluginLoader, Plugins}
 import com.criteo.perpetuo.dao.{DbBinding, DbContext, DbContextProvider, TestingDbContextModule}
@@ -8,6 +10,7 @@ import com.criteo.perpetuo.engine.dispatchers.{SingleTargetDispatcher, TargetDis
 import com.criteo.perpetuo.engine.executors.{ExecutionTrigger, TriggeredExecutionFinder}
 import com.criteo.perpetuo.engine.resolvers.TargetResolver
 import com.criteo.perpetuo.model._
+import com.google.common.base.Ticker
 import com.twitter.inject.Test
 import org.mockito.Matchers._
 import org.mockito.Mockito.when
@@ -29,6 +32,13 @@ trait TestDb extends DbContextProvider {
   lazy val dbBinding = new DbBinding(dbContext)
 }
 
+class MockTicker(jumpSize: Duration) extends Ticker {
+  private val nanos = new AtomicLong
+
+  override def read: Long = nanos.get
+
+  def jump(): Unit = nanos.addAndGet(jumpSize.toNanos)
+}
 
 trait TestHelpers extends Test {
   def asynchronouslyThrow[T <: Throwable : ClassTag](pattern: String): Matcher[Future[_]] =
@@ -74,7 +84,11 @@ trait SimpleScenarioTesting extends TestHelpers with TestDb with MockitoSugar {
     new Crankshaft(dbBinding, resolver, targetDispatcher, plugins.listeners, executionFinder)
   }
 
-  lazy val engine = new Engine(crankshaft, Unrestricted)
+  protected val mockTicker = new MockTicker(1001.seconds)
+  protected lazy val engine: Engine = new Engine(crankshaft, Unrestricted) {
+    override val stateExpirationTime: FiniteDuration = 1000.seconds // the goal is that no test actually depends on it
+    override val ticker: Ticker = mockTicker // ... thanks to this mock
+  }
 
   protected def triggerMock: Option[String] = None
 

@@ -5,6 +5,7 @@ import com.criteo.perpetuo.config.AppConfigProvider
 import com.criteo.perpetuo.model.ExecutionState.ExecutionState
 import com.criteo.perpetuo.model._
 import com.criteo.perpetuo.util.FutureLoadingCache
+import com.google.common.base.Ticker
 import com.google.common.cache.{CacheBuilder, CacheLoader}
 import javax.inject.{Inject, Singleton}
 import slick.dbio.DBIOAction
@@ -58,12 +59,14 @@ class Engine @Inject()(val crankshaft: Crankshaft,
     AppConfigProvider.config.getLong("engine.cache.stateExpirationTimeInMs"),
     MILLISECONDS
   )
-  protected val cachedState: FutureLoadingCache[java.lang.Long, Option[DeploymentState]] = new FutureLoadingCache(
+  protected val ticker: Ticker = Ticker.systemTicker()
+  protected lazy val cachedState: FutureLoadingCache[java.lang.Long, Option[DeploymentState]] = new FutureLoadingCache(
     CacheBuilder.newBuilder()
       .initialCapacity(128)
       .maximumSize(1024)
       .expireAfterWrite(stateExpirationTime.toNanos, NANOSECONDS)
       .concurrencyLevel(10)
+      .ticker(ticker)
       .build(stateCacheLoader)
   )
 

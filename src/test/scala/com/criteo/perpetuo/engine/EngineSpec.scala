@@ -1,49 +1,16 @@
 package com.criteo.perpetuo.engine
 
-import java.util.concurrent.TimeUnit
-import java.util.concurrent.atomic.AtomicLong
-
 import com.criteo.perpetuo.SimpleScenarioTesting
-import com.criteo.perpetuo.auth.{Unrestricted, User}
+import com.criteo.perpetuo.auth.User
 import com.criteo.perpetuo.model._
-import com.criteo.perpetuo.util.FutureLoadingCache
-import com.google.common.base.Ticker
-import com.google.common.cache.CacheBuilder
 import spray.json.DefaultJsonProtocol._
 import spray.json._
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
+
 class EngineSpec extends SimpleScenarioTesting {
-
-  object MockTicker extends Ticker {
-    private val nanos = new AtomicLong
-
-    def advance(time: Long, timeUnit: TimeUnit): this.type = {
-      nanos.addAndGet(timeUnit.toNanos(time))
-      this
-    }
-
-    def advanceTime(): Future[Unit] = {
-      nanos.addAndGet(TimeUnit.MILLISECONDS.toNanos(2001))
-      Future.successful(())
-    }
-
-    override def read: Long = nanos.getAndAdd(0)
-  }
-
-  override lazy val engine: Engine = new Engine(crankshaft, Unrestricted) {
-    override protected val cachedState: FutureLoadingCache[java.lang.Long, Option[DeploymentState]] = new FutureLoadingCache(
-      CacheBuilder.newBuilder()
-        .maximumSize(128)
-        .expireAfterAccess(2, TimeUnit.SECONDS)
-        .concurrencyLevel(10)
-        .ticker(MockTicker)
-        .build(stateCacheLoader)
-    )
-  }
-
   private def closeOperationTrace(operationTrace: OperationTrace): Future[Option[OperationTrace]] =
     dbContext.db.run(dbBinding.closingOperationTrace(operationTrace))
 
@@ -57,7 +24,7 @@ class EngineSpec extends SimpleScenarioTesting {
       executionTraces.map(executionTrace => engine.tryUpdateExecutionTrace(executionTrace.id, state, detail, href, statusMap))
     )
 
-  test("Testing the cache is keeping state for 2 seconds") {
+  test("The deployment state is cached for some definite time") {
     await(
       for {
         product <- engine.upsertProduct(starter, "product #1")
@@ -67,12 +34,12 @@ class EngineSpec extends SimpleScenarioTesting {
 
         stillNotStarted <- engine.findDeploymentRequestState(depReq.id).map(_.get)
 
-        _ <- MockTicker.advanceTime()
+        _ = mockTicker.jump()
         onGoing <- engine.findDeploymentRequestState(depReq.id).map(_.get)
         _ <- tryUpdateExecutionTraces(engine, onGoing.effects.head.executionTraces, ExecutionState.completed)
 
         stillOnGoing <- engine.findDeploymentRequestState(depReq.id).map(_.get)
-        _ <- MockTicker.advanceTime()
+        _ = mockTicker.jump()
 
         completed <- engine.findDeploymentRequestState(depReq.id).map(_.get)
       } yield {
@@ -165,13 +132,13 @@ class EngineSpec extends SimpleScenarioTesting {
         revertInProgress <- engine.crankshaft.assessDeploymentState(r1)
         _ <- tryUpdateExecutionTraces(engine, revertInProgress.effects.head.executionTraces, ExecutionState.completed, statusMap = Map(TargetAtom("lcy") -> TargetAtomStatus(Status.success, "")))
 
-        _ <- MockTicker.advanceTime()
+        _ = mockTicker.jump()
         states10 <- engine.findDeploymentRequestsStates(Seq(Map("field" -> "productName", "equals" -> "multi-state")), 10, 0)
 
         r2 <- engine.requestDeployment(someone, ProtoDeploymentRequest(product.name, Version("2".toJson), Seq(ProtoDeploymentPlanStep("", JsString("lcy"), "")), "", someone.name))
         _ <- engine.step(releaser, r2.id, None).map(_.get)
 
-        _ <- MockTicker.advanceTime()
+        _ = mockTicker.jump()
         states21 <- engine.findDeploymentRequestsStates(Seq(Map("field" -> "productName", "equals" -> "multi-state")), 2, 0)
       } yield {
         states0.size shouldBe 1
