@@ -68,17 +68,14 @@
       font-weight: 500;
       font-size: 32px;
     }
-    :host([last-operation-kind=deploy][status=succeeded]) .state {
+    :host([state=deployed]) .state {
       color: #0f9d58;
     }
-    :host([last-operation-kind=revert][status=succeeded]) .state {
-      color: #555;
-    }
-    :host([status=failed]) .state,
-    :host([status=flopped]) .state {
+    :host([state$=failed]) .state,
+    :host([state$=flopped]) .state {
       color: #f44336;
     }
-    :host([status=inProgress]) .state {
+    :host([state$=progress]) .state {
       color: var(--perpetuo-blue);
     }
 
@@ -107,7 +104,7 @@
     .operations[data-status=inProgress] {
       border-color: var(--perpetuo-blue);
     }
-    :host([last-operation-kind=revert][status=succeeded]) .operations {
+    :host([state=reverted]) .operations {
       border-color: #555;
     }
 
@@ -162,10 +159,10 @@
       color: hsl(0,0%,38%);
       font-weight: 500;
     }
-    :host(:not([last-operation-kind=revert][status=succeeded])) #plan th:not([data-status=future]) {
+    :host(:not([state=reverted])) #plan th:not([data-status=future]) {
       color: hsl(0,0%,38%);
     }
-    :host([last-operation-kind=revert][status=succeeded]) #plan th {
+    :host([state=reverted]) #plan th {
       color: #555;
     }
     #plan td {
@@ -199,7 +196,7 @@
     #plan td .round[data-status=inProgress] {
       background-color: var(--perpetuo-blue);
     }
-    :host([last-operation-kind=revert][status=succeeded]) #plan td .round {
+    :host([state=reverted]) #plan td .round {
       background-color: #555;
     }
     #plan .bar {
@@ -264,7 +261,7 @@
           </div>
         </paper-card>
         <paper-card class="actions">
-          <div class="state">[[computeDeploymentRequestStatusLabel(data.status, data.lastOperationKind)]]</div>
+          <div class="state">[[state]]</div>
           <div>
             <template is="dom-repeat" items="[[data.actions]]">
               <div class="action">
@@ -311,8 +308,7 @@
           noData: {type: Boolean, value: true},
           active: {type: Boolean, observer: 'onActiveChanged'},
           data: Object,
-          lastOperationKind: {type: String, reflectToAttribute: true, computed: 'computeLastOperationKind(data)'},
-          status: {type: String, reflectToAttribute: true, computed: 'computeStatus(data)'},
+          state: {type: String, reflectToAttribute: true, computed: 'computeState(data)'},
           operationGroups: Array,
           version: {type: Array, computed: 'computeVersion(data)'},
           isInAction: Boolean,
@@ -345,6 +341,7 @@
         this.noData = true;
         this.data = {
           creationDate: '',
+          state: '',
           operations: []
         };
         this.operationGroups = [];
@@ -451,12 +448,8 @@
         return isInAction || rejected;
       }
 
-      computeLastOperationKind(data) {
-        return data.lastOperationKind;
-      }
-
-      computeStatus(data) {
-        return data.status;
+      computeState(data) {
+        return data.state.replace(/([A-Z])/g, ' $1').toLowerCase();
       }
 
       computeVersion(data) {
@@ -465,10 +458,6 @@
 
       asPercentage(ratio) {
         return ratio * 100;
-      }
-
-      computeDeploymentRequestStatusLabel(status, lastOperationKind) {
-        return status ? Perpetuo.Client.computeDeploymentRequestStatusLabel(status, lastOperationKind) : '';
       }
 
       humanReadable(actionName) {
@@ -517,7 +506,7 @@
                     label: computePlanStepLabel(planStep),
                     status: lastOperation ? lastOperation.status : 'future',
                     active: (
-                      !(data.lastOperationKind === 'revert' && data.status === 'succeeded') &&
+                      !(data.state === 'reverted') &&
                       (lastOperation ? lastOperation.status !== 'succeeded' : (i === 0 || (planStepsAndLastOperations[i - 1][1] && planStepsAndLastOperations[i - 1][1].status === 'succeeded')))
                     )
                   }
