@@ -246,9 +246,6 @@ class RestController @Inject()(val engine: Engine)
 
   private def serialize(state: DeploymentState): Map[String, Any] = {
     val deploymentPlan = DeploymentPlan(state.deploymentRequest, state.deploymentPlanSteps)
-    val lastOperationStatus = state.effects.headOption.map(lastEffect => (lastEffect.operationTrace.kind, lastEffect.state))
-    val deploymentStatus = lastOperationStatus.map { case (_, opStatus) => DeploymentStatus.from(opStatus) }.getOrElse(DeploymentStatus.notStarted)
-    val lastOperationKind = lastOperationStatus.map { case (kind, _) => kind }
     Map(
       "id" -> deploymentPlan.deploymentRequest.id,
       "comment" -> deploymentPlan.deploymentRequest.comment,
@@ -257,8 +254,6 @@ class RestController @Inject()(val engine: Engine)
       "version" -> deploymentPlan.deploymentRequest.version,
       "plan" -> deploymentPlan.steps,
       "productName" -> deploymentPlan.deploymentRequest.product.name,
-      "status" -> deploymentStatus,
-      "lastOperationKind" -> lastOperationKind,
       "state" -> serializeStateLabel(state)
     )
   }
