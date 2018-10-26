@@ -11,6 +11,7 @@
 <link rel="import" href="../perpetuo-client/perpetuo-client.html">
 <link rel="import" href="../perpetuo-deployment-request/perpetuo-conflicting-deployment-requests.html">
 <link rel="import" href="../perpetuo-deployment-request/perpetuo-deployment-operation.html">
+<link rel="import" href="../perpetuo-deployment-request/perpetuo-deployment-state.html">
 <link rel="import" href="../perpetuo-deployment-request/perpetuo-revert-plan-dialog.html">
 <link rel="import" href="../perpetuo-markdown/perpetuo-markdown-viewer.html">
 <link rel="import" href="../perpetuo-util/perpetuo-util.html">
@@ -62,21 +63,8 @@
       color: gray;
     }
 
-    .state {
-      text-transform: uppercase;
-      color: #555;
-      font-weight: 500;
+    perpetuo-deployment-state {
       font-size: 32px;
-    }
-    :host([state=deployed]) .state {
-      color: #0f9d58;
-    }
-    :host([state$=failed]) .state,
-    :host([state$=flopped]) .state {
-      color: #f44336;
-    }
-    :host([state$=progress]) .state {
-      color: var(--perpetuo-blue);
     }
 
     .action {
@@ -261,7 +249,7 @@
           </div>
         </paper-card>
         <paper-card class="actions">
-          <div class="state">[[state]]</div>
+          <perpetuo-deployment-state state="[[state]]"></perpetuo-deployment-state>
           <div>
             <template is="dom-repeat" items="[[data.actions]]">
               <div class="action">
@@ -449,7 +437,7 @@
       }
 
       computeState(data) {
-        return data.state.replace(/([A-Z])/g, ' $1').toLowerCase();
+        return data.state;
       }
 
       computeVersion(data) {
