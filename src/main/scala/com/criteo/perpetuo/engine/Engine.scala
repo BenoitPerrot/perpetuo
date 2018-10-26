@@ -286,14 +286,7 @@ class Engine @Inject()(val crankshaft: Crankshaft,
       crankshaft
         .assessDeploymentState(deploymentRequest)
         .map {
-          case s: Outdated =>
-            // TODO: no applicable actions
-            (s, Seq(Operation.deploy.toString, Operation.revert.toString).map((_, Some("a newer one has already been applied"))))
-
-          case s: Abandoned =>
-            (s, Seq())
-
-          case s: Reverted =>
+          case s@ (_: Outdated | _: Abandoned | _: Reverted) =>
             (s, Seq())
 
           case s: Deployed =>
