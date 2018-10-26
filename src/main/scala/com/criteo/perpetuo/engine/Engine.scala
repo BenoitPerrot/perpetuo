@@ -1,6 +1,6 @@
 package com.criteo.perpetuo.engine
 
-import com.criteo.perpetuo.auth.{DeploymentAction, GeneralAction, Permissions, User}
+import com.criteo.perpetuo.auth.{AuthPreCondition, DeploymentAction, GeneralAction, Permissions, User}
 import com.criteo.perpetuo.config.AppConfigProvider
 import com.criteo.perpetuo.model.ExecutionState.ExecutionState
 import com.criteo.perpetuo.model._
@@ -13,15 +13,19 @@ import slick.dbio.DBIOAction
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.concurrent.duration._
-import scala.util.{Failure, Success}
+import scala.util.{Failure, Success, Try}
 
 case class Unidentified() extends RuntimeException("unidentified")
 
 case class PermissionDenied() extends RuntimeException("permission denied")
 
+case class PreConditionFailed(errors: Seq[String]) extends RuntimeException((Seq("Some pre-conditions failed :") ++ errors).mkString("\n"))
+
 @Singleton
 class Engine @Inject()(val crankshaft: Crankshaft,
                        val permissions: Permissions) {
+
+  private val preConditionEvaluators: Seq[PreConditionEvaluator] = Seq(new AuthPreCondition(permissions))
 
   private def getTargetSuperset(productName: String, version: Version, target: Iterable[TargetExpr]): Set[TargetAtom] =
     target
@@ -29,21 +33,26 @@ class Engine @Inject()(val crankshaft: Crankshaft,
       .reduceOption(_ union _)
       .getOrElse(Set.empty)
 
-  private def evaluatePreconditions(user: Option[User], action: DeploymentAction.Value, operation: Operation.Kind, productName: String, targets: Set[TargetAtom]) =
-    user
-      .map(u =>
-        if (permissions.isAuthorized(u, action, operation, productName, targets))
-          Success(())
-        else
-          Failure(PermissionDenied())
+  private def evaluatePreconditions(canDo: PreConditionEvaluator => Try[Unit]): Try[Unit] = {
+    val failures = preConditionEvaluators.map(canDo(_)).filter(_.isFailure).map(_.failed.get)
+    failures
+      .headOption
+      .map(_ =>
+        Failure(
+          failures
+            .find { case PermissionDenied() | Unidentified() => true }
+            .getOrElse(
+              PreConditionFailed(failures.map(_.getMessage))
+            )
+        )
+      ).getOrElse(
+        Success(())
       )
-      .getOrElse(
-        Failure(Unidentified())
-      )
+  }
 
   def requestDeployment(user: User, protoDeploymentRequest: ProtoDeploymentRequest): Future[DeploymentRequest] = {
     val targetSuperset = getTargetSuperset(protoDeploymentRequest.productName, protoDeploymentRequest.version, protoDeploymentRequest.plan.map(_.parsedTarget))
-    evaluatePreconditions(Some(user), DeploymentAction.requestOperation, Operation.deploy, protoDeploymentRequest.productName, targetSuperset) match {
+    evaluatePreconditions(_.canRequestDeployment(Some(user), protoDeploymentRequest.productName, targetSuperset)) match {
       case Failure(t) => Future.failed(t)
       case Success(_) => crankshaft.createDeploymentRequest(protoDeploymentRequest)
     }
@@ -120,11 +129,11 @@ class Engine @Inject()(val crankshaft: Crankshaft,
       def evaluatePreconditionsForResolvedTarget(step: DeploymentPlanStep, effects: Seq[OperationEffect]) =
         failOnUnexpectedOperationCount(operationCount, effects).flatMap { _ =>
           val resolvedTarget = crankshaft.targetResolver.resolveExpression(deploymentRequest.product.name, deploymentRequest.version, step.parsedTarget)
-          evaluatePreconditions(Some(user), DeploymentAction.applyOperation, Operation.deploy, deploymentRequest.product.name, resolvedTarget.superset)
+          evaluatePreconditions(_.canStep(Some(user), deploymentRequest.product.name, resolvedTarget.superset))
             .map(_ => resolvedTarget)
         } match {
-          case Failure(t) => DBIOAction.failed(t)
-          case Success(resolvedTarget) => DBIOAction.successful(resolvedTarget)
+            case Failure(t) => DBIOAction.failed(t)
+            case Success(resolvedTarget) => DBIOAction.successful(resolvedTarget)
         }
 
       def getRetrySpecifics(step: DeploymentPlanStep, effects: Seq[OperationEffect]) =
@@ -178,7 +187,7 @@ class Engine @Inject()(val crankshaft: Crankshaft,
       def evaluatePreconditions(scope: Seq[DeploymentPlanStep], effects: Seq[OperationEffect]) =
         failOnUnexpectedOperationCount(operationCount, effects).flatMap { _ =>
           val targetSuperset = getTargetSuperset(deploymentRequest.product.name, deploymentRequest.version, scope.map(_.parsedTarget))
-          Engine.this.evaluatePreconditions(Some(user), DeploymentAction.applyOperation, Operation.revert, deploymentRequest.product.name, targetSuperset)
+          Engine.this.evaluatePreconditions(_.canRevert(Some(user), deploymentRequest.product.name, targetSuperset))
         } match {
           case Failure(t) => DBIOAction.failed(t)
           case Success(_) => DBIOAction.successful(())
@@ -276,7 +285,7 @@ class Engine @Inject()(val crankshaft: Crankshaft,
     withDeploymentRequest(id) { deploymentRequest =>
       def evaluatePreconditions(action: DeploymentAction.Value, kind: Operation.Kind, scope: Seq[DeploymentPlanStep]) = {
         val targetSuperset = getTargetSuperset(deploymentRequest.product.name, deploymentRequest.version, scope.map(_.parsedTarget))
-        Engine.this.evaluatePreconditions(user, action, kind, deploymentRequest.product.name, targetSuperset) match {
+        Engine.this.evaluatePreconditions(_.canQueryDeploymentRequestStatus(user, action, kind, deploymentRequest.product.name, targetSuperset)) match {
           case Failure(t) => Some(t.getMessage)
           case Success(_) => None
         }
