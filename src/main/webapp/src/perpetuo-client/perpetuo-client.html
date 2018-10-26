@@ -101,17 +101,6 @@ this.Perpetuo.Client = this.Perpetuo.Client || (function () {
       }));
     }
 
-    static computeDeploymentRequestStatusLabel(status, lastOperationKind) {
-      switch (status) {
-        case 'paused':
-          return status;
-        case 'succeeded':
-          return `${lastOperationKind}ed`;
-        default:
-          return (status === 'notStarted' ? '' : `${lastOperationKind} `) + status.replace(/([A-Z])/g, ' $1');
-      }
-    }
-
     getAllowedActions() {
       return Perpetuo.Client.fetch('/api/actions').then(_ => _.json());
     }

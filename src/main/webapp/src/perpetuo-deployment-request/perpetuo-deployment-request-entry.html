@@ -5,6 +5,7 @@
 
 <link rel="import" href="../perpetuo-client/perpetuo-client.html">
 <link rel="import" href="../perpetuo-util/perpetuo-util.html">
+<link rel="import" href="../perpetuo-deployment-request/perpetuo-deployment-state.html">
 
 <dom-module id="perpetuo-deployment-request-entry">
   <template>
@@ -71,30 +72,8 @@
     span.creation-date {
       width: 20%;
     }
-    div.state {
+    perpetuo-deployment-state {
       width: 10%;
-      display: flex;
-      justify-content: flex-end;
-    }
-    div.state > span {
-      border-radius: 3px;
-      padding: 0.7em 0.57em;
-      text-transform: uppercase;
-      background-color: #f5f5f5;
-    }
-    div.state > span[data-last-operation-kind=deploy][data-status=succeeded] {
-      color: #fff;
-      background-color: #0f9d58;
-    }
-    div.state > span[data-status=failed],
-    div.state > span[data-status=flopped],
-    div.state > span[data-last-operation-kind=revert][data-status=succeeded] {
-      color: #fff;
-      background-color: #f44336;
-    }
-    div.state > span[data-status=inProgress] {
-      color: #fff;
-      background: repeating-linear-gradient(-45deg, #009688, #009688 10px, #26a69a 10px, #26a69a 20px);
     }
 
     a {
@@ -112,9 +91,7 @@
         </span>
         <span class="target"><span>[[computePlanLabel(data.plan)]]</span></span>
         <span class="creation-date">[[data.dateString]]</span>
-        <div class="state">
-          <span data-status$="[[data.status]]" data-last-operation-kind$="[[data.lastOperationKind]]">[[computeDeploymentRequestStatusLabel(data.status, data.lastOperationKind)]]</span>
-        </div>
+        <perpetuo-deployment-state state="[[data.state]]"></perpetuo-deployment-state>
       </div>
     </a>
   </template>
@@ -146,10 +123,6 @@
 
       asPercentage(ratio) {
         return ratio * 100;
-      }
-
-      computeDeploymentRequestStatusLabel(status, lastOperationKind) {
-        return Perpetuo.Client.computeDeploymentRequestStatusLabel(status, lastOperationKind);
       }
     }
 
