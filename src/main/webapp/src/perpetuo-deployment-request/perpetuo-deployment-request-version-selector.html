@@ -4,7 +4,7 @@
 
 <dom-module id="perpetuo-deployment-request-version-selector">
   <template>
-    <paper-input id="main" label="Version" disabled="[[disabled]]" value="{{selectedVersion}}"></paper-input>
+    <paper-input id="main" label="Version" disabled="[[disabled]]" on-value-changed="updateSelectedVersion"></paper-input>
   </template>
   <script>
   (function () {
@@ -16,6 +16,10 @@
           disabled: Boolean,
           selectedVersion: {type: String, notify: true},
         }
+      }
+
+      updateSelectedVersion() {
+        this.selectedVersion = this.$.main.value.trim();
       }
 
       clear() {
