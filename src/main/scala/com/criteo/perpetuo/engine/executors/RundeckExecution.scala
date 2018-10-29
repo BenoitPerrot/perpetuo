@@ -30,6 +30,10 @@ class RundeckExecution(val href: String) extends TriggeredExecution {
   )
 }
 
+class RundeckExecutionFactory extends TriggeredExecutionFactory {
+  def apply(href: String): RundeckExecution =
+    new RundeckExecution(href)
+}
 
 private object RundeckExecution {
   val hrefPattern: Pattern = Pattern.compile("https?://([^/:]+)(:[0-9]+)?/.+/([0-9]+)")

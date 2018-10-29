@@ -29,6 +29,11 @@ class JenkinsExecution(val href: String) extends TriggeredExecution {
   )
 }
 
+class JenkinsExecutionFactory extends TriggeredExecutionFactory {
+  def apply(href: String): JenkinsExecution =
+    new JenkinsExecution(href)
+}
+
 private object JenkinsExecution {
   val hrefPattern: Pattern = Pattern.compile("https?://([^/:]+)(:[0-9]+)?/job/([^/]+)/([0-9]+)/?")
 }

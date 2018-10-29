@@ -29,11 +29,18 @@ trait TriggeredExecution {
   val stopper: Option[() => Option[ExecutionState]]
 }
 
+trait TriggeredExecutionFactory {
+  def apply(href: String): TriggeredExecution
+}
 
 class UncontrollableTriggeredExecution(val href: String) extends TriggeredExecution {
   override val stopper: Option[() => Option[ExecutionState]] = None
 }
 
+class UncontrollableTriggeredExecutionFactory extends TriggeredExecutionFactory {
+  def apply(href: String): UncontrollableTriggeredExecution =
+    new UncontrollableTriggeredExecution(href)
+}
 
 /**
   * @return an instance of TriggeredExecution built from an execution trace if possible.
@@ -44,15 +51,17 @@ class TriggeredExecutionFinder @Inject()(loader: PluginLoader) {
   def apply[T](executionTrace: ShallowExecutionTrace, executionName: String): TriggeredExecution =
     executionTrace.href
       .map { href =>
-        val executionConfig = try
-          AppConfigProvider.executorsConfig.getConfig(ConfigUtil.joinPath(executionName, "execution"))
+        val executionFactoryConfig = try
+          AppConfigProvider.executorsConfig.getConfig(ConfigUtil.joinPath(executionName, "executionFactory"))
         catch // catch bad configuration path as well as missing configuration
           throwWithCause(s"Could not find an execution configuration for the type `$executionName`")
 
-        try
-          loader.load[TriggeredExecution](executionConfig, "execution", href)
+        val factory = try
+          loader.load[TriggeredExecutionFactory](executionFactoryConfig, "executionFactory")()
         catch // catch any error when dynamically loading the object
           throwWithCause("Could not load the configured executor")
+
+        factory(href)
       }
       .getOrElse(
         throw new RuntimeException(s"No href for execution trace #${executionTrace.id}, thus cannot interact with the actual execution")

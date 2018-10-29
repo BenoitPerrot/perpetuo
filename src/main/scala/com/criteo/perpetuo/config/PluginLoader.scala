@@ -75,11 +75,4 @@ class PluginLoader @Inject()(engineProxy: EngineProxy) {
       val pluginConfig = config.tryGetConfig("config")
       f.applyOrElse(typeName, defaultLoad[A, Option[Config], A](_: String, config, pluginConfig))
     }
-
-  def load[A <: AnyRef](config: Config, reason: String, args: AnyRef*): A =
-    inConfig(config, reason) { typeName =>
-      defaultLoad[A, Seq[AnyRef], Option[A]](typeName, config, args.toSeq).getOrElse(
-        throw new NoSuchMethodException(s"There is no constructor that takes parameter(s) of type(s): " + args.map(_.getClass.getSimpleName).mkString(", "))
-      )
-    }
 }
