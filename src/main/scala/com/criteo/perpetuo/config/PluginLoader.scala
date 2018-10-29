@@ -13,7 +13,7 @@ class PluginLoader @Inject()(engineProxy: EngineProxy) {
 
   val groovyScriptLoader = new GroovyScriptLoader()
 
-  implicit private def instantiateAppropriate[T <: AnyRef](cls: Class[T], optPluginConfig: Option[Config]): T = {
+  private def instantiateAppropriate[T <: AnyRef](cls: Class[T], optPluginConfig: Option[Config]): T = {
     val instantiationParameters =
       optPluginConfig.map(pluginConfig => Seq(
         Seq(pluginConfig),
@@ -30,7 +30,7 @@ class PluginLoader @Inject()(engineProxy: EngineProxy) {
       }
   }
 
-  implicit private def tryInstantiateWithArgs[T <: AnyRef](cls: Class[T], args: Seq[AnyRef]): Option[T] = {
+  private def tryInstantiateWithArgs[T <: AnyRef](cls: Class[T], args: Seq[AnyRef]): Option[T] = {
     cls.getConstructors
       .find { c =>
         val types = c.getParameterTypes
@@ -46,21 +46,23 @@ class PluginLoader @Inject()(engineProxy: EngineProxy) {
       }
   }
 
-  private def defaultLoad[A <: AnyRef, B](typeName: String, config: Config, specificArg: B)(implicit instantiate: (Class[A], B) => A): A = {
+  private def defaultLoad[A <: AnyRef](typeName: String, config: Config, pluginConfig: Option[Config]): A = {
     lazy val stringValue = config.getString(typeName)
-    typeName match {
-      case "class" =>
-        instantiate(Class.forName(stringValue).asInstanceOf[Class[A]], specificArg)
-      case "groovyScriptResource" =>
-        val resource = getClass.getResource(stringValue)
-        if (resource == null)
-          throw new RuntimeException(s"Could not find configured resource $stringValue")
-        instantiate(groovyScriptLoader.load(resource), specificArg)
-      case "groovyScriptFile" =>
-        instantiate(groovyScriptLoader.load(new File(stringValue).getAbsoluteFile.toURI.toURL), specificArg)
-      case unknownType: String =>
-        throw new Exception(s"Unknown $typeName configured: $unknownType")
-    }
+    instantiateAppropriate(
+      typeName match {
+        case "class" =>
+          Class.forName(stringValue).asInstanceOf[Class[A]]
+        case "groovyScriptResource" =>
+          val resource = getClass.getResource(stringValue)
+          if (resource == null)
+            throw new RuntimeException(s"Could not find configured resource $stringValue")
+          groovyScriptLoader.load(resource)
+        case "groovyScriptFile" =>
+          groovyScriptLoader.load(new File(stringValue).getAbsoluteFile.toURI.toURL)
+        case unknownType: String =>
+          throw new Exception(s"Unknown $typeName configured: $unknownType")
+      },
+      pluginConfig)
   }
 
   private def inConfig[A](config: Config, reason: String)(call: (String) => A) =
@@ -73,6 +75,6 @@ class PluginLoader @Inject()(engineProxy: EngineProxy) {
   def load[A <: AnyRef](config: Config, reason: String)(f: PartialFunction[String, A] = PartialFunction.empty): A =
     inConfig(config, reason) { typeName =>
       val pluginConfig = config.tryGetConfig("config")
-      f.applyOrElse(typeName, defaultLoad[A, Option[Config]](_: String, config, pluginConfig))
+      f.applyOrElse(typeName, defaultLoad[A](_: String, config, pluginConfig))
     }
 }
