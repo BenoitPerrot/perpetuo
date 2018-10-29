@@ -65,15 +65,10 @@ class PluginLoader @Inject()(engineProxy: EngineProxy) {
       config.tryGetConfig("config"))
   }
 
-  private def inConfig[A](config: Config, reason: String)(call: (String) => A) =
+  def load[A <: AnyRef](config: Config, reason: String)(f: PartialFunction[String, A] = PartialFunction.empty): A =
     try {
-      call(config.getString("type"))
+      f.applyOrElse(config.getString("type"), defaultLoad[A](_: String, config))
     } catch {
       case e: ConfigException => throw new RuntimeException(s"Error in the configuration of the $reason (see the cause below)", e)
-    }
-
-  def load[A <: AnyRef](config: Config, reason: String)(f: PartialFunction[String, A] = PartialFunction.empty): A =
-    inConfig(config, reason) { typeName =>
-      f.applyOrElse(typeName, defaultLoad[A](_: String, config))
     }
 }
