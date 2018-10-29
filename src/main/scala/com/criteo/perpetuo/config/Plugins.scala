@@ -6,7 +6,7 @@ import com.criteo.perpetuo.auth._
 import com.criteo.perpetuo.engine.dispatchers.{SingleTargetDispatcher, TargetDispatcher}
 import com.criteo.perpetuo.engine.executors.ExecutionTrigger
 import com.criteo.perpetuo.engine.resolvers.TargetResolver
-import com.criteo.perpetuo.engine.{AsyncListener, Provider}
+import com.criteo.perpetuo.engine.{AsyncListener, PreConditionEvaluator, Provider}
 import com.google.inject.{Inject, Singleton}
 
 import scala.collection.JavaConversions._
@@ -63,6 +63,9 @@ class Plugins @Inject()(loader: PluginLoader) {
       )
     else
       Seq()
+
+  val preConditionEvaluators: Seq[PreConditionEvaluator] =
+    Seq(new AuthPreCondition(permissions))
 }
 
 

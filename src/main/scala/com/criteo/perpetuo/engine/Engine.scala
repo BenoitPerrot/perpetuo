@@ -1,6 +1,6 @@
 package com.criteo.perpetuo.engine
 
-import com.criteo.perpetuo.auth.{AuthPreCondition, DeploymentAction, GeneralAction, Permissions, User}
+import com.criteo.perpetuo.auth.{DeploymentAction, GeneralAction, Permissions, User}
 import com.criteo.perpetuo.config.AppConfigProvider
 import com.criteo.perpetuo.model.ExecutionState.ExecutionState
 import com.criteo.perpetuo.model._
@@ -23,9 +23,8 @@ case class PreConditionFailed(errors: Seq[String]) extends RuntimeException((Seq
 
 @Singleton
 class Engine @Inject()(val crankshaft: Crankshaft,
-                       val permissions: Permissions) {
-
-  private val preConditionEvaluators: Seq[PreConditionEvaluator] = Seq(new AuthPreCondition(permissions))
+                       val permissions: Permissions,
+                       val preConditionEvaluators: Seq[PreConditionEvaluator]) {
 
   private def getTargetSuperset(productName: String, version: Version, target: Iterable[TargetExpr]): Set[TargetAtom] =
     target

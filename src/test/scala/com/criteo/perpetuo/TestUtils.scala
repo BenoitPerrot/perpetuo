@@ -85,7 +85,7 @@ trait SimpleScenarioTesting extends TestHelpers with TestDb with MockitoSugar {
   }
 
   protected val mockTicker = new MockTicker(1001.seconds)
-  protected lazy val engine: Engine = new Engine(crankshaft, Unrestricted) {
+  protected lazy val engine: Engine = new Engine(crankshaft, Unrestricted, Seq()) {
     override val stateExpirationTime: FiniteDuration = 1000.seconds // the goal is that no test actually depends on it
     override val ticker: Ticker = mockTicker // ... thanks to this mock
   }
