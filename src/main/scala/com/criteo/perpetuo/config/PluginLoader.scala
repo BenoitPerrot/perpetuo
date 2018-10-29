@@ -46,7 +46,7 @@ class PluginLoader @Inject()(engineProxy: EngineProxy) {
       }
   }
 
-  private def defaultLoad[A <: AnyRef, B, C](typeName: String, config: Config, specificArg: B)(implicit instantiate: (Class[A], B) => C): C = {
+  private def defaultLoad[A <: AnyRef, B](typeName: String, config: Config, specificArg: B)(implicit instantiate: (Class[A], B) => A): A = {
     lazy val stringValue = config.getString(typeName)
     typeName match {
       case "class" =>
@@ -73,6 +73,6 @@ class PluginLoader @Inject()(engineProxy: EngineProxy) {
   def load[A <: AnyRef](config: Config, reason: String)(f: PartialFunction[String, A] = PartialFunction.empty): A =
     inConfig(config, reason) { typeName =>
       val pluginConfig = config.tryGetConfig("config")
-      f.applyOrElse(typeName, defaultLoad[A, Option[Config], A](_: String, config, pluginConfig))
+      f.applyOrElse(typeName, defaultLoad[A, Option[Config]](_: String, config, pluginConfig))
     }
 }
