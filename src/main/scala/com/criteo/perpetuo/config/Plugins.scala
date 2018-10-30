@@ -83,7 +83,9 @@ trait Plugin {
 
 
 abstract class PluginRunner[P <: Plugin](plugin: P, base: P) {
-  protected def wrap(toCallOnPlugin: P => Unit, name: String = null): Future[Unit] =
+  protected implicit def initUnit: () => Unit = () => ()
+
+  protected def wrap[T](toCallOnPlugin: P => T, name: String = null)(implicit init: () => T): Future[T] =
     try {
       val methodName = if (name == null) Thread.currentThread.getStackTrace()(2).getMethodName else name
       val method = plugin.getClass.getMethods.filter(_.getName == methodName).head
@@ -115,6 +117,6 @@ abstract class PluginRunner[P <: Plugin](plugin: P, base: P) {
       )
     }
     catch {
-      case _: Throwable => Future.successful(())
+      case _: Throwable => Future.successful(init())
     }
 }
