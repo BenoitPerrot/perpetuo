@@ -1,11 +1,12 @@
 package com.criteo.perpetuo.auth
 
-import com.criteo.perpetuo.engine.{PermissionDenied, PreConditionEvaluator, Unidentified}
+import com.criteo.perpetuo.config.DefaultPreConditionPlugin
+import com.criteo.perpetuo.engine.{PermissionDenied, Unidentified}
 import com.criteo.perpetuo.model.{Operation, TargetAtom}
 
 import scala.util.{Failure, Success, Try}
 
-class AuthPreCondition(permissions: Permissions) extends PreConditionEvaluator {
+class AuthPreCondition(permissions: Permissions) extends DefaultPreConditionPlugin {
 
   private def evaluatePreconditions(user: Option[User], action: DeploymentAction.Value, operation: Operation.Kind, productName: String, targets: Set[TargetAtom]) =
     user

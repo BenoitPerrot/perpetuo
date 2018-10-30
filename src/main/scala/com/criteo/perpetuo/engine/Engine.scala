@@ -24,7 +24,7 @@ case class PreConditionFailed(errors: Seq[String]) extends RuntimeException((Seq
 @Singleton
 class Engine @Inject()(val crankshaft: Crankshaft,
                        val permissions: Permissions,
-                       val preConditionEvaluators: Seq[PreConditionEvaluator]) {
+                       val preConditionEvaluators: Seq[AsyncPreConditionEvaluator]) {
 
   private def getTargetSuperset(productName: String, version: Version, target: Iterable[TargetExpr]): Set[TargetAtom] =
     target
@@ -32,29 +32,30 @@ class Engine @Inject()(val crankshaft: Crankshaft,
       .reduceOption(_ union _)
       .getOrElse(Set.empty)
 
-  private def evaluatePreconditions(canDo: PreConditionEvaluator => Try[Unit]): Try[Unit] = {
-    val failures = preConditionEvaluators.map(canDo(_)).filter(_.isFailure).map(_.failed.get)
-    failures
-      .headOption
-      .map(_ =>
-        Failure(
-          failures
-            .find { case PermissionDenied() | Unidentified() => true }
-            .getOrElse(
-              PreConditionFailed(failures.map(_.getMessage))
+  private def evaluatePreconditions(canDo: AsyncPreConditionEvaluator => Future[Try[Unit]]): Future[Unit] = {
+    val preConditions = preConditionEvaluators.map(canDo)
+    Future.sequence(preConditions)
+      .map(_.collect { case Failure(f) => f })
+      .flatMap(failures =>
+        failures.headOption
+          .map(_ =>
+            Future.failed(
+              failures.collectFirst {
+                case f@(_: PermissionDenied | _:Unidentified) => f
+              }
+              .getOrElse(
+                PreConditionFailed(failures.map(_.getMessage))
+              )
             )
-        )
-      ).getOrElse(
-        Success(())
+          )
+        .getOrElse(Future.successful(()))
       )
   }
 
   def requestDeployment(user: User, protoDeploymentRequest: ProtoDeploymentRequest): Future[DeploymentRequest] = {
     val targetSuperset = getTargetSuperset(protoDeploymentRequest.productName, protoDeploymentRequest.version, protoDeploymentRequest.plan.map(_.parsedTarget))
-    evaluatePreconditions(_.canRequestDeployment(Some(user), protoDeploymentRequest.productName, targetSuperset)) match {
-      case Failure(t) => Future.failed(t)
-      case Success(_) => crankshaft.createDeploymentRequest(protoDeploymentRequest)
-    }
+    evaluatePreconditions(_.canRequestDeployment(Some(user), protoDeploymentRequest.productName, targetSuperset))
+      .flatMap(_ => crankshaft.createDeploymentRequest(protoDeploymentRequest))
   }
 
   protected val stateExpirationTime: FiniteDuration = Duration(
@@ -126,13 +127,14 @@ class Engine @Inject()(val crankshaft: Crankshaft,
   def step(user: User, deploymentRequestId: Long, operationCount: Option[Int]): Future[Option[OperationTrace]] =
     withDeploymentRequest(deploymentRequestId) { deploymentRequest =>
       def evaluatePreconditionsForResolvedTarget(step: DeploymentPlanStep, effects: Seq[OperationEffect]) =
-        failOnUnexpectedOperationCount(operationCount, effects).flatMap { _ =>
-          val resolvedTarget = crankshaft.targetResolver.resolveExpression(deploymentRequest.product.name, deploymentRequest.version, step.parsedTarget)
-          evaluatePreconditions(_.canStep(Some(user), deploymentRequest.product.name, resolvedTarget.superset))
-            .map(_ => resolvedTarget)
-        } match {
-            case Failure(t) => DBIOAction.failed(t)
-            case Success(resolvedTarget) => DBIOAction.successful(resolvedTarget)
+        failOnUnexpectedOperationCount(operationCount, effects) match {
+          case Failure(t) => DBIOAction.failed(t)
+          case Success(_) => DBIOAction.from({
+            val resolvedTarget = crankshaft.targetResolver
+              .resolveExpression(deploymentRequest.product.name, deploymentRequest.version, step.parsedTarget)
+            evaluatePreconditions(_.canStep(Some(user), deploymentRequest.product.name, resolvedTarget.superset))
+              .map { _ => resolvedTarget }
+          })
         }
 
       def getRetrySpecifics(step: DeploymentPlanStep, effects: Seq[OperationEffect]) =
@@ -184,12 +186,12 @@ class Engine @Inject()(val crankshaft: Crankshaft,
   def revert(user: User, deploymentRequestId: Long, operationCount: Option[Int], defaultVersion: Option[Version]): Future[Option[OperationTrace]] =
     withDeploymentRequest(deploymentRequestId) { deploymentRequest =>
       def evaluatePreconditions(scope: Seq[DeploymentPlanStep], effects: Seq[OperationEffect]) =
-        failOnUnexpectedOperationCount(operationCount, effects).flatMap { _ =>
-          val targetSuperset = getTargetSuperset(deploymentRequest.product.name, deploymentRequest.version, scope.map(_.parsedTarget))
-          Engine.this.evaluatePreconditions(_.canRevert(Some(user), deploymentRequest.product.name, targetSuperset))
-        } match {
+        failOnUnexpectedOperationCount(operationCount, effects) match {
           case Failure(t) => DBIOAction.failed(t)
-          case Success(_) => DBIOAction.successful(())
+          case Success(_) => DBIOAction.from({
+            val targetSuperset = getTargetSuperset(deploymentRequest.product.name, deploymentRequest.version, scope.map(_.parsedTarget))
+            Engine.this.evaluatePreconditions(_.canRevert(Some(user), deploymentRequest.product.name, targetSuperset))
+          })
         }
 
       val gettingRevertSpecifics =
@@ -284,10 +286,7 @@ class Engine @Inject()(val crankshaft: Crankshaft,
     withDeploymentRequest(id) { deploymentRequest =>
       def evaluatePreconditions(action: DeploymentAction.Value, kind: Operation.Kind, scope: Seq[DeploymentPlanStep]) = {
         val targetSuperset = getTargetSuperset(deploymentRequest.product.name, deploymentRequest.version, scope.map(_.parsedTarget))
-        Engine.this.evaluatePreconditions(_.canQueryDeploymentRequestStatus(user, action, kind, deploymentRequest.product.name, targetSuperset)) match {
-          case Failure(t) => Some(t.getMessage)
-          case Success(_) => None
-        }
+        Engine.this.evaluatePreconditions(_.canQueryDeploymentRequestStatus(user, action, kind, deploymentRequest.product.name, targetSuperset))
       }
 
       // TODO: rework: let caller decide how to serialize
@@ -332,6 +331,11 @@ class Engine @Inject()(val crankshaft: Crankshaft,
               (Operation.deploy.toString, evaluatePreconditions(DeploymentAction.applyOperation, Operation.deploy, Seq(s.toDo))),
               (Operation.revert.toString, evaluatePreconditions(DeploymentAction.applyOperation, Operation.revert, s.revertScope))
             ))
+        }
+        .flatMap {
+          case (state, actions) => Future.sequence(actions.map { case (s, f) => f.map(_ => (s, None)).recover {
+            case e: Exception => (s, Some(e.getMessage))
+          }}).map((state, _))
         }
     }
 

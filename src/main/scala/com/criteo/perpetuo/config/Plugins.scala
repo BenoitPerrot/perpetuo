@@ -6,7 +6,7 @@ import com.criteo.perpetuo.auth._
 import com.criteo.perpetuo.engine.dispatchers.{SingleTargetDispatcher, TargetDispatcher}
 import com.criteo.perpetuo.engine.executors.ExecutionTrigger
 import com.criteo.perpetuo.engine.resolvers.TargetResolver
-import com.criteo.perpetuo.engine.{AsyncListener, PreConditionEvaluator, Provider}
+import com.criteo.perpetuo.engine.{AsyncListener, AsyncPreConditionEvaluator, Provider}
 import com.google.inject.{Inject, Singleton}
 import com.typesafe.config.Config
 
@@ -14,6 +14,7 @@ import scala.collection.JavaConversions._
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionException, Future, blocking}
+import scala.util.{Success, Try}
 
 
 @Singleton
@@ -63,8 +64,8 @@ class Plugins @Inject()(loader: PluginLoader, config: Config) {
     else
       Seq()
 
-  val preConditionEvaluators: Seq[PreConditionEvaluator] =
-    Seq(new AuthPreCondition(permissions))
+  val preConditionEvaluators: Seq[AsyncPreConditionEvaluator] =
+    Seq(new AsyncPreConditionWrapper(new AuthPreCondition(permissions)))
 }
 
 
@@ -83,6 +84,8 @@ trait Plugin {
 
 abstract class PluginRunner[P <: Plugin](plugin: P, base: P) {
   protected implicit def initUnit: () => Unit = () => ()
+
+  protected implicit def initTry: () => Try[Unit] = () => Success(())
 
   protected def wrap[T](toCallOnPlugin: P => T, name: String = null)(implicit init: () => T): Future[T] =
     try {
