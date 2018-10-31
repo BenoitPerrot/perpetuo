@@ -46,7 +46,7 @@ class PluginLoader @Inject()(engineProxy: EngineProxy) {
       }
   }
 
-  private def defaultLoad[A <: AnyRef](typeName: String, config: Config, pluginConfig: Option[Config]): A = {
+  private def defaultLoad[A <: AnyRef](typeName: String, config: Config): A = {
     lazy val stringValue = config.getString(typeName)
     instantiateAppropriate(
       typeName match {
@@ -62,7 +62,7 @@ class PluginLoader @Inject()(engineProxy: EngineProxy) {
         case unknownType: String =>
           throw new Exception(s"Unknown $typeName configured: $unknownType")
       },
-      pluginConfig)
+      config.tryGetConfig("config"))
   }
 
   private def inConfig[A](config: Config, reason: String)(call: (String) => A) =
@@ -74,7 +74,6 @@ class PluginLoader @Inject()(engineProxy: EngineProxy) {
 
   def load[A <: AnyRef](config: Config, reason: String)(f: PartialFunction[String, A] = PartialFunction.empty): A =
     inConfig(config, reason) { typeName =>
-      val pluginConfig = config.tryGetConfig("config")
-      f.applyOrElse(typeName, defaultLoad[A](_: String, config, pluginConfig))
+      f.applyOrElse(typeName, defaultLoad[A](_: String, config))
     }
 }
