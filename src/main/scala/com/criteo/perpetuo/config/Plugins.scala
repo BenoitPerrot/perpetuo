@@ -65,7 +65,14 @@ class Plugins @Inject()(loader: PluginLoader, config: Config) {
       Seq()
 
   val preConditionEvaluators: Seq[AsyncPreConditionEvaluator] =
-    Seq(new AsyncPreConditionWrapper(new AuthPreCondition(permissions)))
+    Seq(new AsyncPreConditionWrapper(new AuthPreCondition(permissions))) ++ {
+      if (config.hasPath("preConditionEvaluators"))
+        config.getConfigList("preConditionEvaluators").map(desc =>
+          new AsyncPreConditionWrapper(loader.load[DefaultPreConditionPlugin](desc, "pre-condition evaluator")())
+        )
+      else
+        Seq()
+    }
 }
 
 
