@@ -5,7 +5,7 @@ import spray.json._
 
 import scala.concurrent.duration._
 
-case class User(name: String, groupNames: Set[String] = Set()) {
+case class User(name: String, groupNames: Set[String] = Set(), isAuthenticated: Boolean = false) {
   def toJWT(encoder: JWTEncoder, expiring: Boolean = true): String = {
     encoder.encode(JsObject(
       Map("name" -> JsString(name))
@@ -33,7 +33,8 @@ object User {
           _.asInstanceOf[JsArray].elements
             .map(_.asInstanceOf[JsString].value)
             .toSet
-        ).getOrElse(Set())
+        ).getOrElse(Set()),
+        isAuthenticated = true
       ))
   }
 }

@@ -19,7 +19,6 @@ class FineGrainedPermissionsSpec extends Test {
   }
 
   object UserGroups {
-    val registeredUsers = "Registered Users"
     val hipsters = "Hipsters"
     val generationY = "Generation Y"
   }
@@ -27,10 +26,9 @@ class FineGrainedPermissionsSpec extends Test {
   object Users {
     val authorizedToAdministrate = User("sub.admin")
     val authorizedToProceedOnFoo = User("foo.proceeder")
-    val authorizedToRequest = User("some.one", Set(UserGroups.registeredUsers))
+    val authorizedToRequest = User("some.one", isAuthenticated = true)
     val authorizedToStop = User("some.stopper")
     val authorizedToAdministrateInPreProd = User("preprod.admin")
-    val authorizedToRequestInPreProd = User("preprod.req")
     val unauthorized = User("anonymous")
   }
 
@@ -44,7 +42,7 @@ class FineGrainedPermissionsSpec extends Test {
           Pattern.compile(".*"),
           Map(
             DeploymentAction.requestOperation -> Iterable((
-              Authority(Set(), Set(UserGroups.registeredUsers)),
+              Authority(Set(), Set(), isAuthenticatedAuthorized = true),
               TargetMatchers(Seq())
             ))
           )
@@ -79,7 +77,7 @@ class FineGrainedPermissionsSpec extends Test {
         |    perAction {
         |      requestOperation = [
         |        {
-        |          groupNames = ["${UserGroups.registeredUsers}"]
+        |          allAuthenticated = true
         |        }
         |      ]
         |    }
@@ -128,7 +126,7 @@ class FineGrainedPermissionsSpec extends Test {
     }
 
     test(s"$subject collects relevant group names") {
-      permissions.permittedGroupNames shouldBe Set(UserGroups.registeredUsers, UserGroups.hipsters, UserGroups.generationY)
+      permissions.permittedGroupNames shouldBe Set(UserGroups.hipsters, UserGroups.generationY)
     }
   }
 
@@ -146,7 +144,7 @@ class FineGrainedPermissionsSpec extends Test {
               ),
             DeploymentAction.applyOperation ->
               Iterable(
-                (Authority(Set(Users.authorizedToAdministrate.name), Set(UserGroups.registeredUsers)), TargetMatchers(Seq((s: String) => Set("target", "anotherTarget").contains(s))))
+                (Authority(Set(Users.authorizedToAdministrate.name), Set(), isAuthenticatedAuthorized = true), TargetMatchers(Seq((s: String) => Set("target", "anotherTarget").contains(s))))
               ),
             DeploymentAction.stopOperation ->
               Iterable(
@@ -185,13 +183,10 @@ class FineGrainedPermissionsSpec extends Test {
          |    perAction {
          |      requestOperation = [
          |        {
-         |          groupNames = ["${UserGroups.registeredUsers}"]
-         |        },
-         |        {
          |          targetMatchers {
          |            atoms = ["par"]
          |          },
-         |          userNames = ["${Users.authorizedToRequestInPreProd.name}"]
+         |          userNames = ["${Users.authorizedToRequest.name}"]
          |        }
          |      ]
          |    }
@@ -200,8 +195,8 @@ class FineGrainedPermissionsSpec extends Test {
         """.stripMargin))
 
     permissions.isAuthorized(Users.authorizedToAdministrate, GeneralAction.administrate) shouldBe true
-    permissions.isAuthorized(Users.authorizedToRequestInPreProd, DeploymentAction.requestOperation, Operation.deploy, "product", Set(TargetAtom("par"))) shouldBe true
-    permissions.isAuthorized(Users.authorizedToRequestInPreProd, DeploymentAction.requestOperation, Operation.deploy, "product", Set(TargetAtom("am5"))) shouldBe false
+    permissions.isAuthorized(Users.authorizedToRequest, DeploymentAction.requestOperation, Operation.deploy, "product", Set(TargetAtom("par"))) shouldBe true
+    permissions.isAuthorized(Users.authorizedToRequest, DeploymentAction.requestOperation, Operation.deploy, "product", Set(TargetAtom("am5"))) shouldBe false
     permissions.isAuthorized(Users.authorizedToStop, DeploymentAction.requestOperation, Operation.deploy, "product", Set(TargetAtom("par"))) shouldBe false
   }
 

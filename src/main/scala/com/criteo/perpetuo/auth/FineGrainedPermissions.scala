@@ -10,9 +10,12 @@ import com.typesafe.config.Config
 import scala.collection.JavaConversions._
 
 case class Authority(authorizedUserNames: Set[String],
-                     authorizedGroupNames: Set[String]) {
+                     authorizedGroupNames: Set[String],
+                     isAuthenticatedAuthorized: Boolean = false) {
   def authorizes(user: User): Boolean =
-    authorizedUserNames.contains(user.name) || user.groupNames.intersect(authorizedGroupNames).nonEmpty
+    (isAuthenticatedAuthorized && user.isAuthenticated) ||
+      authorizedUserNames.contains(user.name) ||
+      user.groupNames.intersect(authorizedGroupNames).nonEmpty
 }
 
 case class TargetMatchers(matchers: Iterable[String => Boolean]) {
@@ -61,7 +64,8 @@ object FineGrainedPermissions extends Logging {
   private def createAuthority(config: Config): Authority =
     Authority(
       config.tryGetStringList("userNames").getOrElse(Set()).toSet,
-      config.tryGetStringList("groupNames").getOrElse(Set()).toSet
+      config.tryGetStringList("groupNames").getOrElse(Set()).toSet,
+      config.tryGetBoolean("allAuthenticated").getOrElse(false)
     )
 
   private def createProductRule(config: Config): ProductRule =
