@@ -8,6 +8,7 @@ import com.criteo.perpetuo.engine.executors.ExecutionTrigger
 import com.criteo.perpetuo.engine.resolvers.TargetResolver
 import com.criteo.perpetuo.engine.{AsyncListener, PreConditionEvaluator, Provider}
 import com.google.inject.{Inject, Singleton}
+import com.typesafe.config.Config
 
 import scala.collection.JavaConversions._
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -16,9 +17,7 @@ import scala.concurrent.{Await, ExecutionException, Future, blocking}
 
 
 @Singleton
-class Plugins @Inject()(loader: PluginLoader) {
-
-  private val config = AppConfigProvider.config
+class Plugins @Inject()(loader: PluginLoader, config: Config) {
 
   import com.criteo.perpetuo.config.ConfigSyntacticSugar._
 
