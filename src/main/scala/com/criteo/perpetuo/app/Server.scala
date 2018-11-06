@@ -4,15 +4,17 @@ import com.criteo.perpetuo.auth.{IdentifyingController, LocalUsersRetrievingCont
 import com.criteo.perpetuo.config.AppConfigProvider
 import com.criteo.perpetuo.config.ConfigSyntacticSugar._
 import com.criteo.perpetuo.metrics
-import com.twitter.finagle.SimpleFilter
+import com.samstarling.prometheusfinagle.PrometheusStatsReceiver
 import com.twitter.finagle.http.filter.Cors
 import com.twitter.finagle.http.{Request, Response}
+import com.twitter.finagle.{Http, SimpleFilter}
 import com.twitter.finatra.http.filters.{LoggingMDCFilter, TraceIdMDCFilter}
 import com.twitter.finatra.http.routing.HttpRouter
 import com.twitter.finatra.http.{HttpServer, Controller => BaseController}
 import com.twitter.finatra.json.modules.FinatraJacksonModule
 import com.twitter.server.AdminHttpServer.Route
 import com.typesafe.config.Config
+import io.prometheus.client.CollectorRegistry
 
 
 object CustomServerModules {
@@ -42,6 +44,15 @@ class Server extends ServerConfigurator with HttpServer {
     new PluginsModule,
     new AuthModule(config.getConfig("auth"))
   )
+
+  override def configureHttpServer(server: Http.Server): Http.Server = {
+    val registry = CollectorRegistry.defaultRegistry
+    val statsReceiver = new PrometheusStatsReceiver(registry)
+
+    server
+      .withStatsReceiver(statsReceiver)
+      .withHttpStats
+  }
 
   override def configureHttp(router: HttpRouter) {
     //TODO: Allow better CORS policy tuning
