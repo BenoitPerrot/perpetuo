@@ -75,6 +75,7 @@ dependencies {
     compile "org.codehaus.groovy:groovy-all:2.4.10"
     compile "org.codehaus.groovy:groovy-jsr223:2.4.6"
     compile "org.codehaus.groovy.modules.http-builder:http-builder:0.7.2"
+    compile "com.samstarling:finagle-prometheus_${scala_version_short}:0.0.11"
     testCompile "org.scalatest:scalatest_${scala_version_short}:3.0.0"
     testCompile libraries["org.mockito:mockito-all"]
     testCompile group: "com.twitter", name: "finatra-http_${scala_version_short}", version: "${finatra_version}", classifier: "tests"

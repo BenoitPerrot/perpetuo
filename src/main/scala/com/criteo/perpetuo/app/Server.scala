@@ -3,6 +3,7 @@ package com.criteo.perpetuo.app
 import com.criteo.perpetuo.auth.{IdentifyingController, LocalUsersRetrievingController, Controller => AuthenticationController}
 import com.criteo.perpetuo.config.AppConfigProvider
 import com.criteo.perpetuo.config.ConfigSyntacticSugar._
+import com.criteo.perpetuo.metrics
 import com.twitter.finagle.SimpleFilter
 import com.twitter.finagle.http.filter.Cors
 import com.twitter.finagle.http.{Request, Response}
@@ -73,6 +74,7 @@ class Server extends ServerConfigurator with HttpServer {
       .add[AuthenticationController]
       .add[LocalUsersRetrievingController]
       .add[RestController]
+      .add[metrics.Controller]
 
       // Add controller for serving static assets as the last one / fallback one
       .add(new StaticAssetsController(config.tryGetStringList("staticAssets.roots").getOrElse(Seq())))
