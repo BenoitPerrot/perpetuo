@@ -15,6 +15,8 @@ import com.twitter.finatra.json.modules.FinatraJacksonModule
 import com.twitter.server.AdminHttpServer.Route
 import com.typesafe.config.Config
 import io.prometheus.client.CollectorRegistry
+import com.criteo.perpetuo.metrics.HttpMonitoringFilter
+import com.samstarling.prometheusfinagle.metrics.Telemetry
 
 
 object CustomServerModules {
@@ -33,6 +35,7 @@ trait ServerConfigurator {
   * Main server.
   */
 class Server extends ServerConfigurator with HttpServer {
+  private val registry: CollectorRegistry = CollectorRegistry.defaultRegistry
 
   // Remove unwanted admin routes
   override protected def routes: Seq[Route] = super.routes.filter(_ != "/admin/registry.json")
@@ -46,7 +49,6 @@ class Server extends ServerConfigurator with HttpServer {
   )
 
   override def configureHttpServer(server: Http.Server): Http.Server = {
-    val registry = CollectorRegistry.defaultRegistry
     val statsReceiver = new PrometheusStatsReceiver(registry)
 
     server
@@ -66,6 +68,9 @@ class Server extends ServerConfigurator with HttpServer {
         .filter[TraceIdMDCFilter[Request, Response]]
         .filter[CommonFilters]
     }
+
+    // Record metrics on API access
+    router.filter(new HttpMonitoringFilter(new Telemetry(registry, "api")))
 
     config
       .tryGetStringList("extraFilters").getOrElse(Seq())
