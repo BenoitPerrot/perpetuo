@@ -56,7 +56,7 @@ class DbBindingSpec extends TestHelpers with TestDb {
 class DbScenarios(dbBinding: DbBinding) extends DeploymentRequestInserter {
   override val dbContext: DbContext = dbBinding.dbContext
 
-  case class Execution(executionTraceStates: List[String], targetStatuses: List[String])
+  case class Execution(executionTraceStates: Seq[ExecutionState.Value], targetStatuses: Seq[Status.Value])
 
   case class OperationEffect(scenarioName: String, deploymentStatus: String, planSteps: List[String], executions: List[Execution], private val operation: Option[String]) {
     def kind: Operation.Kind = operation.map(Operation.withName).getOrElse(Operation.deploy)
@@ -65,7 +65,17 @@ class DbScenarios(dbBinding: DbBinding) extends DeploymentRequestInserter {
   case class Scenarios(intents: Map[String, List[List[String]]], effects: List[OperationEffect])
 
   object JsonConverters extends DefaultJsonProtocol {
-    implicit val executionFormat: RootJsonFormat[Execution] = jsonFormat2(Execution)
+    implicit object ExecutionJsonProtocol extends RootJsonFormat[Execution] {
+      override def read(value: JsValue): Execution =
+        value.asJsObject.getFields("executionTraceStates", "targetStatuses") match {
+          case Seq(JsArray(executionTraces), JsArray(targetStatuses)) =>
+            Execution(
+              executionTraces.map(_.asInstanceOf[JsString].value).map(ExecutionState.withName),
+              targetStatuses.map(_.asInstanceOf[JsString].value).map(Status.withName)
+            )
+        }
+      override def write(obj: Execution): JsValue = null
+    }
     implicit val operationFormat: RootJsonFormat[OperationEffect] = jsonFormat5(OperationEffect)
     implicit val scenariosFormat: RootJsonFormat[Scenarios] = jsonFormat2(Scenarios)
   }
@@ -109,11 +119,11 @@ class DbScenarios(dbBinding: DbBinding) extends DeploymentRequestInserter {
                     .insertExecution(newOp.id, specId)
                     .flatMap { executionId =>
                       dbBinding.insertingExecutionTraces(
-                        execution.executionTraceStates.map(state => ExecutionTraceRecord(None, executionId, "executor", None, ExecutionState.withName(state)))
+                        execution.executionTraceStates.map(state => ExecutionTraceRecord(None, executionId, "executor", None, state))
                       ).andThen(
                         dbBinding.updatingTargetStatuses(
                           executionId,
-                          execution.targetStatuses.map(status => dummyTargets.next() -> TargetAtomStatus(Status.withName(status), "")).toMap
+                          execution.targetStatuses.map(status => dummyTargets.next() -> TargetAtomStatus(status, "")).toMap
                         )
                       )
                     }
