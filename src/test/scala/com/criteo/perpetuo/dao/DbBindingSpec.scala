@@ -34,7 +34,7 @@ class DbBindingSpec extends TestHelpers with TestDb {
   // automatic test generation from scenarios:
   dbScenarios.effects.toStream.foreach(effect =>
     test(s"Compute a deployment status: ${effect.scenarioName}") {
-      dbScenarios.insertEffect(effect)
+      dbScenarios.insertEffect(effect.executions, effect.planSteps, effect.kind)
         .flatMap { op =>
           val depReq = op.deploymentRequest
           getStatus(depReq).flatMap { case (runningStatus, kind) =>
@@ -99,17 +99,17 @@ class DbScenarios(dbBinding: DbBinding) extends DeploymentRequestInserter {
   )
   private val dummyTargets = Iterator.from(100).map(n => TargetAtom(s"target-$n"))
 
-  def insertEffect(effect: OperationEffect): Future[OperationTrace] =
+  def insertEffect(executions: Seq[Execution], planSteps: Seq[String], kind: Operation.Kind): Future[OperationTrace] =
     Future
-      .traverse(dummySpecIds.zip(effect.executions)) { case (specId, execution) => specId.map((_, execution)) }
+      .traverse(dummySpecIds.zip(executions)) { case (specId, execution) => specId.map((_, execution)) }
       .zip(steps)
       .flatMap { case (specIdsAndExecutions, stepsByName) =>
-        val plan = effect.planSteps.map(stepsByName)
+        val plan = planSteps.map(stepsByName)
         val requests = plan.map(_.deploymentRequest).toSet
         assert(requests.size == 1, "An operation must be bound to steps, which must all be bound to the same deployment request")
         val deploymentRequest = requests.head
         val q = dbBinding
-          .insertOperationTrace(deploymentRequest, effect.kind, "a.nonymous")
+          .insertOperationTrace(deploymentRequest, kind, "a.nonymous")
           .flatMap(newOp =>
             dbBinding
               .insertStepOperationXRefs(plan, newOp)
