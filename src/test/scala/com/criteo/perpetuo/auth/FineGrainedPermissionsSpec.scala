@@ -26,7 +26,7 @@ class FineGrainedPermissionsSpec extends Test {
   object Users {
     val authorizedToAdministrate = User("sub.admin")
     val authorizedToProceedOnFoo = User("foo.proceeder")
-    val authorizedToRequest = User("some.one", isAuthenticated = true)
+    val authorizedToRequest = User("some.one")
     val authorizedToStop = User("some.stopper")
     val authorizedToAdministrateInPreProd = User("preprod.admin")
     val unauthorized = User("anonymous")
@@ -42,7 +42,7 @@ class FineGrainedPermissionsSpec extends Test {
           Pattern.compile(".*"),
           Map(
             DeploymentAction.requestOperation -> Iterable((
-              Authority(Set(), Set(), isAuthenticatedAuthorized = true),
+              Authority(Set(), Set(), isIdentifiedAuthorized = true),
               TargetMatchers(Seq())
             ))
           )
@@ -77,7 +77,7 @@ class FineGrainedPermissionsSpec extends Test {
         |    perAction {
         |      requestOperation = [
         |        {
-        |          allAuthenticated = true
+        |          allIdentified = true
         |        }
         |      ]
         |    }
@@ -144,7 +144,7 @@ class FineGrainedPermissionsSpec extends Test {
               ),
             DeploymentAction.applyOperation ->
               Iterable(
-                (Authority(Set(Users.authorizedToAdministrate.name), Set(), isAuthenticatedAuthorized = true), TargetMatchers(Seq((s: String) => Set("target", "anotherTarget").contains(s))))
+                (Authority(Set(Users.authorizedToAdministrate.name), Set(), isIdentifiedAuthorized = true), TargetMatchers(Seq((s: String) => Set("target", "anotherTarget").contains(s))))
               ),
             DeploymentAction.stopOperation ->
               Iterable(

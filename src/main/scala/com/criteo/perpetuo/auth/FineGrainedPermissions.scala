@@ -11,9 +11,9 @@ import scala.collection.JavaConversions._
 
 case class Authority(authorizedUserNames: Set[String],
                      authorizedGroupNames: Set[String],
-                     isAuthenticatedAuthorized: Boolean = false) {
+                     isIdentifiedAuthorized: Boolean = false) {
   def authorizes(user: User): Boolean =
-    (isAuthenticatedAuthorized && user.isAuthenticated) ||
+    isIdentifiedAuthorized ||
       authorizedUserNames.contains(user.name) ||
       user.groupNames.intersect(authorizedGroupNames).nonEmpty
 }
@@ -65,7 +65,7 @@ object FineGrainedPermissions extends Logging {
     Authority(
       config.tryGetStringList("userNames").getOrElse(Set()).toSet,
       config.tryGetStringList("groupNames").getOrElse(Set()).toSet,
-      config.tryGetBoolean("allAuthenticated").getOrElse(false)
+      config.tryGetBoolean("allIdentified").getOrElse(false)
     )
 
   private def createProductRule(config: Config): ProductRule =
