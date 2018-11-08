@@ -1,6 +1,6 @@
 package com.criteo.perpetuo.dao
 
-import com.criteo.perpetuo.engine.DeploymentStatus
+import com.criteo.perpetuo.engine._
 import com.criteo.perpetuo.model._
 import com.criteo.perpetuo.{TestDb, TestHelpers}
 import spray.json._
@@ -8,47 +8,38 @@ import spray.json._
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
-
 case class Execution(executionTraceStates: Seq[ExecutionState.Value], targetStatuses: Seq[Status.Value])
 
 class DbBindingSpec extends TestHelpers with TestDb {
   private val dbScenarios = new DbScenarios(dbBinding)
 
-  private def getStatus(deploymentRequest: DeploymentRequest): Future[(DeploymentStatus.Value, Option[Operation.Kind])] =
-    dbBinding
-      .findDeploymentRequestsWithStatuses(Seq(Map("field" -> "id", "equals" -> deploymentRequest.id)), 10, 0)
-      .map { seq =>
-        seq.size shouldEqual 1
-        val (depPlan, status, kind) = seq.head
-        depPlan.deploymentRequest shouldEqual deploymentRequest
-        (status, kind)
-      }
+  private val crankshaft = new Crankshaft(dbBinding, null, null, Seq(), null)
 
   private def assessEffect(executions: Seq[Execution], planSteps: Seq[String], kind: Operation.Kind) =
     dbScenarios
       .insertEffect(executions, planSteps, kind)
       .flatMap { op =>
         val depReq = op.deploymentRequest
-        getStatus(depReq).flatMap { case (runningStatus, runningKind) =>
-          runningKind shouldEqual Some(kind)
-          dbBinding.dbContext.db.run(dbBinding.closingOperationTrace(op))
-            .flatMap(_ => getStatus(depReq))
-            .map { case (closedStatus, closedKind) =>
-              closedKind shouldEqual runningKind
-              (runningStatus, closedStatus)
-            }
-        }
+        crankshaft
+          .assessDeploymentState(depReq)
+          .flatMap { runningState =>
+            dbBinding.dbContext.db.run(dbBinding.closingOperationTrace(op))
+              .flatMap(_ => crankshaft.assessDeploymentState(depReq))
+              .map { closedState =>
+                runningState shouldBe an[InProgressState]
+                closedState
+              }
+          }
       }
 
   // to execute before the other tests:
   test("Compute a deployment status: deployment not started") {
     dbScenarios.deploymentPlans
       .map(_.head.deploymentRequest)
-      .flatMap(getStatus) should
-      eventually(be(DeploymentStatus.notStarted, None))
+      .flatMap(crankshaft.assessDeploymentState) should
+      eventually(be(a[NotStarted]))
   }
 
-  import DeploymentStatus._
   import ExecutionState._
   import Operation._
   import Status._
@@ -61,7 +52,7 @@ class DbBindingSpec extends TestHelpers with TestDb {
       ),
       Seq("step-01"),
       deploy
-    ) should eventually(be(inProgress, flopped))
+    ) should eventually(be(a[DeployFlopped]))
   }
 
   test("Stopped while everything was working so far") {
@@ -72,27 +63,27 @@ class DbBindingSpec extends TestHelpers with TestDb {
       ),
       Seq("step-01"),
       deploy
-    ) should eventually(be(inProgress, failed))
+    ) should eventually(be(a[DeployFailed]))
   }
 
-  test("Failed revert marked as paused because incomplete") {
+  test("Failed revert marked as such") {
     assessEffect(
       Seq(
         Execution(Seq(aborted), Seq(notDone, hostFailure))
       ),
       Seq("step-02", "step-03"),
       revert
-    ) should eventually(be(inProgress, paused))
+    ) should eventually(be(a[RevertFailed]))
   }
 
-  test("Successful revert marked as paused because incomplete") {
+  test("Successful revert marked as such") {
     assessEffect(
       Seq(
         Execution(Seq(completed), Seq(success))
       ),
       Seq("step-02", "step-03"),
       revert
-    ) should eventually(be(inProgress, paused))
+    ) should eventually(be(a[Reverted]))
   }
 
   test("All kinds of execution states") {
@@ -104,7 +95,7 @@ class DbBindingSpec extends TestHelpers with TestDb {
       ),
       Seq("step-11"),
       deploy
-    ) should eventually(be(inProgress, failed))
+    ) should eventually(be(a[DeployFailed]))
   }
 
   test("An execution is lost while the other one is successful") {
@@ -115,7 +106,7 @@ class DbBindingSpec extends TestHelpers with TestDb {
       ),
       Seq("step-11"),
       deploy
-    ) should eventually(be(inProgress, failed))
+    ) should eventually(be(a[DeployFailed]))
   }
 
   test("Half flopped, half succeeded in one execution") {
@@ -125,7 +116,7 @@ class DbBindingSpec extends TestHelpers with TestDb {
       ),
       Seq("step-11"),
       deploy
-    ) should eventually(be(inProgress, failed))
+    ) should eventually(be(a[DeployFailed]))
   }
 
   test("Deploy fails at the first step") {
@@ -135,7 +126,7 @@ class DbBindingSpec extends TestHelpers with TestDb {
       ),
       Seq("step-11"),
       deploy
-    ) should eventually(be(inProgress, failed))
+    ) should eventually(be(a[DeployFailed]))
   }
 
   test("Deploy paused because successful and incomplete (while there have been other operations on the deployment request)") {
@@ -145,7 +136,7 @@ class DbBindingSpec extends TestHelpers with TestDb {
       ),
       Seq("step-11"),
       deploy
-    ) should eventually(be(inProgress, paused))
+    ) should eventually(be(a[Paused]))
   }
 
   test("All kinds of target statuses") {
@@ -157,19 +148,7 @@ class DbBindingSpec extends TestHelpers with TestDb {
       ),
       Seq("step-12"),
       deploy
-    ) should eventually(be(inProgress, failed))
-  }
-
-  test("Flopped") {
-    assessEffect(
-      Seq(
-        Execution(Seq(completed), Seq(notDone)),
-        Execution(Seq(unreachable), Seq(notDone)),
-        Execution(Seq(aborted), Seq())
-      ),
-      Seq("step-12"),
-      deploy
-    ) should eventually(be(inProgress, flopped))
+    ) should eventually(be(a[DeployFailed]))
   }
 
   test("Half flopped, half succeeded in two executions") {
@@ -180,7 +159,7 @@ class DbBindingSpec extends TestHelpers with TestDb {
       ),
       Seq("step-12"),
       deploy
-    ) should eventually(be(inProgress, failed))
+    ) should eventually(be(a[DeployFailed]))
   }
 }
 
