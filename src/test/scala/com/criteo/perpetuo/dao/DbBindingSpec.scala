@@ -7,7 +7,6 @@ import spray.json._
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
-import scala.io.Source
 
 
 case class Execution(executionTraceStates: Seq[ExecutionState.Value], targetStatuses: Seq[Status.Value])
@@ -189,18 +188,21 @@ class DbBindingSpec extends TestHelpers with TestDb {
 class DbScenarios(dbBinding: DbBinding) extends DeploymentRequestInserter {
   override val dbContext: DbContext = dbBinding.dbContext
 
-  case class Scenarios(intents: Map[String, List[List[String]]])
-
-  object JsonConverters extends DefaultJsonProtocol {
-    implicit val scenariosFormat: RootJsonFormat[Scenarios] = jsonFormat1(Scenarios)
-  }
-
-
-  import JsonConverters._
   import dbContext.profile.api._
 
-  private val scenarios = Source.fromURL(getClass.getResource("db-scenarios.json")).mkString.parseJson.convertTo[Scenarios]
-  val deploymentPlans: Future[Iterable[DeploymentPlan]] = insertIntent()
+  val deploymentPlans: Future[Iterable[DeploymentPlan]] =
+    insertIntent(
+      Map(
+        "product-A" -> Seq(
+          Seq("step-01", "step-02", "step-03"),
+          Seq("step-11", "step-12")
+        ),
+        "product-B" -> Seq(
+          Seq("step-21")
+        ),
+        "product-C" -> Seq()
+      )
+    )
 
   private val steps = deploymentPlans.map { plans =>
     val mapping = plans.flatMap(plan => plan.steps.map(step => step.name -> step))
@@ -248,9 +250,9 @@ class DbScenarios(dbBinding: DbBinding) extends DeploymentRequestInserter {
         dbContext.db.run(q)
       }
 
-  private def insertIntent(): Future[Iterable[DeploymentPlan]] =
+  private def insertIntent(intents: Map[String, Seq[Seq[String]]]): Future[Iterable[DeploymentPlan]] =
     Future
-      .traverse(scenarios.intents) { case (productName, deploymentRequests) =>
+      .traverse(intents) { case (productName, deploymentRequests) =>
         dbContext.db.run(productQuery += ProductRecord(None, productName)).flatMap(_ =>
           Future.traverse(deploymentRequests) { deploymentRequest =>
             val steps = deploymentRequest.map(ProtoDeploymentPlanStep(_, JsString("worldwide"), ""))
