@@ -49,39 +49,150 @@ class DbBindingSpec extends TestHelpers with TestDb {
       eventually(be(DeploymentStatus.notStarted, None))
   }
 
-  // automatic test generation from scenarios:
-  dbScenarios.effects.toStream.foreach(effect =>
-    test(s"Compute a deployment status: ${effect.scenarioName}") {
-      assessEffect(effect.executions, effect.planSteps, effect.kind) should
-        eventually(be(DeploymentStatus.inProgress, DeploymentStatus.withName(effect.deploymentStatus)))
-    }
-  )
+  import DeploymentStatus._
+  import ExecutionState._
+  import Operation._
+  import Status._
+
+  test("The execution terminated unexpectedly") {
+    assessEffect(
+      Seq(
+        Execution(Seq(aborted), Seq(notDone)),
+        Execution(Seq(aborted), Seq())
+      ),
+      Seq("step-01"),
+      deploy
+    ) should eventually(be(inProgress, flopped))
+  }
+
+  test("Stopped while everything was working so far") {
+    assessEffect(
+      Seq(
+        Execution(Seq(aborted), Seq(success)),
+        Execution(Seq(completed), Seq(success))
+      ),
+      Seq("step-01"),
+      deploy
+    ) should eventually(be(inProgress, failed))
+  }
+
+  test("Failed revert marked as paused because incomplete") {
+    assessEffect(
+      Seq(
+        Execution(Seq(aborted), Seq(notDone, hostFailure))
+      ),
+      Seq("step-02", "step-03"),
+      revert
+    ) should eventually(be(inProgress, paused))
+  }
+
+  test("Successful revert marked as paused because incomplete") {
+    assessEffect(
+      Seq(
+        Execution(Seq(completed), Seq(success))
+      ),
+      Seq("step-02", "step-03"),
+      revert
+    ) should eventually(be(inProgress, paused))
+  }
+
+  test("All kinds of execution states") {
+    assessEffect(
+      Seq(
+        Execution(Seq(aborted), Seq(success)),
+        Execution(Seq(completed), Seq(success)),
+        Execution(Seq(unreachable), Seq(success))
+      ),
+      Seq("step-11"),
+      deploy
+    ) should eventually(be(inProgress, failed))
+  }
+
+  test("An execution is lost while the other one is successful") {
+    assessEffect(
+      Seq(
+        Execution(Seq(completed), Seq(success)),
+        Execution(Seq(unreachable), Seq(success))
+      ),
+      Seq("step-11"),
+      deploy
+    ) should eventually(be(inProgress, failed))
+  }
+
+  test("Half flopped, half succeeded in one execution") {
+    assessEffect(
+      Seq(
+        Execution(Seq(completed), Seq(notDone, success))
+      ),
+      Seq("step-11"),
+      deploy
+    ) should eventually(be(inProgress, failed))
+  }
+
+  test("Deploy fails at the first step") {
+    assessEffect(
+      Seq(
+        Execution(Seq(completed), Seq(productFailure))
+      ),
+      Seq("step-11"),
+      deploy
+    ) should eventually(be(inProgress, failed))
+  }
+
+  test("Deploy paused because successful and incomplete (while there have been other operations on the deployment request)") {
+    assessEffect(
+      Seq(
+        Execution(Seq(completed), Seq(success))
+      ),
+      Seq("step-11"),
+      deploy
+    ) should eventually(be(inProgress, paused))
+  }
+
+  test("All kinds of target statuses") {
+    assessEffect(
+      Seq(
+        Execution(Seq(completed), Seq(notDone)),
+        Execution(Seq(completed), Seq(success, hostFailure)),
+        Execution(Seq(completed), Seq(notDone, productFailure))
+      ),
+      Seq("step-12"),
+      deploy
+    ) should eventually(be(inProgress, failed))
+  }
+
+  test("Flopped") {
+    assessEffect(
+      Seq(
+        Execution(Seq(completed), Seq(notDone)),
+        Execution(Seq(unreachable), Seq(notDone)),
+        Execution(Seq(aborted), Seq())
+      ),
+      Seq("step-12"),
+      deploy
+    ) should eventually(be(inProgress, flopped))
+  }
+
+  test("Half flopped, half succeeded in two executions") {
+    assessEffect(
+      Seq(
+        Execution(Seq(completed), Seq(notDone)),
+        Execution(Seq(completed), Seq(success))
+      ),
+      Seq("step-12"),
+      deploy
+    ) should eventually(be(inProgress, failed))
+  }
 }
 
 
 class DbScenarios(dbBinding: DbBinding) extends DeploymentRequestInserter {
   override val dbContext: DbContext = dbBinding.dbContext
 
-  case class OperationEffect(scenarioName: String, deploymentStatus: String, planSteps: List[String], executions: List[Execution], private val operation: Option[String]) {
-    def kind: Operation.Kind = operation.map(Operation.withName).getOrElse(Operation.deploy)
-  }
-
-  case class Scenarios(intents: Map[String, List[List[String]]], effects: List[OperationEffect])
+  case class Scenarios(intents: Map[String, List[List[String]]])
 
   object JsonConverters extends DefaultJsonProtocol {
-    implicit object ExecutionJsonProtocol extends RootJsonFormat[Execution] {
-      override def read(value: JsValue): Execution =
-        value.asJsObject.getFields("executionTraceStates", "targetStatuses") match {
-          case Seq(JsArray(executionTraces), JsArray(targetStatuses)) =>
-            Execution(
-              executionTraces.map(_.asInstanceOf[JsString].value).map(ExecutionState.withName),
-              targetStatuses.map(_.asInstanceOf[JsString].value).map(Status.withName)
-            )
-        }
-      override def write(obj: Execution): JsValue = null
-    }
-    implicit val operationFormat: RootJsonFormat[OperationEffect] = jsonFormat5(OperationEffect)
-    implicit val scenariosFormat: RootJsonFormat[Scenarios] = jsonFormat2(Scenarios)
+    implicit val scenariosFormat: RootJsonFormat[Scenarios] = jsonFormat1(Scenarios)
   }
 
 
@@ -90,7 +201,6 @@ class DbScenarios(dbBinding: DbBinding) extends DeploymentRequestInserter {
 
   private val scenarios = Source.fromURL(getClass.getResource("db-scenarios.json")).mkString.parseJson.convertTo[Scenarios]
   val deploymentPlans: Future[Iterable[DeploymentPlan]] = insertIntent()
-  val effects: List[OperationEffect] = scenarios.effects
 
   private val steps = deploymentPlans.map { plans =>
     val mapping = plans.flatMap(plan => plan.steps.map(step => step.name -> step))
