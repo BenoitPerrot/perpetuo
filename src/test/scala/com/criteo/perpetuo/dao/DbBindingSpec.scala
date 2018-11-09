@@ -10,6 +10,8 @@ import scala.concurrent.Future
 import scala.io.Source
 
 
+case class Execution(executionTraceStates: Seq[ExecutionState.Value], targetStatuses: Seq[Status.Value])
+
 class DbBindingSpec extends TestHelpers with TestDb {
   private val dbScenarios = new DbScenarios(dbBinding)
 
@@ -23,6 +25,22 @@ class DbBindingSpec extends TestHelpers with TestDb {
         (status, kind)
       }
 
+  private def assessEffect(executions: Seq[Execution], planSteps: Seq[String], kind: Operation.Kind) =
+    dbScenarios
+      .insertEffect(executions, planSteps, kind)
+      .flatMap { op =>
+        val depReq = op.deploymentRequest
+        getStatus(depReq).flatMap { case (runningStatus, runningKind) =>
+          runningKind shouldEqual Some(kind)
+          dbBinding.dbContext.db.run(dbBinding.closingOperationTrace(op))
+            .flatMap(_ => getStatus(depReq))
+            .map { case (closedStatus, closedKind) =>
+              closedKind shouldEqual runningKind
+              (runningStatus, closedStatus)
+            }
+        }
+      }
+
   // to execute before the other tests:
   test("Compute a deployment status: deployment not started") {
     dbScenarios.deploymentPlans
@@ -34,19 +52,7 @@ class DbBindingSpec extends TestHelpers with TestDb {
   // automatic test generation from scenarios:
   dbScenarios.effects.toStream.foreach(effect =>
     test(s"Compute a deployment status: ${effect.scenarioName}") {
-      dbScenarios.insertEffect(effect.executions, effect.planSteps, effect.kind)
-        .flatMap { op =>
-          val depReq = op.deploymentRequest
-          getStatus(depReq).flatMap { case (runningStatus, kind) =>
-            kind shouldEqual Some(effect.kind)
-            dbBinding.dbContext.db.run(dbBinding.closingOperationTrace(op))
-              .flatMap(_ => getStatus(depReq))
-              .map { case (closedStatus, k) =>
-                k shouldEqual kind
-                (runningStatus, closedStatus)
-              }
-          }
-        } should
+      assessEffect(effect.executions, effect.planSteps, effect.kind) should
         eventually(be(DeploymentStatus.inProgress, DeploymentStatus.withName(effect.deploymentStatus)))
     }
   )
@@ -55,8 +61,6 @@ class DbBindingSpec extends TestHelpers with TestDb {
 
 class DbScenarios(dbBinding: DbBinding) extends DeploymentRequestInserter {
   override val dbContext: DbContext = dbBinding.dbContext
-
-  case class Execution(executionTraceStates: Seq[ExecutionState.Value], targetStatuses: Seq[Status.Value])
 
   case class OperationEffect(scenarioName: String, deploymentStatus: String, planSteps: List[String], executions: List[Execution], private val operation: Option[String]) {
     def kind: Operation.Kind = operation.map(Operation.withName).getOrElse(Operation.deploy)
