@@ -62,7 +62,7 @@ class RundeckTrigger(name: String,
       "target" -> squote(target.superset.mkString(",")),
       "product-version" -> quotedVersion
     ) ++ specificParameters.map { case (parameterName, value) =>
-      parameterName.replaceAll("([A-Z])", "-$1").toLowerCase -> value
+      parameterName.replaceAll("([A-Z])", "-$1").toLowerCase -> squote(value)
     }
 
     // trigger the job and return a future to the execution's href
