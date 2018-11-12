@@ -33,17 +33,13 @@ trait DeploymentState {
   val deploymentPlanSteps: Seq[DeploymentPlanStep]
   val effects: Seq[OperationEffect]
   val outdatedBy: Option[Long]
+
+  def isOutdated: Boolean = outdatedBy.nonEmpty
 }
 
 trait InProgressState extends DeploymentState {
   val scope: OperationEffect
 }
-
-case class Outdated(deploymentRequest: DeploymentRequest,
-                    deploymentPlanSteps: Seq[DeploymentPlanStep],
-                    effects: Seq[OperationEffect],
-                    outdatedBy: Option[Long])
-  extends DeploymentState
 
 case class NotStarted(deploymentRequest: DeploymentRequest,
                       deploymentPlanSteps: Seq[DeploymentPlanStep],

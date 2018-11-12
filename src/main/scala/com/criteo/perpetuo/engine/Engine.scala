@@ -150,7 +150,7 @@ class Engine @Inject()(val crankshaft: Crankshaft,
       val getSpecifics =
         crankshaft.assessingDeploymentState(deploymentRequest)
           .flatMap {
-            case s: Outdated =>
+            case s if s.isOutdated =>
               DBIOAction.failed(DeploymentRequestOutdated(s.effects))
 
             case s: Abandoned =>
@@ -197,7 +197,7 @@ class Engine @Inject()(val crankshaft: Crankshaft,
       val gettingRevertSpecifics =
         crankshaft.assessingDeploymentState(deploymentRequest)
           .flatMap {
-            case s: Outdated =>
+            case s if s.isOutdated =>
               DBIOAction.failed(DeploymentRequestOutdated(s.effects))
 
             case s: Abandoned =>
@@ -293,7 +293,10 @@ class Engine @Inject()(val crankshaft: Crankshaft,
       crankshaft
         .assessDeploymentState(deploymentRequest)
         .map {
-          case s@ (_: Outdated | _: Abandoned | _: Reverted) =>
+          case s if s.isOutdated =>
+            (s, Seq())
+
+          case s@ (_: Abandoned | _: Reverted) =>
             (s, Seq())
 
           case s: Deployed =>

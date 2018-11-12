@@ -99,9 +99,7 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
         val sortedEffects = effects.sortBy(-_.operationTrace.id)
 
         if (deploymentRequest.state.contains(DeploymentRequestState.abandoned))
-          Abandoned(deploymentRequest, deploymentPlanSteps, sortedEffects, None)
-        else if (outdatingId.nonEmpty)
-          Outdated(deploymentRequest, deploymentPlanSteps, sortedEffects, None)
+          Abandoned(deploymentRequest, deploymentPlanSteps, sortedEffects, outdatingId)
         else {
           val idToDeploymentPlanStep = deploymentPlanSteps.map(planStep => planStep.id -> planStep).toMap
 
@@ -111,13 +109,13 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
                 case Operation.revert =>
                   latestEffect.state match {
                     case OperationEffectState.inProgress =>
-                      RevertInProgress(deploymentRequest, deploymentPlanSteps, sortedEffects, latestEffect, None)
+                      RevertInProgress(deploymentRequest, deploymentPlanSteps, sortedEffects, latestEffect, outdatingId)
 
                     case OperationEffectState.succeeded =>
-                      Reverted(deploymentRequest, deploymentPlanSteps, sortedEffects, None)
+                      Reverted(deploymentRequest, deploymentPlanSteps, sortedEffects, outdatingId)
 
                     case OperationEffectState.failed | OperationEffectState.flopped =>
-                      RevertFailed(deploymentRequest, deploymentPlanSteps, sortedEffects, latestEffect.deploymentPlanStepIds.flatMap(idToDeploymentPlanStep.get), None)
+                      RevertFailed(deploymentRequest, deploymentPlanSteps, sortedEffects, latestEffect.deploymentPlanStepIds.flatMap(idToDeploymentPlanStep.get), outdatingId)
                   }
 
                 case Operation.deploy =>
@@ -126,31 +124,31 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
                   val operatedPlanSteps = sortedEffects.flatMap(_.deploymentPlanStepIds).distinct.flatMap(idToDeploymentPlanStep.get)
                   latestEffect.state match {
                     case OperationEffectState.inProgress =>
-                      DeployInProgress(deploymentRequest, deploymentPlanSteps, sortedEffects, latestEffect, None)
+                      DeployInProgress(deploymentRequest, deploymentPlanSteps, sortedEffects, latestEffect, outdatingId)
 
                     case OperationEffectState.succeeded =>
                       findNextPlanStep(deploymentPlanSteps, latestOperatedPlanStep.id)
                         .map(
-                          Paused(deploymentRequest, deploymentPlanSteps, sortedEffects, _, latestOperatedPlanStep, operatedPlanSteps, None)
+                          Paused(deploymentRequest, deploymentPlanSteps, sortedEffects, _, latestOperatedPlanStep, operatedPlanSteps, outdatingId)
                         )
                         .getOrElse(
-                          Deployed(deploymentRequest, deploymentPlanSteps, sortedEffects, operatedPlanSteps, None)
+                          Deployed(deploymentRequest, deploymentPlanSteps, sortedEffects, operatedPlanSteps, outdatingId)
                         )
 
                     case OperationEffectState.failed | OperationEffectState.flopped =>
                       sortedEffects
                         .find(_.targetStatuses.exists(_.code != Status.notDone))
                         .map(_ =>
-                          DeployFailed(deploymentRequest, deploymentPlanSteps, sortedEffects, latestOperatedPlanStep, operatedPlanSteps, None)
+                          DeployFailed(deploymentRequest, deploymentPlanSteps, sortedEffects, latestOperatedPlanStep, operatedPlanSteps, outdatingId)
                         )
                         .getOrElse(
-                          DeployFlopped(deploymentRequest, deploymentPlanSteps, sortedEffects, latestOperatedPlanStep, None)
+                          DeployFlopped(deploymentRequest, deploymentPlanSteps, sortedEffects, latestOperatedPlanStep, outdatingId)
                         )
                   }
               }
             }
             .getOrElse(
-              NotStarted(deploymentRequest, deploymentPlanSteps, sortedEffects, deploymentPlanSteps.head, None)
+              NotStarted(deploymentRequest, deploymentPlanSteps, sortedEffects, deploymentPlanSteps.head, outdatingId)
             )
         }
       }
@@ -389,7 +387,7 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
     val devisingRevertPlan =
       assessingDeploymentState(deploymentRequest)
         .flatMap {
-          case s: Outdated =>
+          case s if s.isOutdated =>
             DBIO.failed(DeploymentRequestOutdated(s.effects))
 
           case s: Abandoned =>

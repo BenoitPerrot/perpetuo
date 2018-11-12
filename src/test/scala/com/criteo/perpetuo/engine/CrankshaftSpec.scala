@@ -130,7 +130,7 @@ class CrankshaftSpec extends SimpleScenarioTesting {
         thirdDeploymentRequest <- crankshaft.dbBinding.findDeploymentRequestById(thirdDeploymentRequest.id).map(_.get)
         thirdState <- crankshaft.assessDeploymentState(thirdDeploymentRequest)
       } yield {
-        secondState shouldBe an[Outdated]
+        secondState.isOutdated shouldEqual true
         thirdState shouldBe a[DeployFailed]
       }
     )
@@ -212,7 +212,8 @@ class CrankshaftSpec extends SimpleScenarioTesting {
         notDoneState <- crankshaft.assessDeploymentState(notDoneDeploymentRequest)
 
       } yield {
-        secondState shouldBe an[Outdated]
+        secondState shouldBe an[Deployed]
+        secondState.isOutdated shouldEqual true
         thirdState shouldBe a[Deployed]
         otherState shouldBe a[Deployed]
         nothingDoneState shouldBe a[DeployFlopped]
@@ -283,12 +284,12 @@ class CrankshaftSpec extends SimpleScenarioTesting {
         revertExecutionSpecIdsA should have length 1
         revertExecutionSpecIdsA should contain(firstExecSpecId)
 
-        stateOfSecondA shouldBe an[Outdated]
+        stateOfSecondA.isOutdated shouldEqual true
 
         revertExecutionSpecIdsB should have length 1
         revertExecutionSpecIdsB should contain(firstExecSpecId)
 
-        stateOfSecondB shouldBe an[Outdated]
+        stateOfSecondB.isOutdated shouldEqual true
       }
     )
   }
@@ -759,5 +760,94 @@ class CrankshaftWithUnknownHrefSpec extends SimpleScenarioTesting {
       .map(_.head)
       .flatMap(crankshaft.stopExecution(_, "joe")) should
       asynchronouslyThrow[RuntimeException]("Could not find an execution configuration for the type `testing`")
+  }
+}
+
+class CrankshaftOutdatedRequests extends SimpleScenarioTesting {
+
+  def mockDeployExecution(productName: String, v: String, targetAtomToStatus: Map[String, Status.Code]): Future[(DeploymentRequest, Long)] = {
+    for {
+      deploymentRequest <- crankshaft.createDeploymentRequest(ProtoDeploymentRequest(productName, Version(JsString(v)), Seq(ProtoDeploymentPlanStep("", targetAtomToStatus.keys.toJson, "")), "", "r.equestor"))
+      operationTrace <- step(deploymentRequest, Some(0), "s.tarter")
+      executionSpecIds <- crankshaft.dbBinding.findExecutionSpecIdsByOperationTrace(operationTrace.id)
+      _ <- closeOperation(operationTrace, targetAtomToStatus)
+    } yield (deploymentRequest, executionSpecIds.head)
+  }
+
+  def mockRevertExecution(deploymentRequest: DeploymentRequest, targetAtomToStatus: Map[String, Status.Code], defaultVersion: Option[Version] = None): Future[OperationTrace] = {
+    for {
+      operationTrace <- revert(deploymentRequest, None, "r.everter", defaultVersion)
+      _ <- closeOperation(operationTrace, targetAtomToStatus)
+    } yield operationTrace
+  }
+
+  val productName = "product"
+
+  test("Outdated requests have a deployed status") {
+    await(
+      for {
+        _ <- crankshaft.upsertProduct(productName)
+        id <- mockDeployExecution(productName, "1", Map("par" -> Status.success)).map(_._1.id)
+        id2 <- mockDeployExecution(productName, "2", Map("par" -> Status.success)).map(_._1.id)
+        r1 <- crankshaft.findDeploymentRequestById(id).map(_.get)
+        r2 <- crankshaft.findDeploymentRequestById(id2).map(_.get)
+        deployed1 <- crankshaft.assessDeploymentState(r1)
+        deployed2 <- crankshaft.assessDeploymentState(r2)
+      } yield {
+        deployed1 shouldBe a[Deployed]
+        deployed1.isOutdated shouldEqual true
+        deployed2 shouldBe a[Deployed]
+        deployed2.isOutdated shouldEqual false
+      }
+    )
+  }
+
+  test("NotStarted requests can become outdated") {
+    await(
+      for {
+        _ <- crankshaft.upsertProduct(productName)
+        dr1 <- crankshaft.createDeploymentRequest(ProtoDeploymentRequest(productName, Version(JsString("10")), Seq(ProtoDeploymentPlanStep("", JsString("par"), "")), "", "r.equestor"))
+        id2 <- mockDeployExecution(productName, "2", Map("par" -> Status.success)).map(_._1.id)
+        dr2 <- crankshaft.findDeploymentRequestById(id2).map(_.get)
+        notStarted <- crankshaft.assessDeploymentState(dr1)
+        deployed <- crankshaft.assessDeploymentState(dr2)
+      } yield {
+        notStarted shouldBe a[NotStarted]
+        notStarted.isOutdated shouldEqual true
+        deployed.isOutdated shouldEqual false
+      }
+    )
+  }
+
+  test("Failed deploy cannot be outdated") {
+    await(
+      for {
+        _ <- crankshaft.upsertProduct(productName)
+        id <- mockDeployExecution(productName, "1", Map("par" -> Status.productFailure)).map(_._1.id)
+        r1 <- crankshaft.findDeploymentRequestById(id).map(_.get)
+        failed <- crankshaft.assessDeploymentState(r1)
+        _ <- mockRevertExecution(r1, Map("par" -> Status.success), Some(Version(JsString("0"))))
+      } yield {
+        failed shouldBe a[DeployFailed]
+        failed.isOutdated shouldEqual false
+      }
+    )
+  }
+
+  test("Failed revert cannot be outdated") {
+    await(
+      for {
+        _ <- crankshaft.upsertProduct(productName)
+        id <- mockDeployExecution(productName, "2", Map("par" -> Status.productFailure)).map(_._1.id)
+        r1 <- crankshaft.findDeploymentRequestById(id).map(_.get)
+        op <- mockRevertExecution(r1, Map("par" -> Status.hostFailure), Some(Version(JsString("1"))))
+        r1 <- crankshaft.findDeploymentRequestById(op.deploymentRequest.id).map(_.get)
+        failed <- crankshaft.assessDeploymentState(r1)
+        op <- mockRevertExecution(r1, Map("par" -> Status.success), Some(Version(JsString("1"))))
+      } yield {
+        failed shouldBe a[RevertFailed]
+        failed.isOutdated shouldEqual false
+      }
+    )
   }
 }

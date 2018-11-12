@@ -168,7 +168,8 @@ trait SimpleScenarioTesting extends TestHelpers with TestDb with MockitoSugar {
       crankshaft
         .assessDeploymentState(deploymentRequest)
         .map {
-          case _: Outdated | _: Reverted => Seq()
+          case s if s.isOutdated => Seq()
+          case _: Reverted => Seq()
           case _: NotStarted | _: DeployFlopped => Seq(Operation.deploy)
           case _: DeployFailed | _: Paused => Seq(Operation.deploy, Operation.revert)
           case _: Deployed | _: RevertFailed => Seq(Operation.revert)

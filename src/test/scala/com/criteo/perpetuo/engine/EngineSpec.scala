@@ -145,11 +145,13 @@ class EngineSpec extends SimpleScenarioTesting {
         states0.head shouldBe an[Deployed]
 
         states10.size shouldBe 2
-        states10(1) shouldBe an[Outdated]
+        states10(1) shouldBe an[Deployed]
+        states10(1).isOutdated shouldEqual true
         states10.head shouldBe a[Reverted]
 
         states21.size shouldBe 2
-        states21(1) shouldBe an[Outdated]
+        states21(1) shouldBe an[Reverted]
+        states21(1).isOutdated shouldEqual true
         states21.head shouldBe a[DeployInProgress]
       }
     )
