@@ -26,9 +26,9 @@ class CrankshaftSpec extends SimpleScenarioTesting {
       for {
         product <- crankshaft.upsertProduct("product #1")
         depPlan <- crankshaft.dbBinding.insertDeploymentRequest(ProtoDeploymentRequest(product.name, Version("\"1000\""), Seq(ProtoDeploymentPlanStep("", JsString("atom"), "")), "", "s.omeone"))
-        NotStarted(_, deploymentPlanSteps, effectsBeforeStart, stepBeforeStart) <- crankshaft.assessDeploymentState(depPlan.deploymentRequest).map(_.asInstanceOf[NotStarted])
+        NotStarted(_, deploymentPlanSteps, effectsBeforeStart, stepBeforeStart, _) <- crankshaft.assessDeploymentState(depPlan.deploymentRequest).map(_.asInstanceOf[NotStarted])
         op <- step(depPlan.deploymentRequest, Some(0), "s.tarter")
-        DeployInProgress(_, _, effectsAfterStart, inProgress) <- crankshaft.assessDeploymentState(depPlan.deploymentRequest).map(_.asInstanceOf[DeployInProgress])
+        DeployInProgress(_, _, effectsAfterStart, inProgress, _) <- crankshaft.assessDeploymentState(depPlan.deploymentRequest).map(_.asInstanceOf[DeployInProgress])
         traces <- crankshaft.dbBinding.findExecutionTracesByOperationTrace(op.id)
       } yield {
         traces.map(trace => (trace.id, trace.href)) shouldEqual Seq((1, None))

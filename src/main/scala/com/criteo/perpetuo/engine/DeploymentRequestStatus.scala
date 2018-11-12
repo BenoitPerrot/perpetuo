@@ -32,6 +32,7 @@ trait DeploymentState {
   val deploymentRequest: DeploymentRequest
   val deploymentPlanSteps: Seq[DeploymentPlanStep]
   val effects: Seq[OperationEffect]
+  val outdatedBy: Option[Long]
 }
 
 trait InProgressState extends DeploymentState {
@@ -40,49 +41,57 @@ trait InProgressState extends DeploymentState {
 
 case class Outdated(deploymentRequest: DeploymentRequest,
                     deploymentPlanSteps: Seq[DeploymentPlanStep],
-                    effects: Seq[OperationEffect])
+                    effects: Seq[OperationEffect],
+                    outdatedBy: Option[Long])
   extends DeploymentState
 
 case class NotStarted(deploymentRequest: DeploymentRequest,
                       deploymentPlanSteps: Seq[DeploymentPlanStep],
                       effects: Seq[OperationEffect],
-                      toDo: DeploymentPlanStep)
+                      toDo: DeploymentPlanStep,
+                      outdatedBy: Option[Long])
   extends DeploymentState
 
 case class RevertInProgress(deploymentRequest: DeploymentRequest,
                             deploymentPlanSteps: Seq[DeploymentPlanStep],
                             effects: Seq[OperationEffect],
-                            scope: OperationEffect)
+                            scope: OperationEffect,
+                            outdatedBy: Option[Long])
   extends InProgressState
 
 case class RevertFailed(deploymentRequest: DeploymentRequest,
                         deploymentPlanSteps: Seq[DeploymentPlanStep],
                         effects: Seq[OperationEffect],
-                        scope: Seq[DeploymentPlanStep])
+                        scope: Seq[DeploymentPlanStep],
+                        outdatedBy: Option[Long])
   extends DeploymentState
 
 case class Reverted(deploymentRequest: DeploymentRequest,
                     deploymentPlanSteps: Seq[DeploymentPlanStep],
-                    effects: Seq[OperationEffect])
+                    effects: Seq[OperationEffect],
+                    outdatedBy: Option[Long])
   extends DeploymentState
 
 case class DeployFlopped(deploymentRequest: DeploymentRequest,
                          deploymentPlanSteps: Seq[DeploymentPlanStep],
                          effects: Seq[OperationEffect],
-                         step: DeploymentPlanStep)
+                         step: DeploymentPlanStep,
+                         outdatedBy: Option[Long])
   extends DeploymentState
 
 case class DeployInProgress(deploymentRequest: DeploymentRequest,
                             deploymentPlanSteps: Seq[DeploymentPlanStep],
                             effects: Seq[OperationEffect],
-                            scope: OperationEffect)
+                            scope: OperationEffect,
+                            outdatedBy: Option[Long])
   extends InProgressState
 
 case class DeployFailed(deploymentRequest: DeploymentRequest,
                         deploymentPlanSteps: Seq[DeploymentPlanStep],
                         effects: Seq[OperationEffect],
                         step: DeploymentPlanStep,
-                        revertScope: Seq[DeploymentPlanStep])
+                        revertScope: Seq[DeploymentPlanStep],
+                        outdatedBy: Option[Long])
   extends DeploymentState
 
 case class Paused(deploymentRequest: DeploymentRequest,
@@ -90,16 +99,19 @@ case class Paused(deploymentRequest: DeploymentRequest,
                   effects: Seq[OperationEffect],
                   toDo: DeploymentPlanStep,
                   lastDone: DeploymentPlanStep,
-                  revertScope: Seq[DeploymentPlanStep])
+                  revertScope: Seq[DeploymentPlanStep],
+                  outdatedBy: Option[Long])
   extends DeploymentState
 
 case class Deployed(deploymentRequest: DeploymentRequest,
                     deploymentPlanSteps: Seq[DeploymentPlanStep],
                     effects: Seq[OperationEffect],
-                    revertScope: Seq[DeploymentPlanStep])
+                    revertScope: Seq[DeploymentPlanStep],
+                    outdatedBy: Option[Long])
   extends DeploymentState
 
 case class Abandoned(deploymentRequest: DeploymentRequest,
                      deploymentPlanSteps: Seq[DeploymentPlanStep],
-                     effects: Seq[OperationEffect])
+                     effects: Seq[OperationEffect],
+                     outdatedBy: Option[Long])
   extends DeploymentState

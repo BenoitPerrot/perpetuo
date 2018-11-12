@@ -99,9 +99,9 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
         val sortedEffects = effects.sortBy(-_.operationTrace.id)
 
         if (deploymentRequest.state.contains(DeploymentRequestState.abandoned))
-          Abandoned(deploymentRequest, deploymentPlanSteps, sortedEffects)
+          Abandoned(deploymentRequest, deploymentPlanSteps, sortedEffects, None)
         else if (isOutdated)
-          Outdated(deploymentRequest, deploymentPlanSteps, sortedEffects)
+          Outdated(deploymentRequest, deploymentPlanSteps, sortedEffects, None)
         else {
           val idToDeploymentPlanStep = deploymentPlanSteps.map(planStep => planStep.id -> planStep).toMap
 
@@ -111,13 +111,13 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
                 case Operation.revert =>
                   latestEffect.state match {
                     case OperationEffectState.inProgress =>
-                      RevertInProgress(deploymentRequest, deploymentPlanSteps, sortedEffects, latestEffect)
+                      RevertInProgress(deploymentRequest, deploymentPlanSteps, sortedEffects, latestEffect, None)
 
                     case OperationEffectState.succeeded =>
-                      Reverted(deploymentRequest, deploymentPlanSteps, sortedEffects)
+                      Reverted(deploymentRequest, deploymentPlanSteps, sortedEffects, None)
 
                     case OperationEffectState.failed | OperationEffectState.flopped =>
-                      RevertFailed(deploymentRequest, deploymentPlanSteps, sortedEffects, latestEffect.deploymentPlanStepIds.flatMap(idToDeploymentPlanStep.get))
+                      RevertFailed(deploymentRequest, deploymentPlanSteps, sortedEffects, latestEffect.deploymentPlanStepIds.flatMap(idToDeploymentPlanStep.get), None)
                   }
 
                 case Operation.deploy =>
@@ -126,31 +126,31 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
                   val operatedPlanSteps = sortedEffects.flatMap(_.deploymentPlanStepIds).distinct.flatMap(idToDeploymentPlanStep.get)
                   latestEffect.state match {
                     case OperationEffectState.inProgress =>
-                      DeployInProgress(deploymentRequest, deploymentPlanSteps, sortedEffects, latestEffect)
+                      DeployInProgress(deploymentRequest, deploymentPlanSteps, sortedEffects, latestEffect, None)
 
                     case OperationEffectState.succeeded =>
                       findNextPlanStep(deploymentPlanSteps, latestOperatedPlanStep.id)
                         .map(
-                          Paused(deploymentRequest, deploymentPlanSteps, sortedEffects, _, latestOperatedPlanStep, operatedPlanSteps)
+                          Paused(deploymentRequest, deploymentPlanSteps, sortedEffects, _, latestOperatedPlanStep, operatedPlanSteps, None)
                         )
                         .getOrElse(
-                          Deployed(deploymentRequest, deploymentPlanSteps, sortedEffects, operatedPlanSteps)
+                          Deployed(deploymentRequest, deploymentPlanSteps, sortedEffects, operatedPlanSteps, None)
                         )
 
                     case OperationEffectState.failed | OperationEffectState.flopped =>
                       sortedEffects
                         .find(_.targetStatuses.exists(_.code != Status.notDone))
                         .map(_ =>
-                          DeployFailed(deploymentRequest, deploymentPlanSteps, sortedEffects, latestOperatedPlanStep, operatedPlanSteps)
+                          DeployFailed(deploymentRequest, deploymentPlanSteps, sortedEffects, latestOperatedPlanStep, operatedPlanSteps, None)
                         )
                         .getOrElse(
-                          DeployFlopped(deploymentRequest, deploymentPlanSteps, sortedEffects, latestOperatedPlanStep)
+                          DeployFlopped(deploymentRequest, deploymentPlanSteps, sortedEffects, latestOperatedPlanStep, None)
                         )
                   }
               }
             }
             .getOrElse(
-              NotStarted(deploymentRequest, deploymentPlanSteps, sortedEffects, deploymentPlanSteps.head)
+              NotStarted(deploymentRequest, deploymentPlanSteps, sortedEffects, deploymentPlanSteps.head, None)
             )
         }
       }

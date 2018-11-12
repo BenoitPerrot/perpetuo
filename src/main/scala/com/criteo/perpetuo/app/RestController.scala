@@ -255,7 +255,7 @@ class RestController @Inject()(val engine: Engine)
       "plan" -> deploymentPlan.steps,
       "productName" -> deploymentPlan.deploymentRequest.product.name,
       "state" -> serializeStateLabel(state)
-    )
+    ) ++ state.outdatedBy.map(id => Map("outdatedBy" -> id)).getOrElse(Map.empty)
   }
 
   private def serialize(state: DeploymentState, eligibleActions: Seq[(String, Option[String])]): Map[String, Any] = {
