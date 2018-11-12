@@ -191,7 +191,7 @@ class DbScenarios(dbBinding: DbBinding) extends DeploymentRequestInserter {
   import dbContext.profile.api._
 
   val deploymentPlans: Future[Iterable[DeploymentPlan]] =
-    insertIntent(
+    insertIntents(
       Map(
         "product-A" -> Seq(
           Seq("step-01", "step-02", "step-03"),
@@ -250,7 +250,7 @@ class DbScenarios(dbBinding: DbBinding) extends DeploymentRequestInserter {
         dbContext.db.run(q)
       }
 
-  private def insertIntent(intents: Map[String, Seq[Seq[String]]]): Future[Iterable[DeploymentPlan]] =
+  private def insertIntents(intents: Map[String, Seq[Seq[String]]]): Future[Iterable[DeploymentPlan]] =
     Future
       .traverse(intents) { case (productName, deploymentRequests) =>
         dbContext.db.run(productQuery += ProductRecord(None, productName)).flatMap(_ =>
