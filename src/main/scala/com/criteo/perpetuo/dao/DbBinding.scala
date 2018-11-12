@@ -298,13 +298,14 @@ class DbBinding @Inject()(val dbContext: DbContext)
   // if that is removed one day (with multi-step, out-dating a deployment request makes less sense),
   // a few functions must be changed to not rely on current request application order, for instance
   // findExecutionSpecificationsForRevert
-  def isOutdated(deploymentRequest: DeploymentRequest): FixedSqlAction[Boolean, NoStream, Effect.Read] =
+  def findOutdatingId(deploymentRequest: DeploymentRequest): DBIOAction[Option[Long], NoStream, Effect.Read] =
     deploymentRequestQuery
       .join(operationTraceQuery)
       .filter { case (depReq, operationTrace) =>
         depReq.id > deploymentRequest.id && depReq.productId === deploymentRequest.productId && depReq.id === operationTrace.deploymentRequestId
       }
-      .exists
+      .map { case (d, _) => d.id }
+      .max
       .result
 
   /**

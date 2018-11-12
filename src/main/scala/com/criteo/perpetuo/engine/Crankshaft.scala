@@ -87,20 +87,20 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
 
   def assessingDeploymentState(deploymentRequest: DeploymentRequest): DBIOAction[DeploymentState, NoStream, Effect.Read] =
     dbBinding
-      .isOutdated(deploymentRequest)
-      .flatMap(isOutdated =>
+      .findOutdatingId(deploymentRequest)
+      .flatMap(outdatingId =>
         dbBinding
           .findingDeploymentRequestAndEffects(deploymentRequest.id)
           .map(_.get)
-          .map((isOutdated, _))
+          .map((outdatingId, _))
       )
-      .map { case (isOutdated, (_, deploymentPlanSteps, effects)) =>
+      .map { case (outdatingId, (_, deploymentPlanSteps, effects)) =>
         assert(deploymentPlanSteps.nonEmpty)
         val sortedEffects = effects.sortBy(-_.operationTrace.id)
 
         if (deploymentRequest.state.contains(DeploymentRequestState.abandoned))
           Abandoned(deploymentRequest, deploymentPlanSteps, sortedEffects, None)
-        else if (isOutdated)
+        else if (outdatingId.nonEmpty)
           Outdated(deploymentRequest, deploymentPlanSteps, sortedEffects, None)
         else {
           val idToDeploymentPlanStep = deploymentPlanSteps.map(planStep => planStep.id -> planStep).toMap
