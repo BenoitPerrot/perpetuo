@@ -250,6 +250,10 @@
         </paper-card>
         <paper-card class="actions">
           <perpetuo-deployment-state state="[[state]]"></perpetuo-deployment-state>
+          <div hidden$="[[!data.outdatedBy]]">
+            This request is outdated by
+            <a href="/deployment-requests/[[data.outdatedBy]]">another request</a>
+          </div>
           <div>
             <template is="dom-repeat" items="[[data.actions]]">
               <div class="action">
