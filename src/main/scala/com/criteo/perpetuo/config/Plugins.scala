@@ -101,8 +101,8 @@ abstract class PluginRunner[P <: Plugin](plugin: P, base: P) {
       Future(
         try {
           if (method.getDeclaringClass != base.getClass) {
-            // there is a specific implementation for this plugin method, let's say it and start it, but time-boxed
-            plugin.logger.info(methodName)
+            // there is a specific implementation for this plugin method, let's start it, but time-boxed
+            plugin.logger.fine(methodName)
             try {
               Await.result(Future {
                 blocking {
