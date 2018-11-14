@@ -18,12 +18,6 @@ class EngineSpec extends SimpleScenarioTesting {
   private val starter = User("s.tarter")
   private val releaser = User("r.eleaser")
 
-  private def tryUpdateExecutionTraces(engine: Engine, executionTraces: Iterable[ShallowExecutionTrace],
-                                       state: ExecutionState.Value, detail: String = "", href: Option[String] = None, statusMap: Map[TargetAtom, TargetAtomStatus] = Map()) =
-    Future.sequence(
-      executionTraces.map(executionTrace => engine.tryUpdateExecutionTrace(executionTrace.id, state, detail, href, statusMap))
-    )
-
   test("The deployment state is cached for some definite time") {
     await(
       for {

@@ -135,6 +135,13 @@ trait SimpleScenarioTesting extends TestHelpers with TestDb with MockitoSugar {
       )
       .map(_.flatten)
 
+  def tryUpdateExecutionTraces(engine: Engine, executionTraces: Iterable[ShallowExecutionTrace],
+                               state: ExecutionState.Value, detail: String = "", href: Option[String] = None,
+                               statusMap: Map[TargetAtom, TargetAtomStatus] = Map()): Future[Iterable[Option[(OperationTrace, Boolean)]]] =
+    Future.sequence(
+      executionTraces.map(executionTrace => engine.tryUpdateExecutionTrace(executionTrace.id, state, detail, href, statusMap))
+    )
+
   def request(productName: String, version: String, stepsTargets: Iterable[String]*): RequestTesting = {
     if (!knownProducts.contains(productName)) {
       await(crankshaft.upsertProduct(productName))
