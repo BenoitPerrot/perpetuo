@@ -124,6 +124,11 @@ test {
     enabled = false
 }
 
+task testJar(type: Jar) {
+    classifier = 'tests'
+    from sourceSets.test.output
+}
+
 shadowJar {
     append("reference.conf")
     manifest {
