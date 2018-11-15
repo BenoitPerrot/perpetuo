@@ -12,6 +12,7 @@ import com.criteo.perpetuo.engine.resolvers.TargetResolver
 import com.criteo.perpetuo.model._
 import com.google.common.base.Ticker
 import com.twitter.inject.Test
+import com.typesafe.config.Config
 import org.mockito.Matchers._
 import org.mockito.Mockito.when
 import org.scalatest.matchers.Matcher
@@ -71,7 +72,7 @@ trait SimpleScenarioTesting extends TestHelpers with TestDb with MockitoSugar {
   private val loader = new PluginLoader(null)
   private val executionTrigger: ExecutionTrigger = mock[ExecutionTrigger]
   when(executionTrigger.executorType).thenReturn("testing")
-  val config = AppConfigProvider.config
+  def config: Config = AppConfigProvider.config
   val plugins = new Plugins(loader, config)
   val executionFinder = new TriggeredExecutionFinder(loader)
 
