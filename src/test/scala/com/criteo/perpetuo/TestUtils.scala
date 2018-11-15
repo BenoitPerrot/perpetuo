@@ -3,7 +3,7 @@ package com.criteo.perpetuo
 import java.util.concurrent.atomic.AtomicLong
 
 import com.criteo.perpetuo.auth.{Unrestricted, User}
-import com.criteo.perpetuo.config.{AppConfigProvider, PluginLoader, Plugins}
+import com.criteo.perpetuo.config.{AppConfigProvider, EngineProxy, PluginLoader, Plugins}
 import com.criteo.perpetuo.dao.{DbBinding, DbContext, DbContextProvider, TestingDbContextModule}
 import com.criteo.perpetuo.engine._
 import com.criteo.perpetuo.engine.dispatchers.{SingleTargetDispatcher, TargetDispatcher}
@@ -69,7 +69,9 @@ trait SimpleScenarioTesting extends TestHelpers with TestDb with MockitoSugar {
   import dbContext.profile.api._
 
   private val knownProducts = mutable.Set[String]()
-  private val loader = new PluginLoader(null)
+  private val loader = new PluginLoader(new EngineProxy(new com.google.inject.Provider[Crankshaft]() {
+    def get: Crankshaft = crankshaft
+  }))
   private val executionTrigger: ExecutionTrigger = mock[ExecutionTrigger]
   when(executionTrigger.executorType).thenReturn("testing")
   def config: Config = AppConfigProvider.config
