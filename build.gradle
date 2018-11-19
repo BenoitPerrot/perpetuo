@@ -97,25 +97,28 @@ tasks.withType(ScalaCompile) {
     ]
 }
 
-task npm_installExec(type: CrossPlatformExec) {
+task installWebAppDependencies(type: CrossPlatformExec) {
     executable "npm"
     args "install"
     workingDir "${webapp_directory}"
 }
 
-task bower_installExec(type: CrossPlatformExec) {
-    executable "bower"
-    args "install"
-    workingDir "${webapp_directory}"
+task prepareWebAppDependencies(dependsOn: 'installWebAppDependencies') {
+    fileTree("${webapp_directory}/node_modules/").visit {
+        def f = it.getFile()
+        if (f.isFile() && it.getName().endsWith('.js')) {
+            f.text = f.text.replaceAll('(from|import) +([\'"])([^/. ])', '$1 $2/node_modules/$3')
+        }
+    }
 }
 
-task polymer_buildExec(type: CrossPlatformExec, dependsOn: ['npm_installExec', 'bower_installExec']) {
+task buildWebApp(type: CrossPlatformExec, dependsOn: 'prepareWebAppDependencies') {
     executable "node"
     args "node_modules/polymer-cli/bin/polymer.js", "build"
     workingDir "${webapp_directory}"
 }
 
-tasks.processResources.dependsOn(polymer_buildExec)
+tasks.processResources.dependsOn(buildWebApp)
 
 test {
     // deactivate tests of the java plugin because they are launched by the scala plugin
