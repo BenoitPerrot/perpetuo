@@ -2,32 +2,33 @@
 
 <link rel="import" href="../../bower_components/paper-input/paper-textarea.html">
 
-<dom-module id="perpetuo-deployment-request-comment-editor">
-  <template>
-    <paper-textarea no-label-float id="main" disabled="[[disabled]]"></paper-textarea>
-  </template>
-  <script>
-  (function () {
-    class PerpetuoDeploymentRequestCommentEditor extends Polymer.Element {
-      static get is() { return 'perpetuo-deployment-request-comment-editor'; }
+<script>(function () {
+class PerpetuoDeploymentRequestCommentEditor extends Polymer.Element {
 
-      static get properties() {
-        return {
-          disabled: Boolean,
-        }
-      }
+  static get template() {
+    return Polymer.html`
+<paper-textarea no-label-float id="main" disabled="[[disabled]]"></paper-textarea>
+`;
+  }
 
-      get value() {
-        return this.$.main.value;
-      }
+  static get is() { return 'perpetuo-deployment-request-comment-editor'; }
 
-      clear() {
-        if (this.$) {
-          this.$.main.value = '';
-        }
-      }
+  static get properties() {
+    return {
+      disabled: Boolean,
     }
-    customElements.define(PerpetuoDeploymentRequestCommentEditor.is, PerpetuoDeploymentRequestCommentEditor);
-  } ());
-  </script>
-</dom-module>
+  }
+
+  get value() {
+    return this.$.main.value;
+  }
+
+  clear() {
+    if (this.$) {
+      this.$.main.value = '';
+    }
+  }
+}
+
+customElements.define(PerpetuoDeploymentRequestCommentEditor.is, PerpetuoDeploymentRequestCommentEditor);
+}());</script>

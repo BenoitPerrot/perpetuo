@@ -2,38 +2,38 @@
 
 <link rel="import" href="../perpetuo-deployment-request/perpetuo-deployment-request-target-selector.html">
 
-<dom-module id="perpetuo-deployment-request-strategy-selector">
-  <template>
-    <perpetuo-deployment-request-target-selector product-name="[[productName]]" id="targetSelector"
-                                                 on-selected-targets-changed="updateSelectedStrategy">
-    </perpetuo-deployment-request-target-selector>
-  </template>
-  <script>
-  (function () {
-    class PerpetuoDeploymentRequestStrategySelector extends Polymer.Element {
-      static get is() { return 'perpetuo-deployment-request-strategy-selector'; }
+<script>(function () {
+class PerpetuoDeploymentRequestStrategySelector extends Polymer.Element {
 
-      static get properties() {
-        return {
-          productName: String,
+  static get template() {
+    return Polymer.html`
+<perpetuo-deployment-request-target-selector product-name="[[productName]]" id="targetSelector"
+                                             on-selected-targets-changed="updateSelectedStrategy">
+</perpetuo-deployment-request-target-selector>
+`;
+  }
 
-          selectedStrategy: { type: Array, value: () => [], notify: true },
-        }
-      }
+  static get is() { return 'perpetuo-deployment-request-strategy-selector'; }
 
-      clear() {
-        if (this.$) {
-          this.$.targetSelector.clear();
-        }
-      }
+  static get properties() {
+    return {
+      productName: String,
 
-      updateSelectedStrategy() {
-        this.selectedStrategy =
-          0 < this.$.targetSelector.selectedTargets.length ? [{ name: '', target: this.$.targetSelector.selectedTargets }] : [];
-      }
+      selectedStrategy: { type: Array, value: () => [], notify: true },
     }
+  }
 
-    customElements.define(PerpetuoDeploymentRequestStrategySelector.is, PerpetuoDeploymentRequestStrategySelector);
-  } ());
-  </script>
-</dom-module>
+  clear() {
+    if (this.$) {
+      this.$.targetSelector.clear();
+    }
+  }
+
+  updateSelectedStrategy() {
+    this.selectedStrategy =
+    0 < this.$.targetSelector.selectedTargets.length ? [{ name: '', target: this.$.targetSelector.selectedTargets }] : [];
+  }
+}
+
+customElements.define(PerpetuoDeploymentRequestStrategySelector.is, PerpetuoDeploymentRequestStrategySelector);
+}());</script>

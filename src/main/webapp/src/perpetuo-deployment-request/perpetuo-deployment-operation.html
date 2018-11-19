@@ -5,85 +5,85 @@
 <link rel="import" href="../perpetuo-deployment-request/perpetuo-target-status-table.html">
 <link rel="import" href="../perpetuo-deployment-request/perpetuo-deployment-execution-list.html">
 
-<dom-module id="perpetuo-deployment-operation">
-  <template>
-    <style>
-    :host {
-      display: flex;
-      flex-direction: column;
-    }
+<script>(function () {
+class PerpetuoDeploymentOperation extends Polymer.Element {
 
-    h1, h2 {
-      margin: 0;
-      font-weight: normal;
-    }
-    h1 {
-      text-transform: capitalize;
-      font-size: 24px;
-    }
-    h2 {
-      font-size: 16px;
-      margin-top: 1em;
-    }
-    </style>
-    <h1><paper-icon-button icon="[[lessOrMoreIcon(opened)]]" on-tap="toggleDetail"></paper-icon-button>[[data.kind]] Attempt #[[index]]: [[data.status]]</h1>
-    <iron-collapse id="detail" opened="{{opened}}">
-      <p>Started by [[data.creator]] on [[timestampToDates(data.creationDate)]]</p>
-      <perpetuo-target-status-table data="[[arrayifyTargetStatus(data.targetStatus)]]"></perpetuo-target-status-table>
-      <h2><paper-icon-button icon="[[lessOrMoreIcon(executionDetailOpened)]]" on-tap="toggleExecutionDetail"></paper-icon-button>Execution Detail</h2>
-      <iron-collapse id="executionDetail" opened="{{executionDetailOpened}}">
-        <perpetuo-deployment-execution-list data="[[data.executions]]"></perpetuo-deployment-execution-list>
-      </iron-collapse>
-    </iron-collapse>
-  </template>
-  <script>
-  (function () {
-    class PerpetuoDeploymentOperation extends Polymer.Element {
-      static get is() { return 'perpetuo-deployment-operation'; }
+  static get template() {
+    return Polymer.html`
+<style>
+:host {
+  display: flex;
+  flex-direction: column;
+}
 
-      static get properties() {
-        return {
-          index: { type: Number },
-          data: Object,
-          opened: { type: Boolean, notify: true, reflectToAttribute: true },
-          executionDetailOpened: { type: Boolean, value: false }
-        };
-      }
+h1, h2 {
+  margin: 0;
+  font-weight: normal;
+}
+h1 {
+  text-transform: capitalize;
+  font-size: 24px;
+}
+h2 {
+  font-size: 16px;
+  margin-top: 1em;
+}
+</style>
+<h1><paper-icon-button icon="[[lessOrMoreIcon(opened)]]" on-tap="toggleDetail"></paper-icon-button>[[data.kind]] Attempt #[[index]]: [[data.status]]</h1>
+<iron-collapse id="detail" opened="{{opened}}">
+  <p>Started by [[data.creator]] on [[timestampToDates(data.creationDate)]]</p>
+  <perpetuo-target-status-table data="[[arrayifyTargetStatus(data.targetStatus)]]"></perpetuo-target-status-table>
+  <h2><paper-icon-button icon="[[lessOrMoreIcon(executionDetailOpened)]]" on-tap="toggleExecutionDetail"></paper-icon-button>Execution Detail</h2>
+  <iron-collapse id="executionDetail" opened="{{executionDetailOpened}}">
+    <perpetuo-deployment-execution-list data="[[data.executions]]"></perpetuo-deployment-execution-list>
+  </iron-collapse>
+</iron-collapse>
+`;
+  }
 
-      timestampToDates(t) {
-        const date = new Date(t * 1000);
+  static get is() { return 'perpetuo-deployment-operation'; }
 
-        const localYMD = date.getFullYear() + '-' + (date.getMonth() + 1) + '-' + date.getDate();
-        const localTime = date.toTimeString().split(' ')[0];
+  static get properties() {
+    return {
+      index: { type: Number },
+      data: Object,
+      opened: { type: Boolean, notify: true, reflectToAttribute: true },
+      executionDetailOpened: { type: Boolean, value: false }
+    };
+  }
 
-        const iso = date.toISOString().split('T');
-        const isoYMD = iso[0].replace(/-0/g, '-');
-        const isoTime = iso[1].split('.')[0];
+  timestampToDates(t) {
+    const date = new Date(t * 1000);
 
-        return `${isoYMD} at ${isoTime} UTC (` + (localYMD !== isoYMD ? localYMD + ' ' : '') + localTime + ' local time)';
-      }
+    const localYMD = date.getFullYear() + '-' + (date.getMonth() + 1) + '-' + date.getDate();
+    const localTime = date.toTimeString().split(' ')[0];
 
-      arrayifyTargetStatus(targetStatusMap) {
-        return Object.keys(targetStatusMap).map(targetAtom => {
-          const targetAtomStatus = targetStatusMap[targetAtom];
-          return { targetAtom: targetAtom, code: targetAtomStatus.code, detail: targetAtomStatus.detail };
-        });
-      }
+    const iso = date.toISOString().split('T');
+    const isoYMD = iso[0].replace(/-0/g, '-');
+    const isoTime = iso[1].split('.')[0];
 
-      toggleDetail() {
-        this.$.detail.toggle();
-      }
+    return `${isoYMD} at ${isoTime} UTC (` + (localYMD !== isoYMD ? localYMD + ' ' : '') + localTime + ' local time)';
+  }
 
-      toggleExecutionDetail() {
-        this.$.executionDetail.toggle();
-      }
+  arrayifyTargetStatus(targetStatusMap) {
+    return Object.keys(targetStatusMap).map(targetAtom => {
+      const targetAtomStatus = targetStatusMap[targetAtom];
+      return { targetAtom: targetAtom, code: targetAtomStatus.code, detail: targetAtomStatus.detail };
+    });
+  }
 
-      lessOrMoreIcon(opened) {
-        return opened ? 'expand-less' : 'expand-more';
-      }
-    }
+  toggleDetail() {
+    this.$.detail.toggle();
+  }
 
-    customElements.define(PerpetuoDeploymentOperation.is, PerpetuoDeploymentOperation);
-  } ());
-  </script>
-</dom-module>
+  toggleExecutionDetail() {
+    this.$.executionDetail.toggle();
+  }
+
+  lessOrMoreIcon(opened) {
+    return opened ? 'expand-less' : 'expand-more';
+  }
+}
+
+customElements.define(PerpetuoDeploymentOperation.is, PerpetuoDeploymentOperation);
+}());</script>

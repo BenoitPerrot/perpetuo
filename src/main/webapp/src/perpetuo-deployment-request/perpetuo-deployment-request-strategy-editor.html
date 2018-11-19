@@ -8,102 +8,103 @@
 <link rel="import" href="../perpetuo-deployment-request/perpetuo-deployment-request-step-edition-dialog.html">
 <link rel="import" href="../perpetuo-util/perpetuo-util.html">
 
-<dom-module id="perpetuo-deployment-request-strategy-editor">
-  <template>
-    <style>
-    paper-icon-button,
-    iron-icon {
-      color: var(--primary-color);
-    }
-    table {
-      width: 100%;
-    }
-    td.index {
-      width: 1.5em;
-      text-align: right;
-      padding-right: 8px;
-    }
-    td.step-definition {
-      border-bottom: solid 1px #ccc;
-    }
-    span.target-summary {
-      vertical-align: bottom;
-      display: inline-block;
-      max-width: 20em;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-    paper-button#add {
-      margin: 0;
-      padding-left: 0
-    }
-    paper-button#add > iron-icon {
-      margin-right: 8px;
-    }
-    </style>
-    <table>
-      <template is="dom-repeat" items="[[steps]]">
-        <tr>
-          <td class="index">
-            <span>[[inc(index)]].</span>
-          </td>
-          <td class="step-definition">
-            <span>[[item.name]]</span>
-            <span hidden="[[!item.name]]">(</span><span class="target-summary">[[computeTargetSummary(item.target)]]</span><span hidden="[[!item.name]]">)</span>
-          </td>
-          <td>
-            <paper-icon-button icon="delete" on-tap="onDeleteStepTap"></paper-icon-button>
-          </td>
-        </tr>
-      </template>
-      <tr>
-        <td></td>
-        <td colspan="2">
-          <paper-button id="add" on-tap="onAddStepTap"><iron-icon icon="add"></iron-icon>add step</paper-button>
-        </td>
-      </tr>
-    </table>
+<script>(function () {
+class PerpetuoDeploymentRequestStrategyEditor extends Polymer.Element {
 
-    <perpetuo-deployment-request-step-edition-dialog product-name="[[productName]]" id="stepEditionDialog"></perpetuo-deployment-request-step-edition-dialog>
+  static get template() {
+    return Polymer.html`
+<style>
+paper-icon-button,
+iron-icon {
+  color: var(--primary-color);
+}
+table {
+  width: 100%;
+}
+td.index {
+  width: 1.5em;
+  text-align: right;
+  padding-right: 8px;
+}
+td.step-definition {
+  border-bottom: solid 1px #ccc;
+}
+span.target-summary {
+  vertical-align: bottom;
+  display: inline-block;
+  max-width: 20em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+paper-button#add {
+  margin: 0;
+  padding-left: 0
+}
+paper-button#add > iron-icon {
+  margin-right: 8px;
+}
+</style>
+<table>
+  <template is="dom-repeat" items="[[steps]]">
+    <tr>
+      <td class="index">
+        <span>[[inc(index)]].</span>
+      </td>
+      <td class="step-definition">
+        <span>[[item.name]]</span>
+        <span hidden="[[!item.name]]">(</span><span class="target-summary">[[computeTargetSummary(item.target)]]</span><span hidden="[[!item.name]]">)</span>
+      </td>
+      <td>
+        <paper-icon-button icon="delete" on-tap="onDeleteStepTap"></paper-icon-button>
+      </td>
+    </tr>
   </template>
-  <script>
-  (function () {
-    class PerpetuoDeploymentRequestStrategyEditor extends Polymer.Element {
-      static get is() { return 'perpetuo-deployment-request-strategy-editor'; }
+  <tr>
+    <td></td>
+    <td colspan="2">
+      <paper-button id="add" on-tap="onAddStepTap"><iron-icon icon="add"></iron-icon>add step</paper-button>
+    </td>
+  </tr>
+</table>
 
-      static get properties() {
-        return {
-          productName: String,
+<perpetuo-deployment-request-step-edition-dialog product-name="[[productName]]" id="stepEditionDialog"></perpetuo-deployment-request-step-edition-dialog>
+`;
+  }
 
-          steps: { type: Array, value: () => [], notify: true },
-        }
-      }
+  static get is() { return 'perpetuo-deployment-request-strategy-editor'; }
 
-      clear() {
-        this.steps = [];
-      }
+  static get properties() {
+    return {
+      productName: String,
 
-      inc(i) {
-        return i + 1;
-      }
-
-      computeTargetSummary(target) {
-        return Perpetuo.Util.computeTargetExpressionLabel(target);
-      }
-
-      onAddStepTap() {
-        this.$.stepEditionDialog.clear();
-        this.$.stepEditionDialog.edit().then(_ => {
-          this.push('steps', _);
-        });
-      }
-
-      onDeleteStepTap(e) {
-        this.splice('steps', e.model.index, 1);
-      }
+      steps: { type: Array, value: () => [], notify: true },
     }
-    customElements.define(PerpetuoDeploymentRequestStrategyEditor.is, PerpetuoDeploymentRequestStrategyEditor);
-  } ());
-  </script>
-</dom-module>
+  }
+
+  clear() {
+    this.steps = [];
+  }
+
+  inc(i) {
+    return i + 1;
+  }
+
+  computeTargetSummary(target) {
+    return Perpetuo.Util.computeTargetExpressionLabel(target);
+  }
+
+  onAddStepTap() {
+    this.$.stepEditionDialog.clear();
+    this.$.stepEditionDialog.edit().then(_ => {
+      this.push('steps', _);
+    });
+  }
+
+  onDeleteStepTap(e) {
+    this.splice('steps', e.model.index, 1);
+  }
+}
+
+customElements.define(PerpetuoDeploymentRequestStrategyEditor.is, PerpetuoDeploymentRequestStrategyEditor);
+}());</script>

@@ -4,47 +4,47 @@
 <link rel="import" href="../../bower_components/paper-dialog/paper-dialog.html">
 <link rel="import" href="../../bower_components/paper-dialog-scrollable/paper-dialog-scrollable.html">
 
-<dom-module id="perpetuo-conflicting-deployment-requests">
-  <template>
-    <style>
-    .ok {
-      background: #26a69a;
-      color: #fff;
-    }
-    </style>
-    <paper-dialog id="dialog" with-backdrop>
-      <h2>Conflicting deployment requests are still open</h2>
-      <paper-dialog-scrollable>
-        <p>This deployment request impacts targets that are being modified by on-going deployments.</p>
-        <p>Wait for them to end, or close them:</p>
-        <ul>
-          <template is="dom-repeat" items="[[conflicts]]">
-            <li><a href="/deployment-requests/[[item]]">Deployment Request #[[item]]</a></li>
-          </template>
-        </ul>
-      </paper-dialog-scrollable>
-      <div class="buttons">
-        <paper-button dialog-confirm class="ok" raised>OK</paper-button>
-      </div>
-    </paper-dialog>
-  </template>
-  <script>
-  (function () {
-    class PerpetuoConflictingDeploymentRequest extends Polymer.Element {
-      static get is() { return 'perpetuo-conflicting-deployment-requests'; }
+<script>(function () {
+class PerpetuoConflictingDeploymentRequest extends Polymer.Element {
 
-      static get properties() {
-        return {
-          conflicts: Array
-        };
-      }
+  static get template() {
+    return Polymer.html`
+<style>
+.ok {
+  background: #26a69a;
+  color: #fff;
+}
+</style>
+<paper-dialog id="dialog" with-backdrop>
+  <h2>Conflicting deployment requests are still open</h2>
+  <paper-dialog-scrollable>
+    <p>This deployment request impacts targets that are being modified by on-going deployments.</p>
+    <p>Wait for them to end, or close them:</p>
+    <ul>
+      <template is="dom-repeat" items="[[conflicts]]">
+        <li><a href="/deployment-requests/[[item]]">Deployment Request #[[item]]</a></li>
+      </template>
+    </ul>
+  </paper-dialog-scrollable>
+  <div class="buttons">
+    <paper-button dialog-confirm class="ok" raised>OK</paper-button>
+  </div>
+</paper-dialog>
+`;
+  }
 
-      open() {
-        this.$.dialog.open();
-      }
-    }
+  static get is() { return 'perpetuo-conflicting-deployment-requests'; }
 
-    customElements.define(PerpetuoConflictingDeploymentRequest.is, PerpetuoConflictingDeploymentRequest);
-  } ());
-  </script>
-</dom-module>
+  static get properties() {
+    return {
+      conflicts: Array
+    };
+  }
+
+  open() {
+    this.$.dialog.open();
+  }
+}
+
+customElements.define(PerpetuoConflictingDeploymentRequest.is, PerpetuoConflictingDeploymentRequest);
+}());</script>

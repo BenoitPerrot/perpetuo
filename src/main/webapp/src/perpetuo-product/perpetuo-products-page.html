@@ -6,50 +6,50 @@
 <link rel="import" href="../perpetuo-client/perpetuo-client.html">
 <link rel="import" href="../perpetuo-product/perpetuo-product-table.html">
 
-<dom-module id="perpetuo-products-page">
-  <template>
-    <style>
-    paper-card {
-      flex: 1;
-      margin: 1em;
-      display: flex;
-    }
-    perpetuo-product-table {
-      flex: 1;
-    }
-    </style>
-    <perpetuo-app-toolbar page-title="Perpetuo / Products"></perpetuo-app-toolbar>
+<script>(function () {
+class PerpetuoProductsPage extends Polymer.Element {
 
-    <div style="display: flex; width: 100%;">
-      <paper-card>
-        <perpetuo-product-table id="productTable"></perpetuo-product-table>
-      </paper-card>
-    </div>
-  </template>
-  <script>
-  (function () {
-    class PerpetuoProductsPage extends Polymer.Element {
-      static get is() { return 'perpetuo-products-page'; }
+  static get template() {
+    return Polymer.html`
+<style>
+paper-card {
+  flex: 1;
+  margin: 1em;
+  display: flex;
+}
+perpetuo-product-table {
+  flex: 1;
+}
+</style>
+<perpetuo-app-toolbar page-title="Perpetuo / Products"></perpetuo-app-toolbar>
 
-      constructor() {
-        super();
+<div style="display: flex; width: 100%;">
+  <paper-card>
+    <perpetuo-product-table id="productTable"></perpetuo-product-table>
+  </paper-card>
+</div>
+`;
+  }
 
-        this.client = new Perpetuo.Client();
-      }
+  static get is() { return 'perpetuo-products-page'; }
 
-      connectedCallback() {
-        super.connectedCallback();
+  constructor() {
+    super();
 
-        this.client.fetchProducts().then(products => {
-          this.$.productTable.data = products;
-        });
-        this.client.getAllowedActions().then(actions => {
-          this.$.productTable.canUpdateProduct = actions.includes("updateProduct") ? "enabled" : "disabled";
-        });
-      }
-    }
+    this.client = new Perpetuo.Client();
+  }
 
-    customElements.define(PerpetuoProductsPage.is, PerpetuoProductsPage);
-  } ());
-  </script>
-</dom-module>
+  connectedCallback() {
+    super.connectedCallback();
+
+    this.client.fetchProducts().then(products => {
+      this.$.productTable.data = products;
+    });
+    this.client.getAllowedActions().then(actions => {
+      this.$.productTable.canUpdateProduct = actions.includes("updateProduct") ? "enabled" : "disabled";
+    });
+  }
+}
+
+customElements.define(PerpetuoProductsPage.is, PerpetuoProductsPage);
+}());</script>

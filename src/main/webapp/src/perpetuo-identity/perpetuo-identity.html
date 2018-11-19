@@ -1,62 +1,62 @@
-<link rel="import" href="../../bower_components/polymer/polymer.html"/>
+<link rel="import" href="../../bower_components/polymer/polymer.html" />
 
 <link rel="import" href="../perpetuo-client/perpetuo-client.html">
 
-<dom-module id="perpetuo-identity">
-  <template>
-    <style>
-    :host {
-      display: none;
-    }
-    </style>
-  </template>
-  <script>
-  (function () {
-    class PerpetuoIdentity extends Polymer.Element {
-      static get is() { return 'perpetuo-identity'; }
+<script>(function () {
+class PerpetuoIdentity extends Polymer.Element {
 
-      static get properties() {
-        return {
-          login: { type: String, notify: true, readOnly: true }
-        };
-      }
+  static get template() {
+    return Polymer.html`
+<style>
+:host {
+  display: none;
+}
+</style>
+`;
+  }
 
-      constructor() {
-        super();
+  static get is() { return 'perpetuo-identity'; }
 
-        this.client = new Perpetuo.Client();
-      }
+  static get properties() {
+    return {
+      login: { type: String, notify: true, readOnly: true }
+    };
+  }
 
-      connectedCallback() {
-        super.connectedCallback();
+  constructor() {
+    super();
 
-        this.client.fetchIdentity().then(login => {
-          this._setLogin(login);
-        });
-      }
+    this.client = new Perpetuo.Client();
+  }
 
-      acknowledge() {
-        const query = window.location.search.slice(1).split('&').reduce((m, p) => {
-          const kv = p.split('=');
-          return m.set(kv[0], kv[1]);
-        }, new Map());
+  connectedCallback() {
+    super.connectedCallback();
 
-        this.client.identify(query.get('code')).then(() => {
-          window.location.replace(decodeURIComponent(query.get('state')));
-        });
-      }
+    this.client.fetchIdentity().then(login => {
+      this._setLogin(login);
+    });
+  }
 
-      request() {
-        this.client.redirectToAuthorizeURL(window);
-      }
+  acknowledge() {
+    const query = window.location.search.slice(1).split('&').reduce((m, p) => {
+      const kv = p.split('=');
+      return m.set(kv[0], kv[1]);
+    }, new Map());
 
-      signOut() {
-        this.client.signOut();
-        this._setLogin(null);
-      }
-    }
+    this.client.identify(query.get('code')).then(() => {
+      window.location.replace(decodeURIComponent(query.get('state')));
+    });
+  }
 
-    customElements.define(PerpetuoIdentity.is, PerpetuoIdentity);
-  } ());
-  </script>
-</dom-module>
+  request() {
+    this.client.redirectToAuthorizeURL(window);
+  }
+
+  signOut() {
+    this.client.signOut();
+    this._setLogin(null);
+  }
+}
+
+customElements.define(PerpetuoIdentity.is, PerpetuoIdentity);
+}());</script>

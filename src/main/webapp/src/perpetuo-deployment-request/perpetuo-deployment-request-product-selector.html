@@ -2,37 +2,38 @@
 
 <link rel="import" href="../perpetuo-list-editor/perpetuo-list-editor.html">
 
-<dom-module id="perpetuo-deployment-request-product-selector">
-  <template>
-    <perpetuo-list-editor id="main" label="Product Name"
-                          choices="[[productNames]]" initial-count="10" selected-item="{{selectedProductName}}"
-                          disabled="[[disabled]]"></perpetuo-list-editor>
-  </template>
-  <script>
-  (function () {
-    class PerpetuoDeploymentRequestProductSelector extends Polymer.Element {
-      static get is() { return 'perpetuo-deployment-request-product-selector'; }
+<script>(function () {
+class PerpetuoDeploymentRequestProductSelector extends Polymer.Element {
 
-      static get properties() {
-        return {
-          disabled: Boolean,
-          products: Array,
-          productNames: { type: Array, computed: 'computeProductNames(products)' },
-          selectedProductName: { type: String, notify: true },
-        }
-      }
+  static get template() {
+    return Polymer.html`
+<perpetuo-list-editor id="main" label="Product Name"
+                      choices="[[productNames]]" initial-count="10" selected-item="{{selectedProductName}}"
+                      disabled="[[disabled]]"></perpetuo-list-editor>
+`;
+  }
 
-      computeProductNames(products) {
-        return products.filter(_ => _.active).map(_ => _.name);
-      }
+  static get is() { return 'perpetuo-deployment-request-product-selector'; }
 
-      clear() {
-        if (this.$) {
-          this.$.main.clear();
-        }
-      }
+  static get properties() {
+    return {
+      disabled: Boolean,
+      products: Array,
+      productNames: { type: Array, computed: 'computeProductNames(products)' },
+      selectedProductName: { type: String, notify: true },
     }
-    customElements.define(PerpetuoDeploymentRequestProductSelector.is, PerpetuoDeploymentRequestProductSelector);
-  } ());
-  </script>
-</dom-module>
+  }
+
+  computeProductNames(products) {
+    return products.filter(_ => _.active).map(_ => _.name);
+  }
+
+  clear() {
+    if (this.$) {
+      this.$.main.clear();
+    }
+  }
+}
+
+customElements.define(PerpetuoDeploymentRequestProductSelector.is, PerpetuoDeploymentRequestProductSelector);
+}());</script>

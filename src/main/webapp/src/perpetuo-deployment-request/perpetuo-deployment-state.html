@@ -1,45 +1,43 @@
 <link rel="import" href="../../bower_components/polymer/polymer.html">
 
-<dom-module id="perpetuo-deployment-state">
-  <template>
-    <style>
-    :host {
-      text-transform: uppercase;
-      font-weight: 500;
-      color: #555;
-    }
-    :host([state=deployed]) {
-      color: #0f9d58;
-    }
-    :host([state$=Failed]),
-    :host([state$=Flopped]) {
-      color: #f44336;
-    }
-    :host([state$=Progress]) {
-      color: var(--perpetuo-blue);
-    }
-    </style>
-    <span>[[computeLabel(state)]]</span>
-  </template>
-  <script>
-  (function () {
-    'use strict';
+<script>(function () {
+class PerpetuoDeploymentState extends Polymer.Element {
 
-    class PerpetuoDeploymentState extends Polymer.Element {
-      static get is() { return 'perpetuo-deployment-state'; }
+  static get template() {
+    return Polymer.html`
+<style>
+:host {
+  text-transform: uppercase;
+  font-weight: 500;
+  color: #555;
+}
+:host([state=deployed]) {
+  color: #0f9d58;
+}
+:host([state$=Failed]),
+:host([state$=Flopped]) {
+  color: #f44336;
+}
+:host([state$=Progress]) {
+  color: var(--perpetuo-blue);
+}
+</style>
+<span>[[computeLabel(state)]]</span>
+`;
+  }
 
-      static get properties() {
-        return {
-          state: { type: String, reflectToAttribute: true }
-        }
-      }
+  static get is() { return 'perpetuo-deployment-state'; }
 
-      computeLabel(state) {
-        return state.replace(/([A-Z])/g, ' $1').toLowerCase();
-      }
+  static get properties() {
+    return {
+      state: { type: String, reflectToAttribute: true }
     }
+  }
 
-    customElements.define(PerpetuoDeploymentState.is, PerpetuoDeploymentState);
-  } ());
-  </script>
-</dom-module>
+  computeLabel(state) {
+    return state.replace(/([A-Z])/g, ' $1').toLowerCase();
+  }
+}
+
+customElements.define(PerpetuoDeploymentState.is, PerpetuoDeploymentState);
+}());</script>

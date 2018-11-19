@@ -2,33 +2,34 @@
 
 <link rel="import" href="../../bower_components/paper-input/paper-input.html">
 
-<dom-module id="perpetuo-deployment-request-version-selector">
-  <template>
-    <paper-input id="main" label="Version" disabled="[[disabled]]" on-value-changed="updateSelectedVersion"></paper-input>
-  </template>
-  <script>
-  (function () {
-    class PerpetuoDeploymentRequestVersionSelector extends Polymer.Element {
-      static get is() { return 'perpetuo-deployment-request-version-selector'; }
+<script>(function () {
+class PerpetuoDeploymentRequestVersionSelector extends Polymer.Element {
 
-      static get properties() {
-        return {
-          disabled: Boolean,
-          selectedVersion: { type: String, notify: true },
-        }
-      }
+  static get template() {
+    return Polymer.html`
+<paper-input id="main" label="Version" disabled="[[disabled]]" on-value-changed="updateSelectedVersion"></paper-input>
+`;
+  }
 
-      updateSelectedVersion() {
-        this.selectedVersion = this.$.main.value.trim();
-      }
+  static get is() { return 'perpetuo-deployment-request-version-selector'; }
 
-      clear() {
-        if (this.$) {
-          this.$.main.value = '';
-        }
-      }
+  static get properties() {
+    return {
+      disabled: Boolean,
+      selectedVersion: { type: String, notify: true },
     }
-    customElements.define(PerpetuoDeploymentRequestVersionSelector.is, PerpetuoDeploymentRequestVersionSelector);
-  } ());
-  </script>
-</dom-module>
+  }
+
+  updateSelectedVersion() {
+    this.selectedVersion = this.$.main.value.trim();
+  }
+
+  clear() {
+    if (this.$) {
+      this.$.main.value = '';
+    }
+  }
+}
+
+customElements.define(PerpetuoDeploymentRequestVersionSelector.is, PerpetuoDeploymentRequestVersionSelector);
+}());</script>

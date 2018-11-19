@@ -5,42 +5,42 @@
 <link rel="import" href="../../bower_components/iron-icons/iron-icons.html">
 <link rel="import" href="../../bower_components/paper-item/paper-icon-item.html">
 
-<dom-module id="perpetuo-app-drawer">
-  <template>
-    <style>
-    app-drawer {
-      --app-drawer-scrim-background: rgba(255, 255, 255, 0.5);
-      --app-drawer-content-container: {
-        background-color: #333;
-      }
-      z-index: 1;
-    }
-    app-drawer a {
-      text-decoration: none;
-      color: #eee;
-    }
-    </style>
-    <app-drawer id="drawer" swipe-open>
-      <a href="/" on-tap="close"><paper-icon-item><iron-icon icon="menu" slot="item-icon"></iron-icon>Perpetuo</paper-icon-item></a>
-      <a href="/deployment-requests" on-tap="close"><paper-icon-item><iron-icon icon="unarchive" slot="item-icon"></iron-icon>Deployment Requests</paper-icon-item></a>
-      <a href="/products" on-tap="close"><paper-icon-item><iron-icon icon="folder-open" slot="item-icon"></iron-icon>Products</paper-icon-item></a>
-    </app-drawer>
-  </template>
-  <script>
-  (function () {
-    class PerpetuoAppDrawer extends Polymer.Element {
-      static get is() { return 'perpetuo-app-drawer'; }
+<script>(function () {
+class PerpetuoAppDrawer extends Polymer.Element {
 
-      toggle() {
-        this.$.drawer.toggle();
-      }
+  static get template() {
+    return Polymer.html`
+<style>
+app-drawer {
+  --app-drawer-scrim-background: rgba(255, 255, 255, 0.5);
+  --app-drawer-content-container: {
+    background-color: #333;
+  }
+  z-index: 1;
+}
+app-drawer a {
+  text-decoration: none;
+  color: #eee;
+}
+</style>
+<app-drawer id="drawer" swipe-open>
+  <a href="/" on-tap="close"><paper-icon-item><iron-icon icon="menu" slot="item-icon"></iron-icon>Perpetuo</paper-icon-item></a>
+  <a href="/deployment-requests" on-tap="close"><paper-icon-item><iron-icon icon="unarchive" slot="item-icon"></iron-icon>Deployment Requests</paper-icon-item></a>
+  <a href="/products" on-tap="close"><paper-icon-item><iron-icon icon="folder-open" slot="item-icon"></iron-icon>Products</paper-icon-item></a>
+</app-drawer>
+`;
+  }
 
-      close() {
-        this.$.drawer.close();
-      }
-    }
+  static get is() { return 'perpetuo-app-drawer'; }
 
-    customElements.define(PerpetuoAppDrawer.is, PerpetuoAppDrawer);
-  } ());
-  </script>
-</dom-module>
+  toggle() {
+    this.$.drawer.toggle();
+  }
+
+  close() {
+    this.$.drawer.close();
+  }
+}
+
+customElements.define(PerpetuoAppDrawer.is, PerpetuoAppDrawer);
+}());</script>
