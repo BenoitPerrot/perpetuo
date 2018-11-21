@@ -1,5 +1,6 @@
 <link rel="import" href="../../bower_components/polymer/polymer.html">
 
+<link rel="import" href="../../bower_components/marked-element/marked-element.html">
 <link rel="import" href="../../bower_components/paper-card/paper-card.html">
 <link rel="import" href="../../bower_components/paper-button/paper-button.html">
 <link rel="import" href="../../bower_components/paper-dialog/paper-dialog.html">
@@ -13,7 +14,6 @@
 <link rel="import" href="../perpetuo-deployment-request/perpetuo-deployment-operation.html">
 <link rel="import" href="../perpetuo-deployment-request/perpetuo-deployment-state.html">
 <link rel="import" href="../perpetuo-deployment-request/perpetuo-revert-plan-dialog.html">
-<link rel="import" href="../perpetuo-markdown/perpetuo-markdown-viewer.html">
 <link rel="import" href="../perpetuo-util/perpetuo-util.html">
 
 <dom-module id="perpetuo-deployment-request">
@@ -245,7 +245,7 @@
           </table>
           <div>
             <p>Requested by [[data.creator]] on [[timestampToDates(data.creationDate)]]</p>
-            <template is="dom-if" if="[[data.comment]]"><p><perpetuo-markdown-viewer md="[[data.comment]]"></perpetuo-markdown-viewer></p></template>
+            <template is="dom-if" if="[[data.comment]]"><p><marked-element markdown="[[data.comment]]"></marked-element></p></template>
           </div>
         </paper-card>
         <paper-card class="actions">

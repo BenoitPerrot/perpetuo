@@ -1,6 +1,6 @@
 <link rel="import" href="../../bower_components/polymer/polymer.html">
 
-<link rel="import" href="../perpetuo-markdown/perpetuo-markdown-viewer.html">
+<link rel="import" href="../../bower_components/marked-element/marked-element.html">
 
 <dom-module id="perpetuo-deployment-execution-list">
   <template>
@@ -56,7 +56,7 @@
               </template>
             </td>
             <td>
-              <perpetuo-markdown-viewer md="[[item.detail]]"></perpetuo-markdown-viewer>
+              <marked-element markdown="[[item.detail]]"></marked-element>
             </td>
           </tr>
         </template>

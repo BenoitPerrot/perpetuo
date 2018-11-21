@@ -26,7 +26,8 @@
     "paper-checkbox": "PolymerElements/paper-checkbox#^2.0.4",
     "paper-dialog-scrollable": "PolymerElements/paper-dialog-scrollable#^2.2.1",
     "paper-fab": "PolymerElements/paper-fab#^2.1.0",
-    "paper-toggle-button": "PolymerElements/paper-toggle-button#^2.1.1"
+    "paper-toggle-button": "PolymerElements/paper-toggle-button#^2.1.1",
+    "marked-element": "PolymerElements/marked-element#^2.4.0"
   },
   "devDependencies": {
     "web-component-tester": "Polymer/web-component-tester#^6.5.0",
