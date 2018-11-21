@@ -6,7 +6,8 @@ case class ProtoDeploymentRequest(productName: String,
                                   plan: Seq[ProtoDeploymentPlanStep],
                                   comment: String,
                                   creator: String,
-                                  creationDate: java.sql.Timestamp = new java.sql.Timestamp(System.currentTimeMillis))
+                                  creationDate: java.sql.Timestamp = new java.sql.Timestamp(System.currentTimeMillis),
+                                  autoRevert: Boolean = false)
 
 
 case class DeploymentRequest(id: Long,
