@@ -84,7 +84,7 @@ class EngineSpec extends SimpleScenarioTesting {
     )
   }
 
-  test("A request which is not started nor flopped cannot be abandoned") {
+  test("A request which is started and not flopped cannot be abandoned") {
     await(
       for {
         product <- engine.upsertProduct(starter, "product")
