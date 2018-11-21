@@ -108,7 +108,7 @@
       }
 
       computeShortVersion(data) {
-        const uniformed = Array.isArray(data.version) ? data.version : [{value: data.version}];
+        const uniformed = Array.isArray(data.version) ? data.version : [{ value: data.version }];
         return uniformed.map(version => ({
           value: (expr => expr.length > 10 ? expr.slice(0, 7) + "..." : expr)(version.value.toString()),
           ratio: version.ratio

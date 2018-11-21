@@ -52,22 +52,22 @@
 
       static get properties() {
         return {
-          pageSizes: {type: Array},
-          pageSizeIndex: {type: Number, value: 0},
-          pageSize: {type: Number, computed: 'computePageSize(pageSizes, pageSizeIndex)', notify: true},
+          pageSizes: { type: Array },
+          pageSizeIndex: { type: Number, value: 0 },
+          pageSize: { type: Number, computed: 'computePageSize(pageSizes, pageSizeIndex)', notify: true },
 
-          page: {type: Number, value: 1, notify: true},
-          isFirstPage: {type: Boolean, computed: 'computeIsFirstPage(page)', notify: true},
-          isLastPage: {type: Boolean, value: false},
+          page: { type: Number, value: 1, notify: true },
+          isFirstPage: { type: Boolean, computed: 'computeIsFirstPage(page)', notify: true },
+          isLastPage: { type: Boolean, value: false },
 
-          offset: {type: Number, computed: 'computeOffset(page, pageSize)', notify: true},
-          total: {type: Number, value: null},
+          offset: { type: Number, computed: 'computeOffset(page, pageSize)', notify: true },
+          total: { type: Number, value: null },
 
-          firstIndexOnPage: {type: Number, computed: 'computeFirstIndexOnPage(offset)', notify: true},
-          lastIndexOnPage: {type: Number, computed: 'computeLastIndexOnPage(offset, countOnPage)', notify: true},
-          countOnPage: {type: Number},
+          firstIndexOnPage: { type: Number, computed: 'computeFirstIndexOnPage(offset)', notify: true },
+          lastIndexOnPage: { type: Number, computed: 'computeLastIndexOnPage(offset, countOnPage)', notify: true },
+          countOnPage: { type: Number },
 
-          minItemCountForFooter: {type: Number, value: 0}
+          minItemCountForFooter: { type: Number, value: 0 }
         }
       }
 

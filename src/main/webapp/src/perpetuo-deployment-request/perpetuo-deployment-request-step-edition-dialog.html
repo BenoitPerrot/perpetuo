@@ -45,8 +45,8 @@
         return {
           productName: String,
 
-          name: {type: String, value: ''},
-          selectedTargets: {type: Object, value: null}
+          name: { type: String, value: '' },
+          selectedTargets: { type: Object, value: null }
         }
       }
 
@@ -70,7 +70,7 @@
             if (!e.detail.value) {
               dialog.removeEventListener('opened-changed', onOpenedChanged);
               if (dialog.closingReason.confirmed) {
-                resolve({name: this.name, target: this.selectedTargets});
+                resolve({ name: this.name, target: this.selectedTargets });
               } else {
                 reject();
               }

@@ -69,11 +69,11 @@
           initialCount: Number,
           label: String,
           multi: Boolean,
-          filter: {type: String, notify: true},
+          filter: { type: String, notify: true },
           choices: Array,
-          filteredChoices: {type: Array, computed: 'applyFilter(choices, filter)'},
-          selectedItems: {type: Array, value: () => [], notify: true},
-          selectedItem: {type: Object, notify: true, reflectToAttribute: true, computed: 'lastSelectedItem(selectedItems.*)'}
+          filteredChoices: { type: Array, computed: 'applyFilter(choices, filter)' },
+          selectedItems: { type: Array, value: () => [], notify: true },
+          selectedItem: { type: Object, notify: true, reflectToAttribute: true, computed: 'lastSelectedItem(selectedItems.*)' }
         };
       }
 

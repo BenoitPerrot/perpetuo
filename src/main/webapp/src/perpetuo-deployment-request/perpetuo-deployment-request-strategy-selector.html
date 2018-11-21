@@ -17,7 +17,7 @@
         return {
           productName: String,
 
-          selectedStrategy: {type: Array, value: () => [], notify: true},
+          selectedStrategy: { type: Array, value: () => [], notify: true },
         }
       }
 
@@ -29,7 +29,7 @@
 
       updateSelectedStrategy() {
         this.selectedStrategy =
-          0 < this.$.targetSelector.selectedTargets.length ? [{name: '', target: this.$.targetSelector.selectedTargets}] : [];
+          0 < this.$.targetSelector.selectedTargets.length ? [{ name: '', target: this.$.targetSelector.selectedTargets }] : [];
       }
     }
 

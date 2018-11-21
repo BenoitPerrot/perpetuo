@@ -96,7 +96,7 @@
 
       static get properties() {
         return {
-          opened: {type: Boolean, notify: true},
+          opened: { type: Boolean, notify: true },
           determined: Array,
           undetermined: Array,
           defaultVersion: String,
@@ -115,7 +115,7 @@
       }
 
       computeVersion(data) {
-        return Array.isArray(data.version) ? data.version : [{value: data.version}];
+        return Array.isArray(data.version) ? data.version : [{ value: data.version }];
       }
 
       asPercentage(ratio) {
@@ -125,8 +125,8 @@
       sumUpArray(arr) {
         const sorted = arr.sort();
         return (sorted.length < 8 ?
-                sorted :
-                sorted.slice(0, 3).concat(["..."], sorted.slice(-3))
+          sorted :
+          sorted.slice(0, 3).concat(["..."], sorted.slice(-3))
         ).join(", ");
       }
     }

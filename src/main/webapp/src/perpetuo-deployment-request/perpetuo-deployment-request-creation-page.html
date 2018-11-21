@@ -72,13 +72,13 @@
       static get properties() {
         return {
           login: String,
-          active: {type: Boolean, observer: 'onActiveChanged'},
+          active: { type: Boolean, observer: 'onActiveChanged' },
           products: { type: Array, value: () => [] },
-          productSelectionStepLabel: {type: String, value: 'Select Product'},
-          versionSelectionStepLabel: {type: String, value: 'Select Version'},
-          selectedProductName: { type: String, observer: 'onSelectedProductNameChanged'},
+          productSelectionStepLabel: { type: String, value: 'Select Product' },
+          versionSelectionStepLabel: { type: String, value: 'Select Version' },
+          selectedProductName: { type: String, observer: 'onSelectedProductNameChanged' },
           selectedVersion: String,
-          selectedStrategy: {type: Array, value: () => []},
+          selectedStrategy: { type: Array, value: () => [] },
         };
       }
 

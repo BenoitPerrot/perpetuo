@@ -296,13 +296,13 @@
 
       static get properties() {
         return {
-          deploymentRequestId: {type: String, observer: 'onDeploymentRequestIdChanged'},
-          noData: {type: Boolean, value: true},
-          active: {type: Boolean, observer: 'onActiveChanged'},
+          deploymentRequestId: { type: String, observer: 'onDeploymentRequestIdChanged' },
+          noData: { type: Boolean, value: true },
+          active: { type: Boolean, observer: 'onActiveChanged' },
           data: Object,
-          state: {type: String, reflectToAttribute: true, computed: 'computeState(data)'},
+          state: { type: String, reflectToAttribute: true, computed: 'computeState(data)' },
           operationGroups: Array,
-          version: {type: Array, computed: 'computeVersion(data)'},
+          version: { type: Array, computed: 'computeVersion(data)' },
           isInAction: Boolean,
           revertPlan: Object,
           defaultVersion: String,
@@ -374,21 +374,21 @@
             this.isInAction = false;
           };
           f().then(releaseLock)
-             .catch(releaseLock);
+            .catch(releaseLock);
         }
       }
 
       onDeployTap(e) {
         this.actionLock(() =>
           this.client.stepDeploymentRequest(this.deploymentRequestId, this.data.operations.length)
-              .then(_ => this.refresh())
-              .catch(e => {
-                if (e.detail && e.detail.conflicts) {
-                  const panel = this.$.conflictPanel;
-                  panel.conflicts = e.detail.conflicts;
-                  panel.open();
-                }
-              })
+            .then(_ => this.refresh())
+            .catch(e => {
+              if (e.detail && e.detail.conflicts) {
+                const panel = this.$.conflictPanel;
+                panel.conflicts = e.detail.conflicts;
+                panel.open();
+              }
+            })
         );
       }
 
@@ -415,12 +415,12 @@
           const deploymentRequestId = this.deploymentRequestId
           const operationCount = this.data.operations.length
           return this.client.deviseRevertPlan(deploymentRequestId)
-              .then(r => r.json())
-              .then(revertPlan => this.showRevertPlan(revertPlan))
-              .then(defaultVersion => // possibly undefined
-                this.client.revertDeploymentRequest(deploymentRequestId, operationCount, defaultVersion)
-              )
-              .catch(_ => this.refresh())
+            .then(r => r.json())
+            .then(revertPlan => this.showRevertPlan(revertPlan))
+            .then(defaultVersion => // possibly undefined
+              this.client.revertDeploymentRequest(deploymentRequestId, operationCount, defaultVersion)
+            )
+            .catch(_ => this.refresh())
         });
       }
 
@@ -445,7 +445,7 @@
       }
 
       computeVersion(data) {
-        return Array.isArray(data.version) ? data.version : [{value: data.version}];
+        return Array.isArray(data.version) ? data.version : [{ value: data.version }];
       }
 
       asPercentage(ratio) {
@@ -458,7 +458,7 @@
 
       refresh() {
         return this.deploymentRequestId === undefined ?
-               Promise.resolve(false)
+          Promise.resolve(false)
           : this.client.fetchDeploymentRequest(this.deploymentRequestId).then(data => {
             if (data.id == this.deploymentRequestId) { // Support out-of-order responses
               this.data = data;
@@ -471,19 +471,19 @@
                 data.operations.reduce((operationGroups, op) => {
                   let lastOperationGroup = 0 < operationGroups.length ? operationGroups[operationGroups.length - 1] : null;
                   if (!lastOperationGroup ||
-                      !(op.kind === lastOperationGroup[0].kind &&
-                        op.planStepIds.length === lastOperationGroup[0].planStepIds.length && op.planStepIds.every(id => lastOperationGroup[0].planStepIds.includes(id)))) {
+                    !(op.kind === lastOperationGroup[0].kind &&
+                      op.planStepIds.length === lastOperationGroup[0].planStepIds.length && op.planStepIds.every(id => lastOperationGroup[0].planStepIds.includes(id)))) {
                     lastOperationGroup = [];
                     operationGroups.push(lastOperationGroup);
                   }
                   lastOperationGroup.push(op);
                   return operationGroups;
                 }, [])
-                 .map(operations => ({
-                   operations: operations,
-                   status: operations[0].status,
-                   label: computeOperationGroupLabel(operations[0].planStepIds, data.plan)
-                 }));
+                  .map(operations => ({
+                    operations: operations,
+                    status: operations[0].status,
+                    label: computeOperationGroupLabel(operations[0].planStepIds, data.plan)
+                  }));
 
               const planStepsAndLastOperations =
                 data.plan.map(planStep => [
