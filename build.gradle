@@ -102,20 +102,19 @@ task npm_installExec(type: CrossPlatformExec) {
     args "install"
     workingDir "${webapp_directory}"
 }
-tasks.compileJava.dependsOn(npm_installExec)
 
-task bower_installExec(type: CrossPlatformExec, dependsOn: 'npm_installExec') {
+task bower_installExec(type: CrossPlatformExec) {
     executable "bower"
     args "install"
     workingDir "${webapp_directory}"
 }
-tasks.processResources.dependsOn(bower_installExec)
 
-task polymer_buildExec(type: CrossPlatformExec, dependsOn: 'bower_installExec') {
+task polymer_buildExec(type: CrossPlatformExec, dependsOn: ['npm_installExec', 'bower_installExec']) {
     executable "node"
     args "node_modules/polymer-cli/bin/polymer.js", "build"
     workingDir "${webapp_directory}"
 }
+
 tasks.processResources.dependsOn(polymer_buildExec)
 
 test {
