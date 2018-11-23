@@ -9,7 +9,6 @@ apply from: parentPomsFile('java-parent/scalatest.gradle')
 ext {
     artifactId = "perpetuo-app"
     groupId = "com.criteo.perpetuo"
-    build_aux_directory = "build-aux"
     h2db_version = "1.4.197"
     main_class = "com.criteo.perpetuo.app.main"
     minimizeJar = "false"
@@ -101,7 +100,7 @@ tasks.withType(ScalaCompile) {
 task npm_installExec(type: CrossPlatformExec) {
     executable "npm"
     args "install"
-    workingDir "${build_aux_directory}"
+    workingDir "${webapp_directory}"
 }
 tasks.compileJava.dependsOn(npm_installExec)
 
@@ -114,7 +113,7 @@ tasks.processResources.dependsOn(bower_installExec)
 
 task polymer_buildExec(type: CrossPlatformExec, dependsOn: 'bower_installExec') {
     executable "node"
-    args "${projectDir}/${build_aux_directory}/node_modules/polymer-cli/bin/polymer.js", "build"
+    args "node_modules/polymer-cli/bin/polymer.js", "build"
     workingDir "${webapp_directory}"
 }
 tasks.processResources.dependsOn(polymer_buildExec)
