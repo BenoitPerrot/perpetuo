@@ -17,6 +17,7 @@ CREATE TABLE "deployment_request" (
   "creator"       NVARCHAR(64)   NOT NULL,
   "creation_date" DATETIME       NOT NULL,
   "state"         SMALLINT,
+  "state_stamp"   INTEGER        NOT NULL,
   "auto_revert"   BIT            NOT NULL
 )
 ALTER TABLE "deployment_request"

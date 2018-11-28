@@ -13,9 +13,10 @@ private[dao] case class DeploymentRequestRecord(id: Option[Long],
                                                 creator: UserName,
                                                 creationDate: java.sql.Timestamp,
                                                 state: Option[DeploymentRequestState.Code],
+                                                stateStamp: Int,
                                                 autoRevert: Boolean) {
   def toDeploymentRequest(product: ProductRecord) =
-    DeploymentRequest(id.get, product.toProduct, version.toModel, comment.toString, creator.toString, creationDate, state, autoRevert)
+    DeploymentRequest(id.get, product.toProduct, version.toModel, comment.toString, creator.toString, creationDate, state, stateStamp, autoRevert)
 }
 
 
@@ -45,9 +46,10 @@ trait DeploymentRequestBinder extends TableBinder {
     protected def creationIdx = index(creationDate)
 
     def state = column[Option[DeploymentRequestState.Code]]("state")
+    def stateStamp = column[Int]("state_stamp")
     def autoRevert = column[Boolean]("auto_revert")
 
-    def * = (id.?, productId, version, comment, creator, creationDate, state, autoRevert) <> (DeploymentRequestRecord.tupled, DeploymentRequestRecord.unapply)
+    def * = (id.?, productId, version, comment, creator, creationDate, state, stateStamp, autoRevert) <> (DeploymentRequestRecord.tupled, DeploymentRequestRecord.unapply)
   }
 
   val deploymentRequestQuery = TableQuery[DeploymentRequestTable]

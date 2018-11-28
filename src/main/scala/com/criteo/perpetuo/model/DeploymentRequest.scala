@@ -17,6 +17,7 @@ case class DeploymentRequest(id: Long,
                              creator: String,
                              creationDate: java.sql.Timestamp,
                              state: Option[DeploymentRequestState.Value],
+                             stateStamp: Int,
                              autoRevert: Boolean) {
 
   val productId: Int = product.id
