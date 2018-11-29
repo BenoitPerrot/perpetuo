@@ -41,6 +41,10 @@ trait InProgressState extends DeploymentState {
   val scope: OperationEffect
 }
 
+trait RevertibleState extends DeploymentState {
+  val revertScope: Seq[DeploymentPlanStep]
+}
+
 case class NotStarted(deploymentRequest: DeploymentRequest,
                       deploymentPlanSteps: Seq[DeploymentPlanStep],
                       effects: Seq[OperationEffect],
@@ -58,9 +62,9 @@ case class RevertInProgress(deploymentRequest: DeploymentRequest,
 case class RevertFailed(deploymentRequest: DeploymentRequest,
                         deploymentPlanSteps: Seq[DeploymentPlanStep],
                         effects: Seq[OperationEffect],
-                        scope: Seq[DeploymentPlanStep],
+                        revertScope: Seq[DeploymentPlanStep],
                         outdatedBy: Option[Long])
-  extends DeploymentState
+  extends RevertibleState
 
 case class Reverted(deploymentRequest: DeploymentRequest,
                     deploymentPlanSteps: Seq[DeploymentPlanStep],
@@ -88,7 +92,7 @@ case class DeployFailed(deploymentRequest: DeploymentRequest,
                         step: DeploymentPlanStep,
                         revertScope: Seq[DeploymentPlanStep],
                         outdatedBy: Option[Long])
-  extends DeploymentState
+  extends RevertibleState
 
 case class Paused(deploymentRequest: DeploymentRequest,
                   deploymentPlanSteps: Seq[DeploymentPlanStep],
@@ -97,14 +101,14 @@ case class Paused(deploymentRequest: DeploymentRequest,
                   lastDone: DeploymentPlanStep,
                   revertScope: Seq[DeploymentPlanStep],
                   outdatedBy: Option[Long])
-  extends DeploymentState
+  extends RevertibleState
 
 case class Deployed(deploymentRequest: DeploymentRequest,
                     deploymentPlanSteps: Seq[DeploymentPlanStep],
                     effects: Seq[OperationEffect],
                     revertScope: Seq[DeploymentPlanStep],
                     outdatedBy: Option[Long])
-  extends DeploymentState
+  extends RevertibleState
 
 case class Abandoned(deploymentRequest: DeploymentRequest,
                      deploymentPlanSteps: Seq[DeploymentPlanStep],

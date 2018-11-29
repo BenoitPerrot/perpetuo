@@ -196,34 +196,28 @@ class Engine @Inject()(val crankshaft: Crankshaft,
 
       val gettingRevertSpecifics =
         crankshaft.assessingDeploymentState(deploymentRequest)
-          .flatMap {
+          .map {
             case s if s.isOutdated =>
-              DBIOAction.failed(DeploymentRequestOutdated(s.effects))
+              Left(DeploymentRequestOutdated(s.effects))
 
             case s: Abandoned =>
-              DBIOAction.failed(DeploymentRequestAbandoned(s.effects))
+              Left(DeploymentRequestAbandoned(s.effects))
 
             case s: Reverted =>
-              DBIOAction.failed(DeploymentTransactionClosed(s.effects))
+              Left(DeploymentTransactionClosed(s.effects))
 
             case s@(_: NotStarted | _: DeployFlopped) =>
-              DBIOAction.failed(NothingToRevert(s.effects))
+              Left(NothingToRevert(s.effects))
 
             case s@(_: RevertInProgress | _: DeployInProgress) =>
-              DBIOAction.failed(OperationRunning(s.effects))
+              Left(OperationRunning(s.effects))
 
-            case s: RevertFailed =>
-              evaluatePreconditions(s.scope, s.effects).flatMap(_ => crankshaft.getRevertSpecifics(deploymentRequest, defaultVersion).map((_, ())))
-
-            case s: DeployFailed =>
-              evaluatePreconditions(s.revertScope, s.effects).flatMap(_ => crankshaft.getRevertSpecifics(deploymentRequest, defaultVersion).map((_, ())))
-
-            case s: Paused =>
-              evaluatePreconditions(s.revertScope, s.effects).flatMap(_ => crankshaft.getRevertSpecifics(deploymentRequest, defaultVersion).map((_, ())))
-
-            case s: Deployed =>
-              evaluatePreconditions(s.revertScope, s.effects).flatMap(_ => crankshaft.getRevertSpecifics(deploymentRequest, defaultVersion).map((_, ())))
+            case s: RevertibleState =>
+              Right(s)
           }
+          .flatMap(_.fold(DBIOAction.failed, s => evaluatePreconditions(s.revertScope, s.effects)))
+          .andThen(crankshaft.getRevertSpecifics(deploymentRequest, defaultVersion).map((_, ())))
+
 
       crankshaft
         .revert(deploymentRequest, operationCount, user.name, gettingRevertSpecifics)
@@ -321,7 +315,7 @@ class Engine @Inject()(val crankshaft: Crankshaft,
             (s, Seq(("stop", evaluatePreconditions(DeploymentAction.stopOperation, Operation.deploy, toPlanSteps(s, s.scope.deploymentPlanStepIds)))))
 
           case s: RevertFailed =>
-            (s, Seq((Operation.revert.toString, evaluatePreconditions(DeploymentAction.applyOperation, Operation.revert, s.scope))))
+            (s, Seq((Operation.revert.toString, evaluatePreconditions(DeploymentAction.applyOperation, Operation.revert, s.revertScope))))
 
           case s: DeployFailed =>
             (s, Seq(
