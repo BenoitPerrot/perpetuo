@@ -197,6 +197,10 @@ class Engine @Inject()(val crankshaft: Crankshaft,
       val gettingRevertSpecifics =
         crankshaft.assessingDeploymentState(deploymentRequest)
           .map {
+            case s@(_: DeployFailed | _: Paused) if s.isOutdated && crankshaft.fuelFilter.withTransactions =>
+              // fixme: find another way to unblock situations where it's outdated yet holding transaction locks
+              Right(s.asInstanceOf[RevertibleState])
+
             case s if s.isOutdated =>
               Left(DeploymentRequestOutdated(s.effects))
 
@@ -287,6 +291,10 @@ class Engine @Inject()(val crankshaft: Crankshaft,
       crankshaft
         .assessDeploymentState(deploymentRequest)
         .map {
+          case s@(_: DeployFailed | _: Paused) if s.isOutdated && crankshaft.fuelFilter.withTransactions =>
+            // fixme: find another way to unblock situations where it's outdated yet holding transaction locks
+            (s, Seq((Operation.revert.toString, evaluatePreconditions(DeploymentAction.applyOperation, Operation.revert, s.asInstanceOf[RevertibleState].revertScope))))
+
           case s if s.isOutdated =>
             (s, Seq())
 

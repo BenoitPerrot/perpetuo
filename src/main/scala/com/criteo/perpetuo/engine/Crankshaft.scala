@@ -387,6 +387,10 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
     val devisingRevertPlan =
       assessingDeploymentState(deploymentRequest)
         .flatMap {
+          case s@(_: DeployFailed | _: Paused) if s.isOutdated && fuelFilter.withTransactions =>
+            // fixme: find another way to unblock situations where it's outdated yet holding transaction locks
+            dbBinding.findingExecutionSpecificationsForRevert(deploymentRequest)
+
           case s if s.isOutdated =>
             DBIO.failed(DeploymentRequestOutdated(s.effects))
 

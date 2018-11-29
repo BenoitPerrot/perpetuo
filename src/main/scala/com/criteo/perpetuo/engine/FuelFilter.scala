@@ -11,7 +11,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 case class OperationLockAlreadyTaken() extends RuntimeException
 
 class FuelFilter(dbBinding: DbBinding) {
-  private val withTransactions = !AppConfigProvider.config.tryGetBoolean("noTransactions").getOrElse(false)
+  val withTransactions: Boolean = !AppConfigProvider.config.tryGetBoolean("noTransactions").getOrElse(false)
 
   def acquiringOperationLock(deploymentRequest: DeploymentRequest): DBIOrw[Unit] =
     dbBinding.tryAcquireLocks(Seq(getOperationLockName(deploymentRequest)), deploymentRequest.id, reentrant = false).map(alreadyRunning =>
