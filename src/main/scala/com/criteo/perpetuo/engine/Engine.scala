@@ -132,7 +132,7 @@ class Engine @Inject()(val crankshaft: Crankshaft,
           case Success(_) => DBIOAction.from({
             val resolvedTarget = crankshaft.targetResolver
               .resolveExpression(deploymentRequest.product.name, deploymentRequest.version, step.parsedTarget)
-            evaluatePreconditions(_.canStep(Some(user), deploymentRequest.product.name, resolvedTarget.superset))
+            evaluatePreconditions(_.canStep(Some(user), deploymentRequest, resolvedTarget.superset))
               .map { _ => resolvedTarget }
           })
         }
@@ -190,7 +190,7 @@ class Engine @Inject()(val crankshaft: Crankshaft,
           case Failure(t) => DBIOAction.failed(t)
           case Success(_) => DBIOAction.from({
             val targetSuperset = getTargetSuperset(deploymentRequest.product.name, deploymentRequest.version, scope.map(_.parsedTarget))
-            Engine.this.evaluatePreconditions(_.canRevert(Some(user), deploymentRequest.product.name, targetSuperset))
+            Engine.this.evaluatePreconditions(_.canRevert(Some(user), deploymentRequest, targetSuperset))
           })
         }
 
@@ -284,7 +284,7 @@ class Engine @Inject()(val crankshaft: Crankshaft,
     withDeploymentRequest(id) { deploymentRequest =>
       def evaluatePreconditions(action: DeploymentAction.Value, kind: Operation.Kind, scope: Seq[DeploymentPlanStep]) = {
         val targetSuperset = getTargetSuperset(deploymentRequest.product.name, deploymentRequest.version, scope.map(_.parsedTarget))
-        Engine.this.evaluatePreconditions(_.canQueryDeploymentRequestStatus(user, action, kind, deploymentRequest.product.name, targetSuperset))
+        Engine.this.evaluatePreconditions(_.canQueryDeploymentRequestStatus(user, deploymentRequest, action, kind, targetSuperset))
       }
 
       // TODO: rework: let caller decide how to serialize
