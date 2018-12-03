@@ -1,12 +1,12 @@
 package com.criteo.perpetuo.auth
 
 import com.criteo.perpetuo.auth.UserFilter._
-import com.criteo.perpetuo.config.AppConfigProvider
 import com.criteo.perpetuo.config.ConfigSyntacticSugar._
 import com.twitter.finagle.http.Request
 import com.twitter.finatra.http.{Controller => BaseController}
 import com.twitter.finatra.request.RouteParam
 import com.twitter.util.Future
+import com.typesafe.config.Config
 import javax.inject.Inject
 
 case class TokenRequest(token: String)
@@ -38,8 +38,8 @@ class IdentifyingController @Inject()(identityProvider: IdentityProvider, jwtEnc
   }
 }
 
-class LocalUsersRetrievingController @Inject()(permissions: Permissions, jwtEncoder: JWTEncoder) extends BaseController {
-  private val localUserNames = AppConfigProvider.config.tryGetStringList("auth.localUserNames").getOrElse(Set()).toSet
+class LocalUsersRetrievingController @Inject()(config: Config, permissions: Permissions, jwtEncoder: JWTEncoder) extends BaseController {
+  private val localUserNames = config.tryGetStringList("auth.localUserNames").getOrElse(Set()).toSet
 
   private def identifyByName(userName: String): Future[User] =
     if (localUserNames.contains(userName))

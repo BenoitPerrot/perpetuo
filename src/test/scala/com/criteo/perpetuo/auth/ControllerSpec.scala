@@ -35,6 +35,10 @@ class ControllerSpec extends Test {
         @Singleton
         @Provides
         def providesPermissions: Permissions = Unrestricted
+
+        @Singleton
+        @Provides
+        def providesConfig: Config = config
       }
     )
 
