@@ -2,12 +2,28 @@ package com.criteo.perpetuo.engine
 
 import com.criteo.perpetuo.SimpleScenarioTesting
 import com.criteo.perpetuo.auth.User
+import com.criteo.perpetuo.config.AppConfigProvider
 import com.criteo.perpetuo.model.{ProtoDeploymentPlanStep, ProtoDeploymentRequest, Version}
+import com.typesafe.config.{Config, ConfigFactory}
 import spray.json.JsString
 
 import scala.concurrent.ExecutionContext.Implicits.global
 
 class PreConditionSpec extends SimpleScenarioTesting {
+
+  override def config: Config =
+    ConfigFactory
+      .parseString(
+        s"""
+           |preConditionEvaluators = [
+           |  {
+           |    type = "class"
+           |    class = "com.criteo.perpetuo.engine.preconditions.TestPreCondition"
+           |  }
+           |]
+           |""".stripMargin)
+      .withFallback(AppConfigProvider.config)
+      .resolve()
 
   override protected lazy val engine: Engine = new Engine(crankshaft, plugins.permissions, plugins.preConditionEvaluators)
 
