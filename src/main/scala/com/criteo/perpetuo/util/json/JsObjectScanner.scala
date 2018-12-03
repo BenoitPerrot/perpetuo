@@ -1,6 +1,6 @@
 package com.criteo.perpetuo.util.json
 
-import spray.json.{JsArray, JsObject, JsString, JsValue}
+import spray.json.{JsArray, JsBoolean, JsObject, JsString, JsValue}
 
 case class JsObjectScanner(o: JsObject, path: Seq[String]) extends JsValueScanner {
   def get(key: String): JsValue =
@@ -17,5 +17,12 @@ case class JsObjectScanner(o: JsObject, path: Seq[String]) extends JsValueScanne
     get(key) match {
       case a: JsArray => JsArrayScanner(a, path :+ key)
       case unknown => reportWrongType(key, "an array", s"$unknown (${unknown.getClass.getSimpleName})")
+    }
+
+  def getBoolean(key: String, default: Option[Boolean] = None): Boolean =
+    o.fields.get(key) match {
+      case Some(JsBoolean(b)) => b
+      case None => default.getOrElse(reportMissing(key))
+      case unknown => reportWrongType(key, "a boolean", s"$unknown (${unknown.getClass.getSimpleName})")
     }
 }

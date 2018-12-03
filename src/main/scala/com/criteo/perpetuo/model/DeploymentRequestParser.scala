@@ -17,12 +17,14 @@ object DeploymentRequestParser {
         val plan = scanner.getArray("plan").map(parsePlanStep)
         if (plan.isEmpty)
           throw new ParsingException("Plan shall be non-empty")
+        val autoRevert = scanner.getBoolean("autoRevert", Some(false))
         val protoDeploymentRequest = ProtoDeploymentRequest(
           productName,
           version,
           plan,
           scanner.getString("comment", Some("")),
-          userName
+          userName,
+          autoRevert = autoRevert
         )
 
         protoDeploymentRequest

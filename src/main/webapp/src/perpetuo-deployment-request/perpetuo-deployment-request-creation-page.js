@@ -2,6 +2,7 @@ import { PolymerElement, html } from '/node_modules/@polymer/polymer/polymer-ele
 
 import '/node_modules/@polymer/iron-icons/iron-icons.js'
 import '/node_modules/@polymer/paper-icon-button/paper-icon-button.js'
+import '/node_modules/@polymer/paper-checkbox/paper-checkbox.js'
 
 import '../perpetuo-app/perpetuo-app-toolbar.js'
 import Perpetuo from '../perpetuo-lib/perpetuo-lib.js'
@@ -56,6 +57,11 @@ class PerpetuoDeploymentRequestCreationPage extends PolymerElement {
                  complete-disabled="[[!selectedStrategy.length]]">
     <perpetuo-deployment-request-strategy-selector slot="content" product-name="[[selectedProductName]]" id="strategySelector"
                                                    on-selected-strategy-changed="updateSelectedStrategy"></perpetuo-deployment-request-strategy-selector>
+  </perpetuo-step>
+
+  <perpetuo-step label="Scheduling" cancel-label="Back" complete-label="Continue"
+                 on-step-enter="onSchedulingStepEnter" on-step-leave="onSchedulingStepLeave">
+    <paper-checkbox id="autoRevert" slot="content">Revert automatically when the deployment fails</paper-checkbox>
   </perpetuo-step>
 
   <perpetuo-step label="Comment" cancel-label="Back" complete-label="Create"
@@ -142,6 +148,14 @@ class PerpetuoDeploymentRequestCreationPage extends PolymerElement {
     this.$.commentEditor.disabled = true;
   }
 
+  onSchedulingStepEnter(e) {
+    this.$.autoRevert.disabled = false;
+  }
+
+  onSchedulingStepLeave(e) {
+    this.$.autoRevert.disabled = true;
+  }
+
   constructor() {
     super();
     this.client = new Perpetuo.Client();
@@ -156,7 +170,8 @@ class PerpetuoDeploymentRequestCreationPage extends PolymerElement {
         .createDeploymentRequest(this.selectedProductName,
                                  this.selectedVersion,
                                  this.selectedStrategy,
-                                 this.$.commentEditor.value)
+                                 this.$.commentEditor.value,
+                                 this.$.autoRevert.checked)
         .then(_ => _.json())
         .then(o => {
           window.location.replace(`/deployment-requests/${o.id}`);

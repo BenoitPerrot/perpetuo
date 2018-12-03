@@ -51,14 +51,15 @@ export class Client {
       });
   }
 
-  createDeploymentRequest(productName, version, plan, comment) {
+  createDeploymentRequest(productName, version, plan, comment, autoRevert) {
     return Client.fetch('/api/deployment-requests', {
       method: 'POST',
       body: JSON.stringify({
         productName: productName,
         version: version,
         plan: plan,
-        comment: comment
+        comment: comment,
+        autoRevert: autoRevert
       })
     });
   }
