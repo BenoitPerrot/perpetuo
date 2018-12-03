@@ -44,7 +44,7 @@ class Server extends ServerConfigurator with HttpServer {
 
   override def modules = Seq(
     new DbContextModule(config.getConfig("db")),
-    new PluginsModule,
+    new PluginsModule(config),
     new AuthModule(config.getConfig("auth"))
   )
 

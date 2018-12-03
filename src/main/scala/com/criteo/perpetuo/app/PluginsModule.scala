@@ -11,7 +11,7 @@ import com.twitter.inject.TwitterModule
 import com.typesafe.config.Config
 
 
-class PluginsModule extends TwitterModule {
+class PluginsModule(config: Config) extends TwitterModule {
 
   @Singleton
   @Provides
@@ -39,5 +39,5 @@ class PluginsModule extends TwitterModule {
 
   @Singleton
   @Provides
-  def providesConfig: Config = AppConfigProvider.config
+  def providesConfig: Config = config
 }
