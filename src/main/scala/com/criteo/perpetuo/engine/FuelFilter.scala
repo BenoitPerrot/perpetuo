@@ -1,17 +1,17 @@
 package com.criteo.perpetuo.engine
 
-import com.criteo.perpetuo.config.AppConfigProvider
 import com.criteo.perpetuo.config.ConfigSyntacticSugar._
 import com.criteo.perpetuo.dao.{DBIOrw, DbBinding, LockName}
 import com.criteo.perpetuo.model.{DeploymentRequest, TargetAtom}
+import com.typesafe.config.Config
 import slick.dbio.{DBIOAction, Effect, NoStream}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 
 case class OperationLockAlreadyTaken() extends RuntimeException
 
-class FuelFilter(dbBinding: DbBinding) {
-  val withTransactions: Boolean = !AppConfigProvider.config.tryGetBoolean("noTransactions").getOrElse(false)
+class FuelFilter(config: Config, dbBinding: DbBinding) {
+  val withTransactions: Boolean = !config.tryGetBoolean("noTransactions").getOrElse(false)
 
   def acquiringOperationLock(deploymentRequest: DeploymentRequest): DBIOrw[Unit] =
     dbBinding.tryAcquireLocks(Seq(getOperationLockName(deploymentRequest)), deploymentRequest.id, reentrant = false).map(alreadyRunning =>

@@ -9,6 +9,7 @@ import com.criteo.perpetuo.model.ExecutionState.ExecutionState
 import com.criteo.perpetuo.model._
 import com.google.common.annotations.VisibleForTesting
 import com.twitter.inject.Logging
+import com.typesafe.config.Config
 import javax.inject.{Inject, Singleton}
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -68,7 +69,8 @@ case class NothingToRevert(effects: Seq[OperationEffect]) extends OperationInapp
 case class UnexpectedOperationCount(effects: Seq[OperationEffect]) extends OperationInapplicableForEffects
 
 @Singleton
-class Crankshaft @Inject()(val dbBinding: DbBinding,
+class Crankshaft @Inject()(val config: Config,
+                           val dbBinding: DbBinding,
                            val targetResolver: TargetResolver, // TODO: move to Engine
                            val targetDispatcher: TargetDispatcher,
                            val listeners: Seq[AsyncListener],
@@ -76,7 +78,7 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
 
   import dbBinding.dbContext.profile.api._
 
-  val fuelFilter = new FuelFilter(dbBinding)
+  val fuelFilter = new FuelFilter(config, dbBinding)
 
   def assessingDeploymentState(deploymentRequest: DeploymentRequest): DBIOAction[DeploymentState, NoStream, Effect.Read] =
     dbBinding

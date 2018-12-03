@@ -1,5 +1,6 @@
 package com.criteo.perpetuo.dao
 
+import com.criteo.perpetuo.config.AppConfigProvider
 import com.criteo.perpetuo.engine._
 import com.criteo.perpetuo.model._
 import com.criteo.perpetuo.{TestDb, TestHelpers}
@@ -13,7 +14,7 @@ case class Execution(executionTraceStates: Seq[ExecutionState.Value], targetStat
 class DbBindingSpec extends TestHelpers with TestDb {
   private val dbScenarios = new DbScenarios(dbBinding)
 
-  private val crankshaft = new Crankshaft(dbBinding, null, null, Seq(), null)
+  private val crankshaft = new Crankshaft(AppConfigProvider.config, dbBinding, null, null, Seq(), null)
 
   private def assessEffect(executions: Seq[Execution], planSteps: Seq[String], kind: Operation.Kind) =
     dbScenarios
