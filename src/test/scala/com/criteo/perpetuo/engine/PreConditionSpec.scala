@@ -15,6 +15,30 @@ class PreConditionSpec extends SimpleScenarioTesting {
     ConfigFactory
       .parseString(
         s"""
+           |permissions {
+           |  type = "fineGrained"
+           |  fineGrained {
+           |    perGeneralAction {
+           |      updateProduct = [
+           |        {
+           |          userNames = ["bob.the.producer"]
+           |        }
+           |      ]
+           |    }
+           |    perProduct = [
+           |      {
+           |        regex = ".*"
+           |        perAction {
+           |          requestOperation = [
+           |            {
+           |              groupNames = ["Users"]
+           |            }
+           |          ]
+           |        }
+           |      }
+           |    ]
+           |  }
+           |}
            |preConditionEvaluators = [
            |  {
            |    type = "class"
@@ -24,8 +48,6 @@ class PreConditionSpec extends SimpleScenarioTesting {
            |""".stripMargin)
       .withFallback(AppConfigProvider.config)
       .resolve()
-
-  override protected lazy val engine: Engine = new Engine(crankshaft, plugins.permissions, plugins.preConditionEvaluators)
 
   val stdUser = new User("s.omeone", Set("Users"))
   val lonelyUser = new User("f.alone", Set())

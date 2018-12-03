@@ -11,6 +11,7 @@ import com.twitter.finatra.http.routing.HttpRouter
 import com.twitter.finatra.http.{EmbeddedHttpServer, HttpServer}
 import com.twitter.finatra.json.modules.FinatraJacksonModule
 import com.twitter.inject.Test
+import com.typesafe.config.{Config, ConfigFactory}
 import spray.json.DefaultJsonProtocol._
 import spray.json._
 
@@ -30,7 +31,43 @@ class RestControllerSpec extends Test with TestDb {
 
   private def makeUser(userName: String) = User(userName, Set("Users"))
 
-  private val config = AppConfigProvider.config
+  private val config =
+    ConfigFactory
+      .parseString(
+        s"""
+           |permissions {
+           |  type = "fineGrained"
+           |  fineGrained {
+           |    perGeneralAction {
+           |      updateProduct = [
+           |        {
+           |          userNames = ["bob.the.producer"]
+           |        }
+           |      ]
+           |    }
+           |    perProduct = [
+           |      {
+           |        regex = ".*"
+           |        perAction {
+           |          requestOperation = [
+           |            {
+           |              groupNames = ["Users"]
+           |            }
+           |          ]
+           |          applyOperation = [
+           |            {
+           |              userNames = ["r.eleaser"]
+           |            }
+           |          ]
+           |        }
+           |      }
+           |    ]
+           |  }
+           |}
+           |""".stripMargin)
+      .withFallback(AppConfigProvider.config)
+      .resolve()
+
   private val authModule = new AuthModule(config.getConfig("auth"))
   private val productUser = makeUser("bob.the.producer")
   private val productUserJWT = productUser.toJWT(authModule.jwtEncoder)
