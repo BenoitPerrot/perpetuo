@@ -12,19 +12,19 @@ import scala.concurrent.duration._
   * Provides a simplified, limited view of the Engine
   */
 @Singleton
-class EngineProxy @Inject()(engineProvider: Provider[Crankshaft]) {
+class EngineProxy @Inject()(crankshaftProvider: Provider[Crankshaft]) {
 
-  private lazy val engine = engineProvider.get // To break the dependency cycle between Plugins and Engine
+  private lazy val crankshaft = crankshaftProvider.get // To break the dependency cycle between Plugins and Engine
 
   def appendComment(deploymentRequest: DeploymentRequest, comment: String): Unit =
     Await.result(
-      engine.dbBinding.updateDeploymentRequestComment(
+      crankshaft.dbBinding.updateDeploymentRequestComment(
         deploymentRequest.id,
         s"${if (deploymentRequest.comment.nonEmpty) s"${deploymentRequest.comment}\n" else ""}$comment"
       ), 2.seconds
     )
 
   def readComment(deploymentRequest: DeploymentRequest): String =
-    Await.result(engine.dbBinding.findDeploymentRequestById(deploymentRequest.id).map(_.get.comment), 2.seconds)
+    Await.result(crankshaft.dbBinding.findDeploymentRequestById(deploymentRequest.id).map(_.get.comment), 2.seconds)
 
 }
