@@ -76,7 +76,7 @@ table tbody tr:hover {
 
   computePageItems(data, pageOffset, pageSize) {
     return data.slice()
-               .sort((a, b) => codeToIndex.get(a.code) - codeToIndex.get(b.code))
+               .sort((a, b) => codeToIndex.get(a.code) - codeToIndex.get(b.code) || a.targetAtom.localeCompare(b.targetAtom))
                .slice(pageOffset, pageOffset + pageSize);
   }
 
