@@ -1,0 +1,39 @@
+<link rel="import" href="../../bower_components/polymer/polymer.html">
+
+<link rel="import" href="../perpetuo-list-editor/perpetuo-list-editor.html">
+
+<script>(function () {
+class PerpetuoDeploymentRequestProductSelector extends Polymer.Element {
+
+  static get template() {
+    return Polymer.html`
+<perpetuo-list-editor id="main" label="Product Name"
+                      choices="[[productNames]]" initial-count="10" selected-item="{{selectedProductName}}"
+                      disabled="[[disabled]]"></perpetuo-list-editor>
+`;
+  }
+
+  static get is() { return 'perpetuo-deployment-request-product-selector'; }
+
+  static get properties() {
+    return {
+      disabled: Boolean,
+      products: Array,
+      productNames: { type: Array, computed: 'computeProductNames(products)' },
+      selectedProductName: { type: String, notify: true },
+    }
+  }
+
+  computeProductNames(products) {
+    return products.filter(_ => _.active).map(_ => _.name);
+  }
+
+  clear() {
+    if (this.$) {
+      this.$.main.clear();
+    }
+  }
+}
+
+customElements.define(PerpetuoDeploymentRequestProductSelector.is, PerpetuoDeploymentRequestProductSelector);
+}());</script>

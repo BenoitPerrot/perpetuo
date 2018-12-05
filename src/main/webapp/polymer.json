@@ -1,31 +1,12 @@
 {
     "entrypoint": "index.html",
-    "shell": "src/perpetuo-app/perpetuo-app.js",
+    "shell": "src/perpetuo-app/perpetuo-app.html",
     "sources": [
         "src/**/*",
         "logo-32x32.png",
-        "package.json"
+        "manifest.json"
     ],
     "extraDependencies": [
-        "manifest.json",
-        "node_modules/@webcomponents/webcomponentsjs/**"
-    ],
-    "moduleResolution": "node",
-    "npm": true,
-    "builds": [
-        {
-            "name": "default",
-            "browserCapabilities": ["es2015", "push"],
-            "js": {
-                "minify": true,
-                "compile": "es2015",
-                "transformModulesToAmd": false
-            },
-            "css": { "minify": true },
-            "html": { "minify": true },
-            "bundle": false,
-            "addServiceWorker": true,
-            "addPushManifest": true
-        }
+        "bower_components/webcomponentsjs/webcomponents-lite.js"
     ]
 }

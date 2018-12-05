@@ -81,7 +81,7 @@ class StaticAssetsController(rootPaths: Seq[String]) extends Controller {
     "/manifest.json",
     "/logo-32x32.png",
     "/src/:*",
-    "/node_modules/:*"
+    "/bower_components/:*"
   ).foreach(uri => {
     get(uri) { request: Request =>
       file(request.uri)

@@ -1,0 +1,35 @@
+<link rel="import" href="../../bower_components/polymer/polymer.html">
+
+<link rel="import" href="../../bower_components/paper-input/paper-input.html">
+
+<script>(function () {
+class PerpetuoDeploymentRequestTargetSelector extends Polymer.Element {
+
+  static get template() {
+    return Polymer.html`
+<paper-input id="main" label="Target" disabled="[[disabled]]" on-value-changed="updateSelectedTargets"></paper-input>
+`;
+  }
+
+  static get is() { return 'perpetuo-deployment-request-target-selector'; }
+
+  static get properties() {
+    return {
+      disabled: Boolean,
+      selectedTargets: { type: Object, value: null, notify: true },
+    }
+  }
+
+  updateSelectedTargets() {
+    this.selectedTargets = this.$.main.value;
+  }
+
+  clear() {
+    if (this.$) {
+      this.$.main.value = '';
+    }
+  }
+}
+
+customElements.define(PerpetuoDeploymentRequestTargetSelector.is, PerpetuoDeploymentRequestTargetSelector);
+}());</script>
