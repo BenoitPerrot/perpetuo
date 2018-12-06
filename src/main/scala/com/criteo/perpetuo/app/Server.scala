@@ -56,7 +56,7 @@ class Server extends ServerConfigurator with HttpServer {
       .withHttpStats
   }
 
-  override def configureHttp(router: HttpRouter) {
+  override def configureHttp(router: HttpRouter): Unit = {
     //TODO: Allow better CORS policy tuning
     //Allow CORS for custom UIs, note that beforeRouting is necessary to handle pre-flight requests
     router.filter(new Cors.HttpFilter(Cors.UnsafePermissivePolicy), beforeRouting = true)

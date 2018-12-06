@@ -38,7 +38,7 @@ class ControllerSpec extends Test {
       }
     )
 
-    override def configureHttp(router: HttpRouter) {
+    override def configureHttp(router: HttpRouter): Unit = {
       router
         .filter[LoggingMDCFilter[Request, Response]]
         .filter[TraceIdMDCFilter[Request, Response]]

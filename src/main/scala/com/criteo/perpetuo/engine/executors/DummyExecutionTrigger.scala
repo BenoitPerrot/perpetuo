@@ -11,9 +11,7 @@ import scala.concurrent.Future
 // default no-op implementation of an execution trigger, whose execution is for now seen as running forever
 // todo: add support for synchronous executors to ease the integration of trivial deployments? they would immediately return their final status
 class DummyExecutionTrigger(name: String) extends ExecutionTrigger with Logging {
-  def this(config: Config) {
-    this(config.getString("name"))
-  }
+  def this(config: Config) = this(config.getString("name"))
 
   override def toString: String = name
 

@@ -10,6 +10,7 @@ import com.twitter.finatra.http.filters.{CommonFilters, LoggingMDCFilter, TraceI
 import com.twitter.finatra.http.routing.HttpRouter
 import com.twitter.finatra.http.{EmbeddedHttpServer, HttpServer, Controller => BaseController}
 import com.twitter.inject.{Test, TwitterModule}
+import com.typesafe.config.Config
 
 
 /**
@@ -19,7 +20,7 @@ import com.twitter.inject.{Test, TwitterModule}
   */
 class UserFilterSpec extends Test {
 
-  val config = AppConfigProvider.config
+  val config: Config = AppConfigProvider.config
   val authModule = new AuthModule(config.getConfig("auth"))
 
   val server = new EmbeddedHttpServer(new HttpServer {
@@ -33,7 +34,7 @@ class UserFilterSpec extends Test {
       }
     )
 
-    override def configureHttp(router: HttpRouter) {
+    override def configureHttp(router: HttpRouter): Unit = {
       router
         .filter[LoggingMDCFilter[Request, Response]]
         .filter[TraceIdMDCFilter[Request, Response]]

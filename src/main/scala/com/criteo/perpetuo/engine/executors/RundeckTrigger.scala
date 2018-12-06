@@ -18,13 +18,11 @@ class RundeckTrigger(name: String,
                      val host: String,
                      jobName: String,
                      specificParameters: Iterable[(String, String)] = Map()) extends ExecutionTrigger {
-  def this(config: Config) {
-    this(
-      config.getString("name"),
-      config.getString("host"),
-      config.getString("jobName")
-    )
-  }
+  def this(config: Config) = this(
+    config.getString("name"),
+    config.getString("host"),
+    config.getString("jobName")
+  )
 
   override def toString: String = s"$name (job: $jobName)"
 
