@@ -10,6 +10,7 @@ import com.criteo.perpetuo.model._
 import com.google.common.annotations.VisibleForTesting
 import com.twitter.inject.Logging
 import javax.inject.{Inject, Singleton}
+import slick.jdbc.TransactionIsolation.ReadCommitted
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
@@ -215,41 +216,49 @@ class Crankshaft @Inject()(val appConfig: AppConfig,
   private def closingOperation(operationTrace: OperationTrace): DBIOAction[(OperationTrace, Boolean), NoStream, Effect.Read with Effect.Write with Effect.Transactional] =
     dbBinding.closingOperationTrace(operationTrace)
       .flatMap { case (trace, updated) =>
-        dbBinding
-          .gettingOperationEffect(trace)
-          .map { case (deploymentPlanSteps, effect) =>
-            computeDeploymentState(effect.operationTrace.deploymentRequest, deploymentPlanSteps, Stream(effect)) match {
-              case _: Paused => (None, true)
-              case _: Deployed => (Some(true), true)
-              case _: DeployFlopped | _: RevertFailed | _: RevertInProgress => (Some(false), false)
-              case _: Reverted => (Some(false), true)
-              case _: DeployFailed => (None, false)
-              case s => throw new IllegalStateException(s"Unexpected $updated state $s while closing ${effect.operationTrace.kind} operation")
+        if (updated)
+          dbBinding
+            .gettingOperationEffect(trace)
+            .map { case (deploymentPlanSteps, effect) =>
+              computeDeploymentState(effect.operationTrace.deploymentRequest, deploymentPlanSteps, Stream(effect)) match {
+                case s: Paused => (s, None, true)
+                case s: Deployed => (s, Some(true), true)
+                case s@(_: DeployFlopped | _: RevertFailed | _: RevertInProgress) => (s, Some(false), false)
+                case s: Reverted => (s, Some(false), true)
+                case s: DeployFailed => (s, None, false)
+                case s => throw new IllegalStateException(s"Unexpected $updated state $s while closing ${effect.operationTrace.kind} operation")
+              }
             }
-          }
-          .flatMap { case (transactionFinalSuccess, operationSucceeded) =>
-            dbBinding.closingTargetStatuses(trace.id)
-              .andThen(fuelFilter.releasingLocks(operationTrace.deploymentRequest, transactionFinalSuccess.isEmpty))
-              .map(_ =>
-                if (updated) { // if it's a successful close, let's notify
-                  // FIXME: when/if partial reverts are supported: a _failed_ partial revert would be "paused" too, the operationSucceeded should be "false"
-                  listeners.foreach { listener =>
-                    if (operationSucceeded)
-                      listener.onOperationSucceeded(operationTrace)
-                    else
-                      listener.onOperationFailed(operationTrace)
+            .flatMap { case (state, transactionFinalSuccess, operationSucceeded) =>
+              dbBinding
+                .updatingDeploymentRequestState(operationTrace.deploymentRequest.id, DeploymentRequestState.from(state), incrementStateStamp = updated)
+                .andThen(dbBinding.closingTargetStatuses(trace.id))
+                .andThen(fuelFilter.releasingLocks(trace.deploymentRequest, transactionFinalSuccess.isEmpty))
+                .map(_ => (trace, Some((transactionFinalSuccess, operationSucceeded))))
+            }
+        else
+          DBIO.successful((trace, None))
+      }
+      .transactionally
+      .withTransactionIsolation(ReadCommitted)
+      .map { case (trace, updatedState) =>
+        updatedState.foreach { case (transactionFinalSuccess, operationSucceeded) =>  // if it's a successful close, let's notify
+          // FIXME: when/if partial reverts are supported: a _failed_ partial revert would be "paused" too, the operationSucceeded should be "false"
+          listeners.foreach { listener =>
+            if (operationSucceeded)
+              listener.onOperationSucceeded(trace)
+            else
+              listener.onOperationFailed(trace)
 
-                    transactionFinalSuccess.foreach(transactionSucceeded =>
-                      if (transactionSucceeded)
-                        listener.onDeploymentTransactionComplete(operationTrace.deploymentRequest)
-                      else
-                        listener.onDeploymentTransactionCanceled(operationTrace.deploymentRequest)
-                    )
-                  }
-                }
-              )
+            transactionFinalSuccess.foreach(transactionSucceeded =>
+              if (transactionSucceeded)
+                listener.onDeploymentTransactionComplete(trace.deploymentRequest)
+              else
+                listener.onDeploymentTransactionCanceled(trace.deploymentRequest)
+            )
           }
-          .map(_ => (trace, updated))
+        }
+        (trace, updatedState.isDefined)
       }
 
   def findOperationTraceForExpectedCount(deploymentRequest: DeploymentRequest, expectedOperationCount: Int): Future[Option[OperationTrace]] =
@@ -270,7 +279,15 @@ class Crankshaft @Inject()(val appConfig: AppConfig,
             .flatMap { case (_, executions) => executions }
             .flatMap { case (_, atomSet) => atomSet.superset }
             .toSet
+          val inProgressState = operation match {
+            case Operation.deploy => DeploymentRequestState.deployInProgress
+            case Operation.revert => DeploymentRequestState.revertInProgress
+          }
           fuelFilter.acquiringDeploymentTransactionLock(deploymentRequest, atoms)
+            .andThen(dbBinding.updatingDeploymentRequestState(deploymentRequest.id,
+              inProgressState,
+              incrementStateStamp = false)
+            )
             .andThen(dbBinding.insertingEffect(deploymentRequest, deploymentPlanSteps, operation, initiatorName, specAndInvocations))
             .map((_, actionSpecifics))
         }
@@ -607,7 +624,6 @@ class Crankshaft @Inject()(val appConfig: AppConfig,
           }
         )
         .transactionally
-
 
   /**
     * Abandon deployment request if it's either in NotStarted or DeployFlopped state.

@@ -83,4 +83,20 @@ trait DeploymentRequestBinder extends TableBinder {
 
   def abandoningDeploymentRequest(id: Long): DBIOAction[Int, NoStream, Effect.Write] =
     deploymentRequestQuery.filter(_.id === id).map(_.state).update(Some(DeploymentRequestState.abandoned))
+
+  /**
+    * Update the state and possibly increment the state stamp.
+    * WARNING: It does not handle concurrent incrementing updates.
+    */
+  def updatingDeploymentRequestState(id: Long, state: DeploymentRequestState.Code, incrementStateStamp: Boolean): DBIOAction[Int, NoStream, Effect.Write with Effect.Read with Effect.Transactional] = {
+    val depReq = deploymentRequestQuery.filter(_.id === id)
+    val updateState = depReq.map(_.state).update(Some(state))
+    if (incrementStateStamp)
+      updateState
+        .andThen(depReq.map(_.stateStamp).result.head)
+        .flatMap(stamp => depReq.map(_.stateStamp).update(stamp + 1))
+        .transactionally
+    else
+      updateState
+  }
 }

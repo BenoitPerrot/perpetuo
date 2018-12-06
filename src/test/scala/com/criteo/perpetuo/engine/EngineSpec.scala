@@ -173,7 +173,7 @@ class EngineSpec extends SimpleScenarioTesting {
         nextStep1Locked <- engine.step(releaser, depReq.id, Some(1)).map(_.get).failed
       } yield {
         inProgress0 shouldBe a[DeployInProgress]
-        step0Again shouldBe operationTrace0
+        step0Again.id shouldBe operationTrace0.id
 
         step0AgainForAnotherUser shouldBe a[OperationLockAlreadyTaken]
         step1Locked shouldBe a[OperationLockAlreadyTaken]
