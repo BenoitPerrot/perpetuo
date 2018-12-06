@@ -58,6 +58,7 @@ class JenkinsClient(val host: String) extends Logging {
     .hosts(new InetSocketAddress(host, port))
     .retryPolicy(backoffPolicy)
     .failFast(false)
+    .noFailureAccrual
     .build()
 
   private[executors] def apiPath(apiSubPath: String, queryParameters: Map[String, String] = Map()): String = {

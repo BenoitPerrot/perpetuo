@@ -55,6 +55,7 @@ class RundeckClient(val host: String) {
     .hosts(new InetSocketAddress(host, port))
     .retryPolicy(backoffPolicy)
     .failFast(false)
+    .noFailureAccrual
     .build()
 
   private def apiPath(apiSubPath: String, queryParameters: Map[String, String] = Map()): String = {
