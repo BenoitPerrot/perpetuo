@@ -38,10 +38,10 @@ class FineGrainedPermissions(generalActionRules: Map[GeneralAction.Value, Author
     ).toSet
 
   override def isAuthorized(user: User, action: GeneralAction.Value): Boolean =
-    generalActionRules.get(action).exists(_.authorizes(user))
+    user == PerpetuoUser || generalActionRules.get(action).exists(_.authorizes(user))
 
   override def isAuthorized(user: User, action: DeploymentAction.Value, operation: Operation.Kind, productName: String, targets: Set[TargetAtom]): Boolean =
-    productRules.exists(
+    user == PerpetuoUser || productRules.exists(
       _.authorizes(user, if (action == DeploymentAction.stopOperation) DeploymentAction.applyOperation else action, productName, targets)
     )
 }

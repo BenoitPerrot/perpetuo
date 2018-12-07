@@ -200,4 +200,40 @@ class FineGrainedPermissionsSpec extends Test {
     permissions.isAuthorized(Users.authorizedToStop, DeploymentAction.requestOperation, Operation.deploy, "product", Set(TargetAtom("par"))) shouldBe false
   }
 
+  test("Perpetuo user is permitted to do any action") {
+    val permissions = FineGrainedPermissions.fromConfig(ConfigFactory.parseString(
+      s"""
+         |perGeneralAction = {
+         |  administrate = [
+         |    {
+         |      userNames = ["administrator"]
+         |    }
+         |  ]
+         |}
+         |
+         |perProduct = [
+         |  {
+         |    regex = ".*"
+         |    perAction {
+         |      requestOperation = [
+         |        {
+         |          targetMatchers {
+         |            atoms = ["par"]
+         |          },
+         |          userNames = ["${Users.authorizedToRequest.name}"]
+         |        }
+         |      ]
+         |    }
+         |  }
+         |]
+        """.stripMargin))
+    val productName = "myProduct"
+    permissions.isAuthorized(PerpetuoUser, GeneralAction.administrate) shouldBe true
+    permissions.isAuthorized(PerpetuoUser, DeploymentAction.requestOperation, Operation.deploy, productName, Set(TargetAtom("par"))) shouldBe true
+    permissions.isAuthorized(PerpetuoUser, DeploymentAction.requestOperation, Operation.deploy, productName, Set(TargetAtom("am5"))) shouldBe true
+    permissions.isAuthorized(PerpetuoUser, DeploymentAction.applyOperation, Operation.deploy, productName, Set(TargetAtom("par"))) shouldBe true
+    permissions.isAuthorized(PerpetuoUser, DeploymentAction.applyOperation, Operation.revert, productName, Set(TargetAtom("par"))) shouldBe true
+    permissions.isAuthorized(PerpetuoUser, DeploymentAction.abandonOperation, Operation.deploy, productName, Set(TargetAtom("par"))) shouldBe true
+  }
+
 }

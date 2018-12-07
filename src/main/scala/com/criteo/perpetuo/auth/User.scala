@@ -37,3 +37,5 @@ object User {
       ))
   }
 }
+
+object PerpetuoUser extends User("perpetuo")
