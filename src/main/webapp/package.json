@@ -1,9 +1,41 @@
 {
-    "name": "build-aux",
-    "private": true,
-
-    "dependencies": {},
-    "devDependencies": {
-        "polymer-cli": "1.9.1"
-    }
+  "name": "perpetuo",
+  "dependencies": {
+    "@polymer/app-layout": "^3.0.2",
+    "@polymer/app-route": "^3.0.2",
+    "@polymer/iron-behaviors": "^3.0.1",
+    "@polymer/iron-collapse": "^3.0.1",
+    "@polymer/iron-dropdown": "^3.0.1",
+    "@polymer/iron-icon": "^3.0.1",
+    "@polymer/iron-icons": "^3.0.1",
+    "@polymer/iron-input": "^3.0.1",
+    "@polymer/iron-pages": "^3.0.1",
+    "@polymer/marked-element": "^3.0.1",
+    "@polymer/neon-animation": "^3.0.1",
+    "@polymer/paper-button": "^3.0.1",
+    "@polymer/paper-card": "^3.0.1",
+    "@polymer/paper-checkbox": "^3.1.0",
+    "@polymer/paper-dialog": "^3.0.1",
+    "@polymer/paper-dialog-scrollable": "^3.0.1",
+    "@polymer/paper-dropdown-menu": "^3.0.1",
+    "@polymer/paper-fab": "^3.0.1",
+    "@polymer/paper-icon-button": "^3.0.1",
+    "@polymer/paper-input": "^3.0.1",
+    "@polymer/paper-item": "^3.0.1",
+    "@polymer/paper-listbox": "^3.0.1",
+    "@polymer/paper-progress": "^3.0.1",
+    "@polymer/paper-radio-group": "^3.0.1",
+    "@polymer/paper-styles": "^3.0.1",
+    "@polymer/paper-tabs": "^3.0.1",
+    "@polymer/paper-toggle-button": "^3.0.1",
+    "@polymer/polymer": "^3.1.0"
+  },
+  "devDependencies": {
+    "polymer-cli": "1.9.1",
+    "@polymer/test-fixture": "^4.0.2",
+    "@webcomponents/webcomponentsjs": "^2.0.0",
+    "chai": "^4.2.0",
+    "mocha": "^5.2.0",
+    "wct-mocha": "^1.0.0"
+  }
 }

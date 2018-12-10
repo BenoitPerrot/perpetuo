@@ -11,11 +11,9 @@
     <!-- See https://goo.gl/OOhYW5 -->
     <link rel="manifest" href="/manifest.json">
 
-    <script src="/bower_components/webcomponentsjs/webcomponents-lite.js"></script>
+    <script src="/node_modules/@webcomponents/webcomponentsjs/webcomponents-loader.js"></script>
 
-    <link rel="import" href="/src/perpetuo-app/perpetuo-app.html">
-    <link rel="import" href="/bower_components/paper-styles/paper-styles.html">
-    <link rel="import" href="/src/perpetuo-styles/color.html">
+    <script type="module" src="/src/perpetuo-app/perpetuo-app.js" crossorigin></script>
 
     <style>
     html, body {
@@ -27,6 +25,17 @@
       flex: 1;
     }
     </style>
+
+    <custom-style>
+      <style is="custom-style">
+      html {
+        --perpetuo-blue: #0086b2;
+
+        --primary-color: var(--perpetuo-blue);
+      }
+      </style>
+    </custom-style>
+
   </head>
   <body>
     <perpetuo-app></perpetuo-app>
