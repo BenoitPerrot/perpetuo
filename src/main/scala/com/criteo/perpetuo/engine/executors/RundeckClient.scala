@@ -1,25 +1,21 @@
 package com.criteo.perpetuo.engine.executors
 
-import java.net.{InetSocketAddress, URL}
-
 import com.criteo.perpetuo.config.AppConfigProvider
 import com.criteo.perpetuo.config.ConfigSyntacticSugar._
+import com.criteo.perpetuo.util.SingleNodeHttpClientBuilder
 import com.twitter.conversions.time._
-import com.twitter.finagle.Http.Client
-import com.twitter.finagle.builder.ClientBuilder
 import com.twitter.finagle.http.Status.{NotFound, Ok}
 import com.twitter.finagle.http._
-import com.twitter.finagle.service.{Backoff, RetryPolicy}
 import com.twitter.finatra.http.HttpHeaders
 import com.twitter.io.Buf
-import com.twitter.util.{Duration, Future, Try}
+import com.twitter.util.{Duration, Future}
 import spray.json._
 
 class RundeckClient(val host: String) {
   val apiVersion = 16
 
   private val config = AppConfigProvider.executorConfig("rundeck")
-  val port: Int = config.getIntOrElse("port", 80)
+  val port: Option[Int] = config.tryGetInt("port")
   val authToken: Option[String] = config.tryGetString("token")
 
   // Timeouts
@@ -29,34 +25,19 @@ class RundeckClient(val host: String) {
 
   def maxAbortDuration: Duration = requestTimeout * 2 + jobTerminationTimeout
 
-  // HTTP client
-  private val ssl: Boolean = port == 443
-  private val protocol: String = if (ssl) "https" else "http"
-  private val maxConnectionsPerHost: Int = 10
-  private val backoffDurations: Stream[Duration] = Backoff.exponentialJittered(1.seconds, 5.seconds).take(5)
-  private val backoffPolicy: RetryPolicy[Try[Nothing]] = RetryPolicy.backoff(backoffDurations)(RetryPolicy.TimeoutAndWriteExceptionsOnly)
-
   private val jsonRequestBuilder = RequestBuilder()
     .setHeader(HttpHeaders.ContentType, Message.ContentTypeJson)
     .setHeader(HttpHeaders.Accept, Message.ContentTypeJson)
 
+  private val clientBuilder = new SingleNodeHttpClientBuilder(host, port)
+  protected val client: Request => Future[Response] = clientBuilder.build(requestTimeout)
+
   private def post(apiSubPath: String, body: Option[JsValue] = None): Future[Response] =
     client(
-      jsonRequestBuilder
-        .url(new URL(protocol, host, apiSubPath))
+      clientBuilder
+        .createRequest(apiSubPath, jsonRequestBuilder)
         .buildPost(body.map(_.compactPrint).map(Buf.Utf8(_)).getOrElse(Buf.Empty))
     )
-
-  protected val client: Request => Future[Response] = (if (ssl) ClientBuilder().tlsWithoutValidation else ClientBuilder())
-    .stack(Client())
-    .name(getClass.getSimpleName)
-    .timeout(requestTimeout)
-    .hostConnectionLimit(maxConnectionsPerHost)
-    .hosts(new InetSocketAddress(host, port))
-    .retryPolicy(backoffPolicy)
-    .failFast(false)
-    .noFailureAccrual
-    .build()
 
   private def apiPath(apiSubPath: String, queryParameters: Map[String, String] = Map()): String = {
     val path = s"/api/$apiVersion/$apiSubPath"
