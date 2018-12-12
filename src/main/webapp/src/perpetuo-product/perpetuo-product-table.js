@@ -11,21 +11,22 @@ class PerpetuoProductTable extends PolymerElement {
 <style>
 :host {
   display: flex;
-  align-items: center;
+  flex-direction: column;
 }
 
 .table {
   flex: 1;
-  padding: 1em;
 }
 .row {
   display: flex;
   align-items: center;
+  margin: 0.5em 40px;
   padding: 0.5em;
 }
 .row.heading {
   border-bottom: solid 1px #ddd;
-  margin-bottom: 1em;
+  font-weight: 500;
+  color: #757575;
 }
 
 span {
@@ -45,11 +46,11 @@ paper-toggle-button[class=disabled] {
 }
 
 </style>
+<div class="row heading">
+  <span class="product-name">Product Name</span>
+  <span class="active-status">Active</span>
+</div>
 <div class="table">
-  <div class="row heading">
-    <span class="product-name">Product Name</span>
-    <span class="active-status">Active</span>
-  </div>
   <template is="dom-repeat" items="[[data]]">
     <div class="row">
       <span class="product-name">[[item.name]]</span>

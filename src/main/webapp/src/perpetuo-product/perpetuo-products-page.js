@@ -11,11 +11,6 @@ class PerpetuoProductsPage extends PolymerElement {
   static get template() {
     return html`
 <style>
-paper-card {
-  flex: 1;
-  margin: 1em;
-  display: flex;
-}
 perpetuo-product-table {
   flex: 1;
 }
@@ -23,9 +18,7 @@ perpetuo-product-table {
 <perpetuo-app-toolbar page-title="Perpetuo / Products"></perpetuo-app-toolbar>
 
 <div style="display: flex; width: 100%;">
-  <paper-card>
-    <perpetuo-product-table id="productTable"></perpetuo-product-table>
-  </paper-card>
+  <perpetuo-product-table id="productTable"></perpetuo-product-table>
 </div>
 `;
   }
