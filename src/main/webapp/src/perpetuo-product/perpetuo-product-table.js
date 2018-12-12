@@ -50,8 +50,13 @@ paper-toggle-button[class=disabled] {
   <span class="product-name">Product Name</span>
   <span class="active-status">Active</span>
 </div>
-<div class="table">
-  <template is="dom-repeat" items="[[data]]">
+<perpetuo-paging id="paging"
+                 page-sizes="[20,50,100]" page-size="{{pageSize}}"
+                 page="{{page}}" is-last-page="[[!hasNextPage]]"
+                 count-on-page="[[pageItems.length]]"
+                 total="[[data.length]]"
+                 class="table">
+  <template is="dom-repeat" items="[[pageItems]]">
     <div class="row">
       <span class="product-name">[[item.name]]</span>
       <span class="active-status">
@@ -59,7 +64,7 @@ paper-toggle-button[class=disabled] {
       </span>
     </div>
   </template>
-</div>
+</perpetuo-paging>
 `;
   }
 
@@ -68,8 +73,15 @@ paper-toggle-button[class=disabled] {
   static get properties() {
     return {
       data: { type: Array, value: () => [] },
+      page: Number,
+      pageSize: Number,
+      pageItems: { type: Array, computed: 'computePageItems(data, page, pageSize)' },
       canUpdateProduct: String
     };
+  }
+
+  computePageItems(data, page, pageSize) {
+    return data.slice(page * pageSize, (page + 1) * pageSize);
   }
 
   updateProduct(e) {
