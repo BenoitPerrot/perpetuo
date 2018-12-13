@@ -3,7 +3,7 @@ package com.criteo.perpetuo.app
 import com.criteo.perpetuo.auth.UserFilter._
 import com.criteo.perpetuo.auth.{Authenticator, User}
 import com.criteo.perpetuo.config.AppConfigProvider
-import com.criteo.perpetuo.engine.{DeploymentState, DeploymentStatus, Engine}
+import com.criteo.perpetuo.engine.{DeploymentState, Engine}
 import com.criteo.perpetuo.model._
 import com.twitter.finagle.http.Request
 import com.twitter.finatra.http.exceptions._
