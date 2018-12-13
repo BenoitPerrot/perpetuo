@@ -218,32 +218,26 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
             val lastOperationState = OperationEffectState.from(lastOperation.closingDate.isEmpty, effect.executionTraces.map(_.state), effect.targetStatuses.map(_.code))
             val isIncompleteSuccessfulDeploy = lastOperation.kind == Operation.deploy && lastOperationState == OperationEffectState.succeeded && effect.deploymentPlanStepIds.max < deploymentPlanStepIds.max
             val isIncompleteRevert = lastOperation.kind == Operation.revert && deploymentPlanStepIds.min < effect.deploymentPlanStepIds.min
-            if (isIncompleteSuccessfulDeploy || isIncompleteRevert)
-              DeploymentStatus.paused
+            val isPaused = isIncompleteSuccessfulDeploy || isIncompleteRevert
+            if (isPaused)
+              (None, true)
             else
-              lastOperationState match {
-                case OperationEffectState.inProgress => inProgress
-                case OperationEffectState.flopped => flopped
-                case OperationEffectState.failed => failed
-                case OperationEffectState.succeeded => succeeded
-              }
+              (
+                if (operationTrace.kind == Operation.revert || lastOperationState == OperationEffectState.flopped)
+                  Some(false)
+                else if (lastOperationState == OperationEffectState.succeeded)
+                  Some(true)
+                else
+                  None,
+                lastOperationState == OperationEffectState.succeeded
+              )
           }
-          .flatMap { status =>
-            val transactionFinalSuccess = if (status == DeploymentStatus.paused)
-              None
-            else if (operationTrace.kind == Operation.revert || status == DeploymentStatus.flopped)
-              Some(false)
-            else if (status == DeploymentStatus.succeeded)
-              Some(true)
-            else
-              None
-
+          .flatMap { case (transactionFinalSuccess, operationSucceeded) =>
             dbBinding.closingTargetStatuses(trace.id)
               .andThen(fuelFilter.releasingLocks(operationTrace.deploymentRequest, transactionFinalSuccess.isEmpty))
               .map(_ =>
                 if (updated) { // if it's a successful close, let's notify
                   // FIXME: when/if partial reverts are supported: a _failed_ partial revert would be "paused" too, the operationSucceeded should be "false"
-                  val operationSucceeded = status == DeploymentStatus.succeeded || status == DeploymentStatus.paused
                   listeners.foreach { listener =>
                     if (operationSucceeded)
                       listener.onOperationSucceeded(operationTrace)
