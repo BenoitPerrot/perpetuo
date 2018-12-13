@@ -22,12 +22,9 @@ object computeDeploymentStatus {
             case OperationEffectState.failed => failed
             case OperationEffectState.succeeded => succeeded
           }
-        val forward = lastOperation.kind == Operation.deploy
-        val notFinished = if (forward)
-          effect.deploymentPlanStepIds.max < deploymentPlanStepIds.max
-        else
-          deploymentPlanStepIds.min < effect.deploymentPlanStepIds.min
-        if (notFinished && (state == DeploymentStatus.succeeded || !forward))
+        val isIncompleteSuccessfulDeploy = lastOperation.kind == Operation.deploy && state == DeploymentStatus.succeeded && effect.deploymentPlanStepIds.max < deploymentPlanStepIds.max
+        val isIncompleteRevert = lastOperation.kind == Operation.revert && deploymentPlanStepIds.min < effect.deploymentPlanStepIds.min
+        if (isIncompleteSuccessfulDeploy || isIncompleteRevert)
           DeploymentStatus.paused
         else
           state
