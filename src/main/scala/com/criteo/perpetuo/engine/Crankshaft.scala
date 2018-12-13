@@ -20,14 +20,6 @@ object DeploymentStatus extends Enumeration {
   val failed: Value = Value("failed")
   val succeeded: Value = Value("succeeded")
   val paused: Value = Value("paused")
-
-  def from(operationState: OperationEffectState.Value): DeploymentStatus.Value =
-    operationState match {
-      case OperationEffectState.inProgress => inProgress
-      case OperationEffectState.flopped => flopped
-      case OperationEffectState.failed => failed
-      case OperationEffectState.succeeded => succeeded
-    }
 }
 
 abstract class RejectingException extends RuntimeException {

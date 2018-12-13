@@ -1,5 +1,6 @@
 package com.criteo.perpetuo.engine
 
+import com.criteo.perpetuo.engine.DeploymentStatus.{failed, flopped, inProgress, succeeded}
 import com.criteo.perpetuo.model._
 
 
@@ -11,13 +12,16 @@ object computeDeploymentStatus {
       .map { effect =>
         val lastOperation = effect.operationTrace
         val state =
-          DeploymentStatus.from(
-            OperationEffectState.from(
-              lastOperation.closingDate.isEmpty,
-              effect.executionTraces.map(_.state),
-              effect.targetStatuses.map(_.code)
-            )
-          )
+          OperationEffectState.from(
+            lastOperation.closingDate.isEmpty,
+            effect.executionTraces.map(_.state),
+            effect.targetStatuses.map(_.code)
+          ) match {
+            case OperationEffectState.inProgress => inProgress
+            case OperationEffectState.flopped => flopped
+            case OperationEffectState.failed => failed
+            case OperationEffectState.succeeded => succeeded
+          }
         val forward = lastOperation.kind == Operation.deploy
         val notFinished = if (forward)
           effect.deploymentPlanStepIds.max < deploymentPlanStepIds.max
