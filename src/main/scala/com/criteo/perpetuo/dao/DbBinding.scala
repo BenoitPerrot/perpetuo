@@ -1,6 +1,5 @@
 package com.criteo.perpetuo.dao
 
-import com.criteo.perpetuo.engine.{DeploymentStatus, computeDeploymentStatus}
 import com.criteo.perpetuo.model._
 import javax.inject.{Inject, Singleton}
 import slick.jdbc.TransactionIsolation
@@ -373,11 +372,6 @@ class DbBinding @Inject()(val dbContext: DbContext)
             (planStepIds, OperationEffect(operationTrace, impactedStepIds, et, ts))
           }
       }
-
-  def gettingDeploymentStatus(operationTrace: OperationTrace): DBIOAction[DeploymentStatus.Value, NoStream, Effect.Read] =
-    gettingOperationEffect(operationTrace).map { case (planStepIds, effect) =>
-      computeDeploymentStatus(planStepIds, Some(effect))
-    }
 
   private def latestExecutions(targetStatuses: Query[TargetStatusTable, TargetStatusRecord, Seq]) =
     targetStatuses
