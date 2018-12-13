@@ -11,23 +11,23 @@ object computeDeploymentStatus {
     lastOperationEffect
       .map { effect =>
         val lastOperation = effect.operationTrace
-        val state =
+        val lastOperationState =
           OperationEffectState.from(
             lastOperation.closingDate.isEmpty,
             effect.executionTraces.map(_.state),
             effect.targetStatuses.map(_.code)
-          ) match {
+          )
+        val isIncompleteSuccessfulDeploy = lastOperation.kind == Operation.deploy && lastOperationState == OperationEffectState.succeeded && effect.deploymentPlanStepIds.max < deploymentPlanStepIds.max
+        val isIncompleteRevert = lastOperation.kind == Operation.revert && deploymentPlanStepIds.min < effect.deploymentPlanStepIds.min
+        if (isIncompleteSuccessfulDeploy || isIncompleteRevert)
+          DeploymentStatus.paused
+        else
+          lastOperationState match {
             case OperationEffectState.inProgress => inProgress
             case OperationEffectState.flopped => flopped
             case OperationEffectState.failed => failed
             case OperationEffectState.succeeded => succeeded
           }
-        val isIncompleteSuccessfulDeploy = lastOperation.kind == Operation.deploy && state == DeploymentStatus.succeeded && effect.deploymentPlanStepIds.max < deploymentPlanStepIds.max
-        val isIncompleteRevert = lastOperation.kind == Operation.revert && deploymentPlanStepIds.min < effect.deploymentPlanStepIds.min
-        if (isIncompleteSuccessfulDeploy || isIncompleteRevert)
-          DeploymentStatus.paused
-        else
-          state
       }
       .getOrElse(DeploymentStatus.notStarted)
 }
