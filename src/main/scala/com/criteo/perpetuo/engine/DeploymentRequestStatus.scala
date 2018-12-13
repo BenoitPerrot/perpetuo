@@ -10,11 +10,14 @@ object computeDeploymentStatus {
     lastOperationEffect
       .map { effect =>
         val lastOperation = effect.operationTrace
-        val state = computeOperationState(
-          lastOperation.closingDate.isEmpty,
-          effect.executionTraces.map(_.state),
-          effect.targetStatuses.map(_.code)
-        )
+        val state =
+          DeploymentStatus.from(
+            OperationEffectState.from(
+              lastOperation.closingDate.isEmpty,
+              effect.executionTraces.map(_.state),
+              effect.targetStatuses.map(_.code)
+            )
+          )
         val forward = lastOperation.kind == Operation.deploy
         val notFinished = if (forward)
           effect.deploymentPlanStepIds.max < deploymentPlanStepIds.max

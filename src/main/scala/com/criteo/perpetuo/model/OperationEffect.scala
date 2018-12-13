@@ -1,7 +1,5 @@
 package com.criteo.perpetuo.model
 
-import com.criteo.perpetuo.engine.DeploymentStatus
-
 object OperationEffectState extends Enumeration {
   val inProgress: OperationEffectState.Value = Value("inProgress")
   val flopped: OperationEffectState.Value = Value("flopped")
@@ -25,11 +23,4 @@ case class OperationEffect(operationTrace: OperationTrace,
                            targetStatuses: Iterable[TargetStatus]) {
   val state: OperationEffectState.Value =
     OperationEffectState.from(operationTrace.closingDate.isEmpty, executionTraces.toStream.map(_.state), targetStatuses.toStream.map(_.code))
-}
-
-
-object computeOperationState { // fixme: we likely need the deployment status, not the operation one
-  // only makes sense if the operation is closed
-  def apply(isRunning: Boolean, executionStates: => Iterable[ExecutionState.ExecutionState], statuses: => Iterable[Status.Code]): DeploymentStatus.Value =
-    DeploymentStatus.from(OperationEffectState.from(isRunning, executionStates, statuses))
 }
