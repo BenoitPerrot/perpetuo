@@ -1,6 +1,7 @@
 package com.criteo.perpetuo.engine
 
 import com.criteo.perpetuo.dao.{DBIOrw, DbBinding}
+import com.criteo.perpetuo.engine.DeploymentStatus.{failed, flopped, inProgress, succeeded}
 import com.criteo.perpetuo.engine.dispatchers.TargetDispatcher
 import com.criteo.perpetuo.engine.executors.TriggeredExecutionFinder
 import com.criteo.perpetuo.engine.resolvers.TargetResolver
@@ -212,7 +213,21 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
       .flatMap { case (trace, updated) =>
         dbBinding
           .gettingOperationEffect(trace)
-          .map { case (planStepIds, effect) => computeDeploymentStatus(planStepIds, Some(effect)) }
+          .map { case (deploymentPlanStepIds, effect) =>
+            val lastOperation = effect.operationTrace
+            val lastOperationState = OperationEffectState.from(lastOperation.closingDate.isEmpty, effect.executionTraces.map(_.state), effect.targetStatuses.map(_.code))
+            val isIncompleteSuccessfulDeploy = lastOperation.kind == Operation.deploy && lastOperationState == OperationEffectState.succeeded && effect.deploymentPlanStepIds.max < deploymentPlanStepIds.max
+            val isIncompleteRevert = lastOperation.kind == Operation.revert && deploymentPlanStepIds.min < effect.deploymentPlanStepIds.min
+            if (isIncompleteSuccessfulDeploy || isIncompleteRevert)
+              DeploymentStatus.paused
+            else
+              lastOperationState match {
+                case OperationEffectState.inProgress => inProgress
+                case OperationEffectState.flopped => flopped
+                case OperationEffectState.failed => failed
+                case OperationEffectState.succeeded => succeeded
+              }
+          }
           .flatMap { status =>
             val transactionFinalSuccess = if (status == DeploymentStatus.paused)
               None
