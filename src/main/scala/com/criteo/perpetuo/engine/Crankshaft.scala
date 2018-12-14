@@ -632,4 +632,7 @@ class Crankshaft @Inject()(val appConfig: AppConfig,
     */
   def abandon(deploymentRequest: DeploymentRequest): Future[Unit] =
     dbBinding.dbContext.db.run(abandoning(deploymentRequest))
+
+  def findAutoRevertibleDeploymentRequestIdsAndStateStamps: Future[Seq[(Long, Int)]] =
+    dbBinding.findAutoRevertibleDeploymentRequestIdsAndStateStamps
 }

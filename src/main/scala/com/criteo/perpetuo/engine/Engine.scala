@@ -1,12 +1,15 @@
 package com.criteo.perpetuo.engine
 
-import com.criteo.perpetuo.auth.{DeploymentAction, GeneralAction, Permissions, User}
+import java.util.concurrent.TimeUnit
+
+import com.criteo.perpetuo.auth.{DeploymentAction, GeneralAction, Permissions, PerpetuoUser, User}
 import com.criteo.perpetuo.config.AppConfig
 import com.criteo.perpetuo.model.ExecutionState.ExecutionState
 import com.criteo.perpetuo.model._
 import com.criteo.perpetuo.util.FutureLoadingCache
 import com.google.common.base.Ticker
 import com.google.common.cache.{CacheBuilder, CacheLoader}
+import com.twitter.inject.Logging
 import javax.inject.{Inject, Singleton}
 import slick.dbio.DBIOAction
 
@@ -25,7 +28,10 @@ case class PreConditionFailed(errors: Seq[String]) extends RuntimeException((Seq
 class Engine @Inject()(val appConfig: AppConfig,
                        val crankshaft: Crankshaft,
                        val permissions: Permissions,
-                       val preConditionEvaluators: Seq[AsyncPreConditionEvaluator]) {
+                       val preConditionEvaluators: Seq[AsyncPreConditionEvaluator],
+                       val scheduler: Scheduler) extends Logging {
+
+  scheduler.scheduleTask(autoRevertFailingDeploymentRequests _, period = 5, timeUnit = TimeUnit.MINUTES)
 
   private def getTargetSuperset(productName: String, version: Version, target: Iterable[TargetExpr]): Set[TargetAtom] =
     target
@@ -373,4 +379,20 @@ class Engine @Inject()(val appConfig: AppConfig,
 
   def getCurrentVersionPerTarget(productName: String): Future[Map[TargetAtom, Version]] =
     crankshaft.dbBinding.findCurrentVersionForEachKnownTarget(productName)
+
+  def autoRevertFailingDeploymentRequests: Future[Seq[Long]] =
+    crankshaft.findAutoRevertibleDeploymentRequestIdsAndStateStamps
+      .flatMap(depReqIdsAndStamps => Future.traverse(depReqIdsAndStamps) { case (depReqId, stateStamp) =>
+        revert(PerpetuoUser, depReqId, Some(stateStamp), None)
+          .map(_ => Some(depReqId))
+          .recover {
+            case _: MissingInfo | _: UnexpectedOperationCount =>
+              None // If the revert failed for no default version or wrong operation count, silently ignore it
+            case e: Exception => // Unexpected failure
+              logger.error(s"Exception occurred when auto-reverting $depReqId: $e")
+              None
+          }
+        }
+        .map(_.flatten)
+      )
 }

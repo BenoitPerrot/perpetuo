@@ -390,4 +390,11 @@ class DbBinding @Inject()(val dbContext: DbContext)
       }
       .exists
       .result
+
+  def findAutoRevertibleDeploymentRequestIdsAndStateStamps: Future[Seq[(Long, Int)]] =
+    dbContext.db.run(deploymentRequestQuery
+      .filter(req => req.autoRevert && req.state === DeploymentRequestState.deployFailed)
+      .map(record => (record.id, record.stateStamp))
+      .result
+    )
 }

@@ -1,8 +1,9 @@
 package com.criteo.perpetuo
 
 import java.util.concurrent.atomic.AtomicLong
+import java.util.concurrent.{CompletableFuture, Future => JavaFuture}
 
-import com.criteo.perpetuo.auth.{Unrestricted, User}
+import com.criteo.perpetuo.auth.User
 import com.criteo.perpetuo.config.{AppConfig, EngineProxy, PluginLoader, Plugins}
 import com.criteo.perpetuo.dao.{DbBinding, DbContext, DbContextProvider, TestingDbContextModule}
 import com.criteo.perpetuo.engine._
@@ -12,7 +13,6 @@ import com.criteo.perpetuo.engine.resolvers.TargetResolver
 import com.criteo.perpetuo.model._
 import com.google.common.base.Ticker
 import com.twitter.inject.Test
-import com.typesafe.config.Config
 import org.mockito.Matchers._
 import org.mockito.Mockito.when
 import org.scalatest.matchers.Matcher
@@ -88,7 +88,12 @@ trait SimpleScenarioTesting extends TestHelpers with TestDb with MockitoSugar {
   }
 
   protected val mockTicker = new MockTicker(1001.seconds)
-  protected lazy val engine: Engine = new Engine(appConfig, crankshaft, plugins.permissions, plugins.preConditionEvaluators) {
+
+  class NoOpScheduler extends Scheduler {
+    override def scheduleTask(f: () => Any, period: Long, timeUnit: TimeUnit, initialDelay: Long): JavaFuture[_] =
+      CompletableFuture.completedFuture(())
+  }
+  protected lazy val engine: Engine = new Engine(appConfig, crankshaft, plugins.permissions, plugins.preConditionEvaluators, new NoOpScheduler()) {
     override val stateExpirationTime: FiniteDuration = 1000.seconds // the goal is that no test actually depends on it
     override val ticker: Ticker = mockTicker // ... thanks to this mock
   }
@@ -216,6 +221,8 @@ trait SimpleScenarioTesting extends TestHelpers with TestDb with MockitoSugar {
         } yield operationTrace
       )
     }
-  }
 
+    def getDeploymentRequest: DeploymentRequest =
+      deploymentRequest
+  }
 }

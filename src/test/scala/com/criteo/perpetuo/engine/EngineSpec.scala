@@ -272,3 +272,78 @@ class EngineSpec extends SimpleScenarioTesting {
     )
   }
 }
+
+class EngineAutoRevertSpec extends SimpleScenarioTesting {
+
+  import dbContext.profile.api._
+
+  def setDeploymentRequestAutoRevert(id: Long, autoRevert: Boolean): Future[Int] =
+    dbContext.db.run(dbBinding.deploymentRequestQuery.filter(_.id === id).map(_.autoRevert).update(autoRevert))
+
+  test("Auto-revert succeeds for a request that has a previous deployed version") {
+    val productName = "ifrit"
+
+    request(productName, "v0", Seq("terra")).step()
+
+    val r = request(productName, "v1", Seq("terra"))
+    await(setDeploymentRequestAutoRevert(r.getDeploymentRequest.id, autoRevert = true))
+    r.step(Status.hostFailure)
+
+    await(engine.autoRevertFailingDeploymentRequests)
+    await(crankshaft.findDeploymentRequestById(r.getDeploymentRequest.id)).get.state
+      .get shouldEqual DeploymentRequestState.revertInProgress
+  }
+
+  test("Auto-revert is not applied for a request that is not auto-revertible") {
+    val productName = "leviathan"
+
+    request(productName, "v0", Seq("terra")).step()
+
+    val r = request(productName, "v1", Seq("terra"))
+    await(setDeploymentRequestAutoRevert(r.getDeploymentRequest.id, autoRevert = false))
+    r.step(Status.hostFailure)
+
+    await(engine.autoRevertFailingDeploymentRequests)
+    await(crankshaft.findDeploymentRequestById(r.getDeploymentRequest.id)).get.state
+      .get shouldEqual DeploymentRequestState.deployFailed
+  }
+
+  test("Auto-revert fails for a request that has no previous deployed versions") {
+    val productName = "eidolon"
+    val r = request(productName, "v1", Seq("mist"))
+    await(setDeploymentRequestAutoRevert(r.getDeploymentRequest.id, autoRevert = true))
+    r.step(Status.hostFailure)
+
+    await(engine.autoRevertFailingDeploymentRequests)
+    await(crankshaft.findDeploymentRequestById(r.getDeploymentRequest.id)).get.state
+      .get shouldEqual DeploymentRequestState.deployFailed
+
+    r.step(Status.success) // Cleanup
+  }
+
+  test("Auto-revert is applied only for requests in a DeployFailed state") {
+    val product1 = "p1"
+    val product2 = "p2"
+    val product3 = "p3"
+    request(product1, "v0", Seq("par")).step()
+    request(product2, "v0", Seq("par")).step()
+    request(product3, "v0", Seq("par")).step()
+    val r1 = request(product1, "v1", Seq("par"))
+    val r2 = request(product2, "v1", Seq("par"))
+    val r3 = request(product3, "v1", Seq("par"))
+    await(setDeploymentRequestAutoRevert(r1.getDeploymentRequest.id, autoRevert = true))
+    await(setDeploymentRequestAutoRevert(r2.getDeploymentRequest.id, autoRevert = true))
+    await(setDeploymentRequestAutoRevert(r3.getDeploymentRequest.id, autoRevert = true))
+
+    r1.step(Status.success)
+    r2.step(Status.productFailure)
+    await(engine.step(User("s.pidey"), r3.getDeploymentRequest.id, None))
+
+    await(crankshaft.findAutoRevertibleDeploymentRequestIdsAndStateStamps).map(_._1) shouldEqual Vector(r2.getDeploymentRequest.id)
+    await(engine.autoRevertFailingDeploymentRequests)
+
+    await(crankshaft.findDeploymentRequestById(r1.getDeploymentRequest.id)).get.state.get shouldEqual DeploymentRequestState.deployed
+    await(crankshaft.findDeploymentRequestById(r2.getDeploymentRequest.id)).get.state.get shouldEqual DeploymentRequestState.revertInProgress
+    await(crankshaft.findDeploymentRequestById(r3.getDeploymentRequest.id)).get.state.get shouldEqual DeploymentRequestState.deployInProgress
+  }
+}
