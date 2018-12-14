@@ -22,8 +22,11 @@ object ConfigSyntacticSugar {
     def tryGetBoolean(path: String): Option[Boolean] =
       if (config.hasPath(path)) Some(config.getBoolean(path)) else None
 
+    def tryGetInt(path: String): Option[Int] =
+      if (config.hasPath(path)) Some(config.getInt(path)) else None
+
     def getIntOrElse(path: String, default: Int): Int =
-      if (config.hasPath(path)) config.getInt(path) else default
+      tryGetInt(path).getOrElse(default)
   }
 
 }
