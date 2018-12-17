@@ -17,6 +17,7 @@ class RundeckClient(val host: String) {
   private val config = AppConfigProvider.executorConfig("rundeck")
   val port: Option[Int] = config.tryGetInt("port")
   val authToken: Option[String] = config.tryGetString("token")
+  val transportSecurity: Option[TransportSecurity.Value] = config.tryGetString("transportSecurity").map(TransportSecurity.withName)
 
   // Timeouts
   private val requestTimeout: Duration = 5.seconds
@@ -29,7 +30,7 @@ class RundeckClient(val host: String) {
     .setHeader(HttpHeaders.ContentType, Message.ContentTypeJson)
     .setHeader(HttpHeaders.Accept, Message.ContentTypeJson)
 
-  private val clientBuilder = new SingleNodeHttpClientBuilder(host, port, Some(TransportSecurity.SslNoCertificate)) // fixme: have a valid certificate!
+  private val clientBuilder = new SingleNodeHttpClientBuilder(host, port, transportSecurity)
   protected val client: Request => Future[Response] = clientBuilder.build(requestTimeout)
   protected val clientForIdempotentRequests: Request => Future[Response] = clientBuilder.build(requestTimeout, areRequestsIdempotent = true)
 
