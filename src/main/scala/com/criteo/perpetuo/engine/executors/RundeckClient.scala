@@ -2,7 +2,7 @@ package com.criteo.perpetuo.engine.executors
 
 import com.criteo.perpetuo.config.AppConfigProvider
 import com.criteo.perpetuo.config.ConfigSyntacticSugar._
-import com.criteo.perpetuo.util.SingleNodeHttpClientBuilder
+import com.criteo.perpetuo.util.{SingleNodeHttpClientBuilder, TransportSecurity}
 import com.twitter.conversions.time._
 import com.twitter.finagle.http.Status.{NotFound, Ok}
 import com.twitter.finagle.http._
@@ -29,7 +29,7 @@ class RundeckClient(val host: String) {
     .setHeader(HttpHeaders.ContentType, Message.ContentTypeJson)
     .setHeader(HttpHeaders.Accept, Message.ContentTypeJson)
 
-  private val clientBuilder = new SingleNodeHttpClientBuilder(host, port)
+  private val clientBuilder = new SingleNodeHttpClientBuilder(host, port, Some(TransportSecurity.SslNoCertificate)) // fixme: have a valid certificate!
   protected val client: Request => Future[Response] = clientBuilder.build(requestTimeout)
 
   private def post(apiSubPath: String, body: Option[JsValue] = None): Future[Response] =

@@ -38,7 +38,7 @@ class SingleNodeHttpClientBuilderSpec extends TestHelpers {
   })
   private val Array(host, portStr) = server.externalHttpHostAndPort.split(":", 2)
 
-  private val clientBuilder = new SingleNodeHttpClientBuilder(host, Some(portStr.toInt), Some(false))
+  private val clientBuilder = new SingleNodeHttpClientBuilder(host, Some(portStr.toInt), Some(TransportSecurity.NoSsl))
   private val nonIdempotentClient = buildClient(clientBuilder, areRequestsIdempotent = false)
   private val idempotentClient = buildClient(clientBuilder, areRequestsIdempotent = true)
 

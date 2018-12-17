@@ -12,15 +12,23 @@ import com.twitter.util._
 
 
 /** Build an HTTP client for a basic usage of an HTTP API hosted on a single node */
-class SingleNodeHttpClientBuilder(hostName: String, port: Option[Int] = None, ssl: Option[Boolean] = None) extends Logging {
-  private val resolvedSsl = ssl.getOrElse(port.contains(443))
-  private val resolvedPort = port.getOrElse(if (ssl.contains(true)) 443 else 80)
+class SingleNodeHttpClientBuilder(hostName: String, port: Option[Int] = None, security: Option[TransportSecurity.Value] = None) extends Logging {
+  private val resolvedSecurity = security.getOrElse(if (port.contains(443)) TransportSecurity.Ssl else TransportSecurity.NoSsl)
+  private val (protocol, resolvedPort) = if (resolvedSecurity == TransportSecurity.NoSsl)
+    ("http", port.getOrElse(80))
+  else
+    ("https", port.getOrElse(443))
 
-  private val protocol = if (resolvedSsl) "https" else "http"
   private val dest = s"$hostName:$resolvedPort"
-  private val serviceBuilder: Http.Client = (if (resolvedSsl) Http.client.withTls(hostName) else Http.client)
-    .withSessionQualifier.noFailFast
-    .withSessionQualifier.noFailureAccrual
+  private val serviceBuilder: Http.Client = {
+    val sb = resolvedSecurity match {
+      case TransportSecurity.NoSsl => Http.client
+      case TransportSecurity.SslNoCertificate => Http.client.withTlsWithoutValidation
+      case TransportSecurity.Ssl => Http.client.withTls(hostName)
+    }
+    sb.withSessionQualifier.noFailFast
+      .withSessionQualifier.noFailureAccrual
+  }
 
   def createRequest(path: String, builder: RequestBuilder[Nothing, Nothing] = RequestBuilder()): RequestBuilder[RequestConfig.Yes, Nothing] =
     builder.url(new URL(protocol, hostName, resolvedPort, path))
@@ -59,4 +67,11 @@ class SingleNodeHttpClientBuilder(hostName: String, port: Option[Int] = None, ss
 
   def build(metronomePeriod: Duration, retries: Int = 5, areRequestsIdempotent: Boolean = false): Request => Future[Response] =
     build(metronomePeriod, metronomePeriod, metronomePeriod, retries, areRequestsIdempotent)
+}
+
+
+object TransportSecurity extends Enumeration {
+  val NoSsl: Value = Value
+  val SslNoCertificate: Value = Value
+  val Ssl: Value = Value
 }
