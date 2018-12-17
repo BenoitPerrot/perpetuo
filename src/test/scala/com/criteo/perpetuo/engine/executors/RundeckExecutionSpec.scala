@@ -22,6 +22,7 @@ class RundeckExecutionSpec extends Test with MockitoSugar {
       resp.write(contentMock)
       Future.value(resp)
     }
+    override protected val clientForIdempotentRequests: Request => Future[Response] = client
   }
 
   class RundeckExecutionWithClientMock(override val client: RundeckClient) extends RundeckExecution("https://rundeck.criteo/project/my-project/execute/show/54")

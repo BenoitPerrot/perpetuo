@@ -31,13 +31,15 @@ class RundeckClient(val host: String) {
 
   private val clientBuilder = new SingleNodeHttpClientBuilder(host, port, Some(TransportSecurity.SslNoCertificate)) // fixme: have a valid certificate!
   protected val client: Request => Future[Response] = clientBuilder.build(requestTimeout)
+  protected val clientForIdempotentRequests: Request => Future[Response] = clientBuilder.build(requestTimeout, areRequestsIdempotent = true)
 
-  private def post(apiSubPath: String, body: Option[JsValue] = None): Future[Response] =
-    client(
-      clientBuilder
-        .createRequest(apiSubPath, jsonRequestBuilder)
-        .buildPost(body.map(_.compactPrint).map(Buf.Utf8(_)).getOrElse(Buf.Empty))
-    )
+  private def post(apiSubPath: String, body: Option[JsValue] = None, isIdempotent: Boolean = false): Future[Response] = {
+    val cl = if (isIdempotent) clientForIdempotentRequests else client
+    val req = clientBuilder
+      .createRequest(apiSubPath, jsonRequestBuilder)
+      .buildPost(body.map(_.compactPrint).map(Buf.Utf8(_)).getOrElse(Buf.Empty))
+    cl(req)
+  }
 
   private def apiPath(apiSubPath: String, queryParameters: Map[String, String] = Map()): String = {
     val path = s"/api/$apiVersion/$apiSubPath"
@@ -68,7 +70,7 @@ class RundeckClient(val host: String) {
     parsedContent.fields("execution").asJsObject.fields("status").asInstanceOf[JsString].value == "running"
 
   def abortJob(jobId: String): Future[RundeckJobState.ExecState] =
-    post(apiPath(s"execution/$jobId/abort")).flatMap(resp =>
+    post(apiPath(s"execution/$jobId/abort"), isIdempotent = true).flatMap(resp =>
       resp.status match {
         case NotFound =>
           Future.value(RundeckJobState.notFound)
@@ -86,7 +88,7 @@ class RundeckClient(val host: String) {
     )
 
   def fetchJobState(jobId: String): Future[RundeckJobState.ExecState] =
-    post(apiPath(s"execution/$jobId/output/state", Map("stateOnly" -> "true"))).map(resp =>
+    post(apiPath(s"execution/$jobId/output/state", Map("stateOnly" -> "true")), isIdempotent = true).map(resp =>
       resp.status match {
         case NotFound => RundeckJobState.notFound
         case Ok if isJobCompleted(resp.contentString.parseJson.asJsObject) => RundeckJobState.terminated
