@@ -17,7 +17,7 @@ private[dao] case class ExecutionTraceRecord(id: Option[Long],
                                              state: ExecutionState = ExecutionState.pending,
                                              detail: Comment = "") {
   def toExecutionTrace: ShallowExecutionTrace =
-    ShallowExecutionTrace(id.get, href, state, detail.toString)
+    ShallowExecutionTrace(id.get, executorType, href, state, detail.toString)
 
   def toExecutionTrace(operationTrace: OperationTrace): ExecutionTraceBranch =
     ExecutionTraceBranch(id.get, executionId, operationTrace, href, state, detail.toString)

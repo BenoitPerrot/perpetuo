@@ -7,6 +7,7 @@ import com.fasterxml.jackson.annotation.JsonInclude.Include
 
 @JsonInclude(Include.ALWAYS)
 case class ShallowExecutionTrace(id: Long,
+                                 executorType: String,
                                  href: Option[String],
                                  state: ExecutionState,
                                  detail: String)
