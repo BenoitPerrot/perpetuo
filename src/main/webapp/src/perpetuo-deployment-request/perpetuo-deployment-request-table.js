@@ -147,6 +147,7 @@ div.state {
     super();
 
     this.client = new Perpetuo.Client();
+    this.refresher = new Perpetuo.AsyncRepeater(() => this.refresh(), 1000);
   }
 
   ready() {
@@ -185,15 +186,8 @@ div.state {
         }).map(_ => _.name);
         this.$.productFilter.select(this.deploymentRequestFilter);
       });
-      const installRefresh = () => this.refresh().then(reinstallRefresh, reinstallRefresh);
-      const refreshDelay = 1000;
-      const reinstallRefresh = () => {
-        this.refreshTimeoutId = setTimeout(installRefresh, refreshDelay);
-      }
-      installRefresh();
-    } else {
-      clearTimeout(this.refreshTimeoutId);
     }
+    this.refresher.suspended = !active;
   }
 
   refresh(forced) {
