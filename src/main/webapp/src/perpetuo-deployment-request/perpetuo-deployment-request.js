@@ -325,6 +325,7 @@ paper-progress {
     super();
 
     this.client = new Perpetuo.Client();
+    this.refresher = new Perpetuo.AsyncRepeater(() => this.refresh(), 1000);
   }
 
   onDeploymentRequestIdChanged() {
@@ -340,17 +341,8 @@ paper-progress {
     this.refresh();
   }
 
-  // TODO: factor with deployment-request-table
   onActiveChanged(active) {
-    if (active) {
-      const refreshDelay = 1000;
-      (function installRefresh() {
-        const reinstallRefresh = () => installRefresh.apply(this);
-        this.refreshTimeoutId = setTimeout(() => this.refresh().then(reinstallRefresh, reinstallRefresh), refreshDelay);
-      }).apply(this);
-    } else {
-      clearTimeout(this.refreshTimeoutId);
-    }
+    this.refresher.suspended = !active;
   }
 
   onActionTap(e) {
