@@ -75,7 +75,7 @@ class SingleNodeHttpClientBuilder(hostName: String, port: Option[Int] = None, se
           Reader.readAll(resp.reader).map { buf =>
             resp.reader.discard()
             logger.debug(s"Took ${System.currentTimeMillis() - start}ms total for $hostName to respond HTTP ${resp.status.code}")
-            ConsumedResponse(resp.status, buf)
+            ConsumedResponse(resp.status, buf, hostName)
           }
         }
         .onFailure(err =>
@@ -96,8 +96,16 @@ object TransportSecurity extends Enumeration {
 }
 
 
-case class ConsumedResponse(status: http.Status, content: Buf) {
+case class ConsumedResponse(status: http.Status, content: Buf, serviceName: String) {
   lazy val contentString: String = Buf.decodeString(content, StandardCharsets.UTF_8)
 
   lazy val contentJson: JsValue = contentString.parseJson
+
+  def raiseForStatus(contentInError: Boolean = false): ConsumedResponse = status match {
+    case http.Status.Successful(_) =>
+      this
+    case _ =>
+      val msg = s"Request to $serviceName failed with status HTTP ${status.code}"
+      throw new RuntimeException(if (contentInError) s"$msg: $contentString" else msg)
+  }
 }

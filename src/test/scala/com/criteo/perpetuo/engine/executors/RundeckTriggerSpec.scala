@@ -23,7 +23,7 @@ class RundeckTriggerSpec extends Test {
       override protected val client: Request => Future[ConsumedResponse] = (request: Request) => {
         request.uri shouldEqual s"/api/16/job/perpetuo-deployment/executions?authtoken=my-super-secret-token"
         request.contentString shouldEqual """{"argString":"-callback-url 'http://somewhere/api/execution-traces/42' -product-name 'My\"Beautiful\"Project' -target 'a,b' -product-version \"the 042nd version\""}"""
-        Future.value(ConsumedResponse(Status(statusMock), Utf8(contentMock)))
+        Future.value(ConsumedResponse(Status(statusMock), Utf8(contentMock), "rundeck"))
       }
     }
 
