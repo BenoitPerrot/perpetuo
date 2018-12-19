@@ -17,12 +17,14 @@ import spray.json._
 /** Build an HTTP client for a basic usage of an HTTP API hosted on a single node */
 class SingleNodeHttpClientBuilder(hostName: String, port: Option[Int] = None, security: Option[TransportSecurity.Value] = None) extends Logging {
   private val resolvedSecurity = security.getOrElse(if (port.contains(443)) TransportSecurity.Ssl else TransportSecurity.NoSsl)
-  private val (protocol, resolvedPort) = if (resolvedSecurity == TransportSecurity.NoSsl)
-    ("http", port.getOrElse(80))
-  else
-    ("https", port.getOrElse(443))
+  private val (protocol, dest) = {
+    val (protocol, resolvedPort) = if (resolvedSecurity == TransportSecurity.NoSsl)
+      ("http", port.getOrElse(80))
+    else
+      ("https", port.getOrElse(443))
+    (protocol, s"$hostName:$resolvedPort")
+  }
 
-  private val dest = s"$hostName:$resolvedPort"
   private val serviceBuilder: Http.Client = {
     val sb = resolvedSecurity match {
       case TransportSecurity.NoSsl => Http.client
@@ -34,8 +36,11 @@ class SingleNodeHttpClientBuilder(hostName: String, port: Option[Int] = None, se
       .withStreaming(true)
   }
 
+  def url(path: String): URL =
+    port.map(new URL(protocol, hostName, _, path)).getOrElse(new URL(protocol, hostName, path))
+
   def createRequest(path: String, builder: RequestBuilder[Nothing, Nothing] = RequestBuilder()): RequestBuilder[RequestConfig.Yes, Nothing] =
-    builder.url(new URL(protocol, hostName, resolvedPort, path))
+    builder.url(url(path))
 
   def build(connectionTimeout: Duration, requestTimeout: Duration, minimumDelayBetweenRetries: Duration, retries: Int, areRequestsIdempotent: Boolean): Request => Future[ConsumedResponse] = {
     val shouldRetry: PartialFunction[(Request, Try[Response]), Boolean] = {
