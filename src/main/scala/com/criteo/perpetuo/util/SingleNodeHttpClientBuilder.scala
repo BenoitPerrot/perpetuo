@@ -1,6 +1,7 @@
 package com.criteo.perpetuo.util
 
 import java.net.URL
+import java.nio.charset.StandardCharsets
 
 import com.twitter.finagle._
 import com.twitter.finagle.http.{Request, RequestBuilder, RequestConfig, Response}
@@ -8,7 +9,9 @@ import com.twitter.finagle.param.HighResTimer
 import com.twitter.finagle.service._
 import com.twitter.finagle.stats.DefaultStatsReceiver
 import com.twitter.inject.Logging
+import com.twitter.io.{Buf, Reader}
 import com.twitter.util._
+import spray.json._
 
 
 /** Build an HTTP client for a basic usage of an HTTP API hosted on a single node */
@@ -28,12 +31,13 @@ class SingleNodeHttpClientBuilder(hostName: String, port: Option[Int] = None, se
     }
     sb.withSessionQualifier.noFailFast
       .withSessionQualifier.noFailureAccrual
+      .withStreaming(true)
   }
 
   def createRequest(path: String, builder: RequestBuilder[Nothing, Nothing] = RequestBuilder()): RequestBuilder[RequestConfig.Yes, Nothing] =
     builder.url(new URL(protocol, hostName, resolvedPort, path))
 
-  def build(connectionTimeout: Duration, requestTimeout: Duration, minimumDelayBetweenRetries: Duration, retries: Int, areRequestsIdempotent: Boolean): Request => Future[Response] = {
+  def build(connectionTimeout: Duration, requestTimeout: Duration, minimumDelayBetweenRetries: Duration, retries: Int, areRequestsIdempotent: Boolean): Request => Future[ConsumedResponse] = {
     val shouldRetry: PartialFunction[(Request, Try[Response]), Boolean] = {
       case (_, Return(rep)) =>
         val code = rep.status.code
@@ -59,13 +63,23 @@ class SingleNodeHttpClientBuilder(hostName: String, port: Option[Int] = None, se
     }
 
     val client = retry.andThen(loggingService)
-    r: Request => { // logging client
+    req: Request => {
       val start = System.currentTimeMillis()
-      client(r).respond(_ => logger.debug(s"Request to $hostName (including possible retries) took ${System.currentTimeMillis() - start}ms"))
+      client(req)
+        .flatMap { resp =>
+          Reader.readAll(resp.reader).map { buf =>
+            resp.reader.discard()
+            logger.debug(s"Took ${System.currentTimeMillis() - start}ms total for $hostName to respond HTTP ${resp.status.code}")
+            ConsumedResponse(resp.status, buf)
+          }
+        }
+        .onFailure(err =>
+          logger.debug(s"Request to $hostName failed after ${System.currentTimeMillis() - start}ms (including possible retries): ${err.getMessage}")
+        )
     }
   }
 
-  def build(metronomePeriod: Duration, retries: Int = 5, areRequestsIdempotent: Boolean = false): Request => Future[Response] =
+  def build(metronomePeriod: Duration, retries: Int = 5, areRequestsIdempotent: Boolean = false): Request => Future[ConsumedResponse] =
     build(metronomePeriod, metronomePeriod, metronomePeriod, retries, areRequestsIdempotent)
 }
 
@@ -74,4 +88,11 @@ object TransportSecurity extends Enumeration {
   val NoSsl: Value = Value
   val SslNoCertificate: Value = Value
   val Ssl: Value = Value
+}
+
+
+case class ConsumedResponse(status: http.Status, content: Buf) {
+  lazy val contentString: String = Buf.decodeString(content, StandardCharsets.UTF_8)
+
+  lazy val contentJson: JsValue = contentString.parseJson
 }

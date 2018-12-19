@@ -1,9 +1,11 @@
 package com.criteo.perpetuo.engine.executors
 
 import com.criteo.perpetuo.model.ExecutionState
+import com.criteo.perpetuo.util.ConsumedResponse
 import com.twitter.conversions.time._
-import com.twitter.finagle.http.{Request, Response, Status}
+import com.twitter.finagle.http.{Request, Status}
 import com.twitter.inject.Test
+import com.twitter.io.Buf.Utf8
 import com.twitter.util.{Duration, Future}
 import org.scalatest.mockito.MockitoSugar
 import spray.json.JsonParser.ParsingException
@@ -17,12 +19,9 @@ class RundeckExecutionSpec extends Test with MockitoSugar {
 
     override protected val baseWaitInterval: Duration = 1.millisecond
     override protected val jobTerminationTimeout: Duration = 10.milliseconds
-    override protected val client: Request => Future[Response] = (_: Request) => {
-      val resp = Response(Status(statusMock))
-      resp.write(contentMock)
-      Future.value(resp)
-    }
-    override protected val clientForIdempotentRequests: Request => Future[Response] = client
+    override protected val client: Request => Future[ConsumedResponse] =
+      (_: Request) => Future.value(ConsumedResponse(Status(statusMock), Utf8(contentMock)))
+    override protected val clientForIdempotentRequests: Request => Future[ConsumedResponse] = client
   }
 
   class RundeckExecutionWithClientMock(override val client: RundeckClient) extends RundeckExecution("https://rundeck.criteo/project/my-project/execute/show/54")

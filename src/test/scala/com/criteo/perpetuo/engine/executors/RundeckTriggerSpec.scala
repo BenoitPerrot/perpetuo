@@ -2,8 +2,10 @@ package com.criteo.perpetuo.engine.executors
 
 import com.criteo.perpetuo.engine.TargetAtomSet
 import com.criteo.perpetuo.model.{TargetAtom, Version}
-import com.twitter.finagle.http.{Request, Response, Status}
+import com.criteo.perpetuo.util.ConsumedResponse
+import com.twitter.finagle.http.{Request, Status}
 import com.twitter.inject.Test
+import com.twitter.io.Buf.Utf8
 import com.twitter.util.Future
 import spray.json._
 
@@ -18,12 +20,10 @@ class RundeckTriggerSpec extends Test {
     private class RundeckClientMock extends RundeckClient(host) {
       override val authToken: Option[String] = Some("my-super-secret-token")
 
-      override protected val client: Request => Future[Response] = (request: Request) => {
+      override protected val client: Request => Future[ConsumedResponse] = (request: Request) => {
         request.uri shouldEqual s"/api/16/job/perpetuo-deployment/executions?authtoken=my-super-secret-token"
         request.contentString shouldEqual """{"argString":"-callback-url 'http://somewhere/api/execution-traces/42' -product-name 'My\"Beautiful\"Project' -target 'a,b' -product-version \"the 042nd version\""}"""
-        val resp = Response(Status(statusMock))
-        resp.write(contentMock)
-        Future.value(resp)
+        Future.value(ConsumedResponse(Status(statusMock), Utf8(contentMock)))
       }
     }
 

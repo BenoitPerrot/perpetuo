@@ -5,7 +5,7 @@ import java.net.URL
 import com.criteo.perpetuo.TestHelpers
 import com.twitter.conversions.time._
 import com.twitter.finagle.NoBrokersAvailableException
-import com.twitter.finagle.http.{Request, RequestBuilder, Response}
+import com.twitter.finagle.http.{Request, RequestBuilder}
 import com.twitter.finatra.http.routing.HttpRouter
 import com.twitter.finatra.http.{Controller, EmbeddedHttpServer, HttpServer}
 import com.twitter.io.Buf
@@ -52,7 +52,7 @@ class SingleNodeHttpClientBuilderSpec extends TestHelpers {
 
   private def post(body: String) = RequestBuilder().url(url("/api/resources")).buildPost(Buf.Utf8(body))
 
-  private def shouldRetry(f: => Future[Response]) = {
+  private def shouldRetry(f: => Future[ConsumedResponse]) = {
     val start = System.currentTimeMillis
     val response = Await.result(f, safePeriod * 3)
     val elapsed = System.currentTimeMillis - start
@@ -60,7 +60,7 @@ class SingleNodeHttpClientBuilderSpec extends TestHelpers {
     response.status.code
   }
 
-  private def shouldNotRetry(f: => Future[Response]) = {
+  private def shouldNotRetry(f: => Future[ConsumedResponse]) = {
     Await.result(f, safePeriod).status.code
   }
 

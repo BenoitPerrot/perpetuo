@@ -2,7 +2,7 @@ package com.criteo.perpetuo.engine.executors
 
 import com.criteo.perpetuo.config.AppConfigProvider
 import com.criteo.perpetuo.config.ConfigSyntacticSugar._
-import com.criteo.perpetuo.util.{SingleNodeHttpClientBuilder, TransportSecurity}
+import com.criteo.perpetuo.util.{ConsumedResponse, SingleNodeHttpClientBuilder, TransportSecurity}
 import com.twitter.conversions.time._
 import com.twitter.finagle.http.Status.{NotFound, Ok}
 import com.twitter.finagle.http._
@@ -31,10 +31,10 @@ class RundeckClient(val host: String) {
     .setHeader(HttpHeaders.Accept, Message.ContentTypeJson)
 
   private val clientBuilder = new SingleNodeHttpClientBuilder(host, port, transportSecurity)
-  protected val client: Request => Future[Response] = clientBuilder.build(requestTimeout)
-  protected val clientForIdempotentRequests: Request => Future[Response] = clientBuilder.build(requestTimeout, areRequestsIdempotent = true)
+  protected val client: Request => Future[ConsumedResponse] = clientBuilder.build(requestTimeout)
+  protected val clientForIdempotentRequests: Request => Future[ConsumedResponse] = clientBuilder.build(requestTimeout, areRequestsIdempotent = true)
 
-  private def post(apiSubPath: String, body: Option[JsValue] = None, isIdempotent: Boolean = false): Future[Response] = {
+  private def post(apiSubPath: String, body: Option[JsValue] = None, isIdempotent: Boolean = false): Future[ConsumedResponse] = {
     val cl = if (isIdempotent) clientForIdempotentRequests else client
     val req = clientBuilder
       .createRequest(apiSubPath, jsonRequestBuilder)
@@ -48,7 +48,7 @@ class RundeckClient(val host: String) {
     if (q.nonEmpty) s"$path?${q.map { case (k, v) => s"$k=$v" }.mkString("&")}" else path
   }
 
-  def startJob(jobName: String, parameters: Map[String, String] = Map()): Future[Response] = {
+  def startJob(jobName: String, parameters: Map[String, String] = Map()): Future[ConsumedResponse] = {
     // Rundeck before API version 18 does not support invocation with structured arguments
     val body = JsObject(
       "argString" -> JsString(parameters.toStream
@@ -76,7 +76,7 @@ class RundeckClient(val host: String) {
         case NotFound =>
           Future.value(RundeckJobState.notFound)
         case Ok =>
-          val body = resp.contentString.parseJson.asJsObject
+          val body = resp.contentJson.asJsObject
           body match {
             case s if !isJobRunning(s) => Future.value(RundeckJobState.terminated)
             case s if isAbortFailed(s) => Future.exception(new RuntimeException(body.fields("abort").asJsObject.fields("reason").asInstanceOf[JsString].value))
@@ -92,7 +92,7 @@ class RundeckClient(val host: String) {
     post(apiPath(s"execution/$jobId/output/state", Map("stateOnly" -> "true")), isIdempotent = true).map(resp =>
       resp.status match {
         case NotFound => RundeckJobState.notFound
-        case Ok if isJobCompleted(resp.contentString.parseJson.asJsObject) => RundeckJobState.terminated
+        case Ok if isJobCompleted(resp.contentJson.asJsObject) => RundeckJobState.terminated
         case Ok => RundeckJobState.running
         case error => throw new RuntimeException(s"Rundeck error (${error.code}): ${error.reason}")
         // todo: return a status and a reason from the stopper
