@@ -16,17 +16,17 @@ import spray.json._
 
 /** Build an HTTP client for a basic usage of an HTTP API hosted on a single node */
 class SingleNodeHttpClientBuilder(hostName: String, port: Option[Int] = None, security: Option[TransportSecurity.Value] = None) extends Logging {
-  private val resolvedSecurity = security.getOrElse(if (port.contains(443)) TransportSecurity.Ssl else TransportSecurity.NoSsl)
+  private val actualSecurity = security.getOrElse(if (port.contains(443)) TransportSecurity.Ssl else TransportSecurity.NoSsl)
   private val (protocol, dest) = {
-    val (protocol, resolvedPort) = if (resolvedSecurity == TransportSecurity.NoSsl)
+    val (protocol, actualPort) = if (actualSecurity == TransportSecurity.NoSsl)
       ("http", port.getOrElse(80))
     else
       ("https", port.getOrElse(443))
-    (protocol, s"$hostName:$resolvedPort")
+    (protocol, s"$hostName:$actualPort")
   }
 
   private val serviceBuilder: Http.Client = {
-    val sb = resolvedSecurity match {
+    val sb = actualSecurity match {
       case TransportSecurity.NoSsl => Http.client
       case TransportSecurity.SslNoCertificate => Http.client.withTlsWithoutValidation
       case TransportSecurity.Ssl => Http.client.withTls(hostName)
