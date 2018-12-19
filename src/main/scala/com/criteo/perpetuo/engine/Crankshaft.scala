@@ -89,62 +89,66 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
       )
       .map { case (outdatingId, (_, deploymentPlanSteps, effects)) =>
         assert(deploymentPlanSteps.nonEmpty)
-        val sortedEffects = effects.sortBy(-_.operationTrace.id)
-
-        if (deploymentRequest.state.contains(DeploymentRequestState.abandoned))
-          Abandoned(deploymentRequest, deploymentPlanSteps, sortedEffects, outdatingId)
-        else {
-          val idToDeploymentPlanStep = deploymentPlanSteps.map(planStep => planStep.id -> planStep).toMap
-
-          sortedEffects.headOption
-            .map { latestEffect =>
-              latestEffect.operationTrace.kind match {
-                case Operation.revert =>
-                  latestEffect.state match {
-                    case OperationEffectState.inProgress =>
-                      RevertInProgress(deploymentRequest, deploymentPlanSteps, sortedEffects, latestEffect, outdatingId)
-
-                    case OperationEffectState.succeeded =>
-                      Reverted(deploymentRequest, deploymentPlanSteps, sortedEffects, outdatingId)
-
-                    case OperationEffectState.failed | OperationEffectState.flopped =>
-                      RevertFailed(deploymentRequest, deploymentPlanSteps, sortedEffects, latestEffect.deploymentPlanStepIds.flatMap(idToDeploymentPlanStep.get), outdatingId)
-                  }
-
-                case Operation.deploy =>
-                  assert(latestEffect.deploymentPlanStepIds.size == 1)
-                  val latestOperatedPlanStep = idToDeploymentPlanStep(latestEffect.deploymentPlanStepIds.head)
-                  val operatedPlanSteps = sortedEffects.flatMap(_.deploymentPlanStepIds).distinct.flatMap(idToDeploymentPlanStep.get)
-                  latestEffect.state match {
-                    case OperationEffectState.inProgress =>
-                      DeployInProgress(deploymentRequest, deploymentPlanSteps, sortedEffects, latestEffect, outdatingId)
-
-                    case OperationEffectState.succeeded =>
-                      findNextPlanStep(deploymentPlanSteps, latestOperatedPlanStep.id)
-                        .map(
-                          Paused(deploymentRequest, deploymentPlanSteps, sortedEffects, _, latestOperatedPlanStep, operatedPlanSteps, outdatingId)
-                        )
-                        .getOrElse(
-                          Deployed(deploymentRequest, deploymentPlanSteps, sortedEffects, operatedPlanSteps, outdatingId)
-                        )
-
-                    case OperationEffectState.failed | OperationEffectState.flopped =>
-                      sortedEffects
-                        .find(_.targetStatuses.exists(_.code != Status.notDone))
-                        .map(_ =>
-                          DeployFailed(deploymentRequest, deploymentPlanSteps, sortedEffects, latestOperatedPlanStep, operatedPlanSteps, outdatingId)
-                        )
-                        .getOrElse(
-                          DeployFlopped(deploymentRequest, deploymentPlanSteps, sortedEffects, latestOperatedPlanStep, outdatingId)
-                        )
-                  }
-              }
-            }
-            .getOrElse(
-              NotStarted(deploymentRequest, deploymentPlanSteps, sortedEffects, deploymentPlanSteps.head, outdatingId)
-            )
-        }
+        computeDeploymentState(deploymentRequest, deploymentPlanSteps, effects, outdatingId)
       }
+
+  def computeDeploymentState(deploymentRequest: DeploymentRequest, deploymentPlanSteps: Seq[DeploymentPlanStep], effects: Stream[OperationEffect], outdatingId: Option[Long] = None): DeploymentState = {
+    val sortedEffects = effects.sortBy(-_.operationTrace.id)
+    if (deploymentRequest.state.contains(DeploymentRequestState.abandoned)) {
+      Abandoned(deploymentRequest, deploymentPlanSteps, effects, outdatingId)
+    } else {
+      val idToDeploymentPlanStep = deploymentPlanSteps.map(planStep => planStep.id -> planStep).toMap
+
+      sortedEffects.headOption
+        .map { latestEffect =>
+          val state = OperationEffectState.from(latestEffect.operationTrace.closingDate.isEmpty, latestEffect.executionTraces.map(_.state), latestEffect.targetStatuses.map(_.code))
+          latestEffect.operationTrace.kind match {
+            case Operation.revert =>
+              state match {
+                case OperationEffectState.inProgress =>
+                  RevertInProgress(deploymentRequest, deploymentPlanSteps, sortedEffects, latestEffect, outdatingId)
+
+                case OperationEffectState.succeeded =>
+                  Reverted(deploymentRequest, deploymentPlanSteps, sortedEffects, outdatingId)
+
+                case OperationEffectState.failed | OperationEffectState.flopped =>
+                  RevertFailed(deploymentRequest, deploymentPlanSteps, sortedEffects, latestEffect.deploymentPlanStepIds.flatMap(idToDeploymentPlanStep.get), outdatingId)
+              }
+
+            case Operation.deploy =>
+              assert(latestEffect.deploymentPlanStepIds.size == 1)
+              val latestOperatedPlanStep = idToDeploymentPlanStep(latestEffect.deploymentPlanStepIds.head)
+              val operatedPlanSteps = sortedEffects.flatMap(_.deploymentPlanStepIds).distinct.flatMap(idToDeploymentPlanStep.get)
+              state match {
+                case OperationEffectState.inProgress =>
+                  DeployInProgress(deploymentRequest, deploymentPlanSteps, sortedEffects, latestEffect, outdatingId)
+
+                case OperationEffectState.succeeded =>
+                  findNextPlanStep(deploymentPlanSteps, latestOperatedPlanStep.id)
+                    .map(
+                      Paused(deploymentRequest, deploymentPlanSteps, sortedEffects, _, latestOperatedPlanStep, operatedPlanSteps, outdatingId)
+                    )
+                    .getOrElse(
+                      Deployed(deploymentRequest, deploymentPlanSteps, sortedEffects, operatedPlanSteps, outdatingId)
+                    )
+
+                case OperationEffectState.failed | OperationEffectState.flopped =>
+                  sortedEffects
+                    .find(_.targetStatuses.exists(_.code != Status.notDone))
+                    .map(_ =>
+                      DeployFailed(deploymentRequest, deploymentPlanSteps, sortedEffects, latestOperatedPlanStep, operatedPlanSteps, outdatingId)
+                    )
+                    .getOrElse(
+                      DeployFlopped(deploymentRequest, deploymentPlanSteps, sortedEffects, latestOperatedPlanStep, outdatingId)
+                    )
+              }
+          }
+        }
+        .getOrElse(
+          NotStarted(deploymentRequest, deploymentPlanSteps, sortedEffects, deploymentPlanSteps.head, outdatingId)
+        )
+    }
+  }
 
   def assessDeploymentState(deploymentRequest: DeploymentRequest): Future[DeploymentState] =
     dbBinding.dbContext.db.run(assessingDeploymentState(deploymentRequest))
