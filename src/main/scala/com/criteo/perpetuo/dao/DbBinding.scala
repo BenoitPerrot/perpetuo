@@ -335,7 +335,7 @@ class DbBinding @Inject()(val dbContext: DbContext)
       .map(_.collectFirst { case (targetAtom, actionable) if !actionable => targetAtom.toModel })
   }
 
-  def gettingOperationEffect(operationTrace: OperationTrace): DBIOAction[(Seq[Long], OperationEffect), NoStream, Effect.Read] =
+  def gettingOperationEffect(operationTrace: OperationTrace): DBIOAction[(Seq[DeploymentPlanStep], OperationEffect), NoStream, Effect.Read] =
     executionQuery
       .joinLeft(executionTraceQuery)
       .filter { case (execution, executionTrace) =>
@@ -364,12 +364,14 @@ class DbBinding @Inject()(val dbContext: DbContext)
           .on { case ((_, step), xref) => xref.deploymentPlanStepId === step.id && xref.operationTraceId === operationTrace.id }
           .groupBy { case ((_, step), _) => step.id }
           .map { case (stepId, q) => (stepId, q.map { case (_, xref) => xref.map(_.operationTraceId) }.max.isDefined) }
+          .join(deploymentPlanStepQuery)
+          .filter { case ((stepId, _), planStep) => planStep.id === stepId }
           .result
 
           .map { result =>
-            val planStepIds = result.map { case (stepId, _) => stepId }
-            val impactedStepIds = result.collect { case (stepId, isImpacted) if isImpacted => stepId }
-            (planStepIds, OperationEffect(operationTrace, impactedStepIds, et, ts))
+            val planSteps = result.map { case (_, step) => step.toDeploymentPlanStep(operationTrace.deploymentRequest) }
+            val impactedStepIds = result.collect { case ((stepId, isImpacted), _) if isImpacted => stepId }
+            (planSteps, OperationEffect(operationTrace, impactedStepIds, et, ts))
           }
       }
 

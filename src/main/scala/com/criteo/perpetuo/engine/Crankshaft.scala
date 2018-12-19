@@ -218,24 +218,15 @@ class Crankshaft @Inject()(val appConfig: AppConfig,
       .flatMap { case (trace, updated) =>
         dbBinding
           .gettingOperationEffect(trace)
-          .map { case (deploymentPlanStepIds, effect) =>
-            val lastOperation = effect.operationTrace
-            val lastOperationState = OperationEffectState.from(lastOperation.closingDate.isEmpty, effect.executionTraces.map(_.state), effect.targetStatuses.map(_.code))
-            val isIncompleteSuccessfulDeploy = lastOperation.kind == Operation.deploy && lastOperationState == OperationEffectState.succeeded && effect.deploymentPlanStepIds.max < deploymentPlanStepIds.max
-            val isIncompleteRevert = lastOperation.kind == Operation.revert && deploymentPlanStepIds.min < effect.deploymentPlanStepIds.min
-            val isPaused = isIncompleteSuccessfulDeploy || isIncompleteRevert
-            if (isPaused)
-              (None, true)
-            else
-              (
-                if (operationTrace.kind == Operation.revert || lastOperationState == OperationEffectState.flopped)
-                  Some(false)
-                else if (lastOperationState == OperationEffectState.succeeded)
-                  Some(true)
-                else
-                  None,
-                lastOperationState == OperationEffectState.succeeded
-              )
+          .map { case (deploymentPlanSteps, effect) =>
+            computeDeploymentState(effect.operationTrace.deploymentRequest, deploymentPlanSteps, Stream(effect)) match {
+              case _: Paused => (None, true)
+              case _: Deployed => (Some(true), true)
+              case _: DeployFlopped | _: RevertFailed | _: RevertInProgress => (Some(false), false)
+              case _: Reverted => (Some(false), true)
+              case _: DeployFailed => (None, false)
+              case s => throw new IllegalStateException(s"Unexpected $updated state $s while closing ${effect.operationTrace.kind} operation")
+            }
           }
           .flatMap { case (transactionFinalSuccess, operationSucceeded) =>
             dbBinding.closingTargetStatuses(trace.id)
