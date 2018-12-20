@@ -2,7 +2,7 @@ package com.criteo.perpetuo.app
 
 import com.criteo.perpetuo.TestDb
 import com.criteo.perpetuo.auth.{User, UserFilter}
-import com.criteo.perpetuo.config.AppConfigProvider
+import com.criteo.perpetuo.config.AppConfig
 import com.criteo.perpetuo.model.{ExecutionState, ProtoDeploymentPlanStep, ProtoDeploymentRequest, Version}
 import com.twitter.finagle.http.Status._
 import com.twitter.finagle.http.{Request, Response, Status}
@@ -65,7 +65,7 @@ class RestControllerSpec extends Test with TestDb {
            |  }
            |}
            |""".stripMargin)
-      .withFallback(AppConfigProvider.config)
+      .withFallback(AppConfig.config)
       .resolve()
 
   private val authModule = new AuthModule(config.getConfig("auth"))

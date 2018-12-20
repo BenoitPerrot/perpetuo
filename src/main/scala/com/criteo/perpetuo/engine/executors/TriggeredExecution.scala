@@ -1,6 +1,6 @@
 package com.criteo.perpetuo.engine.executors
 
-import com.criteo.perpetuo.config.{AppConfigProvider, PluginLoader}
+import com.criteo.perpetuo.config.{AppConfig, PluginLoader}
 import com.criteo.perpetuo.model.ExecutionState.ExecutionState
 import com.criteo.perpetuo.model.ShallowExecutionTrace
 import com.typesafe.config.ConfigUtil
@@ -52,7 +52,7 @@ class TriggeredExecutionFinder @Inject()(loader: PluginLoader) {
     executionTrace.href
       .map { href =>
         val executionFactoryConfig = try
-          AppConfigProvider.executorsConfig.getConfig(ConfigUtil.joinPath(executionTrace.executorType, "executionFactory"))
+          AppConfig.executorsConfig.getConfig(ConfigUtil.joinPath(executionTrace.executorType, "executionFactory"))
         catch // catch bad configuration path as well as missing configuration
           throwWithCause(s"Could not find an execution configuration for the type `${executionTrace.executorType}`")
 

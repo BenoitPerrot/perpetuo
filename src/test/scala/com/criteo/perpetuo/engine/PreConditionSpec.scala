@@ -2,7 +2,7 @@ package com.criteo.perpetuo.engine
 
 import com.criteo.perpetuo.SimpleScenarioTesting
 import com.criteo.perpetuo.auth.User
-import com.criteo.perpetuo.config.AppConfigProvider
+import com.criteo.perpetuo.config.AppConfig
 import com.criteo.perpetuo.model.{ProtoDeploymentPlanStep, ProtoDeploymentRequest, Version}
 import com.typesafe.config.{Config, ConfigFactory}
 import spray.json.JsString
@@ -46,7 +46,7 @@ class PreConditionSpec extends SimpleScenarioTesting {
            |  }
            |]
            |""".stripMargin)
-      .withFallback(AppConfigProvider.config)
+      .withFallback(AppConfig.config)
       .resolve()
 
   val stdUser = new User("s.omeone", Set("Users"))

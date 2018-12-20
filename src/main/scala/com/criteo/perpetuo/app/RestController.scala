@@ -2,7 +2,7 @@ package com.criteo.perpetuo.app
 
 import com.criteo.perpetuo.auth.UserFilter._
 import com.criteo.perpetuo.auth.{Authenticator, User}
-import com.criteo.perpetuo.config.AppConfigProvider
+import com.criteo.perpetuo.config.AppConfig
 import com.criteo.perpetuo.engine.{DeploymentState, Engine}
 import com.criteo.perpetuo.model._
 import com.twitter.finagle.http.Request
@@ -331,7 +331,7 @@ class RestController @Inject()(val engine: Engine)
 
 object RestApi {
   val perpetuoVersion: String = Source.fromInputStream(getClass.getResourceAsStream("/version")).mkString
-  val selfUrl: String = AppConfigProvider.config.getString("selfUrl")
+  val selfUrl: String = AppConfig.config.getString("selfUrl")
 
   def executionCallbackPath(execTraceId: String): String = s"/api/execution-traces/$execTraceId"
 

@@ -2,7 +2,7 @@ package com.criteo.perpetuo.engine.executors
 
 import java.net.{InetSocketAddress, URL, URLEncoder}
 
-import com.criteo.perpetuo.config.AppConfigProvider
+import com.criteo.perpetuo.config.AppConfig
 import com.criteo.perpetuo.config.ConfigSyntacticSugar._
 import com.twitter.conversions.time._
 import com.twitter.finagle.Http.Client
@@ -16,7 +16,7 @@ import com.twitter.util.{Duration, Future, Try}
 
 
 class JenkinsClient(val host: String) extends Logging {
-  val config = AppConfigProvider.executorConfig("jenkins")
+  val config = AppConfig.executorConfig("jenkins")
   val port: Int = config.getIntOrElse("port", 80)
 
   // Username and Apitoken of the Jenkins user used to authenticate to Jenkins server

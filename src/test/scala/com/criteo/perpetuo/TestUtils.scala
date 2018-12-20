@@ -3,7 +3,7 @@ package com.criteo.perpetuo
 import java.util.concurrent.atomic.AtomicLong
 
 import com.criteo.perpetuo.auth.{Unrestricted, User}
-import com.criteo.perpetuo.config.{AppConfigProvider, EngineProxy, PluginLoader, Plugins}
+import com.criteo.perpetuo.config.{AppConfig, EngineProxy, PluginLoader, Plugins}
 import com.criteo.perpetuo.dao.{DbBinding, DbContext, DbContextProvider, TestingDbContextModule}
 import com.criteo.perpetuo.engine._
 import com.criteo.perpetuo.engine.dispatchers.{SingleTargetDispatcher, TargetDispatcher}
@@ -28,7 +28,7 @@ import scala.reflect.ClassTag
 
 
 trait TestDb extends DbContextProvider {
-  lazy val dbTestModule = new TestingDbContextModule(AppConfigProvider.config.getConfig("db"))
+  lazy val dbTestModule = new TestingDbContextModule(AppConfig.config.getConfig("db"))
   lazy val dbContext: DbContext = dbTestModule.providesDbContext
   lazy val dbBinding = new DbBinding(dbContext)
 }
@@ -74,7 +74,7 @@ trait SimpleScenarioTesting extends TestHelpers with TestDb with MockitoSugar {
   }))
   private val executionTrigger: ExecutionTrigger = mock[ExecutionTrigger]
   when(executionTrigger.executorType).thenReturn("testing")
-  def config: Config = AppConfigProvider.config
+  def config: Config = AppConfig.config
   val plugins = new Plugins(loader, config)
   val executionFinder = new TriggeredExecutionFinder(loader)
 

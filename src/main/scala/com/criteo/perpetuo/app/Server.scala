@@ -1,7 +1,7 @@
 package com.criteo.perpetuo.app
 
 import com.criteo.perpetuo.auth.{IdentifyingController, LocalUsersRetrievingController, Controller => AuthenticationController}
-import com.criteo.perpetuo.config.AppConfigProvider
+import com.criteo.perpetuo.config.AppConfig
 import com.criteo.perpetuo.config.ConfigSyntacticSugar._
 import com.criteo.perpetuo.metrics
 import com.samstarling.prometheusfinagle.PrometheusStatsReceiver
@@ -24,7 +24,7 @@ object CustomServerModules {
 }
 
 trait ServerConfigurator {
-  val config: Config = AppConfigProvider.config
+  val config: Config = AppConfig.config
 
   config.tryGetString("log4j.configurationFile").foreach(
     System.setProperty("log4j.configurationFile", _)
