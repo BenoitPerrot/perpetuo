@@ -60,18 +60,27 @@ trait OperationTraceBinder extends TableBinder {
   def countingOperationTraces(deploymentRequest: DeploymentRequest): FixedSqlAction[Int, dbContext.profile.api.NoStream, Effect.Read] =
     operationTraceQuery.filter(_.deploymentRequestId === deploymentRequest.id).length.result
 
-  def closingOperationTrace(operationTrace: OperationTrace): DBIOAction[Option[OperationTrace], NoStream, Effect.Write] = {
+  def closingOperationTrace(operationTrace: OperationTrace): DBIOAction[(OperationTrace, Boolean), NoStream, Effect.Read with Effect.Write] = {
     val now = Some(new java.sql.Timestamp(System.currentTimeMillis))
     operationTraceQuery
       .filter(op => op.id === operationTrace.id && op.startingDate.nonEmpty && op.closingDate.isEmpty)
       .map(_.closingDate)
       .update(now)
-      .map(count => {
+      .flatMap { count =>
         assert(count <= 1)
-        if (count == 1)
-          Some(OperationTrace(operationTrace.id, operationTrace.deploymentRequest, operationTrace.kind, operationTrace.creator, operationTrace.creationDate, closingDate = now))
-        else
-          None
-      })
+        if (count == 1) {
+          // update the operation trace with the new end date
+          val newOp = OperationTrace(operationTrace.id, operationTrace.deploymentRequest, operationTrace.kind, operationTrace.creator, operationTrace.creationDate, closingDate = now)
+          DBIO.successful((newOp, true))
+        }
+        else {
+          // get the right operation trace, since it looks like ours is outdated
+          operationTraceQuery
+            .filter(_.id === operationTrace.id)
+            .result
+            .head // it's OK to fail if it doesn't exist
+            .map(o => (o.toOperationTrace(operationTrace.deploymentRequest), false))
+        }
+      }
   }
 }

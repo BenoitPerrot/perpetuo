@@ -19,8 +19,8 @@ class CrankshaftSpec extends SimpleScenarioTesting {
   private def hasOpenExecutionTracesForOperation(operationTraceId: Long) =
     dbContext.db.run(crankshaft.dbBinding.hasOpenExecutionTracesForOperation(operationTraceId))
 
-  private def closeOperationTrace(operationTrace: OperationTrace): Future[Option[OperationTrace]] =
-    dbContext.db.run(crankshaft.dbBinding.closingOperationTrace(operationTrace))
+  private def closeOperationTrace(operationTrace: OperationTrace): Future[Boolean] =
+    dbContext.db.run(crankshaft.dbBinding.closingOperationTrace(operationTrace)).map { case (_, updated) => updated }
 
   test("A trivial execution triggers a job with no href when there is no href provided") {
     await(
@@ -50,11 +50,11 @@ class CrankshaftSpec extends SimpleScenarioTesting {
         hasOpenExecutionBefore <- hasOpenExecutionTracesForOperation(operationTrace.id)
         _ <- closeOperation(operationTrace, Map("moon" -> Status.success, "mars" -> Status.hostFailure))
         hasOpenExecutionAfter <- hasOpenExecutionTracesForOperation(operationTrace.id)
-        operationReClosingSucceeded <- closeOperationTrace(operationTrace)
+        operationUpdatedOnSecondClose <- closeOperationTrace(operationTrace)
       } yield {
         hasOpenExecutionBefore shouldBe true
         hasOpenExecutionAfter shouldBe false
-        operationReClosingSucceeded shouldNot be(defined)
+        operationUpdatedOnSecondClose shouldBe false
       }
     )
   }
@@ -306,7 +306,7 @@ class CrankshaftSpec extends SimpleScenarioTesting {
         secondExecutionTraces <- closeOperation(retriedOperation, Map("moon" -> Status.success, "mars" -> Status.success))
         alreadyInitiatedOperation <- step(deploymentRequest, Some(1), "b.lightning")
         hasOpenExecutionAfter <- hasOpenExecutionTracesForOperation(retriedOperation.id)
-        operationReClosingSucceeded <- closeOperationTrace(retriedOperation)
+        operationUpdatedOnSecondClose <- closeOperationTrace(retriedOperation)
         initialExecutionSpecIds <- crankshaft.dbBinding.findExecutionSpecIdsByOperationTrace(operationTrace.id)
         retriedExecutionSpecIds <- crankshaft.dbBinding.findExecutionSpecIdsByOperationTrace(retriedOperation.id)
       } yield {
@@ -315,7 +315,7 @@ class CrankshaftSpec extends SimpleScenarioTesting {
         firstExecutionTraces.intersect(secondExecutionTraces).length shouldEqual 0
         retriedOperation.id == operationTrace.id shouldBe false
         hasOpenExecutionAfter shouldBe false
-        operationReClosingSucceeded.isDefined shouldBe false
+        operationUpdatedOnSecondClose shouldBe false
         initialExecutionSpecIds.length == retriedExecutionSpecIds.length shouldBe true
         initialExecutionSpecIds == retriedExecutionSpecIds shouldBe true
         alreadyInitiatedOperation.id shouldBe retriedOperation.id

@@ -11,8 +11,8 @@ import scala.concurrent.Future
 
 
 class EngineSpec extends SimpleScenarioTesting {
-  private def closeOperationTrace(operationTrace: OperationTrace): Future[Option[OperationTrace]] =
-    dbContext.db.run(dbBinding.closingOperationTrace(operationTrace))
+  private def closeOperationTrace(operationTrace: OperationTrace): Future[Boolean] =
+    dbContext.db.run(dbBinding.closingOperationTrace(operationTrace)).map { case (_, updated) => updated }
 
   private val someone = User("s.omeone")
   private val starter = User("s.tarter")
@@ -96,12 +96,13 @@ class EngineSpec extends SimpleScenarioTesting {
         err <- engine.abandon(starter, depReq.id).failed
         depReq <- engine.crankshaft.findDeploymentRequestById(depReq.id).map(_.get)
         finalState <- engine.crankshaft.assessDeploymentState(depReq)
-        _ <- closeOperationTrace(operationTrace)
+        updatedOnClose <- closeOperationTrace(operationTrace)
       } yield {
         notStarted shouldBe a[NotStarted]
         inProgress shouldBe a[DeployInProgress]
         err shouldBe a[OperationLockAlreadyTaken]
         finalState shouldBe a[DeployInProgress]
+        updatedOnClose shouldBe true
       }
     )
   }

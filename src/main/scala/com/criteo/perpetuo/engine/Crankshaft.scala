@@ -215,7 +215,6 @@ class Crankshaft @Inject()(val appConfig: AppConfig,
 
   private def closingOperation(operationTrace: OperationTrace): DBIOAction[(OperationTrace, Boolean), NoStream, Effect.Read with Effect.Write with Effect.Transactional] =
     dbBinding.closingOperationTrace(operationTrace)
-      .map(_.map((_, true)).getOrElse((operationTrace, false)))
       .flatMap { case (trace, updated) =>
         dbBinding
           .gettingOperationEffect(trace)
