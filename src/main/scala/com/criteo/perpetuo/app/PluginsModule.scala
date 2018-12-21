@@ -7,7 +7,6 @@ import com.criteo.perpetuo.engine.resolvers.TargetResolver
 import com.criteo.perpetuo.engine.{AsyncListener, AsyncPreConditionEvaluator}
 import com.google.inject.{Provides, Singleton}
 import com.twitter.inject.TwitterModule
-import com.typesafe.config.Config
 
 
 class PluginsModule(appConfig: AppConfig) extends TwitterModule {
@@ -35,10 +34,6 @@ class PluginsModule(appConfig: AppConfig) extends TwitterModule {
   @Singleton
   @Provides
   def providesPreConditionEvaluators(plugins: Plugins): Seq[AsyncPreConditionEvaluator] = plugins.preConditionEvaluators
-
-  @Singleton
-  @Provides
-  def providesConfig: Config = appConfig.config
 
   @Singleton
   @Provides

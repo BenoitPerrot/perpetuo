@@ -9,7 +9,6 @@ import com.twitter.finatra.http.filters.{CommonFilters, LoggingMDCFilter, TraceI
 import com.twitter.finatra.http.routing.HttpRouter
 import com.twitter.finatra.http.{EmbeddedHttpServer, HttpServer}
 import com.twitter.inject.{Test, TwitterModule}
-import com.typesafe.config.Config
 
 
 /**
@@ -34,10 +33,6 @@ class ControllerSpec extends Test {
         @Singleton
         @Provides
         def providesPermissions: Permissions = Unrestricted
-
-        @Singleton
-        @Provides
-        def providesConfig: Config = AppConfig.config
 
         @Singleton
         @Provides
