@@ -1,12 +1,12 @@
 package com.criteo.perpetuo.engine
 
 import com.criteo.perpetuo.auth.{DeploymentAction, GeneralAction, Permissions, User}
+import com.criteo.perpetuo.config.AppConfig
 import com.criteo.perpetuo.model.ExecutionState.ExecutionState
 import com.criteo.perpetuo.model._
 import com.criteo.perpetuo.util.FutureLoadingCache
 import com.google.common.base.Ticker
 import com.google.common.cache.{CacheBuilder, CacheLoader}
-import com.typesafe.config.Config
 import javax.inject.{Inject, Singleton}
 import slick.dbio.DBIOAction
 
@@ -22,7 +22,7 @@ case class PermissionDenied() extends RuntimeException("permission denied")
 case class PreConditionFailed(errors: Seq[String]) extends RuntimeException((Seq("Some pre-conditions failed :") ++ errors).mkString("\n"))
 
 @Singleton
-class Engine @Inject()(val config: Config,
+class Engine @Inject()(val appConfig: AppConfig,
                        val crankshaft: Crankshaft,
                        val permissions: Permissions,
                        val preConditionEvaluators: Seq[AsyncPreConditionEvaluator]) {
@@ -60,7 +60,7 @@ class Engine @Inject()(val config: Config,
   }
 
   protected val stateExpirationTime: FiniteDuration = Duration(
-    config.getLong("engine.cache.stateExpirationTimeInMs"),
+    appConfig.config.getLong("engine.cache.stateExpirationTimeInMs"),
     MILLISECONDS
   )
   protected val ticker: Ticker = Ticker.systemTicker()
