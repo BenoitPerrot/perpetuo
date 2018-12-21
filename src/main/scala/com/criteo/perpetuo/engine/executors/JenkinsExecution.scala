@@ -6,9 +6,10 @@ import com.criteo.perpetuo.config.AppConfig
 import com.criteo.perpetuo.model.ExecutionState
 import com.criteo.perpetuo.model.ExecutionState.ExecutionState
 import com.twitter.util.{Await, Future}
+import com.typesafe.config.Config
 
 
-class JenkinsExecution(val href: String) extends TriggeredExecution {
+class JenkinsExecution(config: Config, val href: String) extends TriggeredExecution {
   val (host, jobName, buildId) = {
     val matcher = JenkinsExecution.hrefPattern.matcher(href)
     if (!matcher.matches())
@@ -17,7 +18,7 @@ class JenkinsExecution(val href: String) extends TriggeredExecution {
     (matcher.group(1), matcher.group(3), matcher.group(4))
   }
 
-  protected val client: JenkinsClient = new JenkinsClient(AppConfig.executorConfig("jenkins"), host)
+  protected val client: JenkinsClient = new JenkinsClient(config, host)
 
   private def abortJob(jobName: String, jobId: String): Future[Option[ExecutionState]] =
     client.abortJob(jobName, jobId).map {
@@ -30,9 +31,9 @@ class JenkinsExecution(val href: String) extends TriggeredExecution {
   )
 }
 
-class JenkinsExecutionFactory extends TriggeredExecutionFactory {
+class JenkinsExecutionFactory(appConfig: AppConfig) extends TriggeredExecutionFactory {
   def apply(href: String): JenkinsExecution =
-    new JenkinsExecution(href)
+    new JenkinsExecution(appConfig.executorConfig("jenkins"), href)
 }
 
 private object JenkinsExecution {
