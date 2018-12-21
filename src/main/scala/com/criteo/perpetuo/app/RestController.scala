@@ -331,9 +331,8 @@ class RestController @Inject()(val engine: Engine)
 
 object RestApi {
   val perpetuoVersion: String = Source.fromInputStream(getClass.getResourceAsStream("/version")).mkString
-  val selfUrl: String = AppConfig.config.getString("selfUrl")
 
   def executionCallbackPath(execTraceId: String): String = s"/api/execution-traces/$execTraceId"
 
-  def executionCallbackUrl(execTraceId: Long): String = selfUrl + executionCallbackPath(execTraceId.toString)
+  def executionCallbackUrl(execTraceId: Long): String = AppConfig.selfUrl + executionCallbackPath(execTraceId.toString)
 }
