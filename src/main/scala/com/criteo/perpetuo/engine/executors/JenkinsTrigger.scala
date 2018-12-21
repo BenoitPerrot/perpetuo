@@ -1,6 +1,7 @@
 package com.criteo.perpetuo.engine.executors
 
 import com.criteo.perpetuo.app.RestApi
+import com.criteo.perpetuo.config.AppConfig
 import com.criteo.perpetuo.engine.TargetAtomSet
 import com.criteo.perpetuo.model.Version
 import com.twitter.conversions.time._
@@ -17,7 +18,7 @@ class JenkinsTrigger(name: String,
 
   override def toString: String = s"$name (job: $jobName)"
 
-  protected val client: JenkinsClient = new JenkinsClient(host)
+  protected val client: JenkinsClient = new JenkinsClient(AppConfig.executorConfig("jenkins"), host)
   private val requestTimeout = 20.seconds
 
   /**

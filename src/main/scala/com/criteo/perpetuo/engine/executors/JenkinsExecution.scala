@@ -2,6 +2,7 @@ package com.criteo.perpetuo.engine.executors
 
 import java.util.regex.Pattern
 
+import com.criteo.perpetuo.config.AppConfig
 import com.criteo.perpetuo.model.ExecutionState
 import com.criteo.perpetuo.model.ExecutionState.ExecutionState
 import com.twitter.util.{Await, Future}
@@ -16,7 +17,7 @@ class JenkinsExecution(val href: String) extends TriggeredExecution {
     (matcher.group(1), matcher.group(3), matcher.group(4))
   }
 
-  protected val client: JenkinsClient = new JenkinsClient(host)
+  protected val client: JenkinsClient = new JenkinsClient(AppConfig.executorConfig("jenkins"), host)
 
   private def abortJob(jobName: String, jobId: String): Future[Option[ExecutionState]] =
     client.abortJob(jobName, jobId).map {
