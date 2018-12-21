@@ -1,5 +1,6 @@
 package com.criteo.perpetuo.engine
 
+import com.criteo.perpetuo.config.AppConfig
 import com.criteo.perpetuo.engine.executors._
 import com.criteo.perpetuo.engine.resolvers.TargetResolver
 import com.criteo.perpetuo.model._
@@ -607,7 +608,7 @@ class CrankshaftWithStopperSpec extends SimpleScenarioTesting {
   private val executionMock = mock[TriggeredExecution]
   when(executionMock.href).thenReturn(href)
 
-  override val executionFinder: TriggeredExecutionFinder = new TriggeredExecutionFinder(null) {
+  override val executionFinder: TriggeredExecutionFinder = new TriggeredExecutionFinder(AppConfig, null) {
     override def apply[T](executionTrace: ShallowExecutionTrace): TriggeredExecution =
       executionMock
   }
@@ -687,7 +688,7 @@ class CrankshaftWithUncontrollableTriggeredExecutionSpec extends SimpleScenarioT
 
   override protected def triggerMock = Some(href)
 
-  override val executionFinder: TriggeredExecutionFinder = new TriggeredExecutionFinder(null) {
+  override val executionFinder: TriggeredExecutionFinder = new TriggeredExecutionFinder(AppConfig, null) {
     override def apply[T](executionTrace: ShallowExecutionTrace): TriggeredExecution =
       new UncontrollableTriggeredExecution(href)
   }

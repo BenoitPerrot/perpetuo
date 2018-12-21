@@ -47,12 +47,12 @@ class UncontrollableTriggeredExecutionFactory extends TriggeredExecutionFactory 
   * @throws RuntimeException if not possible.
   */
 @Singleton
-class TriggeredExecutionFinder @Inject()(loader: PluginLoader) {
+class TriggeredExecutionFinder @Inject()(appConfig: AppConfig, loader: PluginLoader) {
   def apply[T](executionTrace: ShallowExecutionTrace): TriggeredExecution =
     executionTrace.href
       .map { href =>
         val executionFactoryConfig = try
-          AppConfig.executorsConfig.getConfig(ConfigUtil.joinPath(executionTrace.executorType, "executionFactory"))
+          appConfig.executorsConfig.getConfig(ConfigUtil.joinPath(executionTrace.executorType, "executionFactory"))
         catch // catch bad configuration path as well as missing configuration
           throwWithCause(s"Could not find an execution configuration for the type `${executionTrace.executorType}`")
 
