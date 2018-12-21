@@ -74,8 +74,8 @@ trait SimpleScenarioTesting extends TestHelpers with TestDb with MockitoSugar {
   }))
   private val executionTrigger: ExecutionTrigger = mock[ExecutionTrigger]
   when(executionTrigger.executorType).thenReturn("testing")
-  def config: Config = AppConfig.config
-  val plugins = new Plugins(loader, config)
+  def appConfig: AppConfig = AppConfig
+  val plugins = new Plugins(loader, appConfig.config)
   val executionFinder = new TriggeredExecutionFinder(loader)
 
   lazy val targetDispatcher: TargetDispatcher = new SingleTargetDispatcher(executionTrigger)
@@ -84,11 +84,11 @@ trait SimpleScenarioTesting extends TestHelpers with TestDb with MockitoSugar {
   lazy val crankshaft: Crankshaft = {
     when(executionTrigger.trigger(anyLong, anyString, any[Version], any[TargetAtomSet], anyString))
       .thenReturn(Future(triggerMock))
-    new Crankshaft(config, dbBinding, resolver, targetDispatcher, plugins.listeners, executionFinder)
+    new Crankshaft(appConfig.config, dbBinding, resolver, targetDispatcher, plugins.listeners, executionFinder)
   }
 
   protected val mockTicker = new MockTicker(1001.seconds)
-  protected lazy val engine: Engine = new Engine(config, crankshaft, plugins.permissions, plugins.preConditionEvaluators) {
+  protected lazy val engine: Engine = new Engine(appConfig.config, crankshaft, plugins.permissions, plugins.preConditionEvaluators) {
     override val stateExpirationTime: FiniteDuration = 1000.seconds // the goal is that no test actually depends on it
     override val ticker: Ticker = mockTicker // ... thanks to this mock
   }

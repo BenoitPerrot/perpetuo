@@ -4,50 +4,52 @@ import com.criteo.perpetuo.SimpleScenarioTesting
 import com.criteo.perpetuo.auth.User
 import com.criteo.perpetuo.config.AppConfig
 import com.criteo.perpetuo.model.{ProtoDeploymentPlanStep, ProtoDeploymentRequest, Version}
-import com.typesafe.config.{Config, ConfigFactory}
+import com.typesafe.config.ConfigFactory
 import spray.json.JsString
 
 import scala.concurrent.ExecutionContext.Implicits.global
 
 class PreConditionSpec extends SimpleScenarioTesting {
 
-  override def config: Config =
-    ConfigFactory
-      .parseString(
-        s"""
-           |permissions {
-           |  type = "fineGrained"
-           |  fineGrained {
-           |    perGeneralAction {
-           |      updateProduct = [
-           |        {
-           |          userNames = ["bob.the.producer"]
-           |        }
-           |      ]
-           |    }
-           |    perProduct = [
-           |      {
-           |        regex = ".*"
-           |        perAction {
-           |          requestOperation = [
-           |            {
-           |              groupNames = ["Users"]
-           |            }
-           |          ]
-           |        }
-           |      }
-           |    ]
-           |  }
-           |}
-           |preConditionEvaluators = [
-           |  {
-           |    type = "class"
-           |    class = "com.criteo.perpetuo.engine.preconditions.TestPreCondition"
-           |  }
-           |]
-           |""".stripMargin)
-      .withFallback(AppConfig.config)
-      .resolve()
+  override def appConfig: AppConfig =
+    new AppConfig(
+      ConfigFactory
+        .parseString(
+          s"""
+             |permissions {
+             |  type = "fineGrained"
+             |  fineGrained {
+             |    perGeneralAction {
+             |      updateProduct = [
+             |        {
+             |          userNames = ["bob.the.producer"]
+             |        }
+             |      ]
+             |    }
+             |    perProduct = [
+             |      {
+             |        regex = ".*"
+             |        perAction {
+             |          requestOperation = [
+             |            {
+             |              groupNames = ["Users"]
+             |            }
+             |          ]
+             |        }
+             |      }
+             |    ]
+             |  }
+             |}
+             |preConditionEvaluators = [
+             |  {
+             |    type = "class"
+             |    class = "com.criteo.perpetuo.engine.preconditions.TestPreCondition"
+             |  }
+             |]
+             |""".stripMargin)
+        .withFallback(AppConfig.config)
+        .resolve()
+    )
 
   val stdUser = new User("s.omeone", Set("Users"))
   val lonelyUser = new User("f.alone", Set())
