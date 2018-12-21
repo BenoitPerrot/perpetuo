@@ -1,7 +1,7 @@
 package com.criteo.perpetuo.app
 
 import com.criteo.perpetuo.auth.{IdentityProvider, Permissions}
-import com.criteo.perpetuo.config.Plugins
+import com.criteo.perpetuo.config.{AppConfig, Plugins}
 import com.criteo.perpetuo.engine.dispatchers.TargetDispatcher
 import com.criteo.perpetuo.engine.resolvers.TargetResolver
 import com.criteo.perpetuo.engine.{AsyncListener, AsyncPreConditionEvaluator}
@@ -10,7 +10,7 @@ import com.twitter.inject.TwitterModule
 import com.typesafe.config.Config
 
 
-class PluginsModule(config: Config) extends TwitterModule {
+class PluginsModule(appConfig: AppConfig) extends TwitterModule {
 
   @Singleton
   @Provides
@@ -38,5 +38,9 @@ class PluginsModule(config: Config) extends TwitterModule {
 
   @Singleton
   @Provides
-  def providesConfig: Config = config
+  def providesConfig: Config = appConfig.config
+
+  @Singleton
+  @Provides
+  def providesAppConfig: AppConfig = appConfig
 }

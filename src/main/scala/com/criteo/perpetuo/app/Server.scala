@@ -24,9 +24,9 @@ object CustomServerModules {
 }
 
 trait ServerConfigurator {
-  val config: Config = AppConfig.config
+  val appConfig: AppConfig = AppConfig
 
-  config.tryGetString("log4j.configurationFile").foreach(
+  appConfig.config.tryGetString("log4j.configurationFile").foreach(
     System.setProperty("log4j.configurationFile", _)
   )
 }
@@ -43,9 +43,9 @@ class Server extends ServerConfigurator with HttpServer {
   override protected def jacksonModule: FinatraJacksonModule = CustomServerModules.jackson
 
   override def modules = Seq(
-    new DbContextModule(config.getConfig("db")),
-    new PluginsModule(config),
-    new AuthModule(config.getConfig("auth"))
+    new DbContextModule(appConfig.config.getConfig("db")),
+    new PluginsModule(appConfig),
+    new AuthModule(appConfig.config.getConfig("auth"))
   )
 
   override def configureHttpServer(server: Http.Server): Http.Server = {
@@ -61,7 +61,7 @@ class Server extends ServerConfigurator with HttpServer {
     //Allow CORS for custom UIs, note that beforeRouting is necessary to handle pre-flight requests
     router.filter(new Cors.HttpFilter(Cors.UnsafePermissivePolicy), beforeRouting = true)
 
-    if (config.getBoolean("logging")) {
+    if (appConfig.config.getBoolean("logging")) {
       // Activate "Mapped Diagnostic Context" and access and stats logging
       router
         .filter[LoggingMDCFilter[Request, Response]]
@@ -72,16 +72,16 @@ class Server extends ServerConfigurator with HttpServer {
     // Record metrics on API access
     router.filter(new HttpMonitoringFilter(new Telemetry(registry, "api")))
 
-    config
+    appConfig.config
       .tryGetStringList("extraFilters").getOrElse(Seq())
-      .:+(config.getString("auth.filter"))
+      .:+(appConfig.config.getString("auth.filter"))
       .foreach(extraFilterClassName =>
         router.filter(injector.instance(Class.forName(extraFilterClassName)).asInstanceOf[SimpleFilter[Request, Response]])
       )
 
-    config
+    appConfig.config
       .tryGetStringList("extraControllers").getOrElse(Seq())
-      .:+(config.getString("auth.controller"))
+      .:+(appConfig.config.getString("auth.controller"))
       .foreach(extraControllerClassName =>
         router.add(injector.instance(Class.forName(extraControllerClassName)).asInstanceOf[BaseController])
       )
@@ -93,7 +93,7 @@ class Server extends ServerConfigurator with HttpServer {
       .add[metrics.Controller]
 
       // Add controller for serving static assets as the last one / fallback one
-      .add(new StaticAssetsController(config.tryGetStringList("staticAssets.roots").getOrElse(Seq())))
+      .add(new StaticAssetsController(appConfig.config.tryGetStringList("staticAssets.roots").getOrElse(Seq())))
   }
 }
 

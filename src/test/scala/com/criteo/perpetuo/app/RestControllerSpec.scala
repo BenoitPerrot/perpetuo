@@ -31,7 +31,7 @@ class RestControllerSpec extends Test with TestDb {
 
   private def makeUser(userName: String) = User(userName, Set("Users"))
 
-  private val config =
+  private val appConfig = new AppConfig(
     ConfigFactory
       .parseString(
         s"""
@@ -65,10 +65,11 @@ class RestControllerSpec extends Test with TestDb {
            |  }
            |}
            |""".stripMargin)
-      .withFallback(AppConfig.config)
+      .withFallback(ConfigFactory.load().resolve())
       .resolve()
+  )
 
-  private val authModule = new AuthModule(config.getConfig("auth"))
+  private val authModule = new AuthModule(appConfig.config.getConfig("auth"))
   private val productUser = makeUser("bob.the.producer")
   private val productUserJWT = productUser.toJWT(authModule.jwtEncoder)
   private val deployUser = makeUser("r.eleaser")
@@ -84,7 +85,7 @@ class RestControllerSpec extends Test with TestDb {
 
     override def modules = Seq(
       authModule,
-      new PluginsModule(config),
+      new PluginsModule(appConfig),
       dbTestModule
     )
 

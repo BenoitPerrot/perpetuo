@@ -20,8 +20,7 @@ import com.typesafe.config.Config
   */
 class ControllerSpec extends Test {
 
-  val config: Config = AppConfig.config
-  val authModule = new AuthModule(config.getConfig("auth"))
+  val authModule = new AuthModule(AppConfig.config.getConfig("auth"))
 
   val server = new EmbeddedHttpServer(new HttpServer {
 
@@ -38,7 +37,11 @@ class ControllerSpec extends Test {
 
         @Singleton
         @Provides
-        def providesConfig: Config = config
+        def providesConfig: Config = AppConfig.config
+
+        @Singleton
+        @Provides
+        def providesAppConfig: AppConfig = AppConfig
       }
     )
 
