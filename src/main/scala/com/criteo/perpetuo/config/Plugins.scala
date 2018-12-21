@@ -18,7 +18,9 @@ import scala.util.{Success, Try}
 
 
 @Singleton
-class Plugins @Inject()(loader: PluginLoader, config: Config) {
+class Plugins @Inject()(loader: PluginLoader, appConfig: AppConfig) {
+
+  private val config = appConfig.config
 
   import com.criteo.perpetuo.config.ConfigSyntacticSugar._
 

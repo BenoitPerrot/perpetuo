@@ -75,7 +75,7 @@ trait SimpleScenarioTesting extends TestHelpers with TestDb with MockitoSugar {
   private val executionTrigger: ExecutionTrigger = mock[ExecutionTrigger]
   when(executionTrigger.executorType).thenReturn("testing")
   def appConfig: AppConfig = AppConfig
-  val plugins = new Plugins(loader, appConfig.config)
+  val plugins = new Plugins(loader, appConfig)
   val executionFinder = new TriggeredExecutionFinder(loader)
 
   lazy val targetDispatcher: TargetDispatcher = new SingleTargetDispatcher(executionTrigger)
