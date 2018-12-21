@@ -32,8 +32,8 @@ class RundeckExecution(config: Config, val href: String) extends TriggeredExecut
   )
 }
 
-class RundeckExecutionFactory extends TriggeredExecutionFactory {
-  private val config = AppConfig.executorConfig("rundeck")
+class RundeckExecutionFactory(appConfig: AppConfig) extends TriggeredExecutionFactory {
+  private val config = appConfig.executorConfig("rundeck")
 
   def apply(href: String): RundeckExecution =
     new RundeckExecution(config, href)

@@ -7,7 +7,7 @@ import com.google.inject.{Inject, Singleton}
 import com.typesafe.config.{Config, ConfigException}
 
 @Singleton
-class PluginLoader @Inject()(engineProxy: EngineProxy) {
+class PluginLoader @Inject()(appConfig: AppConfig, engineProxy: EngineProxy) {
 
   import com.criteo.perpetuo.config.ConfigSyntacticSugar._
 
@@ -19,14 +19,15 @@ class PluginLoader @Inject()(engineProxy: EngineProxy) {
         Seq(pluginConfig),
         Seq(pluginConfig, engineProxy)
       )).getOrElse(Seq()) ++ Seq(
-        Seq()
+        Seq(),
+        Seq(appConfig)
       )
     instantiationParameters
       .view // lazily:
       .flatMap(tryInstantiateWithArgs(cls, _))
       .headOption
       .getOrElse {
-        throw new NoSuchMethodException(s"As a plugin, ${cls.getName} must have at least a constructor taking either its Config (if one is provided), or its Config and an EngineProxy, or nothing")
+        throw new NoSuchMethodException(s"As a plugin, ${cls.getName} must have at least a constructor taking either its Config (if one is provided), or its Config and an EngineProxy, or an AppConfig, or nothing")
         // note: don't use .getSimpleName on an unknown class, because of https://github.com/scala/bug/issues/2034
       }
   }

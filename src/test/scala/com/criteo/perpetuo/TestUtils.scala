@@ -69,7 +69,7 @@ trait SimpleScenarioTesting extends TestHelpers with TestDb with MockitoSugar {
   import dbContext.profile.api._
 
   private val knownProducts = mutable.Set[String]()
-  private val loader = new PluginLoader(new EngineProxy(new com.google.inject.Provider[Crankshaft]() {
+  private val loader = new PluginLoader(AppConfig, new EngineProxy(new com.google.inject.Provider[Crankshaft]() {
     def get: Crankshaft = crankshaft
   }))
   private val executionTrigger: ExecutionTrigger = mock[ExecutionTrigger]
