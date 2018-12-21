@@ -6,9 +6,10 @@ import com.criteo.perpetuo.config.AppConfig
 import com.criteo.perpetuo.model.ExecutionState
 import com.criteo.perpetuo.model.ExecutionState.ExecutionState
 import com.twitter.util.{Await, Future}
+import com.typesafe.config.Config
 
 
-class RundeckExecution(val href: String) extends TriggeredExecution {
+class RundeckExecution(config: Config, val href: String) extends TriggeredExecution {
   val (host, executionNumber) = {
     val matcher = RundeckExecution.hrefPattern.matcher(href)
     if (!matcher.matches())
@@ -17,7 +18,7 @@ class RundeckExecution(val href: String) extends TriggeredExecution {
     (matcher.group(1), matcher.group(3).toInt)
   }
 
-  protected val client: RundeckClient = new RundeckClient(AppConfig.executorConfig("rundeck"), host)
+  protected val client: RundeckClient = new RundeckClient(config, host)
 
   private def abortJob(jobId: String): Future[Option[ExecutionState]] =
     client.abortJob(jobId).map {
@@ -32,8 +33,10 @@ class RundeckExecution(val href: String) extends TriggeredExecution {
 }
 
 class RundeckExecutionFactory extends TriggeredExecutionFactory {
+  private val config = AppConfig.executorConfig("rundeck")
+
   def apply(href: String): RundeckExecution =
-    new RundeckExecution(href)
+    new RundeckExecution(config, href)
 }
 
 private object RundeckExecution {

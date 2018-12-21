@@ -14,7 +14,9 @@ import spray.json.JsonParser.ParsingException
 
 class RundeckExecutionSpec extends Test with MockitoSugar {
 
-  private class RundeckClientMock(contentMock: String, statusMock: Int) extends RundeckClient(AppConfig.executorConfig("rundeck"), "localhost") {
+  private val rundeckConfig = AppConfig.executorConfig("rundeck")
+
+  private class RundeckClientMock(contentMock: String, statusMock: Int) extends RundeckClient(rundeckConfig, "localhost") {
     def this(abortStatus: String, executionStatus: String, eventuallyCompleted: Boolean = false) =
       this(s"""{"abort": {"status": "$abortStatus"}, "execution": {"status": "$executionStatus"}, "execCompleted": $eventuallyCompleted}""", 200)
 
@@ -25,20 +27,20 @@ class RundeckExecutionSpec extends Test with MockitoSugar {
     override protected val clientForIdempotentRequests: Request => Future[ConsumedResponse] = client
   }
 
-  class RundeckExecutionWithClientMock(override val client: RundeckClient) extends RundeckExecution("https://rundeck.criteo/project/my-project/execute/show/54")
+  class RundeckExecutionWithClientMock(override val client: RundeckClient) extends RundeckExecution(rundeckConfig, "https://rundeck.criteo/project/my-project/execute/show/54")
 
   test("A RundeckExecution is built from a the permalink returned by Rundeck on trigger") {
-    val remote = new RundeckExecution("https://rundeck.criteo/project/my-project/executcriteon/show/42")
+    val remote = new RundeckExecution(rundeckConfig, "https://rundeck.criteo/project/my-project/executcriteon/show/42")
     remote.host shouldEqual "rundeck.criteo"
     remote.executionNumber shouldEqual 42
 
-    val local = new RundeckExecution("http://localhost:4440/project/my-project/execution/show/51")
+    val local = new RundeckExecution(rundeckConfig, "http://localhost:4440/project/my-project/execution/show/51")
     local.host shouldEqual "localhost"
     local.executionNumber shouldEqual 51
   }
 
   test("If a href makes no sense to the assigned execution factory, the instantiation must behave appropriately") {
-    val exc = the[IllegalArgumentException] thrownBy new RundeckExecution("http://rundeck.criteo/menu/home")
+    val exc = the[IllegalArgumentException] thrownBy new RundeckExecution(rundeckConfig, "http://rundeck.criteo/menu/home")
     exc.getMessage shouldEqual "Cannot find a proper Rundeck executor from http://rundeck.criteo/menu/home"
   }
 
