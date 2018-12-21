@@ -78,7 +78,7 @@ class Crankshaft @Inject()(val appConfig: AppConfig,
 
   import dbBinding.dbContext.profile.api._
 
-  val fuelFilter = new FuelFilter(appConfig.config, dbBinding)
+  val fuelFilter = new FuelFilter(appConfig, dbBinding)
 
   def assessingDeploymentState(deploymentRequest: DeploymentRequest): DBIOAction[DeploymentState, NoStream, Effect.Read] =
     dbBinding
