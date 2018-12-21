@@ -2,6 +2,7 @@ package com.criteo.perpetuo.engine.executors
 
 import java.util.regex.Pattern
 
+import com.criteo.perpetuo.config.AppConfig
 import com.criteo.perpetuo.model.ExecutionState
 import com.criteo.perpetuo.model.ExecutionState.ExecutionState
 import com.twitter.util.{Await, Future}
@@ -16,7 +17,7 @@ class RundeckExecution(val href: String) extends TriggeredExecution {
     (matcher.group(1), matcher.group(3).toInt)
   }
 
-  protected val client: RundeckClient = new RundeckClient(host)
+  protected val client: RundeckClient = new RundeckClient(AppConfig.executorConfig("rundeck"), host)
 
   private def abortJob(jobId: String): Future[Option[ExecutionState]] =
     client.abortJob(jobId).map {

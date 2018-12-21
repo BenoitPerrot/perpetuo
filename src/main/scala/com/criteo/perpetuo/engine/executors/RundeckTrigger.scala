@@ -1,6 +1,7 @@
 package com.criteo.perpetuo.engine.executors
 
 import com.criteo.perpetuo.app.RestApi
+import com.criteo.perpetuo.config.AppConfig
 import com.criteo.perpetuo.engine.TargetAtomSet
 import com.criteo.perpetuo.model._
 import com.twitter.conversions.time._
@@ -26,7 +27,7 @@ class RundeckTrigger(name: String,
 
   override def toString: String = s"$name (job: $jobName)"
 
-  protected val client: RundeckClient = new RundeckClient(host)
+  protected val client: RundeckClient = new RundeckClient(AppConfig.executorConfig("rundeck"), host)
 
   def extractHref(executorAnswer: String): String =
     executorAnswer.parseJson.asJsObject.fields("permalink").asInstanceOf[JsString].value

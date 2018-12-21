@@ -1,5 +1,6 @@
 package com.criteo.perpetuo.engine.executors
 
+import com.criteo.perpetuo.config.AppConfig
 import com.criteo.perpetuo.model.ExecutionState
 import com.criteo.perpetuo.util.ConsumedResponse
 import com.twitter.conversions.time._
@@ -13,7 +14,7 @@ import spray.json.JsonParser.ParsingException
 
 class RundeckExecutionSpec extends Test with MockitoSugar {
 
-  private class RundeckClientMock(contentMock: String, statusMock: Int) extends RundeckClient("localhost") {
+  private class RundeckClientMock(contentMock: String, statusMock: Int) extends RundeckClient(AppConfig.executorConfig("rundeck"), "localhost") {
     def this(abortStatus: String, executionStatus: String, eventuallyCompleted: Boolean = false) =
       this(s"""{"abort": {"status": "$abortStatus"}, "execution": {"status": "$executionStatus"}, "execCompleted": $eventuallyCompleted}""", 200)
 

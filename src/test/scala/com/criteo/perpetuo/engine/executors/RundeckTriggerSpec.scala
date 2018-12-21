@@ -1,5 +1,6 @@
 package com.criteo.perpetuo.engine.executors
 
+import com.criteo.perpetuo.config.AppConfig
 import com.criteo.perpetuo.engine.TargetAtomSet
 import com.criteo.perpetuo.model.{TargetAtom, Version}
 import com.criteo.perpetuo.util.ConsumedResponse
@@ -17,7 +18,7 @@ class RundeckTriggerSpec extends Test {
 
   private class TriggerMock(statusMock: Int, contentMock: String) extends RundeckTrigger("rundeck", "localhost", "perpetuo-deployment") {
 
-    private class RundeckClientMock extends RundeckClient(host) {
+    private class RundeckClientMock extends RundeckClient(AppConfig.executorConfig("rundeck"), host) {
       override val authToken: Option[String] = Some("my-super-secret-token")
 
       override protected val client: Request => Future[ConsumedResponse] = (request: Request) => {
