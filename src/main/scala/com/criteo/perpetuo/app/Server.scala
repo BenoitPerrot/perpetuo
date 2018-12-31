@@ -1,10 +1,12 @@
 package com.criteo.perpetuo.app
 
-import com.criteo.perpetuo.auth.{IdentifyingController, LocalUsersRetrievingController, Controller => AuthenticationController}
+import com.criteo.perpetuo.auth.{LocalUsersRetrievingController, Controller => AuthenticationController}
 import com.criteo.perpetuo.config.AppConfig
 import com.criteo.perpetuo.config.ConfigSyntacticSugar._
 import com.criteo.perpetuo.metrics
+import com.criteo.perpetuo.metrics.HttpMonitoringFilter
 import com.samstarling.prometheusfinagle.PrometheusStatsReceiver
+import com.samstarling.prometheusfinagle.metrics.Telemetry
 import com.twitter.finagle.http.filter.Cors
 import com.twitter.finagle.http.{Request, Response}
 import com.twitter.finagle.{Http, SimpleFilter}
@@ -13,10 +15,7 @@ import com.twitter.finatra.http.routing.HttpRouter
 import com.twitter.finatra.http.{HttpServer, Controller => BaseController}
 import com.twitter.finatra.json.modules.FinatraJacksonModule
 import com.twitter.server.AdminHttpServer.Route
-import com.typesafe.config.Config
 import io.prometheus.client.CollectorRegistry
-import com.criteo.perpetuo.metrics.HttpMonitoringFilter
-import com.samstarling.prometheusfinagle.metrics.Telemetry
 
 
 object CustomServerModules {

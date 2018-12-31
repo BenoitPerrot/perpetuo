@@ -2,7 +2,6 @@ package com.criteo.perpetuo.config
 
 import com.criteo.perpetuo.auth.{DeploymentAction, User}
 import com.criteo.perpetuo.engine.{AsyncPreConditionEvaluator, PreConditionEvaluator}
-import com.criteo.perpetuo.model.Operation.Kind
 import com.criteo.perpetuo.model.{DeploymentRequest, Operation, TargetAtom}
 
 import scala.concurrent.Future

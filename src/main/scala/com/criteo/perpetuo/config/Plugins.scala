@@ -8,7 +8,6 @@ import com.criteo.perpetuo.engine.executors.ExecutionTrigger
 import com.criteo.perpetuo.engine.resolvers.TargetResolver
 import com.criteo.perpetuo.engine.{AsyncListener, AsyncPreConditionEvaluator, Provider}
 import com.google.inject.{Inject, Singleton}
-import com.typesafe.config.Config
 
 import scala.collection.JavaConversions._
 import scala.concurrent.ExecutionContext.Implicits.global

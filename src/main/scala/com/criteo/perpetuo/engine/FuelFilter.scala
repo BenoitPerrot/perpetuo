@@ -4,7 +4,6 @@ import com.criteo.perpetuo.config.AppConfig
 import com.criteo.perpetuo.config.ConfigSyntacticSugar._
 import com.criteo.perpetuo.dao.{DBIOrw, DbBinding, LockName}
 import com.criteo.perpetuo.model.{DeploymentRequest, TargetAtom}
-import com.typesafe.config.Config
 import slick.dbio.{DBIOAction, Effect, NoStream}
 
 import scala.concurrent.ExecutionContext.Implicits.global

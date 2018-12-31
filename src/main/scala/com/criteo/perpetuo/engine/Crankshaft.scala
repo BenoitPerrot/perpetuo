@@ -2,7 +2,6 @@ package com.criteo.perpetuo.engine
 
 import com.criteo.perpetuo.config.AppConfig
 import com.criteo.perpetuo.dao.{DBIOrw, DbBinding}
-import com.criteo.perpetuo.engine.DeploymentStatus.{failed, flopped, inProgress, succeeded}
 import com.criteo.perpetuo.engine.dispatchers.TargetDispatcher
 import com.criteo.perpetuo.engine.executors.TriggeredExecutionFinder
 import com.criteo.perpetuo.engine.resolvers.TargetResolver
