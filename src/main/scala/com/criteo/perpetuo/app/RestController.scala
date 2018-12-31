@@ -239,11 +239,6 @@ class RestController @Inject()(val engine: Engine)
     )
   }
 
-  private def serializeStateLabel(state: DeploymentState) = {
-    val className = state.getClass.getSimpleName
-    Character.toLowerCase(className.charAt(0)).toString.concat(className.substring(1))
-  }
-
   private def serialize(state: DeploymentState): Map[String, Any] = {
     val deploymentPlan = DeploymentPlan(state.deploymentRequest, state.deploymentPlanSteps)
     Map(
@@ -254,7 +249,7 @@ class RestController @Inject()(val engine: Engine)
       "version" -> deploymentPlan.deploymentRequest.version,
       "plan" -> deploymentPlan.steps,
       "productName" -> deploymentPlan.deploymentRequest.product.name,
-      "state" -> serializeStateLabel(state)
+      "state" -> state.toString
     ) ++ state.outdatedBy.map(id => Map("outdatedBy" -> id)).getOrElse(Map.empty)
   }
 
@@ -313,7 +308,7 @@ class RestController @Inject()(val engine: Engine)
   get("/api/deployment-requests/:id/state") { r: RequestWithId =>
     withLongId(
       id => engine.findDeploymentRequestState(id).map(_.map { deploymentRequestState =>
-        Some(Map("state" -> serializeStateLabel(deploymentRequestState)))
+        Some(Map("state" -> deploymentRequestState.toString))
       }),
       5.seconds
     )(r)

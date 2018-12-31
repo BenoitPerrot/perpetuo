@@ -9,6 +9,12 @@ trait DeploymentState {
   val outdatedBy: Option[Long]
 
   def isOutdated: Boolean = outdatedBy.nonEmpty
+
+  override def toString: String = {
+    val chars = getClass.getSimpleName.toCharArray
+    chars(0) = chars(0).toLower
+    new String(chars)
+  }
 }
 
 trait InProgressState extends DeploymentState {
