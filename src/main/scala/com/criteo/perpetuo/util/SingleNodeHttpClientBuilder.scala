@@ -28,7 +28,6 @@ class SingleNodeHttpClientBuilder(hostName: String, port: Option[Int] = None, se
   private val serviceBuilder: Http.Client = {
     val sb = actualSecurity match {
       case TransportSecurity.NoSsl => Http.client
-      case TransportSecurity.SslNoCertificate => Http.client.withTlsWithoutValidation
       case TransportSecurity.Ssl => Http.client.withTls(hostName)
     }
     sb.withSessionQualifier.noFailFast
@@ -91,7 +90,6 @@ class SingleNodeHttpClientBuilder(hostName: String, port: Option[Int] = None, se
 
 object TransportSecurity extends Enumeration {
   val NoSsl: Value = Value
-  val SslNoCertificate: Value = Value
   val Ssl: Value = Value
 }
 
