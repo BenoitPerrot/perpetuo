@@ -23,6 +23,6 @@ case class JsObjectScanner(o: JsObject, path: Seq[String]) extends JsValueScanne
     o.fields.get(key) match {
       case Some(JsBoolean(b)) => b
       case None => default.getOrElse(reportMissing(key))
-      case unknown => reportWrongType(key, "a boolean", s"$unknown (${unknown.getClass.getSimpleName})")
+      case Some(unknown) => reportWrongType(key, "a boolean", s"$unknown (${unknown.getClass.getSimpleName})")
     }
 }
