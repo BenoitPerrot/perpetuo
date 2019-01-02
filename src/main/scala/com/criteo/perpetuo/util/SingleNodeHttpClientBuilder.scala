@@ -45,11 +45,15 @@ class SingleNodeHttpClientBuilder(hostName: String, port: Option[Int] = None, se
     val shouldRetry: PartialFunction[(Request, Try[Response]), Boolean] = {
       case (_, Return(rep)) =>
         val code = rep.status.code
-        if (500 <= code)
+        if (500 <= code) {
           logger.warn(s"$hostName answered HTTP $code: ${rep.status.reason}")
-        else if (400 <= code)
-          logger.error(s"$hostName answered HTTP $code: ${rep.status.reason}")
-        rep.status.code == 503 || (areRequestsIdempotent && 500 <= rep.status.code)
+          code == 503 || areRequestsIdempotent
+        }
+        else {
+          if (400 <= code)
+            logger.error(s"$hostName answered HTTP $code: ${rep.status.reason}")
+          false
+        }
       case (_, t@Throw(_: RequestException | _: ConnectionFailedException | _: WriteException | _: ServiceNotAvailableException)) =>
         logger.warn(s"Could not send a request to $hostName: ${t.throwable.getMessage}")
         true // failed before the request was sent
