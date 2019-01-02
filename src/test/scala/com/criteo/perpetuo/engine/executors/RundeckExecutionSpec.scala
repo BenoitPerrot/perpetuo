@@ -2,7 +2,7 @@ package com.criteo.perpetuo.engine.executors
 
 import com.criteo.perpetuo.config.AppConfig
 import com.criteo.perpetuo.model.ExecutionState
-import com.criteo.perpetuo.util.ConsumedResponse
+import com.criteo.perpetuo.util.{ConsumedResponse, SingleNodeHttpClient}
 import com.twitter.conversions.time._
 import com.twitter.finagle.http.{Request, Status}
 import com.twitter.inject.Test
@@ -22,9 +22,10 @@ class RundeckExecutionSpec extends Test with MockitoSugar {
 
     override protected val baseWaitInterval: Duration = 1.millisecond
     override protected val terminationGlobalTimeout: Duration = 1.second
-    override protected val client: Request => Future[ConsumedResponse] =
-      (_: Request) => Future.value(ConsumedResponse(Status(statusMock), Utf8(contentMock), "rundeck"))
-    override protected val clientForIdempotentRequests: Request => Future[ConsumedResponse] = client
+    override protected val client: SingleNodeHttpClient = new SingleNodeHttpClient(null, "") {
+      override def apply(request: Request, isIdempotent: Boolean = false): Future[ConsumedResponse] =
+        Future.value(ConsumedResponse(Status(statusMock), Utf8(contentMock), "rundeck"))
+    }
   }
 
   class RundeckExecutionWithClientMock(override val client: RundeckClient) extends RundeckExecution(rundeckConfig, "https://rundeck.criteo/project/my-project/execute/show/54")

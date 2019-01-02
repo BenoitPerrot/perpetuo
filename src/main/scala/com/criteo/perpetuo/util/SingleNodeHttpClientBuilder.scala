@@ -41,13 +41,13 @@ class SingleNodeHttpClientBuilder(hostName: String, port: Option[Int] = None, se
   def createRequest(path: String, builder: RequestBuilder[Nothing, Nothing] = RequestBuilder()): RequestBuilder[RequestConfig.Yes, Nothing] =
     builder.url(url(path))
 
-  def build(connectionTimeout: Duration, requestTimeout: Duration, minimumDelayBetweenRetries: Duration, retries: Int, areRequestsIdempotent: Boolean): Request => Future[ConsumedResponse] = {
+  def build(connectionTimeout: Duration, requestTimeout: Duration, minimumDelayBetweenRetries: Duration, retries: Int): SingleNodeHttpClient = {
     val shouldRetry: PartialFunction[(Request, Try[Response]), Boolean] = {
-      case (_, Return(rep)) =>
+      case (request, Return(rep)) =>
         val code = rep.status.code
         if (500 <= code) {
           logger.warn(s"$hostName answered HTTP $code: ${rep.status.reason}")
-          code == 503 || areRequestsIdempotent
+          code == 503 || request.ctx(SingleNodeHttpClient.requestIdempotenceField)
         }
         else {
           if (400 <= code)
@@ -70,25 +70,40 @@ class SingleNodeHttpClientBuilder(hostName: String, port: Option[Int] = None, se
       service(req).onSuccess(_ => logger.debug(s"$hostName answered in ${System.currentTimeMillis() - start}ms"))
     }
 
-    val client = retry.andThen(loggingService)
-    req: Request => {
-      val start = System.currentTimeMillis()
-      client(req)
-        .flatMap { resp =>
-          Reader.readAll(resp.reader).map { buf =>
-            resp.reader.discard()
-            logger.debug(s"Took ${System.currentTimeMillis() - start}ms total for $hostName to respond HTTP ${resp.status.code}")
-            ConsumedResponse(resp.status, buf, hostName)
-          }
-        }
-        .onFailure(err =>
-          logger.debug(s"Request to $hostName failed after ${System.currentTimeMillis() - start}ms (including possible retries): ${err.getMessage}")
-        )
-    }
+    new SingleNodeHttpClient(retry.andThen(loggingService), hostName)
   }
 
-  def build(metronomePeriod: Duration, retries: Int = 5, areRequestsIdempotent: Boolean = false): Request => Future[ConsumedResponse] =
-    build(metronomePeriod, metronomePeriod, metronomePeriod, retries, areRequestsIdempotent)
+  def build(metronomePeriod: Duration, retries: Int = 5): SingleNodeHttpClient =
+    build(metronomePeriod, metronomePeriod, metronomePeriod, retries)
+}
+
+
+class SingleNodeHttpClient(service: Service[Request, Response], name: String) extends ((Request, Boolean) => Future[ConsumedResponse]) with Logging {
+  /**
+    * Send the request and return the response when its body has been fully received, possibly after retries.
+    * Caution! Request instances must not be reused: provide a unique instance for each call to this method
+    * or it will fail.
+    */
+  def apply(request: Request, isIdempotent: Boolean = false): Future[ConsumedResponse] = {
+    request.ctx.updateAndLock(SingleNodeHttpClient.requestIdempotenceField, isIdempotent)
+    val start = System.currentTimeMillis()
+    service(request)
+      .flatMap { resp =>
+        Reader.readAll(resp.reader).map { buf =>
+          resp.reader.discard()
+          logger.debug(s"Took ${System.currentTimeMillis() - start}ms total for $name to respond HTTP ${resp.status.code}")
+          ConsumedResponse(resp.status, buf, name)
+        }
+      }
+      .onFailure(err =>
+        logger.debug(s"Request to $name failed after ${System.currentTimeMillis() - start}ms (including possible retries): ${err.getMessage}")
+      )
+  }
+}
+
+
+object SingleNodeHttpClient {
+  val requestIdempotenceField: Request.Schema.Field[Boolean] = Request.Schema.newField()
 }
 
 

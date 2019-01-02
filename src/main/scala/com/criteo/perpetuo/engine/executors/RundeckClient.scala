@@ -1,7 +1,7 @@
 package com.criteo.perpetuo.engine.executors
 
 import com.criteo.perpetuo.config.ConfigSyntacticSugar._
-import com.criteo.perpetuo.util.{ConsumedResponse, SingleNodeHttpClientBuilder, TransportSecurity}
+import com.criteo.perpetuo.util.{ConsumedResponse, SingleNodeHttpClient, SingleNodeHttpClientBuilder, TransportSecurity}
 import com.twitter.conversions.time._
 import com.twitter.finagle.http.Status.{NotFound, Ok}
 import com.twitter.finagle.http._
@@ -27,15 +27,13 @@ class RundeckClient(config: Config, val host: String) {
     .setHeader(HttpHeaders.Accept, Message.ContentTypeJson)
 
   private val clientBuilder = new SingleNodeHttpClientBuilder(host, port, transportSecurity)
-  protected val client: Request => Future[ConsumedResponse] = clientBuilder.build(requestTimeout)
-  protected val clientForIdempotentRequests: Request => Future[ConsumedResponse] = clientBuilder.build(requestTimeout, areRequestsIdempotent = true)
+  protected val client: SingleNodeHttpClient = clientBuilder.build(requestTimeout)
 
   private def post(apiSubPath: String, body: Option[JsValue] = None, isIdempotent: Boolean = false): Future[ConsumedResponse] = {
-    val cl = if (isIdempotent) clientForIdempotentRequests else client
     val req = clientBuilder
       .createRequest(apiSubPath, jsonRequestBuilder)
       .buildPost(body.map(_.compactPrint).map(Buf.Utf8(_)).getOrElse(Buf.Empty))
-    cl(req)
+    client(req, isIdempotent)
   }
 
   private def apiPath(apiSubPath: String, queryParameters: Map[String, String] = Map()): String = {

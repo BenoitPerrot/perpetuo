@@ -39,14 +39,13 @@ class SingleNodeHttpClientBuilderSpec extends TestHelpers {
   private val Array(host, portStr) = server.externalHttpHostAndPort.split(":", 2)
 
   private val clientBuilder = new SingleNodeHttpClientBuilder(host, Some(portStr.toInt), Some(TransportSecurity.NoSsl))
-  private val nonIdempotentClient = buildClient(clientBuilder, areRequestsIdempotent = false)
-  private val idempotentClient = buildClient(clientBuilder, areRequestsIdempotent = true)
+  private val client = buildClient(clientBuilder)
 
   private val clientBuilderToUnknown = new SingleNodeHttpClientBuilder("unknown", Some(1234))
-  private val get = RequestBuilder().url(url("/")).buildGet()
+  private val rootUrl = RequestBuilder().url(url("/"))
 
-  private def buildClient(builder: SingleNodeHttpClientBuilder, areRequestsIdempotent: Boolean) =
-    builder.build(connectionTimeout, requestTimeout, safePeriod, 1, areRequestsIdempotent)
+  private def buildClient(builder: SingleNodeHttpClientBuilder) =
+    builder.build(connectionTimeout, requestTimeout, safePeriod, 1)
 
   private def url(path: String) = new URL(s"http://$host:$portStr$path")
 
@@ -71,34 +70,43 @@ class SingleNodeHttpClientBuilderSpec extends TestHelpers {
 
   // bootstrap the resolution to allow much shorter and more deterministic timeouts for following timeout-based assertions
   bootstrapResolution(clientBuilder, post("invalid"))
-  bootstrapResolution(clientBuilderToUnknown, get)
+  bootstrapResolution(clientBuilderToUnknown, rootUrl.buildGet())
 
   test("Non-idempotent requests are not retried on an HTTP 500") {
-    shouldNotRetry(nonIdempotentClient(post("invalid"))) shouldEqual 500
+    shouldNotRetry(client(post("invalid"))) shouldEqual 500
   }
 
   test("Idempotent requests are retried on an HTTP 500") {
-    shouldRetry(idempotentClient(post("invalid"))) shouldEqual 500
+    shouldRetry(client(post("invalid"), isIdempotent = true)) shouldEqual 500
   }
 
   test("Requests are always retried on an HTTP 503") {
-    val req = RequestBuilder().url(url("/unavailable")).buildGet()
-    shouldRetry(nonIdempotentClient(req)) shouldEqual 503
-    shouldRetry(idempotentClient(req)) shouldEqual 503
+    val rb = RequestBuilder().url(url("/unavailable"))
+    shouldRetry(client(rb.buildGet())) shouldEqual 503
+    shouldRetry(client(rb.buildGet(), isIdempotent = true)) shouldEqual 503
   }
 
   test("Requests are never retried on an HTTP 400") {
-    shouldNotRetry(nonIdempotentClient(post("[]"))) shouldEqual 400
-    shouldNotRetry(idempotentClient(post("[]"))) shouldEqual 400
+    shouldNotRetry(client(post("[]"))) shouldEqual 400
+    shouldNotRetry(client(post("[]"), isIdempotent = true)) shouldEqual 400
   }
 
   test("Requests are never retried on an HTTP 200") {
-    shouldNotRetry(nonIdempotentClient(post("{}"))) shouldEqual 200
-    shouldNotRetry(idempotentClient(post("{}"))) shouldEqual 200
+    shouldNotRetry(client(post("{}"))) shouldEqual 200
+    shouldNotRetry(client(post("{}"), isIdempotent = true)) shouldEqual 200
   }
 
   test("Requests are retried if the service is unknown") {
-    val client = buildClient(clientBuilderToUnknown, areRequestsIdempotent = false)
-    a[NoBrokersAvailableException] shouldBe thrownBy(shouldRetry(client(get)))
+    val client = buildClient(clientBuilderToUnknown)
+    a[NoBrokersAvailableException] shouldBe thrownBy(shouldRetry(client(rootUrl.buildGet())))
+  }
+
+  test("SingleNodeHttpClient fails if a Request instance is reused") {
+    // we must check the request cannot be reused because the current implementation makes the instance stateful
+    val builder = new SingleNodeHttpClientBuilder("host")
+    val client = builder.build(1.second)
+    val req = builder.createRequest("/path").buildGet()
+    client(req)
+    a[Throwable] shouldBe thrownBy(client(req))
   }
 }
