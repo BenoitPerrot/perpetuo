@@ -38,7 +38,7 @@ class SingleNodeHttpClientBuilderSpec extends TestHelpers {
   })
   private val Array(host, portStr) = server.externalHttpHostAndPort.split(":", 2)
 
-  private val clientBuilder = new SingleNodeHttpClientBuilder(host, Some(portStr.toInt), Some(TransportSecurity.NoSsl))
+  private val clientBuilder = new SingleNodeHttpClientBuilder(host, Some(portStr.toInt), Some(false))
   private val client = buildClient(clientBuilder)
 
   private val clientBuilderToUnknown = new SingleNodeHttpClientBuilder("unknown", Some(1234))

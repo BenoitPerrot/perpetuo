@@ -1,7 +1,7 @@
 package com.criteo.perpetuo.engine.executors
 
 import com.criteo.perpetuo.config.ConfigSyntacticSugar._
-import com.criteo.perpetuo.util.{ConsumedResponse, SingleNodeHttpClient, SingleNodeHttpClientBuilder, TransportSecurity}
+import com.criteo.perpetuo.util.{ConsumedResponse, SingleNodeHttpClient, SingleNodeHttpClientBuilder}
 import com.twitter.conversions.time._
 import com.twitter.finagle.http.Status.{NotFound, Ok}
 import com.twitter.finagle.http._
@@ -15,8 +15,8 @@ class RundeckClient(config: Config, val host: String) {
   val apiVersion = 16
 
   val port: Option[Int] = config.tryGetInt("port")
+  val ssl: Option[Boolean] = config.tryGetBoolean("ssl")
   val authToken: Option[String] = config.tryGetString("token")
-  val transportSecurity: Option[TransportSecurity.Value] = config.tryGetString("transportSecurity").map(TransportSecurity.withName)
 
   private val requestTimeout: Duration = 5.seconds
   protected val baseWaitInterval: Duration = 100.milliseconds
@@ -26,7 +26,7 @@ class RundeckClient(config: Config, val host: String) {
     .setHeader(HttpHeaders.ContentType, Message.ContentTypeJson)
     .setHeader(HttpHeaders.Accept, Message.ContentTypeJson)
 
-  private val clientBuilder = new SingleNodeHttpClientBuilder(host, port, transportSecurity)
+  private val clientBuilder = new SingleNodeHttpClientBuilder(host, port, ssl)
   protected val client: SingleNodeHttpClient = clientBuilder.build(requestTimeout)
 
   private def post(apiSubPath: String, body: Option[JsValue] = None, isIdempotent: Boolean = false): Future[ConsumedResponse] = {

@@ -15,21 +15,15 @@ import spray.json._
 
 
 /** Build an HTTP client for a basic usage of an HTTP API hosted on a single node */
-class SingleNodeHttpClientBuilder(hostName: String, port: Option[Int] = None, security: Option[TransportSecurity.Value] = None) extends Logging {
-  private val actualSecurity = security.getOrElse(if (port.contains(443)) TransportSecurity.Ssl else TransportSecurity.NoSsl)
+class SingleNodeHttpClientBuilder(hostName: String, port: Option[Int] = None, ssl: Option[Boolean] = None) extends Logging {
+  private val https = ssl.getOrElse(port.contains(443))
   private val (protocol, dest) = {
-    val (protocol, actualPort) = if (actualSecurity == TransportSecurity.NoSsl)
-      ("http", port.getOrElse(80))
-    else
-      ("https", port.getOrElse(443))
+    val (protocol, actualPort) = if (https) ("https", port.getOrElse(443)) else ("http", port.getOrElse(80))
     (protocol, s"$hostName:$actualPort")
   }
 
   private val serviceBuilder: Http.Client = {
-    val sb = actualSecurity match {
-      case TransportSecurity.NoSsl => Http.client
-      case TransportSecurity.Ssl => Http.client.withTls(hostName)
-    }
+    val sb = if (https) Http.client.withTls(hostName) else Http.client
     sb.withSessionQualifier.noFailFast
       .withSessionQualifier.noFailureAccrual
       .withStreaming(true)
@@ -106,12 +100,6 @@ class SingleNodeHttpClient(service: Service[Request, Response], name: String) ex
 
 object SingleNodeHttpClient {
   val requestIdempotenceField: Request.Schema.Field[Boolean] = Request.Schema.newField()
-}
-
-
-object TransportSecurity extends Enumeration {
-  val NoSsl: Value = Value
-  val Ssl: Value = Value
 }
 
 
