@@ -21,7 +21,7 @@ class RundeckExecutionSpec extends Test with MockitoSugar {
       this(s"""{"abort": {"status": "$abortStatus"}, "execution": {"status": "$executionStatus"}, "execCompleted": $eventuallyCompleted}""", 200)
 
     override protected val baseWaitInterval: Duration = 1.millisecond
-    override protected val jobTerminationTimeout: Duration = 10.milliseconds
+    override protected val terminationGlobalTimeout: Duration = 1.second
     override protected val client: Request => Future[ConsumedResponse] =
       (_: Request) => Future.value(ConsumedResponse(Status(statusMock), Utf8(contentMock), "rundeck"))
     override protected val clientForIdempotentRequests: Request => Future[ConsumedResponse] = client

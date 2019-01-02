@@ -28,7 +28,7 @@ class RundeckExecution(config: Config, val href: String) extends TriggeredExecut
     }
 
   override val stopper: Option[() => Option[ExecutionState]] = Some(() =>
-    Await.result(abortJob(executionNumber.toString), client.maxAbortDuration)
+    Await.result(abortJob(executionNumber.toString))
   )
 }
 

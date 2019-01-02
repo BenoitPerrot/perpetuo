@@ -18,12 +18,9 @@ class RundeckClient(config: Config, val host: String) {
   val authToken: Option[String] = config.tryGetString("token")
   val transportSecurity: Option[TransportSecurity.Value] = config.tryGetString("transportSecurity").map(TransportSecurity.withName)
 
-  // Timeouts
   private val requestTimeout: Duration = 5.seconds
   protected val baseWaitInterval: Duration = 100.milliseconds
-  protected val jobTerminationTimeout: Duration = 5.seconds
-
-  def maxAbortDuration: Duration = requestTimeout * 2 + jobTerminationTimeout
+  protected val terminationGlobalTimeout: Duration = 1.minute
 
   private val jsonRequestBuilder = RequestBuilder()
     .setHeader(HttpHeaders.ContentType, Message.ContentTypeJson)
@@ -99,7 +96,7 @@ class RundeckClient(config: Config, val host: String) {
     )
 
   private def waitForJobFinalState(jobId: String): Future[RundeckJobState.ExecState] = {
-    val deadlineInNs = System.nanoTime() + jobTerminationTimeout.inNanoseconds
+    val deadlineInNs = System.nanoTime() + terminationGlobalTimeout.inNanoseconds
 
     def loopWhileRunning(sleepTime: Duration): Future[RundeckJobState.ExecState] = {
       if (System.nanoTime() < deadlineInNs) {
