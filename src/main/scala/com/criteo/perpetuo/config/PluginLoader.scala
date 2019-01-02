@@ -26,7 +26,8 @@ class PluginLoader @Inject()(engineProxy: EngineProxy) {
       .flatMap(tryInstantiateWithArgs(cls, _))
       .headOption
       .getOrElse {
-        throw new NoSuchMethodException(s"As a plugin, ${cls.getSimpleName} must have at least a constructor taking either its Config (if one is provided), or its Config and an EngineProxy, or nothing")
+        throw new NoSuchMethodException(s"As a plugin, ${cls.getName} must have at least a constructor taking either its Config (if one is provided), or its Config and an EngineProxy, or nothing")
+        // note: don't use .getSimpleName on an unknown class, because of https://github.com/scala/bug/issues/2034
       }
   }
 
