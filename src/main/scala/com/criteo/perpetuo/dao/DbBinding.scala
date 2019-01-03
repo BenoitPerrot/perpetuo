@@ -335,46 +335,6 @@ class DbBinding @Inject()(val dbContext: DbContext)
       .map(_.collectFirst { case (targetAtom, actionable) if !actionable => targetAtom.toModel })
   }
 
-  def gettingOperationEffect(operationTrace: OperationTrace): DBIOAction[(Seq[DeploymentPlanStep], OperationEffect), NoStream, Effect.Read] =
-    executionQuery
-      .joinLeft(executionTraceQuery)
-      .filter { case (execution, executionTrace) =>
-        execution.operationTraceId === operationTrace.id && executionTrace.map(_.executionId) === execution.id
-      }
-      .map { case (execution, executionTrace) => (execution.id, executionTrace) }
-      .result
-
-      .flatMap { executionTraces =>
-        // in a separate request to not create huge joins between two orthogonal tables: ExecutionTrace and TargetStatus:
-        targetStatusQuery
-          .filter(_.executionId.inSet(executionTraces.map { case (executionId, _) => executionId }))
-          .result
-
-          .map { targetStatuses =>
-            val et = executionTraces.flatMap { case (_, executionTrace) => executionTrace.map(_.toExecutionTrace) }
-            val ts = targetStatuses.map(_.toTargetStatus)
-            (et, ts)
-          }
-      }
-      .flatMap { case (et, ts) =>
-        deploymentRequestQuery
-          .join(deploymentPlanStepQuery)
-          .filter { case (req, step) => req.id === operationTrace.deploymentRequest.id && req.id === step.deploymentRequestId }
-          .joinLeft(stepOperationXRefQuery)
-          .on { case ((_, step), xref) => xref.deploymentPlanStepId === step.id && xref.operationTraceId === operationTrace.id }
-          .groupBy { case ((_, step), _) => step.id }
-          .map { case (stepId, q) => (stepId, q.map { case (_, xref) => xref.map(_.operationTraceId) }.max.isDefined) }
-          .join(deploymentPlanStepQuery)
-          .filter { case ((stepId, _), planStep) => planStep.id === stepId }
-          .result
-
-          .map { result =>
-            val planSteps = result.map { case (_, step) => step.toDeploymentPlanStep(operationTrace.deploymentRequest) }
-            val impactedStepIds = result.collect { case ((stepId, isImpacted), _) if isImpacted => stepId }
-            (planSteps, OperationEffect(operationTrace, impactedStepIds, et, ts))
-          }
-      }
-
   private def latestExecutions(targetStatuses: Query[TargetStatusTable, TargetStatusRecord, Seq]) =
     targetStatuses
       .groupBy(_.targetAtom)

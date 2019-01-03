@@ -110,8 +110,8 @@ trait SimpleScenarioTesting extends TestHelpers with TestDb with MockitoSugar {
     )
 
   def tryStopOperation(operationTrace: OperationTrace, initiatorName: String): Future[(Int, Seq[String])] =
-    dbBinding.dbContext.db.run(dbBinding.gettingOperationEffect(operationTrace)).flatMap { case (_, effect) =>
-      crankshaft.tryStopOperation(effect, initiatorName)
+    dbBinding.dbContext.db.run(dbBinding.findingDeploymentRequestAndEffects(operationTrace.deploymentRequest.id)).map(_.get).flatMap { case (_, _, effects) =>
+      crankshaft.tryStopOperation(effects.maxBy(_.operationTrace.id), initiatorName)
     }
 
   def tryCloseOperation(operationTrace: OperationTrace,
