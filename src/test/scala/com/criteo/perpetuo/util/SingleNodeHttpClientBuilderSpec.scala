@@ -15,8 +15,8 @@ import spray.json._
 
 class SingleNodeHttpClientBuilderSpec extends TestHelpers {
   // timeouts: the highest the more deterministic the tests, the lowest the quicker
-  private val connectionTimeout = 25.milliseconds
-  private val requestTimeout = 25.milliseconds
+  private val connectionTimeout = 50.milliseconds
+  private val requestTimeout = 100.milliseconds
   private val safePeriod = connectionTimeout + requestTimeout // needed for timeout-based assertions
 
   private val apiPath = "/api/resources"
