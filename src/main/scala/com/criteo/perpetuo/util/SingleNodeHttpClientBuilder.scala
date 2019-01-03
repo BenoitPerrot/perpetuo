@@ -31,50 +31,52 @@ class SingleNodeHttpClient(hostName: String, port: Option[Int], ssl: Option[Bool
     (protocol, s"$hostName:$actualPort")
   }
 
-  private val serviceBuilder: Http.Client = {
-    val sb = if (https) Http.client.withTls(hostName) else Http.client
-    sb.withSessionQualifier.noFailFast
-      .withSessionQualifier.noFailureAccrual
-      .withStreaming(true)
-  }
-
   def url(path: String): URL =
     port.map(new URL(protocol, hostName, _, path)).getOrElse(new URL(protocol, hostName, path))
 
   def createRequest(path: String, builder: RequestBuilder[Nothing, Nothing] = RequestBuilder()): RequestBuilder[RequestConfig.Yes, Nothing] =
     builder.url(url(path))
 
-  private val shouldRetry: PartialFunction[(Request, Try[Response]), Boolean] = {
-    case (request, Return(rep)) =>
-      val code = rep.status.code
-      if (500 <= code) {
-        logger.warn(s"$hostName answered HTTP $code: ${rep.status.reason}")
-        code == 503 || request.ctx(SingleNodeHttpClient.requestIdempotenceField)
-      }
-      else {
-        if (400 <= code)
-          logger.error(s"$hostName answered HTTP $code: ${rep.status.reason}")
-        false
-      }
-    case (_, t@Throw(_: RequestException | _: ConnectionFailedException | _: WriteException | _: ServiceNotAvailableException)) =>
-      logger.warn(s"Could not send a request to $hostName: ${t.throwable.getMessage}")
-      true // failed before the request was sent
-    case (request, _) =>
-      request.ctx(SingleNodeHttpClient.requestIdempotenceField)
-  }
-  private val backoff = Backoff.exponential(minimumDelayBetweenRetries, 2).take(retries)
-  private val retry = RetryFilter(backoff, DefaultStatsReceiver)(shouldRetry)(HighResTimer.Default)
+  private val service: Service[Request, Response] = {
+    val shouldRetry: PartialFunction[(Request, Try[Response]), Boolean] = {
+      case (request, Return(rep)) =>
+        val code = rep.status.code
+        if (500 <= code) {
+          logger.warn(s"$hostName answered HTTP $code: ${rep.status.reason}")
+          code == 503 || request.ctx(SingleNodeHttpClient.requestIdempotenceField)
+        }
+        else {
+          if (400 <= code)
+            logger.error(s"$hostName answered HTTP $code: ${rep.status.reason}")
+          false
+        }
+      case (_, t@Throw(_: RequestException | _: ConnectionFailedException | _: WriteException | _: ServiceNotAvailableException)) =>
+        logger.warn(s"Could not send a request to $hostName: ${t.throwable.getMessage}")
+        true // failed before the request was sent
+      case (request, _) =>
+        request.ctx(SingleNodeHttpClient.requestIdempotenceField)
+    }
+    val backoff = Backoff.exponential(minimumDelayBetweenRetries, 2).take(retries)
+    val retry = RetryFilter(backoff, DefaultStatsReceiver)(shouldRetry)(HighResTimer.Default)
 
-  private val baseService = serviceBuilder
-    .withSession.acquisitionTimeout(connectionTimeout)
-    .withRequestTimeout(requestTimeout)
-    .newService(dest, hostName)
-  private val loggingService = Service.mk { req: Request =>
-    val start = System.currentTimeMillis()
-    baseService(req).onSuccess(_ => logger.debug(s"$hostName answered in ${System.currentTimeMillis() - start}ms"))
-  }
+    val sb = if (https) Http.client.withTls(hostName) else Http.client
+    val baseService = sb
+      .withSessionQualifier.noFailFast
+      .withSessionQualifier.noFailureAccrual
+      .withStreaming(true)
+      .withSession.acquisitionTimeout(connectionTimeout)
+      .withRequestTimeout(requestTimeout)
+      .newService(dest, hostName)
 
-  private val service: Service[Request, Response] = retry.andThen(loggingService)
+    val loggingService = Service.mk { req: Request =>
+      val start = System.currentTimeMillis()
+      baseService(req).onSuccess(_ =>
+        logger.debug(s"$hostName answered in ${System.currentTimeMillis() - start}ms")
+      )
+    }
+
+    retry.andThen(loggingService)
+  }
 
   /**
     * Send the request and return the response when its body has been fully received, possibly after retries.
