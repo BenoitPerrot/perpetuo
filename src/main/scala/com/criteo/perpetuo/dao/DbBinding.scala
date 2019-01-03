@@ -31,7 +31,7 @@ class DbBinding @Inject()(val dbContext: DbContext)
   def executeInSerializableTransaction[T](q: DBIOAction[T, NoStream, _]): Future[T] =
     dbContext.db.run(q.transactionally.withTransactionIsolation(TransactionIsolation.Serializable))
 
-  def findingDeploymentRequestAndEffects(deploymentRequestId: Long): DBIOAction[Option[(DeploymentRequest, Seq[DeploymentPlanStep], Stream[OperationEffect])], NoStream, Effect.Read] = {
+  def findingDeploymentRequestAndEffects(deploymentRequestId: Long): DBIOAction[Option[(DeploymentRequest, Seq[DeploymentPlanStep], Seq[OperationEffect])], NoStream, Effect.Read] = {
     val findingDeploymentRequest =
       deploymentRequestQuery
         .join(productQuery)

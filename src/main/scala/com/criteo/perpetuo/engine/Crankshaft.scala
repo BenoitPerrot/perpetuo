@@ -94,7 +94,7 @@ class Crankshaft @Inject()(val appConfig: AppConfig,
         computeDeploymentState(deploymentRequest, deploymentPlanSteps, effects, outdatingId)
       }
 
-  def computeDeploymentState(deploymentRequest: DeploymentRequest, deploymentPlanSteps: Seq[DeploymentPlanStep], effects: Stream[OperationEffect], outdatingId: Option[Long] = None): DeploymentState = {
+  def computeDeploymentState(deploymentRequest: DeploymentRequest, deploymentPlanSteps: Seq[DeploymentPlanStep], effects: Seq[OperationEffect], outdatingId: Option[Long] = None): DeploymentState = {
     val sortedEffects = effects.sortBy(-_.operationTrace.id)
     if (deploymentRequest.state.contains(DeploymentRequestState.abandoned)) {
       Abandoned(deploymentRequest, deploymentPlanSteps, effects, outdatingId)
