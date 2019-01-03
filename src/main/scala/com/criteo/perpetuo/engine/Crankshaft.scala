@@ -218,15 +218,16 @@ class Crankshaft @Inject()(val appConfig: AppConfig,
       .flatMap { case (trace, updated) =>
         if (updated)
           dbBinding
-            .gettingOperationEffect(trace)
-            .map { case (deploymentPlanSteps, effect) =>
-              computeDeploymentState(effect.operationTrace.deploymentRequest, deploymentPlanSteps, Stream(effect)) match {
+            .findingDeploymentRequestAndEffects(trace.deploymentRequest.id)
+            .map(_.get)
+            .map { case (deploymentRequest, deploymentPlanSteps, effects) =>
+              computeDeploymentState(deploymentRequest, deploymentPlanSteps, effects) match {
                 case s: Paused => (s, None, true)
                 case s: Deployed => (s, Some(true), true)
                 case s@(_: DeployFlopped | _: RevertFailed | _: RevertInProgress) => (s, Some(false), false)
                 case s: Reverted => (s, Some(false), true)
                 case s: DeployFailed => (s, None, false)
-                case s => throw new IllegalStateException(s"Unexpected $updated state $s while closing ${effect.operationTrace.kind} operation")
+                case s => throw new IllegalStateException(s"Unexpected $updated state $s while closing ${operationTrace.kind} operation")
               }
             }
             .flatMap { case (state, transactionFinalSuccess, operationSucceeded) =>
