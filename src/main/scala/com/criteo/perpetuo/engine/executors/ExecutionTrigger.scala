@@ -9,6 +9,10 @@ import scala.concurrent.Future
 /**
   * An instance is supposed to be dedicated to an executor or a type of executor
   * and is able to trigger an execution on it.
+  *
+  * It is advised that any concrete class of this type have a constructor taking
+  * either no parameter or a Config as single parameter in order to be usable
+  * by configuration only, in conjunction with the "singleExecutor" dispatcher.
   */
 trait ExecutionTrigger {
   /**

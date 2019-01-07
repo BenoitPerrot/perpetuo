@@ -2,11 +2,13 @@ package com.criteo.perpetuo.engine.executors
 
 import com.criteo.perpetuo.app.RestApi
 import com.criteo.perpetuo.config.AppConfig
+import com.criteo.perpetuo.config.ConfigSyntacticSugar._
 import com.criteo.perpetuo.engine.TargetAtomSet
 import com.criteo.perpetuo.model.Version
 import com.twitter.conversions.time._
 import com.twitter.finagle.http.Status
 import com.twitter.util.Await
+import com.typesafe.config.Config
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
@@ -15,6 +17,12 @@ class JenkinsTrigger(name: String,
                      val jobToken: Option[String],
                      val host: String,
                      jobName: String) extends ExecutionTrigger {
+  def this(config: Config) = this(
+    config.getString("name"),
+    config.tryGetString("jobToken"),
+    config.getString("host"),
+    config.getString("jobName")
+  )
 
   override def toString: String = s"$name (job: $jobName)"
 
