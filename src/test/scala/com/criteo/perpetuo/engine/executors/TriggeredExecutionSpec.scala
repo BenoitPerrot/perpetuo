@@ -6,7 +6,7 @@ import com.twitter.inject.Test
 
 
 class TriggeredExecutionSpec extends Test {
-  val finder = new TriggeredExecutionFinder(AppConfig, new PluginLoader(AppConfig, null))
+  val finder = new TriggeredExecutionFinder(AppConfig, new PluginLoader(null, AppConfig))
 
   test("The TriggeredExecutionFinder can load a Rundeck execution") {
     finder(ShallowExecutionTrace(42, "rundeck", Some("https://rundeck.somewhere/project/foo-bar/execution/show/42"), ExecutionState.completed, "")).stopper shouldBe defined

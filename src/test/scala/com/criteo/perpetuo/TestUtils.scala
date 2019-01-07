@@ -3,7 +3,7 @@ package com.criteo.perpetuo
 import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.{CompletableFuture, Future => JavaFuture}
 
-import com.criteo.perpetuo.auth.User
+import com.criteo.perpetuo.auth.{AnonymousIdentityProvider, IdentityProvider, User}
 import com.criteo.perpetuo.config.{AppConfig, EngineProxy, PluginLoader, Plugins}
 import com.criteo.perpetuo.dao.{DbBinding, DbContext, DbContextProvider, TestingDbContextModule}
 import com.criteo.perpetuo.engine._
@@ -12,7 +12,8 @@ import com.criteo.perpetuo.engine.executors.{ExecutionTrigger, TriggeredExecutio
 import com.criteo.perpetuo.engine.resolvers.TargetResolver
 import com.criteo.perpetuo.model._
 import com.google.common.base.Ticker
-import com.twitter.inject.Test
+import com.google.inject._
+import com.twitter.inject.{Test, TwitterModule}
 import org.mockito.Matchers._
 import org.mockito.Mockito.when
 import org.scalatest.matchers.Matcher
@@ -69,9 +70,16 @@ trait SimpleScenarioTesting extends TestHelpers with TestDb with MockitoSugar {
   import dbContext.profile.api._
 
   private val knownProducts = mutable.Set[String]()
-  private val loader = new PluginLoader(AppConfig, new EngineProxy(new com.google.inject.Provider[Crankshaft]() {
-    def get: Crankshaft = crankshaft
-  }))
+
+  private val injector = Guice.createInjector(
+    new TwitterModule() {
+      @Singleton
+      @Provides
+      def providesCrankshaft: Crankshaft = crankshaft
+    }
+  )
+
+  private val loader = new PluginLoader(injector, AppConfig)
   private val executionTrigger: ExecutionTrigger = mock[ExecutionTrigger]
   when(executionTrigger.executorType).thenReturn("testing")
   def appConfig: AppConfig = AppConfig

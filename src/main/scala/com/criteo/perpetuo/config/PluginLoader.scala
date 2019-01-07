@@ -3,11 +3,11 @@ package com.criteo.perpetuo.config
 import java.io.File
 import java.lang.reflect.InvocationTargetException
 
-import com.google.inject.{Inject, Singleton}
+import com.google.inject.{Inject, Injector, Singleton}
 import com.typesafe.config.{Config, ConfigException}
 
 @Singleton
-class PluginLoader @Inject()(appConfig: AppConfig, engineProxy: EngineProxy) {
+class PluginLoader @Inject()(injector: Injector, appConfig: AppConfig) {
 
   import com.criteo.perpetuo.config.ConfigSyntacticSugar._
 
@@ -17,7 +17,7 @@ class PluginLoader @Inject()(appConfig: AppConfig, engineProxy: EngineProxy) {
     val instantiationParameters =
       optPluginConfig.map(pluginConfig => Seq(
         Seq(pluginConfig),
-        Seq(pluginConfig, engineProxy)
+        Seq(pluginConfig, injector)
       )).getOrElse(Seq()) ++ Seq(
         Seq(),
         Seq(appConfig)
