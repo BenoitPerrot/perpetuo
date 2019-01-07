@@ -57,6 +57,8 @@ class SingleNodeHttpClientBuilder(hostName: String, port: Option[Int] = None, se
       case (_, t@Throw(_: RequestException | _: ConnectionFailedException | _: WriteException | _: ServiceNotAvailableException)) =>
         logger.warn(s"Could not send a request to $hostName: ${t.throwable.getMessage}")
         true // failed before the request was sent
+      case (request, _) =>
+        request.ctx(SingleNodeHttpClient.requestIdempotenceField)
     }
     val backoff = Backoff.exponential(minimumDelayBetweenRetries, 2).take(retries)
     val retry = RetryFilter(backoff, DefaultStatsReceiver)(shouldRetry)(HighResTimer.Default)
