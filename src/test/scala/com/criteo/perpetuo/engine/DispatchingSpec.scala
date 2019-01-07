@@ -1,7 +1,7 @@
 package com.criteo.perpetuo.engine
 
 import com.criteo.perpetuo.engine.dispatchers.TargetDispatcher
-import com.criteo.perpetuo.engine.executors.{DummyExecutionTrigger, ExecutionTrigger}
+import com.criteo.perpetuo.engine.executors.{NoOpTrigger, ExecutionTrigger}
 import com.criteo.perpetuo.model._
 import com.criteo.perpetuo.{SimpleScenarioTesting, TestTargetResolver}
 import spray.json.DefaultJsonProtocol._
@@ -15,9 +15,9 @@ import scala.reflect.{ClassTag, classTag}
 
 
 object TestTargetDispatcher extends TargetDispatcher {
-  val aTrigger = new DummyExecutionTrigger
-  val bTrigger = new DummyExecutionTrigger
-  val cTrigger = new DummyExecutionTrigger
+  val aTrigger = new NoOpTrigger
+  val bTrigger = new NoOpTrigger
+  val cTrigger = new NoOpTrigger
 
   override def freezeParameters(productName: String, version: Version): String = "foobar"
 
