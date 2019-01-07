@@ -8,6 +8,7 @@ import com.twitter.finagle.http.{Request, Status}
 import com.twitter.inject.Test
 import com.twitter.io.Buf.Utf8
 import com.twitter.util.Future
+import com.typesafe.config.ConfigFactory
 import spray.json._
 
 import scala.concurrent.Await
@@ -55,5 +56,14 @@ class RundeckTriggerSpec extends Test {
   test("Rundeck's API is followed when the request cannot be satisfied") {
     val exc = the[Exception] thrownBy new TriggerMock(400, """{"error": true, "message": "Intelligible error"}""").testTrigger
     exc.getMessage should endWith("""Bad Request: Intelligible error""")
+  }
+
+  test("RundeckTrigger must be loadable by configuration, to be used with the singleExecutor dispatcher") {
+    new RundeckTrigger(ConfigFactory.parseString(
+      """
+        |name = "foo"
+        |host = "foo-01.criteo.com"
+        |jobName = "deploy-foo"
+      """.stripMargin))
   }
 }
