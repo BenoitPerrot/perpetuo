@@ -15,9 +15,9 @@ import scala.reflect.{ClassTag, classTag}
 
 
 object TestTargetDispatcher extends TargetDispatcher {
-  val aTrigger = new DummyExecutionTrigger("A's trigger")
-  val bTrigger = new DummyExecutionTrigger("B's trigger")
-  val cTrigger = new DummyExecutionTrigger("C's trigger")
+  val aTrigger = new DummyExecutionTrigger
+  val bTrigger = new DummyExecutionTrigger
+  val cTrigger = new DummyExecutionTrigger
 
   override def freezeParameters(productName: String, version: Version): String = "foobar"
 
