@@ -82,6 +82,20 @@ trait SimpleScenarioTesting extends TestHelpers with TestDb with MockitoSugar {
       @Singleton
       @Provides
       def providesCrankshaft: Crankshaft = crankshaft
+
+      @Singleton
+      @Provides
+      def providesEngine(appConfig: AppConfig, crankshaft: Crankshaft, plugins: Plugins): Engine = {
+        class NoOpScheduler extends Scheduler {
+          override def scheduleTask(f: () => Any, period: Long, timeUnit: TimeUnit, initialDelay: Long): JavaFuture[_] =
+            CompletableFuture.completedFuture(())
+        }
+
+        new Engine(appConfig, crankshaft, plugins.permissions, plugins.preConditionEvaluators, new NoOpScheduler()) {
+          override val stateExpirationTime: FiniteDuration = 1000.seconds // the goal is that no test actually depends on it
+          override val ticker: Ticker = mockTicker // ... thanks to this mock
+        }
+      }
     }
   )
 
@@ -103,14 +117,7 @@ trait SimpleScenarioTesting extends TestHelpers with TestDb with MockitoSugar {
 
   protected val mockTicker = new MockTicker(1001.seconds)
 
-  class NoOpScheduler extends Scheduler {
-    override def scheduleTask(f: () => Any, period: Long, timeUnit: TimeUnit, initialDelay: Long): JavaFuture[_] =
-      CompletableFuture.completedFuture(())
-  }
-  protected lazy val engine: Engine = new Engine(appConfig, crankshaft, plugins.permissions, plugins.preConditionEvaluators, new NoOpScheduler()) {
-    override val stateExpirationTime: FiniteDuration = 1000.seconds // the goal is that no test actually depends on it
-    override val ticker: Ticker = mockTicker // ... thanks to this mock
-  }
+  protected lazy val engine: Engine = injector.getInstance(classOf[Engine])
 
   protected def triggerMock: Option[String] = None
 
