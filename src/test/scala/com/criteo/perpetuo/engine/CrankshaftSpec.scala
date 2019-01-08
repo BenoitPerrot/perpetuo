@@ -349,7 +349,7 @@ class CrankshaftWithFailingExecutorSpec extends SimpleScenarioTesting {
 
 
 class CrankshaftWithResolverSpec extends SimpleScenarioTesting {
-  override val resolver: TargetResolver = TestTargetResolver
+  protected override def providesTargetResolver: TargetResolver = TestTargetResolver
 
   private val step1 = Set("north", "south")
   private val step2 = Set("tag:east-west")
@@ -471,7 +471,7 @@ class CrankshaftWithResolverSpec extends SimpleScenarioTesting {
 
 class CrankshaftWithDynamicResolutionSpec extends SimpleScenarioTesting {
   var targetToAtoms: Map[TargetNonAtom, Set[TargetAtom]] = _
-  override val resolver: TargetResolver = new TargetResolver {
+  protected override def providesTargetResolver: TargetResolver = new TargetResolver {
     protected override def resolveNonAtoms(productName: String, productVersion: Version, targetTerms: Set[TargetNonAtom]): (Map[TargetNonAtom, Set[TargetAtom]], Boolean) =
       (targetToAtoms, true)
   }
