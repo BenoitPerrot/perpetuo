@@ -73,34 +73,38 @@ trait SimpleScenarioTesting extends TestHelpers with TestDb with MockitoSugar {
 
   protected def providesAppConfig: AppConfig = AppConfig
 
+  protected def extraModules: Seq[Module] = Seq[Module]()
+
   private val injector = Guice.createInjector(
-    new TwitterModule() {
-      @Singleton
-      @Provides
-      def providesAppConfig: AppConfig = SimpleScenarioTesting.this.providesAppConfig
+    extraModules.:+(
+      new TwitterModule() {
+        @Singleton
+        @Provides
+        def providesAppConfig: AppConfig = SimpleScenarioTesting.this.providesAppConfig
 
-      @Singleton
-      @Provides
-      def providesCrankshaft(appConfig: AppConfig, plugins: Plugins): Crankshaft = {
-        when(executionTrigger.trigger(anyLong, anyString, any[Version], any[TargetAtomSet], anyString))
-          .thenReturn(Future(triggerMock))
-        new Crankshaft(appConfig, dbBinding, resolver, targetDispatcher, plugins.listeners, executionFinder)
-      }
-
-      @Singleton
-      @Provides
-      def providesEngine(appConfig: AppConfig, crankshaft: Crankshaft, plugins: Plugins): Engine = {
-        class NoOpScheduler extends Scheduler {
-          override def scheduleTask(f: () => Any, period: Long, timeUnit: TimeUnit, initialDelay: Long): JavaFuture[_] =
-            CompletableFuture.completedFuture(())
+        @Singleton
+        @Provides
+        def providesCrankshaft(appConfig: AppConfig, plugins: Plugins): Crankshaft = {
+          when(executionTrigger.trigger(anyLong, anyString, any[Version], any[TargetAtomSet], anyString))
+            .thenReturn(Future(triggerMock))
+          new Crankshaft(appConfig, dbBinding, resolver, targetDispatcher, plugins.listeners, executionFinder)
         }
 
-        new Engine(appConfig, crankshaft, plugins.permissions, plugins.preConditionEvaluators, new NoOpScheduler()) {
-          override val stateExpirationTime: FiniteDuration = 1000.seconds // the goal is that no test actually depends on it
-          override val ticker: Ticker = mockTicker // ... thanks to this mock
+        @Singleton
+        @Provides
+        def providesEngine(appConfig: AppConfig, crankshaft: Crankshaft, plugins: Plugins): Engine = {
+          class NoOpScheduler extends Scheduler {
+            override def scheduleTask(f: () => Any, period: Long, timeUnit: TimeUnit, initialDelay: Long): JavaFuture[_] =
+              CompletableFuture.completedFuture(())
+          }
+
+          new Engine(appConfig, crankshaft, plugins.permissions, plugins.preConditionEvaluators, new NoOpScheduler()) {
+            override val stateExpirationTime: FiniteDuration = 1000.seconds // the goal is that no test actually depends on it
+            override val ticker: Ticker = mockTicker // ... thanks to this mock
+          }
         }
       }
-    }
+    ): _*
   )
 
   private lazy val loader = injector.getInstance(classOf[PluginLoader])
