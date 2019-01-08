@@ -5,6 +5,8 @@ import com.criteo.perpetuo.engine.executors._
 import com.criteo.perpetuo.engine.resolvers.TargetResolver
 import com.criteo.perpetuo.model._
 import com.criteo.perpetuo.{SimpleScenarioTesting, TestTargetResolver}
+import com.google.inject.{Module, Provides, Singleton}
+import com.twitter.inject.TwitterModule
 import org.mockito.Mockito.when
 import spray.json.DefaultJsonProtocol._
 import spray.json._
@@ -608,10 +610,17 @@ class CrankshaftWithStopperSpec extends SimpleScenarioTesting {
   private val executionMock = mock[TriggeredExecution]
   when(executionMock.href).thenReturn(href)
 
-  override val executionFinder: TriggeredExecutionFinder = new TriggeredExecutionFinder(AppConfig, null) {
-    override def apply[T](executionTrace: ShallowExecutionTrace): TriggeredExecution =
-      executionMock
-  }
+  override protected def extraModules: Seq[Module] = Seq(
+    new TwitterModule() {
+      @Singleton
+      @Provides
+      def providesExecutionFinder: TriggeredExecutionFinder =
+        new TriggeredExecutionFinder(AppConfig, null) {
+          override def apply[T](executionTrace: ShallowExecutionTrace): TriggeredExecution =
+            executionMock
+        }
+    }
+  )
 
   test("Stop a running execution") {
     when(executionMock.stopper).thenReturn(Some(() => None))
@@ -688,10 +697,17 @@ class CrankshaftWithUncontrollableTriggeredExecutionSpec extends SimpleScenarioT
 
   override protected def triggerMock = Some(href)
 
-  override val executionFinder: TriggeredExecutionFinder = new TriggeredExecutionFinder(AppConfig, null) {
-    override def apply[T](executionTrace: ShallowExecutionTrace): TriggeredExecution =
-      new UncontrollableTriggeredExecution(href)
-  }
+  override protected def extraModules: Seq[Module] = Seq(
+    new TwitterModule() {
+      @Singleton
+      @Provides
+      def providesExecutionFinder: TriggeredExecutionFinder =
+        new TriggeredExecutionFinder(AppConfig, null) {
+          override def apply[T](executionTrace: ShallowExecutionTrace): TriggeredExecution =
+            new UncontrollableTriggeredExecution(href)
+        }
+    }
+  )
 
   test("Cannot stop an execution of an explicitly unstoppable type") {
     val op = request("dusty-duck", "1234567", Seq("thailand")).step()
