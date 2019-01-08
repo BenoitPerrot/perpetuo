@@ -85,7 +85,7 @@ trait SimpleScenarioTesting extends TestHelpers with TestDb with MockitoSugar {
     }
   )
 
-  private val loader = new PluginLoader(injector, AppConfig)
+  private lazy val loader = injector.getInstance(classOf[PluginLoader])
   private val executionTrigger: ExecutionTrigger = mock[ExecutionTrigger]
   when(executionTrigger.executorType).thenReturn("testing")
   private lazy val appConfig: AppConfig = injector.getInstance(classOf[AppConfig])
