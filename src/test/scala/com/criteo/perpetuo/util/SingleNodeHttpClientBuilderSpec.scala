@@ -13,7 +13,7 @@ import com.twitter.util.{Await, Duration, Future}
 import spray.json._
 
 
-class SingleNodeHttpClientBuilderSpec extends TestHelpers {
+class SingleNodeHttpClientSpec extends TestHelpers {
   // timeouts: the highest the more deterministic the tests, the lowest the quicker
   private val connectionTimeout = 50.milliseconds
   private val requestTimeout = 100.milliseconds
@@ -38,14 +38,8 @@ class SingleNodeHttpClientBuilderSpec extends TestHelpers {
   })
   private val Array(host, portStr) = server.externalHttpHostAndPort.split(":", 2)
 
-  private val clientBuilder = new SingleNodeHttpClientBuilder(host, Some(portStr.toInt), Some(false))
-  private val client = buildClient(clientBuilder)
-
-  private val clientBuilderToUnknown = new SingleNodeHttpClientBuilder("unknown", Some(1234))
+  private val client = new SingleNodeHttpClient(host, Some(portStr.toInt), Some(false), connectionTimeout, requestTimeout, safePeriod, 1)
   private val rootUrl = RequestBuilder().url(url("/"))
-
-  private def buildClient(builder: SingleNodeHttpClientBuilder) =
-    builder.build(connectionTimeout, requestTimeout, safePeriod, 1)
 
   private def url(path: String) = new URL(s"http://$host:$portStr$path")
 
@@ -63,14 +57,14 @@ class SingleNodeHttpClientBuilderSpec extends TestHelpers {
     Await.result(f, safePeriod).status.code
   }
 
-  private def bootstrapResolution(clientBuilder: SingleNodeHttpClientBuilder, req: Request): Unit = {
-    val client = clientBuilder.build(Duration.Top, 0)
-    Await.ready(client(req))
+  private def bootstrapResolution(host: String, port: Int): Unit = {
+    val client = new SingleNodeHttpClient(host, Some(port), None, Duration.Top, 0)
+    Await.ready(client(rootUrl.buildGet()))
   }
 
   // bootstrap the resolution to allow much shorter and more deterministic timeouts for following timeout-based assertions
-  bootstrapResolution(clientBuilder, post("invalid"))
-  bootstrapResolution(clientBuilderToUnknown, rootUrl.buildGet())
+  bootstrapResolution(host, portStr.toInt)
+  bootstrapResolution("unknown", 1234)
 
   test("Non-idempotent requests are not retried on an HTTP 500") {
     shouldNotRetry(client(post("invalid"))) shouldEqual 500
@@ -97,15 +91,14 @@ class SingleNodeHttpClientBuilderSpec extends TestHelpers {
   }
 
   test("Requests are retried if the service is unknown") {
-    val client = buildClient(clientBuilderToUnknown)
+    val client = new SingleNodeHttpClient("unknown", Some(1234), Some(false), connectionTimeout, requestTimeout, safePeriod, 1)
     a[NoBrokersAvailableException] shouldBe thrownBy(shouldRetry(client(rootUrl.buildGet())))
   }
 
   test("SingleNodeHttpClient fails if a Request instance is reused") {
     // we must check the request cannot be reused because the current implementation makes the instance stateful
-    val builder = new SingleNodeHttpClientBuilder("host")
-    val client = builder.build(1.second)
-    val req = builder.createRequest("/path").buildGet()
+    val client = new SingleNodeHttpClient("host", 1.second)
+    val req = client.createRequest("/path").buildGet()
     client(req)
     a[Throwable] shouldBe thrownBy(client(req))
   }

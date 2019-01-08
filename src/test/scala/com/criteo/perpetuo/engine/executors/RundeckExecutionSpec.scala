@@ -22,7 +22,7 @@ class RundeckExecutionSpec extends Test with MockitoSugar {
 
     override protected val baseWaitInterval: Duration = 1.millisecond
     override protected val terminationGlobalTimeout: Duration = 1.second
-    override protected val client: SingleNodeHttpClient = new SingleNodeHttpClient(null, "") {
+    override protected val client: SingleNodeHttpClient = new SingleNodeHttpClient("rundeck", Duration.Top) {
       override def apply(request: Request, isIdempotent: Boolean = false): Future[ConsumedResponse] =
         Future.value(ConsumedResponse(Status(statusMock), Utf8(contentMock), "rundeck"))
     }

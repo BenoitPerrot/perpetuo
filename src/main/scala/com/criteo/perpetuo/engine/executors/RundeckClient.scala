@@ -1,7 +1,7 @@
 package com.criteo.perpetuo.engine.executors
 
 import com.criteo.perpetuo.config.ConfigSyntacticSugar._
-import com.criteo.perpetuo.util.{ConsumedResponse, SingleNodeHttpClient, SingleNodeHttpClientBuilder}
+import com.criteo.perpetuo.util.{ConsumedResponse, SingleNodeHttpClient}
 import com.twitter.conversions.time._
 import com.twitter.finagle.http.Status.{NotFound, Ok}
 import com.twitter.finagle.http._
@@ -26,11 +26,10 @@ class RundeckClient(config: Config, val host: String) {
     .setHeader(HttpHeaders.ContentType, Message.ContentTypeJson)
     .setHeader(HttpHeaders.Accept, Message.ContentTypeJson)
 
-  private val clientBuilder = new SingleNodeHttpClientBuilder(host, port, ssl)
-  protected val client: SingleNodeHttpClient = clientBuilder.build(requestTimeout)
+  protected val client: SingleNodeHttpClient = new SingleNodeHttpClient(host, port, ssl, requestTimeout)
 
   private def post(apiSubPath: String, body: Option[JsValue] = None, isIdempotent: Boolean = false): Future[ConsumedResponse] = {
-    val req = clientBuilder
+    val req = client
       .createRequest(apiSubPath, jsonRequestBuilder)
       .buildPost(body.map(_.compactPrint).map(Buf.Utf8(_)).getOrElse(Buf.Empty))
     client(req, isIdempotent)
