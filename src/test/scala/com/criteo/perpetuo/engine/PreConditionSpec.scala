@@ -11,7 +11,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 
 class PreConditionSpec extends SimpleScenarioTesting {
 
-  override def appConfig: AppConfig =
+  override def providesAppConfig: AppConfig =
     new AppConfig(
       ConfigFactory
         .parseString(

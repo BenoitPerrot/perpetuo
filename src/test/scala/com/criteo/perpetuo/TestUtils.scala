@@ -71,8 +71,14 @@ trait SimpleScenarioTesting extends TestHelpers with TestDb with MockitoSugar {
 
   private val knownProducts = mutable.Set[String]()
 
+  protected def providesAppConfig: AppConfig = AppConfig
+
   private val injector = Guice.createInjector(
     new TwitterModule() {
+      @Singleton
+      @Provides
+      def providesAppConfig: AppConfig = SimpleScenarioTesting.this.providesAppConfig
+
       @Singleton
       @Provides
       def providesCrankshaft: Crankshaft = crankshaft
@@ -82,7 +88,7 @@ trait SimpleScenarioTesting extends TestHelpers with TestDb with MockitoSugar {
   private val loader = new PluginLoader(injector, AppConfig)
   private val executionTrigger: ExecutionTrigger = mock[ExecutionTrigger]
   when(executionTrigger.executorType).thenReturn("testing")
-  def appConfig: AppConfig = AppConfig
+  private lazy val appConfig: AppConfig = injector.getInstance(classOf[AppConfig])
   val plugins = new Plugins(loader, appConfig)
   val executionFinder = new TriggeredExecutionFinder(appConfig, loader)
 
