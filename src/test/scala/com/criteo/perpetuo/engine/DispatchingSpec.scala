@@ -46,7 +46,7 @@ class DispatchingSpec extends SimpleScenarioTesting {
 
   import TestTargetDispatcher._
 
-  override lazy val targetDispatcher: TargetDispatcher = TestTargetDispatcher
+  protected override def providesTargetDispatcher: TargetDispatcher = TestTargetDispatcher
   private val testResolver = TestTargetResolver
   private val product: Product = Await.result(crankshaft.dbBinding.upsertProduct("perpetuo-app"), 1.second)
 

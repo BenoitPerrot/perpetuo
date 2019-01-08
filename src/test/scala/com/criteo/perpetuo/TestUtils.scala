@@ -73,6 +73,8 @@ trait SimpleScenarioTesting extends TestHelpers with TestDb with MockitoSugar {
 
   protected def providesAppConfig: AppConfig = AppConfig
 
+  protected def providesTargetDispatcher: TargetDispatcher = new SingleTargetDispatcher(executionTrigger)
+
   protected def extraModules: Seq[Module] = Seq[Module]()
 
   private val injector = Guice.createInjector(
@@ -84,7 +86,11 @@ trait SimpleScenarioTesting extends TestHelpers with TestDb with MockitoSugar {
 
         @Singleton
         @Provides
-        def providesCrankshaft(appConfig: AppConfig, plugins: Plugins, executionFinder: TriggeredExecutionFinder): Crankshaft = {
+        def providesTargetDispatcher: TargetDispatcher = SimpleScenarioTesting.this.providesTargetDispatcher
+
+        @Singleton
+        @Provides
+        def providesCrankshaft(appConfig: AppConfig, plugins: Plugins, executionFinder: TriggeredExecutionFinder, targetDispatcher: TargetDispatcher): Crankshaft = {
           when(executionTrigger.trigger(anyLong, anyString, any[Version], any[TargetAtomSet], anyString))
             .thenReturn(Future(triggerMock))
           new Crankshaft(appConfig, dbBinding, resolver, targetDispatcher, plugins.listeners, executionFinder)
@@ -111,7 +117,6 @@ trait SimpleScenarioTesting extends TestHelpers with TestDb with MockitoSugar {
   when(executionTrigger.executorType).thenReturn("testing")
   private lazy val plugins = injector.getInstance(classOf[Plugins])
 
-  lazy val targetDispatcher: TargetDispatcher = new SingleTargetDispatcher(executionTrigger)
   val resolver: TargetResolver = plugins.resolver
 
   lazy val crankshaft: Crankshaft = injector.getInstance(classOf[Crankshaft])
