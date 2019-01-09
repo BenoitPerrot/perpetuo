@@ -71,7 +71,6 @@ case class UnexpectedOperationCount(effects: Seq[OperationEffect]) extends Opera
 @Singleton
 class Crankshaft @Inject()(val appConfig: AppConfig,
                            val dbBinding: DbBinding,
-                           val targetResolver: TargetResolver, // TODO: move to Engine
                            val targetDispatcher: TargetDispatcher,
                            val listeners: Seq[AsyncListener],
                            val findTriggeredExecution: TriggeredExecutionFinder) extends Logging {

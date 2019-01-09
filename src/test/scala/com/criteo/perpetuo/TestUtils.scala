@@ -96,21 +96,21 @@ trait SimpleScenarioTesting extends TestHelpers with TestDb with MockitoSugar {
 
         @Singleton
         @Provides
-        def providesCrankshaft(appConfig: AppConfig, plugins: Plugins, executionFinder: TriggeredExecutionFinder, targetDispatcher: TargetDispatcher, resolver: TargetResolver): Crankshaft = {
+        def providesCrankshaft(appConfig: AppConfig, plugins: Plugins, executionFinder: TriggeredExecutionFinder, targetDispatcher: TargetDispatcher): Crankshaft = {
           when(executionTrigger.trigger(anyLong, anyString, any[Version], any[TargetAtomSet], anyString))
             .thenReturn(Future(triggerMock))
-          new Crankshaft(appConfig, dbBinding, resolver, targetDispatcher, plugins.listeners, executionFinder)
+          new Crankshaft(appConfig, dbBinding, targetDispatcher, plugins.listeners, executionFinder)
         }
 
         @Singleton
         @Provides
-        def providesEngine(appConfig: AppConfig, crankshaft: Crankshaft, plugins: Plugins): Engine = {
+        def providesEngine(appConfig: AppConfig, crankshaft: Crankshaft, resolver: TargetResolver, plugins: Plugins): Engine = {
           class NoOpScheduler extends Scheduler {
             override def scheduleTask(f: () => Any, period: Long, timeUnit: TimeUnit, initialDelay: Long): JavaFuture[_] =
               CompletableFuture.completedFuture(())
           }
 
-          new Engine(appConfig, crankshaft, plugins.permissions, plugins.preConditionEvaluators, new NoOpScheduler()) {
+          new Engine(appConfig, crankshaft, resolver, plugins.permissions, plugins.preConditionEvaluators, new NoOpScheduler()) {
             override val stateExpirationTime: FiniteDuration = 1000.seconds // the goal is that no test actually depends on it
             override val ticker: Ticker = mockTicker // ... thanks to this mock
           }

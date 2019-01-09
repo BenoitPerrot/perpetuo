@@ -4,6 +4,7 @@ import java.util.concurrent.TimeUnit
 
 import com.criteo.perpetuo.auth.{DeploymentAction, GeneralAction, Permissions, PerpetuoUser, User}
 import com.criteo.perpetuo.config.AppConfig
+import com.criteo.perpetuo.engine.resolvers.TargetResolver
 import com.criteo.perpetuo.model.ExecutionState.ExecutionState
 import com.criteo.perpetuo.model._
 import com.criteo.perpetuo.util.FutureLoadingCache
@@ -27,6 +28,7 @@ case class PreConditionFailed(errors: Seq[String]) extends RuntimeException((Seq
 @Singleton
 class Engine @Inject()(val appConfig: AppConfig,
                        val crankshaft: Crankshaft,
+                       val targetResolver: TargetResolver,
                        val permissions: Permissions,
                        val preConditionEvaluators: Seq[AsyncPreConditionEvaluator],
                        val scheduler: Scheduler) extends Logging {
@@ -35,7 +37,7 @@ class Engine @Inject()(val appConfig: AppConfig,
 
   private def getTargetSuperset(productName: String, version: Version, target: Iterable[TargetExpr]): Set[TargetAtom] =
     target
-      .map(crankshaft.targetResolver.resolveExpression(productName, version, _).superset)
+      .map(targetResolver.resolveExpression(productName, version, _).superset)
       .reduceOption(_ union _)
       .getOrElse(Set.empty)
 
@@ -137,8 +139,7 @@ class Engine @Inject()(val appConfig: AppConfig,
         failOnUnexpectedOperationCount(operationCount, effects) match {
           case Failure(t) => DBIOAction.failed(t)
           case Success(_) => DBIOAction.from({
-            val resolvedTarget = crankshaft.targetResolver
-              .resolveExpression(deploymentRequest.product.name, deploymentRequest.version, step.parsedTarget)
+            val resolvedTarget = targetResolver.resolveExpression(deploymentRequest.product.name, deploymentRequest.version, step.parsedTarget)
             evaluatePreconditions(_.canStep(Some(user), deploymentRequest, resolvedTarget.superset))
               .map { _ => resolvedTarget }
           })
