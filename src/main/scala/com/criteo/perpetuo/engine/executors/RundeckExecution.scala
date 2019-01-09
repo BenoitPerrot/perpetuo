@@ -5,6 +5,7 @@ import java.util.regex.Pattern
 import com.criteo.perpetuo.config.AppConfig
 import com.criteo.perpetuo.model.ExecutionState
 import com.criteo.perpetuo.model.ExecutionState.ExecutionState
+import com.google.inject.Injector
 import com.twitter.util.{Await, Future}
 import com.typesafe.config.Config
 
@@ -32,8 +33,8 @@ class RundeckExecution(config: Config, val href: String) extends TriggeredExecut
   )
 }
 
-class RundeckExecutionFactory(appConfig: AppConfig) extends TriggeredExecutionFactory {
-  private val config = appConfig.executorConfig("rundeck")
+class RundeckExecutionFactory(injector: Injector) extends TriggeredExecutionFactory {
+  private val config = injector.getInstance(classOf[AppConfig]).executorConfig("rundeck")
 
   def apply(href: String): RundeckExecution =
     new RundeckExecution(config, href)

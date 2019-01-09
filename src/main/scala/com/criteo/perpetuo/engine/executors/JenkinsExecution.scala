@@ -5,6 +5,7 @@ import java.util.regex.Pattern
 import com.criteo.perpetuo.config.AppConfig
 import com.criteo.perpetuo.model.ExecutionState
 import com.criteo.perpetuo.model.ExecutionState.ExecutionState
+import com.google.inject.Injector
 import com.twitter.util.{Await, Future}
 import com.typesafe.config.Config
 
@@ -31,9 +32,11 @@ class JenkinsExecution(config: Config, val href: String) extends TriggeredExecut
   )
 }
 
-class JenkinsExecutionFactory(appConfig: AppConfig) extends TriggeredExecutionFactory {
+class JenkinsExecutionFactory(injector: Injector) extends TriggeredExecutionFactory {
+  private val config = injector.getInstance(classOf[AppConfig]).executorConfig("jenkins")
+
   def apply(href: String): JenkinsExecution =
-    new JenkinsExecution(appConfig.executorConfig("jenkins"), href)
+    new JenkinsExecution(config, href)
 }
 
 private object JenkinsExecution {

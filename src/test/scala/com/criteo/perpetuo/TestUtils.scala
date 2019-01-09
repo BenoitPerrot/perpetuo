@@ -79,7 +79,7 @@ trait SimpleScenarioTesting extends TestHelpers with TestDb with MockitoSugar {
 
   protected def extraModules: Seq[Module] = Seq[Module]()
 
-  private val injector = Guice.createInjector(
+  protected val injector = Guice.createInjector(
     extraModules.:+(
       new TwitterModule() {
         @Singleton

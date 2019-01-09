@@ -1,12 +1,11 @@
 package com.criteo.perpetuo.engine.executors
 
-import com.criteo.perpetuo.config.{AppConfig, PluginLoader}
+import com.criteo.perpetuo.SimpleScenarioTesting
 import com.criteo.perpetuo.model.{ExecutionState, ShallowExecutionTrace}
-import com.twitter.inject.Test
 
 
-class TriggeredExecutionSpec extends Test {
-  val finder = new TriggeredExecutionFinder(AppConfig, new PluginLoader(null, AppConfig))
+class TriggeredExecutionSpec extends SimpleScenarioTesting {
+  private val finder = injector.getInstance(classOf[TriggeredExecutionFinder])
 
   test("The TriggeredExecutionFinder can load a Rundeck execution") {
     finder(ShallowExecutionTrace(42, "rundeck", Some("https://rundeck.somewhere/project/foo-bar/execution/show/42"), ExecutionState.completed, "")).stopper shouldBe defined
