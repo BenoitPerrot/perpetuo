@@ -36,13 +36,13 @@ class StaticAssetsController(rootPaths: Seq[String]) extends Controller {
         None
       else {
         val slashPath = if (path.startsWith("/")) path else s"/$path"
-
-        roots.toStream.flatMap({
-          case Left(root) =>
-            tryGetFileInputStream(root, slashPath)
-          case Right(root) =>
-            tryGetResourceInputStream(root, slashPath)
-        }).headOption
+        roots
+          .toStream
+          .flatMap {
+            case Left(root) => tryGetFileInputStream(root, slashPath)
+            case Right(root) => tryGetResourceInputStream(root, slashPath)
+          }
+          .headOption
       }
 
     def getContentType(file: String): String =

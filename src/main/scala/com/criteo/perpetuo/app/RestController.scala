@@ -161,7 +161,7 @@ class RestController @Inject()(val engine: Engine)
         .map(_.map { case (undetermined, determined) =>
           Some(Map(
             "undetermined" -> undetermined,
-            "determined" -> determined.toStream.map { case (execSpec, targets) =>
+            "determined" -> determined.map { case (execSpec, targets) =>
               Map("version" -> execSpec.version, "targetAtoms" -> targets)
             }
           ))
