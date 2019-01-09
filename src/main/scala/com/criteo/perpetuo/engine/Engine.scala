@@ -2,7 +2,7 @@ package com.criteo.perpetuo.engine
 
 import java.util.concurrent.TimeUnit
 
-import com.criteo.perpetuo.auth.{DeploymentAction, GeneralAction, Permissions, PerpetuoUser, User}
+import com.criteo.perpetuo.auth._
 import com.criteo.perpetuo.config.AppConfig
 import com.criteo.perpetuo.engine.resolvers.TargetResolver
 import com.criteo.perpetuo.model.ExecutionState.ExecutionState
@@ -49,15 +49,16 @@ class Engine @Inject()(val appConfig: AppConfig,
         failures.headOption
           .map(_ =>
             Future.failed(
-              failures.collectFirst {
-                case f@(_: PermissionDenied | _:Unidentified) => f
-              }
-              .getOrElse(
-                PreConditionFailed(failures.map(_.getMessage))
-              )
+              failures
+                .collectFirst {
+                  case f@(_: PermissionDenied | _: Unidentified) => f
+                }
+                .getOrElse(
+                  PreConditionFailed(failures.map(_.getMessage))
+                )
             )
           )
-        .getOrElse(Future.successful(()))
+          .getOrElse(Future.successful(()))
       )
   }
 
@@ -306,7 +307,7 @@ class Engine @Inject()(val appConfig: AppConfig,
           case s if s.isOutdated =>
             (s, Seq())
 
-          case s@ (_: Abandoned | _: Reverted) =>
+          case s@(_: Abandoned | _: Reverted) =>
             (s, Seq())
 
           case s: Deployed =>
@@ -346,9 +347,11 @@ class Engine @Inject()(val appConfig: AppConfig,
             ))
         }
         .flatMap {
-          case (state, actions) => Future.sequence(actions.map { case (s, f) => f.map(_ => (s, None)).recover {
-            case e: Exception => (s, Some(e.getMessage))
-          }}).map((state, _))
+          case (state, actions) => Future
+            .traverse(actions) { case (s, f) =>
+              f.map(_ => None).recover { case e: Exception => Some(e.getMessage) }.map((s, _))
+            }
+            .map((state, _))
         }
     }
 
@@ -383,17 +386,19 @@ class Engine @Inject()(val appConfig: AppConfig,
 
   def autoRevertFailingDeploymentRequests: Future[Seq[Long]] =
     crankshaft.findAutoRevertibleDeploymentRequestIdsAndStateStamps
-      .flatMap(depReqIdsAndStamps => Future.traverse(depReqIdsAndStamps) { case (depReqId, stateStamp) =>
-        revert(PerpetuoUser, depReqId, Some(stateStamp), None)
-          .map(_ => Some(depReqId))
-          .recover {
-            case _: MissingInfo | _: UnexpectedOperationCount =>
-              None // If the revert failed for no default version or wrong operation count, silently ignore it
-            case e: Exception => // Unexpected failure
-              logger.error(s"Exception occurred when auto-reverting $depReqId: $e")
-              None
+      .flatMap(depReqIdsAndStamps =>
+        Future
+          .traverse(depReqIdsAndStamps) { case (depReqId, stateStamp) =>
+            revert(PerpetuoUser, depReqId, Some(stateStamp), None)
+              .map(_ => Some(depReqId))
+              .recover {
+                case _: MissingInfo | _: UnexpectedOperationCount =>
+                  None // If the revert failed for no default version or wrong operation count, silently ignore it
+                case e: Exception => // Unexpected failure
+                  logger.error(s"Exception occurred when auto-reverting $depReqId: $e")
+                  None
+              }
           }
-        }
-        .map(_.flatten)
+          .map(_.flatten)
       )
 }
