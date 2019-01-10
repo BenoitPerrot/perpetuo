@@ -3,8 +3,8 @@ package com.criteo.perpetuo
 import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.{CompletableFuture, Future => JavaFuture}
 
-import com.criteo.perpetuo.auth.{AnonymousIdentityProvider, IdentityProvider, User}
-import com.criteo.perpetuo.config.{AppConfig, EngineProxy, PluginLoader, Plugins}
+import com.criteo.perpetuo.auth.User
+import com.criteo.perpetuo.config.{AppConfig, Plugins}
 import com.criteo.perpetuo.dao.{DbBinding, DbContext, DbContextProvider, TestingDbContextModule}
 import com.criteo.perpetuo.engine._
 import com.criteo.perpetuo.engine.dispatchers.{SingleTargetDispatcher, TargetDispatcher}
@@ -82,6 +82,14 @@ trait SimpleScenarioTesting extends TestHelpers with TestDb with MockitoSugar {
   protected val injector = Guice.createInjector(
     extraModules.:+(
       new TwitterModule() {
+        @Singleton
+        @Provides
+        def providesDbContext: DbContext = dbContext
+
+        @Singleton
+        @Provides
+        def providesDbBinding: DbBinding = dbBinding
+
         @Singleton
         @Provides
         def providesAppConfig: AppConfig = SimpleScenarioTesting.this.providesAppConfig
