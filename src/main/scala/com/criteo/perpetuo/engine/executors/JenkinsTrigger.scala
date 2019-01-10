@@ -6,7 +6,6 @@ import com.criteo.perpetuo.config.ConfigSyntacticSugar._
 import com.criteo.perpetuo.engine.TargetAtomSet
 import com.criteo.perpetuo.model.Version
 import com.twitter.conversions.time._
-import com.twitter.finagle.http.Status
 import com.twitter.util.Await
 import com.typesafe.config.Config
 
@@ -41,15 +40,9 @@ class JenkinsTrigger(name: String,
       "productName" -> productName
     )
 
-    Future {
-      val response = Await.result(client.startJob(jobName, jobToken, parameters), requestTimeout + 1.second)
-
-      response.status match {
-        case Status.Successful(_) =>
-          None
-        case s =>
-          throw new Exception(s"Bad response from $this: ${s.reason}")
-      }
+    Future { // fixme: use raiseWithin and a conversion?
+      Await.result(client.startJob(jobName, jobToken, parameters), requestTimeout + 1.second)
+      None
     }
   }
 
