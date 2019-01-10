@@ -111,11 +111,8 @@ case class ConsumedResponse(status: http.Status, content: Buf, serviceName: Stri
 
   lazy val contentJson: JsValue = contentString.parseJson
 
-  def raiseForStatus(contentInError: Boolean = false): ConsumedResponse = status match {
-    case http.Status.Successful(_) =>
-      this
-    case _ =>
-      val msg = s"Request to $serviceName failed with status HTTP ${status.code}"
-      throw new RuntimeException(if (contentInError) s"$msg: $contentString" else msg)
+  def raiseForStatus: ConsumedResponse = status match {
+    case http.Status.Successful(_) => this
+    case _ => throw new RuntimeException(s"Request to $serviceName failed with status HTTP ${status.code}")
   }
 }
