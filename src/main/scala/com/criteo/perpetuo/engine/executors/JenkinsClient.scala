@@ -2,23 +2,15 @@ package com.criteo.perpetuo.engine.executors
 
 import java.net.URLEncoder
 
-import com.criteo.perpetuo.config.ConfigSyntacticSugar._
 import com.criteo.perpetuo.util.{ConsumedResponse, SingleNodeHttpClient}
 import com.twitter.conversions.time._
 import com.twitter.finagle.http.Status.{Found, NotFound, Ok}
 import com.twitter.inject.Logging
 import com.twitter.io.Buf
 import com.twitter.util.{Duration, Future}
-import com.typesafe.config.Config
 
 
-class JenkinsClient(config: Config, val host: String) extends Logging {
-  val port: Option[Int] = config.tryGetInt("port")
-  val ssl: Option[Boolean] = config.tryGetBoolean("ssl")
-
-  // Username and Apitoken of the Jenkins user used to authenticate to Jenkins server
-  val username: Option[String] = config.tryGetString("username")
-  val password: Option[String] = config.tryGetString("password")
+class JenkinsClient(val host: String, port: Option[Int], ssl: Option[Boolean], username: Option[String], password: Option[String]) extends Logging {
   private val userInfoPrefix: String =
     (username, password) match {
       case (Some(u), Some(p)) => s"$u:$p@"

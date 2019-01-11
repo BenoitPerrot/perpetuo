@@ -3,6 +3,7 @@ package com.criteo.perpetuo.engine.executors
 import java.util.regex.Pattern
 
 import com.criteo.perpetuo.config.AppConfig
+import com.criteo.perpetuo.config.ConfigSyntacticSugar._
 import com.criteo.perpetuo.model.ExecutionState
 import com.criteo.perpetuo.model.ExecutionState.ExecutionState
 import com.google.inject.Injector
@@ -19,7 +20,7 @@ class JenkinsExecution(config: Config, val href: String) extends TriggeredExecut
     (matcher.group(1), matcher.group(3), matcher.group(4))
   }
 
-  protected val client: JenkinsClient = new JenkinsClient(config, host)
+  protected val client: JenkinsClient = new JenkinsClient(host, config.tryGetInt("port"), config.tryGetBoolean("ssl"), config.tryGetString("username"), config.tryGetString("password"))
 
   private def abortJob(jobName: String, jobId: String): Future[Option[ExecutionState]] =
     client.abortJob(jobName, jobId).map {
