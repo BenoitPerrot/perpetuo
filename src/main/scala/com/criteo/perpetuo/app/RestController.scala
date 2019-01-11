@@ -314,8 +314,10 @@ class RestController @Inject()(val engine: Engine)
     )(r)
   }
 
+  private val perpetuoVersion: String = Source.fromInputStream(getClass.getResourceAsStream("/version")).mkString
+
   get("/api/version") { _: Request =>
-    response.ok.plain(RestApi.perpetuoVersion)
+    response.ok.plain(perpetuoVersion)
   }
 
   // Be sure to capture invalid calls to APIs
@@ -325,8 +327,6 @@ class RestController @Inject()(val engine: Engine)
 }
 
 object RestApi {
-  val perpetuoVersion: String = Source.fromInputStream(getClass.getResourceAsStream("/version")).mkString
-
   def executionCallbackPath(execTraceId: String): String = s"/api/execution-traces/$execTraceId"
 
   def executionCallbackUrl(execTraceId: Long): String = AppConfig.selfUrl + executionCallbackPath(execTraceId.toString)
