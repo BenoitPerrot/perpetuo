@@ -18,7 +18,7 @@ import scala.concurrent.duration._
 
 class RundeckTriggerSpec extends Test {
 
-  private class TriggerMock(statusMock: Int, contentMock: String) extends RundeckTrigger("rundeck", "localhost", "perpetuo-deployment") {
+  private class TriggerMock(statusMock: Int, contentMock: String) extends RundeckTrigger("localhost", "perpetuo-deployment") {
 
     private val rundeckConfig = AppConfig.executorConfig("rundeck")
 
@@ -50,7 +50,7 @@ class RundeckTriggerSpec extends Test {
 
   test("Rundeck's API is followed when a connection problem occurs") {
     val exc = the[Exception] thrownBy new TriggerMock(403, "<html>gibberish</html>").testTrigger
-    exc.getMessage shouldEqual "Bad response from rundeck (job: perpetuo-deployment): Forbidden"
+    exc.getMessage shouldEqual "Bad response from Rundeck (on localhost) (job: perpetuo-deployment): Forbidden"
   }
 
   test("Rundeck's API is followed when an internal server error occurs") {
@@ -66,7 +66,6 @@ class RundeckTriggerSpec extends Test {
   test("RundeckTrigger must be loadable by configuration, to be used with the singleExecutor dispatcher") {
     new RundeckTrigger(ConfigFactory.parseString(
       """
-        |name = "foo"
         |host = "foo-01.criteo.com"
         |jobName = "deploy-foo"
       """.stripMargin))

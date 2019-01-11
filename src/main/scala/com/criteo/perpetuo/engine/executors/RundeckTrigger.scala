@@ -16,22 +16,20 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
 
-class RundeckTrigger(name: String,
-                     val host: String,
+class RundeckTrigger(val host: String,
                      jobName: String,
                      specificParameters: Iterable[(String, String)] = Map()) extends ExecutionTrigger {
   def this(config: Config) = this(
-    config.getString("name"),
     config.getString("host"),
     config.getString("jobName")
   )
-
-  override def toString: String = s"$name (job: $jobName)"
 
   protected val client: RundeckClient = {
     val clientConfig = AppConfig.executorConfig("rundeck")
     new RundeckClient(host, clientConfig.tryGetInt("port"), clientConfig.tryGetBoolean("ssl"), clientConfig.tryGetString("token"))
   }
+
+  override def toString: String = s"Rundeck (on ${client.host}) (job: $jobName)"
 
   def extractHref(executorAnswer: String): String =
     executorAnswer.parseJson.asJsObject.fields("permalink").asInstanceOf[JsString].value
@@ -91,6 +89,6 @@ class RundeckTrigger(name: String,
 
 
 object RundeckTrigger {
-  def fromJavaTypes(name: String, host: String, jobName: String, specificParameters: java.util.Map[String, String]): RundeckTrigger =
-    new RundeckTrigger(name, host, jobName, specificParameters)
+  def fromJavaTypes(host: String, jobName: String, specificParameters: java.util.Map[String, String]): RundeckTrigger =
+    new RundeckTrigger(host, jobName, specificParameters)
 }
