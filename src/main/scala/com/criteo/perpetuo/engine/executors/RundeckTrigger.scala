@@ -84,9 +84,6 @@ class RundeckTrigger(val client: RundeckClient,
 
 
 object RundeckTrigger {
-  def fromJavaTypes(host: String, jobName: String, specificParameters: java.util.Map[String, String]): RundeckTrigger = {
-    val clientConfig = AppConfig.executorConfig("rundeck")
-    val client = new RundeckClient(host, clientConfig.tryGetInt("port"), clientConfig.tryGetBoolean("ssl"), clientConfig.tryGetString("token"))
+  def fromJavaTypes(client: RundeckClient, jobName: String, specificParameters: java.util.Map[String, String]): RundeckTrigger =
     new RundeckTrigger(client, jobName, specificParameters)
-  }
 }
