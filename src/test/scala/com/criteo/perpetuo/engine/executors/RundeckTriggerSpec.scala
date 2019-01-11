@@ -25,7 +25,7 @@ class RundeckTriggerSpec extends Test {
     private class RundeckClientMock extends RundeckClient(host, rundeckConfig.tryGetInt("port"), rundeckConfig.tryGetBoolean("ssl"), rundeckConfig.tryGetString("token")) {
       override val authToken: Option[String] = Some("my-super-secret-token")
 
-      override protected val client: SingleNodeHttpClient = new SingleNodeHttpClient("rundeck", Duration.Top) {
+      override protected val client: SingleNodeHttpClient = new SingleNodeHttpClient(host, Duration.Top) {
         override def apply(request: Request, isIdempotent: Boolean = false): Future[ConsumedResponse] = {
           request.uri shouldEqual s"/api/16/job/perpetuo-deployment/executions?authtoken=my-super-secret-token"
           request.contentString shouldEqual """{"argString":"-callback-url 'http://somewhere/api/execution-traces/42' -product-name 'My\"Beautiful\"Project' -target 'a,b' -product-version \"the 042nd version\""}"""
