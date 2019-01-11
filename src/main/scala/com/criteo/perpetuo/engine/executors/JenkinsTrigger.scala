@@ -12,18 +12,16 @@ import com.typesafe.config.Config
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
-class JenkinsTrigger(name: String,
-                     val jobToken: Option[String],
+class JenkinsTrigger(val jobToken: Option[String],
                      val host: String,
                      jobName: String) extends ExecutionTrigger {
   def this(config: Config) = this(
-    config.getString("name"),
     config.tryGetString("jobToken"),
     config.getString("host"),
     config.getString("jobName")
   )
 
-  override def toString: String = s"$name (job: $jobName)"
+  override def toString: String = s"Jenkins (on $host) (job: $jobName)"
 
   protected val client: JenkinsClient = new JenkinsClient(AppConfig.executorConfig("jenkins"), host)
   private val requestTimeout = 20.seconds
