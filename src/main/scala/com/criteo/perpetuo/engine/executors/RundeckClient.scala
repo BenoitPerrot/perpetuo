@@ -1,6 +1,5 @@
 package com.criteo.perpetuo.engine.executors
 
-import com.criteo.perpetuo.config.ConfigSyntacticSugar._
 import com.criteo.perpetuo.util.{ConsumedResponse, SingleNodeHttpClient}
 import com.twitter.conversions.time._
 import com.twitter.finagle.http.Status.{NotFound, Ok}
@@ -8,15 +7,10 @@ import com.twitter.finagle.http._
 import com.twitter.finatra.http.HttpHeaders
 import com.twitter.io.Buf
 import com.twitter.util.{Duration, Future}
-import com.typesafe.config.Config
 import spray.json._
 
-class RundeckClient(config: Config, val host: String) {
+class RundeckClient(val host: String, val port: Option[Int], val ssl: Option[Boolean], val authToken: Option[String]) {
   val apiVersion = 16
-
-  val port: Option[Int] = config.tryGetInt("port")
-  val ssl: Option[Boolean] = config.tryGetBoolean("ssl")
-  val authToken: Option[String] = config.tryGetString("token")
 
   private val requestTimeout: Duration = 5.seconds
   protected val baseWaitInterval: Duration = 100.milliseconds

@@ -3,6 +3,7 @@ package com.criteo.perpetuo.engine.executors
 import java.util.regex.Pattern
 
 import com.criteo.perpetuo.config.AppConfig
+import com.criteo.perpetuo.config.ConfigSyntacticSugar._
 import com.criteo.perpetuo.model.ExecutionState
 import com.criteo.perpetuo.model.ExecutionState.ExecutionState
 import com.google.inject.Injector
@@ -19,7 +20,7 @@ class RundeckExecution(config: Config, val href: String) extends TriggeredExecut
     (matcher.group(1), matcher.group(3).toInt)
   }
 
-  protected val client: RundeckClient = new RundeckClient(config, host)
+  protected val client: RundeckClient = new RundeckClient(host, config.tryGetInt("port"), config.tryGetBoolean("ssl"), config.tryGetString("token"))
 
   private def abortJob(jobId: String): Future[Option[ExecutionState]] =
     client.abortJob(jobId).map {
