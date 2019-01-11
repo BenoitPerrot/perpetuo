@@ -16,18 +16,13 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
 
-class RundeckTrigger(val host: String,
+class RundeckTrigger(val client: RundeckClient,
                      jobName: String,
                      specificParameters: Iterable[(String, String)] = Map()) extends ExecutionTrigger {
   def this(config: Config) = this(
-    config.getString("host"),
+    new RundeckClient(config.getString("host"), config.tryGetInt("port"), config.tryGetBoolean("ssl"), config.tryGetString("token")),
     config.getString("jobName")
   )
-
-  protected val client: RundeckClient = {
-    val clientConfig = AppConfig.executorConfig("rundeck")
-    new RundeckClient(host, clientConfig.tryGetInt("port"), clientConfig.tryGetBoolean("ssl"), clientConfig.tryGetString("token"))
-  }
 
   override def toString: String = s"Rundeck (on ${client.host}) (job: $jobName)"
 
@@ -89,6 +84,9 @@ class RundeckTrigger(val host: String,
 
 
 object RundeckTrigger {
-  def fromJavaTypes(host: String, jobName: String, specificParameters: java.util.Map[String, String]): RundeckTrigger =
-    new RundeckTrigger(host, jobName, specificParameters)
+  def fromJavaTypes(host: String, jobName: String, specificParameters: java.util.Map[String, String]): RundeckTrigger = {
+    val clientConfig = AppConfig.executorConfig("rundeck")
+    val client = new RundeckClient(host, clientConfig.tryGetInt("port"), clientConfig.tryGetBoolean("ssl"), clientConfig.tryGetString("token"))
+    new RundeckTrigger(client, jobName, specificParameters)
+  }
 }

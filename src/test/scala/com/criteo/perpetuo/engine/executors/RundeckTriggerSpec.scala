@@ -18,24 +18,21 @@ import scala.concurrent.duration._
 
 class RundeckTriggerSpec extends Test {
 
-  private class TriggerMock(statusMock: Int, contentMock: String) extends RundeckTrigger("localhost", "perpetuo-deployment") {
+  private val rundeckConfig = AppConfig.executorConfig("rundeck")
 
-    private val rundeckConfig = AppConfig.executorConfig("rundeck")
+  private class RundeckClientMock(statusMock: Int, contentMock: String) extends RundeckClient("localhost", rundeckConfig.tryGetInt("port"), rundeckConfig.tryGetBoolean("ssl"), rundeckConfig.tryGetString("token")) {
+    override val authToken: Option[String] = Some("my-super-secret-token")
 
-    private class RundeckClientMock extends RundeckClient(host, rundeckConfig.tryGetInt("port"), rundeckConfig.tryGetBoolean("ssl"), rundeckConfig.tryGetString("token")) {
-      override val authToken: Option[String] = Some("my-super-secret-token")
-
-      override protected val client: SingleNodeHttpClient = new SingleNodeHttpClient(host, Duration.Top) {
-        override def apply(request: Request, isIdempotent: Boolean = false): Future[ConsumedResponse] = {
-          request.uri shouldEqual s"/api/16/job/perpetuo-deployment/executions?authtoken=my-super-secret-token"
-          request.contentString shouldEqual """{"argString":"-callback-url 'http://somewhere/api/execution-traces/42' -product-name 'My\"Beautiful\"Project' -target 'a,b' -product-version \"the 042nd version\""}"""
-          Future.value(ConsumedResponse(Status(statusMock), Utf8(contentMock), "rundeck"))
-        }
+    override protected val client: SingleNodeHttpClient = new SingleNodeHttpClient(host, Duration.Top) {
+      override def apply(request: Request, isIdempotent: Boolean = false): Future[ConsumedResponse] = {
+        request.uri shouldEqual s"/api/16/job/perpetuo-deployment/executions?authtoken=my-super-secret-token"
+        request.contentString shouldEqual """{"argString":"-callback-url 'http://somewhere/api/execution-traces/42' -product-name 'My\"Beautiful\"Project' -target 'a,b' -product-version \"the 042nd version\""}"""
+        Future.value(ConsumedResponse(Status(statusMock), Utf8(contentMock), "rundeck"))
       }
     }
+  }
 
-    override protected val client: RundeckClient = new RundeckClientMock
-
+  private class TriggerMock(statusMock: Int, contentMock: String) extends RundeckTrigger(new RundeckClientMock(statusMock, contentMock), "perpetuo-deployment") {
     def testTrigger: Option[String] = {
       val productName = "My\"Beautiful\"Project"
       val version = Version(JsString("the 042nd version"))
