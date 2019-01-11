@@ -304,6 +304,11 @@ class Engine @Inject()(val appConfig: AppConfig,
             // fixme: find another way to unblock situations where it's outdated yet holding transaction locks
             (s, Seq((Operation.revert.toString, evaluatePreconditions(DeploymentAction.applyOperation, Operation.revert, s.asInstanceOf[RevertibleState].revertScope))))
 
+          case s@(_: NotStarted | _: DeployFlopped) if s.isOutdated =>
+            (s, Seq(
+              ("abandon", evaluatePreconditions(DeploymentAction.abandonOperation, Operation.deploy, s.deploymentPlanSteps))
+            ))
+
           case s if s.isOutdated =>
             (s, Seq())
 
