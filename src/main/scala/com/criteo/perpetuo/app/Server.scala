@@ -22,20 +22,18 @@ object CustomServerModules {
   val jackson = CustomJacksonModule
 }
 
-trait ServerConfigurator {
-  val appConfig: AppConfig = AppConfig
-}
-
 /**
   * Main server.
   */
-class Server extends ServerConfigurator with HttpServer {
+class Server extends HttpServer {
   private val registry: CollectorRegistry = CollectorRegistry.defaultRegistry
 
   // Remove unwanted admin routes
   override protected def routes: Seq[Route] = super.routes.filter(_ != "/admin/registry.json")
 
   override protected def jacksonModule: FinatraJacksonModule = CustomServerModules.jackson
+
+  private val appConfig: AppConfig = AppConfig
 
   override def modules = Seq(
     new DbContextModule(appConfig.config.getConfig("db")),
