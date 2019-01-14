@@ -24,7 +24,7 @@ class PerpetuoDeploymentRequestProductSelector extends PolymerElement {
   }
 
   computeProductNames(products) {
-    return products.filter(_ => _.active).map(_ => _.name);
+    return products.filter(_ => _.active).map(_ => _.name).sort((a, b) => a.localeCompare(b));
   }
 
   clear() {
