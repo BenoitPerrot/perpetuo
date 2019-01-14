@@ -24,10 +24,6 @@ object CustomServerModules {
 
 trait ServerConfigurator {
   val appConfig: AppConfig = AppConfig
-
-  appConfig.config.tryGetString("log4j.configurationFile").foreach(
-    System.setProperty("log4j.configurationFile", _)
-  )
 }
 
 /**
