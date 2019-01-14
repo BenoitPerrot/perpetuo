@@ -91,7 +91,7 @@ div.state {
   </div>
   <div style="display: flex;">
     <div class="product-name">
-      <perpetuo-list-editor id="productFilter" key="productName" label="Filter" choices="[[productNames]]" initial-count="10" on-selected-items-changed="updateFilter"></perpetuo-list-editor>
+      <perpetuo-list-editor id="productFilter" key="productName" label="Filter" choices="[[productNames]]" initial-count="10" on-selected-item-changed="updateFilter"></perpetuo-list-editor>
     </div>
     <div class="version"></div>
     <span class="target"></span>

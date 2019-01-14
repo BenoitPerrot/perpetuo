@@ -18,10 +18,6 @@ paper-listbox {
   cursor: pointer;
 }
 
-.chip-container {
-  display: inline-flex;
-}
-
 paper-input-container input {
   height: 48px;
   @apply --paper-input-container-shared-input-style;
@@ -37,18 +33,18 @@ paper-input-container {
   }
 }
 
+:host(:not([selected-item])) perpetuo-chip {
+  display: none;
+}
+
 #dropdown {
   @apply --shadow-elevation-2dp;
 }
 </style>
-<paper-input-container always-float-label="[[selectedItems.length]]" disabled$="[[disabled]]">
+<paper-input-container always-float-label="[[selectedItem]]" disabled$="[[disabled]]">
   <label slot="label">[[label]]</label>
-  <div slot="prefix" class="chip-container">
-    <template is="dom-repeat" items="[[selectedItems]]">
-      <perpetuo-chip label="[[item]]" disabled="[[disabled]]" index="[[index]]" on-delete-tap="removeElement"></perpetuo-chip>
-    </template>
-  </div>
-  <iron-input slot="input"><input id="filterEditor" on-focus="onFilterEditorFocus" disabled$="[[computeInputDisabled(disabled, multi, selectedItems.*)]]" on-keydown="onInputKeyDown" value="{{filter::input}}"></input></iron-input>
+  <perpetuo-chip slot="prefix" label="[[selectedItem]]" disabled="[[disabled]]" index="[[index]]" on-delete-tap="removeElement"></perpetuo-chip>
+  <iron-input slot="input"><input id="filterEditor" on-focus="onFilterEditorFocus" disabled$="[[computeInputDisabled(disabled, selectedItem)]]" on-keydown="onInputKeyDown" value="{{filter::input}}"></input></iron-input>
 </paper-input-container>
 <div>
   <iron-dropdown id="dropdown" no-auto-focus no-cancel-on-outside-click>
@@ -69,12 +65,10 @@ paper-input-container {
       disabled: Boolean,
       initialCount: Number,
       label: String,
-      multi: Boolean,
       filter: { type: String, notify: true },
       choices: Array,
       filteredChoices: { type: Array, computed: 'applyFilter(choices, filter)' },
-      selectedItems: { type: Array, value: () => [], notify: true },
-      selectedItem: { type: Object, notify: true, reflectToAttribute: true, computed: 'lastSelectedItem(selectedItems.*)' }
+      selectedItem: { type: Object, notify: true, reflectToAttribute: true }
     };
   }
 
@@ -91,18 +85,14 @@ paper-input-container {
     this.$.dropdown.open();
   }
 
-  computeInputDisabled(disabled, multi, _) {
-    return disabled || (!multi && 0 < this.selectedItems.length);
-  }
-
-  lastSelectedItem() {
-    return this.selectedItems.length === 0 ? null : this.selectedItems[this.selectedItems.length - 1];
+  computeInputDisabled(disabled, _) {
+    return disabled || this.selectedItem;
   }
 
   onInputKeyDown(e) {
     if (e.key === 'Backspace') {
       if (this.filter === '') {
-        this.splice('selectedItems', -1, 1);
+        this.selectedItem = null;
       }
     } else if (e.key === 'ArrowDown') {
       this.$.listbox.focus();
@@ -143,21 +133,18 @@ paper-input-container {
   }
 
   addElement(value) {
-    if (this.multi)
-      this.push('selectedItems', value);
-    else
-      this.selectedItems = [value];
+    this.selectedItem = value;
     this.$.listbox.select(null);
     this.$.dropdown.close();
     this.filter = '';
   }
 
   removeElement(e) {
-    this.splice('selectedItems', e.currentTarget.index, 1);
+    this.selectedItem = null;
   }
 
   clear() {
-    this.selectedItems = [];
+    this.selectedItem = null;
     this.filter = '';
   }
 }
