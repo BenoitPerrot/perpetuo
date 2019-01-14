@@ -12,7 +12,7 @@ import com.twitter.finatra.request._
 import com.twitter.finatra.utils.FuturePools
 import com.twitter.finatra.validation._
 import com.twitter.util.{Future => TwitterFuture}
-import javax.inject.Inject
+import javax.inject.{Inject, Singleton}
 import spray.json.JsonParser.ParsingException
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -68,7 +68,7 @@ private case class RequestWithProductName(@NotEmpty productName: String,
 /**
   * Controller that handles deployment requests as a REST API.
   */
-class RestController @Inject()(val engine: Engine)
+class RestController @Inject()(val engine: Engine, restApi: RestApi)
   extends BaseController
     with Authenticator
     with ExceptionsToHttpStatusTranslation {
@@ -213,7 +213,7 @@ class RestController @Inject()(val engine: Engine)
     * - HTTP 404 if the execution trace doesn't exist
     * - HTTP 422 if the execution state's transition is unsupported
     */
-  put(RestApi.executionCallbackPath(":id")) {
+  put(restApi.executionCallbackPath(":id")) {
     // todo: give the permissions to actual executors
     withIdAndRequest(
       (id, r: ExecutionTracePut) => {
@@ -326,8 +326,9 @@ class RestController @Inject()(val engine: Engine)
   }
 }
 
-object RestApi {
+@Singleton
+class RestApi @Inject()(appConfig: AppConfig){
   def executionCallbackPath(execTraceId: String): String = s"/api/execution-traces/$execTraceId"
 
-  def executionCallbackUrl(execTraceId: Long): String = AppConfig.selfUrl + executionCallbackPath(execTraceId.toString)
+  def executionCallbackUrl(execTraceId: Long): String = appConfig.selfUrl + executionCallbackPath(execTraceId.toString)
 }

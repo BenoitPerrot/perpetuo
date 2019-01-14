@@ -105,10 +105,10 @@ trait SimpleScenarioTesting extends TestHelpers with TestDb with MockitoSugar {
 
         @Singleton
         @Provides
-        def providesCrankshaft(appConfig: AppConfig, plugins: Plugins, executionFinder: TriggeredExecutionFinder, targetDispatcher: TargetDispatcher): Crankshaft = {
-          when(executionTrigger.trigger(RestApi.executionCallbackUrl(anyLong), anyString, any[Version], any[TargetAtomSet], anyString))
+        def providesCrankshaft(appConfig: AppConfig, plugins: Plugins, executionFinder: TriggeredExecutionFinder, targetDispatcher: TargetDispatcher, restApi: RestApi): Crankshaft = {
+          when(executionTrigger.trigger(restApi.executionCallbackUrl(anyLong), anyString, any[Version], any[TargetAtomSet], anyString))
             .thenReturn(Future(triggerMock))
-          new Crankshaft(appConfig, dbBinding, targetDispatcher, plugins.listeners, executionFinder)
+          new Crankshaft(appConfig, dbBinding, targetDispatcher, plugins.listeners, executionFinder, restApi)
         }
 
         @Singleton

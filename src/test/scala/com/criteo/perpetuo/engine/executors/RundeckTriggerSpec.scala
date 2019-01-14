@@ -1,6 +1,5 @@
 package com.criteo.perpetuo.engine.executors
 
-import com.criteo.perpetuo.app.RestApi
 import com.criteo.perpetuo.config.AppConfig
 import com.criteo.perpetuo.config.ConfigSyntacticSugar._
 import com.criteo.perpetuo.engine.TargetAtomSet
@@ -21,13 +20,15 @@ class RundeckTriggerSpec extends Test {
 
   private val rundeckConfig = AppConfig.executorConfig("rundeck")
 
+  private val executionCallbackUrl = "http://somewhere/api/execution-traces/42"
+
   private class RundeckClientMock(statusMock: Int, contentMock: String) extends RundeckClient("localhost", rundeckConfig.tryGetInt("port"), rundeckConfig.tryGetBoolean("ssl"), rundeckConfig.tryGetString("token")) {
     override val authToken: Option[String] = Some("my-super-secret-token")
 
     override protected val client: SingleNodeHttpClient = new SingleNodeHttpClient(host, Duration.Top) {
       override def apply(request: Request, isIdempotent: Boolean = false): Future[ConsumedResponse] = {
         request.uri shouldEqual s"/api/16/job/perpetuo-deployment/executions?authtoken=my-super-secret-token"
-        request.contentString shouldEqual """{"argString":"-callback-url 'http://somewhere/api/execution-traces/42' -product-name 'My\"Beautiful\"Project' -target 'a,b' -product-version \"the 042nd version\""}"""
+        request.contentString shouldEqual s"""{"argString":"-callback-url '$executionCallbackUrl' -product-name 'My\\"Beautiful\\"Project' -target 'a,b' -product-version \\"the 042nd version\\""}"""
         Future.value(ConsumedResponse(Status(statusMock), Utf8(contentMock), "rundeck"))
       }
     }
@@ -38,7 +39,7 @@ class RundeckTriggerSpec extends Test {
       val productName = "My\"Beautiful\"Project"
       val version = Version(JsString("the 042nd version"))
       val target = TargetAtomSet(Set.empty, Set("a", "b").map(TargetAtom))
-      Await.result(trigger(RestApi.executionCallbackUrl(42), productName, version, target, "guy next door"), 1.second)
+      Await.result(trigger(executionCallbackUrl, productName, version, target, "guy next door"), 1.second)
     }
   }
 

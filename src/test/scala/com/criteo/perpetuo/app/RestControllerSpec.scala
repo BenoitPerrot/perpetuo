@@ -70,6 +70,7 @@ class RestControllerSpec extends Test with TestDb {
   )
 
   private val authModule = new AuthModule(appConfig.config.getConfig("auth"))
+  private val restApi = new RestApi(appConfig)
   private val productUser = makeUser("bob.the.producer")
   private val productUserJWT = productUser.toJWT(authModule.jwtEncoder)
   private val deployUser = makeUser("r.eleaser")
@@ -190,7 +191,7 @@ class RestControllerSpec extends Test with TestDb {
 
   private def putExecutionTrace(execTraceId: String, body: JsValue, expect: Status) =
     server.httpPut(
-      path = RestApi.executionCallbackPath(execTraceId),
+      path = restApi.executionCallbackPath(execTraceId),
       putBody = body.compactPrint,
       andExpect = expect
     )

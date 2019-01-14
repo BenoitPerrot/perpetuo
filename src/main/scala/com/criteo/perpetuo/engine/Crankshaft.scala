@@ -74,7 +74,8 @@ class Crankshaft @Inject()(val appConfig: AppConfig,
                            val dbBinding: DbBinding,
                            val targetDispatcher: TargetDispatcher,
                            val listeners: Seq[AsyncListener],
-                           val findTriggeredExecution: TriggeredExecutionFinder) extends Logging {
+                           val findTriggeredExecution: TriggeredExecutionFinder,
+                           val restApi: RestApi) extends Logging {
 
   import dbBinding.dbContext.profile.api._
 
@@ -573,7 +574,7 @@ class Crankshaft @Inject()(val appConfig: AppConfig,
       // trigger the execution
       val trigger = try {
         executor.trigger(
-          RestApi.executionCallbackUrl(execTraceId),
+          restApi.executionCallbackUrl(execTraceId),
           productName,
           version,
           target,
