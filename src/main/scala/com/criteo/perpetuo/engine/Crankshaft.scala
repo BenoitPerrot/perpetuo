@@ -5,7 +5,6 @@ import com.criteo.perpetuo.config.AppConfig
 import com.criteo.perpetuo.dao.{DBIOrw, DbBinding}
 import com.criteo.perpetuo.engine.dispatchers.TargetDispatcher
 import com.criteo.perpetuo.engine.executors.TriggeredExecutionFinder
-import com.criteo.perpetuo.engine.resolvers.TargetResolver
 import com.criteo.perpetuo.model.ExecutionState.ExecutionState
 import com.criteo.perpetuo.model._
 import com.google.common.annotations.VisibleForTesting
@@ -244,7 +243,7 @@ class Crankshaft @Inject()(val appConfig: AppConfig,
       .transactionally
       .withTransactionIsolation(ReadCommitted)
       .map { case (trace, updatedState) =>
-        updatedState.foreach { case (transactionFinalSuccess, operationSucceeded) =>  // if it's a successful close, let's notify
+        updatedState.foreach { case (transactionFinalSuccess, operationSucceeded) => // if it's a successful close, let's notify
           // FIXME: when/if partial reverts are supported: a _failed_ partial revert would be "paused" too, the operationSucceeded should be "false"
           listeners.foreach { listener =>
             if (operationSucceeded)
@@ -428,34 +427,36 @@ class Crankshaft @Inject()(val appConfig: AppConfig,
 
   def tryUpdateExecutionTrace(id: Long, executionState: ExecutionState, detail: String, href: Option[String], statusMap: Map[TargetAtom, TargetAtomStatus] = Map()): Future[Option[(OperationTrace, Boolean)]] =
     dbBinding.dbContext.db.run(
-      dbBinding.findingBranchFromExecutionTraceId(id).flatMap(_
-        .map { executionTraceBranch =>
-          val op = executionTraceBranch.operationTrace
-          dbBinding.updatingExecutionTrace(id, executionState, detail, href)
-            .andThen(dbBinding.updatingTargetStatuses(executionTraceBranch.executionId, statusMap))
-            .map { _ =>
-              // Calls listener for target status update
-              statusMap.foreach { case (atom, value) =>
-                // todo: check if already the target is in the same state and don't emit an annotation in this case
-                if (value.code != Status.notDone)
-                  listeners.foreach(_.onTargetAtomStatusUpdate(op, atom.name, value))
+      dbBinding.findingBranchFromExecutionTraceId(id)
+        .flatMap(_
+          .map { executionTraceBranch =>
+            val op = executionTraceBranch.operationTrace
+            dbBinding.updatingExecutionTrace(id, executionState, detail, href)
+              .andThen(dbBinding.updatingTargetStatuses(executionTraceBranch.executionId, statusMap))
+              .map { _ =>
+                // Calls listener for target status update
+                statusMap.foreach { case (atom, value) =>
+                  // todo: check if already the target is in the same state and don't emit an annotation in this case
+                  if (value.code != Status.notDone)
+                    listeners.foreach(_.onTargetAtomStatusUpdate(op, atom.name, value))
+                }
+                Some(op)
               }
-              Some(op)
-            }
-        }
-        .getOrElse(DBIO.successful(None))
-      )
-      .flatMap(_.map(op =>
-          dbBinding.hasOpenExecutionTracesForOperation(op.id)
-            .flatMap(hasOpenExecutions =>
-              if (hasOpenExecutions)
-                DBIO.successful((op, false))
-              else
-                closingOperation(op)
-            ).map { case (operation, updated) => Some(operation, updated) }
+          }
+          .getOrElse(DBIO.successful(None))
         )
-        .getOrElse(DBIO.successful(None))
-      )
+        .flatMap(_
+          .map(op =>
+            dbBinding.hasOpenExecutionTracesForOperation(op.id)
+              .flatMap(hasOpenExecutions =>
+                if (hasOpenExecutions)
+                  DBIO.successful((op, false))
+                else
+                  closingOperation(op)
+              ).map { case (operation, updated) => Some(operation, updated) }
+          )
+          .getOrElse(DBIO.successful(None))
+        )
     )
 
   def findDeploymentRequests(where: Seq[Map[String, Any]], limit: Int, offset: Int): Future[Seq[DeploymentRequest]] =
