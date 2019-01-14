@@ -64,10 +64,11 @@ paper-input-container {
     return {
       disabled: Boolean,
       initialCount: Number,
+      maxCount: { type: Number, value: Number.POSITIVE_INFINITY },
       label: String,
       filter: { type: String, notify: true },
       choices: Array,
-      filteredChoices: { type: Array, computed: 'applyFilter(choices, filter)' },
+      filteredChoices: { type: Array, computed: 'applyFilter(choices, maxCount, filter)' },
       selectedItem: { type: Object, notify: true, reflectToAttribute: true }
     };
   }
@@ -99,22 +100,20 @@ paper-input-container {
     }
   }
 
-  applyFilter(choices, filter) {
+  applyFilter(choices, maxCount, filter) {
     if (choices && choices.length) {
+      let filteredChoices = this.choices;
       if (filter && filter.length) {
         const words = filter.toLowerCase().split(' ');
-        const filteredChoices = this.choices.filter(c => words.every(w => c.toLowerCase().includes(w)));
+        filteredChoices = this.choices.filter(c => words.every(w => c.toLowerCase().includes(w)));
         if (words.length === 1) {
           const i = filteredChoices.findIndex(_ => _.toLowerCase() === words[0]);
           if (0 <= i) {
             filteredChoices.splice(0, 0, filteredChoices.splice(i, 1)[0]);
           }
         }
-        return filteredChoices;
       }
-      else {
-        return this.choices;
-      }
+      return filteredChoices.slice(0, this.maxCount);
     }
     return [];
   }
