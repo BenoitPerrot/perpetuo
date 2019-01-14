@@ -1,5 +1,6 @@
 package com.criteo.perpetuo.engine.executors
 
+import com.criteo.perpetuo.app.RestApi
 import com.criteo.perpetuo.config.AppConfig
 import com.criteo.perpetuo.config.ConfigSyntacticSugar._
 import com.criteo.perpetuo.engine.TargetAtomSet
@@ -37,7 +38,7 @@ class RundeckTriggerSpec extends Test {
       val productName = "My\"Beautiful\"Project"
       val version = Version(JsString("the 042nd version"))
       val target = TargetAtomSet(Set.empty, Set("a", "b").map(TargetAtom))
-      Await.result(trigger(42, productName, version, target, "guy next door"), 1.second)
+      Await.result(trigger(RestApi.executionCallbackUrl(42), productName, version, target, "guy next door"), 1.second)
     }
   }
 

@@ -1,5 +1,6 @@
 package com.criteo.perpetuo.engine
 
+import com.criteo.perpetuo.app.RestApi
 import com.criteo.perpetuo.config.AppConfig
 import com.criteo.perpetuo.dao.{DBIOrw, DbBinding}
 import com.criteo.perpetuo.engine.dispatchers.TargetDispatcher
@@ -572,7 +573,7 @@ class Crankshaft @Inject()(val appConfig: AppConfig,
       // trigger the execution
       val trigger = try {
         executor.trigger(
-          execTraceId,
+          RestApi.executionCallbackUrl(execTraceId),
           productName,
           version,
           target,

@@ -45,7 +45,7 @@ class RundeckTrigger(val client: RundeckClient,
     }
   }
 
-  override def trigger(execTraceId: Long, productName: String, version: Version, target: TargetAtomSet, initiator: String): Future[Option[String]] = {
+  override def trigger(executionCallbackUrl: String, productName: String, version: Version, target: TargetAtomSet, initiator: String): Future[Option[String]] = {
     def squote(s: String) = s"'$s'"
 
     var quotedVersion = version.toString
@@ -53,7 +53,7 @@ class RundeckTrigger(val client: RundeckClient,
       quotedVersion = squote(quotedVersion)
 
     val triggerParameters = Map(
-      "callback-url" -> squote(RestApi.executionCallbackUrl(execTraceId)),
+      "callback-url" -> squote(executionCallbackUrl),
       "product-name" -> squote(productName),
       "target" -> squote(target.superset.mkString(",")),
       "product-version" -> quotedVersion

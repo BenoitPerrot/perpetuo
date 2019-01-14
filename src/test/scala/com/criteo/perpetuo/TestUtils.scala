@@ -3,6 +3,7 @@ package com.criteo.perpetuo
 import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.{CompletableFuture, Future => JavaFuture}
 
+import com.criteo.perpetuo.app.RestApi
 import com.criteo.perpetuo.auth.User
 import com.criteo.perpetuo.config.{AppConfig, Plugins}
 import com.criteo.perpetuo.dao.{DbBinding, DbContext, DbContextProvider, TestingDbContextModule}
@@ -105,7 +106,7 @@ trait SimpleScenarioTesting extends TestHelpers with TestDb with MockitoSugar {
         @Singleton
         @Provides
         def providesCrankshaft(appConfig: AppConfig, plugins: Plugins, executionFinder: TriggeredExecutionFinder, targetDispatcher: TargetDispatcher): Crankshaft = {
-          when(executionTrigger.trigger(anyLong, anyString, any[Version], any[TargetAtomSet], anyString))
+          when(executionTrigger.trigger(RestApi.executionCallbackUrl(anyLong), anyString, any[Version], any[TargetAtomSet], anyString))
             .thenReturn(Future(triggerMock))
           new Crankshaft(appConfig, dbBinding, targetDispatcher, plugins.listeners, executionFinder)
         }

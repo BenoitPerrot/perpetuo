@@ -20,7 +20,7 @@ trait ExecutionTrigger {
     *
     * @return a possible href to uniquely identify the execution, if available.
     */
-  def trigger(execTraceId: Long, productName: String, version: Version, target: TargetAtomSet, initiator: String): Future[Option[String]]
+  def trigger(executionCallbackUrl: String, productName: String, version: Version, target: TargetAtomSet, initiator: String): Future[Option[String]]
 
   /**
     * The executorName should be stable because it's persisted in the DB and used

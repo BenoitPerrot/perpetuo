@@ -12,8 +12,8 @@ import scala.concurrent.Future
 class NoOpTrigger extends ExecutionTrigger with Logging {
   override def toString: String = "no-op executor"
 
-  override def trigger(execTraceId: Long, productName: String, version: Version, target: TargetAtomSet, initiator: String): Future[Option[String]] = {
-    logger.info(s"No-op executor triggered for #$execTraceId on behalf of $initiator")
+  override def trigger(executionCallbackUrl: String, productName: String, version: Version, target: TargetAtomSet, initiator: String): Future[Option[String]] = {
+    logger.info(s"No-op executor triggered for $productName on behalf of $initiator")
     Future.successful(None)
   }
 

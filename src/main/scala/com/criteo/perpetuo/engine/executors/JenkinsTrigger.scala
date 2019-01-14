@@ -30,10 +30,10 @@ class JenkinsTrigger(client: JenkinsClient,
     *
     * @return None. Jenkins doesn't return any href immediately.
     */
-  override def trigger(execTraceId: Long, productName: String, version: Version, target: TargetAtomSet, initiator: String): Future[Option[String]] = {
+  override def trigger(executionCallbackUrl: String, productName: String, version: Version, target: TargetAtomSet, initiator: String): Future[Option[String]] = {
 
     val parameters = Map(
-      "callbackUrl" -> RestApi.executionCallbackUrl(execTraceId),
+      "callbackUrl" -> executionCallbackUrl,
       "productName" -> productName
     )
 
