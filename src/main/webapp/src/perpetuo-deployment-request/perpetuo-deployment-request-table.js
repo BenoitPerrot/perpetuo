@@ -180,7 +180,7 @@ div.state {
       this.applyQueryParams();
       this.client.fetchProducts().then(products => {
         this.productNames = products.sort((a, b) => {
-          if (a.active === b.active) { return 0; }
+          if (a.active === b.active) { return a.name.localeCompare(b.name); }
           if (a.active) { return -1; }
           return 1;
         }).map(_ => _.name);
