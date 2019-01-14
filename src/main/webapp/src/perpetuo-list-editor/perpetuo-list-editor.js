@@ -49,7 +49,7 @@ paper-input-container {
 <div>
   <iron-dropdown id="dropdown" no-auto-focus no-cancel-on-outside-click>
     <paper-listbox id="listbox" slot="dropdown-content" on-selected-changed="onSuggestionSelected">
-      <template is="dom-repeat" items="[[filteredChoices]]" initial-count="[[initialCount]]">
+      <template is="dom-repeat" items="[[filteredChoices]]">
         <paper-item>[[item]]</paper-item>
       </template>
     </paper-listbox>
@@ -63,7 +63,6 @@ paper-input-container {
   static get properties() {
     return {
       disabled: Boolean,
-      initialCount: Number,
       maxCount: { type: Number, value: Number.POSITIVE_INFINITY },
       label: String,
       filter: { type: String, notify: true },

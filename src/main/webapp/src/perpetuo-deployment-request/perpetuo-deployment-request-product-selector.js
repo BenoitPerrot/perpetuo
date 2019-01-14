@@ -7,7 +7,7 @@ class PerpetuoDeploymentRequestProductSelector extends PolymerElement {
   static get template() {
     return html`
 <perpetuo-list-editor id="main" label="Product Name"
-                      choices="[[productNames]]" initial-count="10" max-count="10" selected-item="{{selectedProductName}}"
+                      choices="[[productNames]]" max-count="10" selected-item="{{selectedProductName}}"
                       disabled="[[disabled]]"></perpetuo-list-editor>
 `;
   }
