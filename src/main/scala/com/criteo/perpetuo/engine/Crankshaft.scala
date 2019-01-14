@@ -167,7 +167,7 @@ class Crankshaft @Inject()(val appConfig: AppConfig,
   def findDeploymentRequestById(deploymentRequestId: Long): Future[Option[DeploymentRequest]] =
     dbBinding.findDeploymentRequestById(deploymentRequestId)
 
-  def createDeploymentRequest(protoDeploymentRequest: ProtoDeploymentRequest): Future[DeploymentRequest] =
+  def createDeploymentPlan(protoDeploymentRequest: ProtoDeploymentRequest): Future[DeploymentPlan] =
     Future
       .sequence(listeners.map(_.onCreatingDeploymentRequest(protoDeploymentRequest)))
       .flatMap { _ =>
@@ -178,7 +178,7 @@ class Crankshaft @Inject()(val appConfig: AppConfig,
           .insertDeploymentRequest(protoDeploymentRequest)
           .map { deploymentPlan =>
             Future.sequence(listeners.map(_.onDeploymentRequestCreated(deploymentPlan)))
-            deploymentPlan.deploymentRequest
+            deploymentPlan
           }
       }
 

@@ -65,7 +65,8 @@ class Engine @Inject()(val appConfig: AppConfig,
   def requestDeployment(user: User, protoDeploymentRequest: ProtoDeploymentRequest): Future[DeploymentRequest] = {
     val targetSuperset = getTargetSuperset(protoDeploymentRequest.productName, protoDeploymentRequest.version, protoDeploymentRequest.plan.map(_.parsedTarget))
     evaluatePreconditions(_.canRequestDeployment(Some(user), protoDeploymentRequest.productName, targetSuperset))
-      .flatMap(_ => crankshaft.createDeploymentRequest(protoDeploymentRequest))
+      .flatMap(_ => crankshaft.createDeploymentPlan(protoDeploymentRequest))
+      .map(_.deploymentRequest)
   }
 
   protected val stateExpirationTime: FiniteDuration = Duration(

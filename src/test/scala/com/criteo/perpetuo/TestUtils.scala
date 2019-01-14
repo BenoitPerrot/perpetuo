@@ -200,7 +200,7 @@ trait SimpleScenarioTesting extends TestHelpers with TestDb with MockitoSugar {
   }
 
   class RequestTesting(productName: String, version: String, stepsTargets: Seq[Iterable[String]]) {
-    private val deploymentRequest = {
+    private val deploymentPlan = {
       val targetExpressions: Seq[JsValue] = stepsTargets.map(_
         .map {
           case s if s.startsWith("tag:") => JsObject("tag" -> JsString(s.substring(4, s.length))): JsValue
@@ -208,7 +208,7 @@ trait SimpleScenarioTesting extends TestHelpers with TestDb with MockitoSugar {
         }
         .toJson
       )
-      await(crankshaft.createDeploymentRequest(ProtoDeploymentRequest(
+      await(crankshaft.createDeploymentPlan(ProtoDeploymentRequest(
         productName,
         Version(version.toJson),
         targetExpressions.zipWithIndex.map { case (target, i) => ProtoDeploymentPlanStep((i + 1).toString, target, "") },
@@ -221,7 +221,7 @@ trait SimpleScenarioTesting extends TestHelpers with TestDb with MockitoSugar {
 
     def eligibleOperations: Future[Seq[Operation.Kind]] =
       crankshaft
-        .assessDeploymentState(deploymentRequest)
+        .assessDeploymentState(getDeploymentRequest)
         .map {
           case s if s.isOutdated => Seq()
           case _: Reverted => Seq()
@@ -232,7 +232,7 @@ trait SimpleScenarioTesting extends TestHelpers with TestDb with MockitoSugar {
         }
 
     def startStep(): OperationTrace = {
-      await(SimpleScenarioTesting.this.step(deploymentRequest, Some(currentState.next()), "s.tarter"))
+      await(SimpleScenarioTesting.this.step(getDeploymentRequest, Some(currentState.next()), "s.tarter"))
     }
 
     def step(finalStatus: Status.Code = Status.success): OperationTrace = {
@@ -256,13 +256,13 @@ trait SimpleScenarioTesting extends TestHelpers with TestDb with MockitoSugar {
       val targetStatus = stepsTargets.zipWithIndex.collect { case (target, index) if index < currentStep => target.map(_ -> finalStatus) }.flatten.toMap
       await(
         for {
-          operationTrace <- SimpleScenarioTesting.this.revert(deploymentRequest, Some(currentState.next()), "r.everter", defaultVersion.headOption.map(_ => Version(defaultVersion.toJson)))
+          operationTrace <- SimpleScenarioTesting.this.revert(getDeploymentRequest, Some(currentState.next()), "r.everter", defaultVersion.headOption.map(_ => Version(defaultVersion.toJson)))
           _ <- closeOperation(operationTrace, targetStatus)
         } yield operationTrace
       )
     }
 
     def getDeploymentRequest: DeploymentRequest =
-      deploymentRequest
+      deploymentPlan.deploymentRequest
   }
 }
