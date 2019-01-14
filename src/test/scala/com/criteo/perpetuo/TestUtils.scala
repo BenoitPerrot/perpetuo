@@ -200,7 +200,7 @@ trait SimpleScenarioTesting extends TestHelpers with TestDb with MockitoSugar {
   }
 
   class RequestTesting(productName: String, version: String, stepsTargets: Seq[Iterable[String]]) {
-    private val deploymentPlan = {
+    val deploymentPlan: DeploymentPlan = {
       val targetExpressions: Seq[JsValue] = stepsTargets.map(_
         .map {
           case s if s.startsWith("tag:") => JsObject("tag" -> JsString(s.substring(4, s.length))): JsValue
