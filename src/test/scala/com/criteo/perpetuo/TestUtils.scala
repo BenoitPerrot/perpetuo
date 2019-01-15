@@ -76,7 +76,7 @@ trait SimpleScenarioTesting extends TestHelpers with TestDb with MockitoSugar {
 
   protected def providesTargetDispatcher: TargetDispatcher = new SingleTargetDispatcher(executionTrigger)
 
-  protected def providesTargetResolver: TargetResolver = plugins.resolver
+  protected def providesTargetResolver: TargetResolver = new TargetResolver {}
 
   protected def extraModules: Seq[Module] = Seq[Module]()
 
@@ -130,7 +130,6 @@ trait SimpleScenarioTesting extends TestHelpers with TestDb with MockitoSugar {
 
   private val executionTrigger: ExecutionTrigger = mock[ExecutionTrigger]
   when(executionTrigger.executorType).thenReturn("testing")
-  private lazy val plugins = injector.getInstance(classOf[Plugins])
 
   lazy val crankshaft: Crankshaft = injector.getInstance(classOf[Crankshaft])
 
