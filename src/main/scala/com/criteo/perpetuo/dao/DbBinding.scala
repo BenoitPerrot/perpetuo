@@ -215,9 +215,9 @@ class DbBinding @Inject()(val dbContext: DbContext)
         (step.toDeploymentPlanStep(deploymentRequest), lastOperation)
       })
 
-  // if that is removed one day (with multi-step, out-dating a deployment request makes less sense),
-  // a few functions must be changed to not rely on current request application order, for instance
-  // findExecutionSpecificationsForRevert
+  // if that is removed one day (with multi-step, outdating a deployment request makes less sense),
+  // or if the implementation changed (outdating per product-target instead of per product only),
+  // a few functions must be changed to not rely on current request application order
   def findOutdatingId(deploymentRequest: DeploymentRequest): DBIOAction[Option[Long], NoStream, Effect.Read] =
     deploymentRequestQuery
       .join(operationTraceQuery)
@@ -363,7 +363,7 @@ class DbBinding @Inject()(val dbContext: DbContext)
       .join(deploymentRequestQuery)
       .join(productQuery)
       .filter { case ((((ts, ex), op), dr), p) =>
-          ts.code =!= Status.notDone &&
+        ts.code =!= Status.notDone &&
           ts.executionId === ex.id && ex.operationTraceId === op.id &&
           op.deploymentRequestId === dr.id && dr.productId === p.id && p.name === productName
       }
