@@ -4,8 +4,8 @@ import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.{CompletableFuture, Future => JavaFuture}
 
 import com.criteo.perpetuo.app.RestApi
-import com.criteo.perpetuo.auth.User
-import com.criteo.perpetuo.config.{AppConfig, Plugins}
+import com.criteo.perpetuo.auth.{Permissions, Unrestricted, User}
+import com.criteo.perpetuo.config.AppConfig
 import com.criteo.perpetuo.dao.{DbBinding, DbContext, DbContextProvider, TestingDbContextModule}
 import com.criteo.perpetuo.engine._
 import com.criteo.perpetuo.engine.dispatchers.{SingleTargetDispatcher, TargetDispatcher}
@@ -78,6 +78,12 @@ trait SimpleScenarioTesting extends TestHelpers with TestDb with MockitoSugar {
 
   protected def providesTargetResolver: TargetResolver = new TargetResolver {}
 
+  protected def providesListeners: Seq[AsyncListener] = Seq()
+
+  protected def providesPermissions: Permissions = Unrestricted
+
+  protected def providesPreConditionEvaluators: Seq[AsyncPreConditionEvaluator] = Seq()
+
   protected def extraModules: Seq[Module] = Seq[Module]()
 
   protected val injector: Injector = Guice.createInjector(
@@ -105,21 +111,33 @@ trait SimpleScenarioTesting extends TestHelpers with TestDb with MockitoSugar {
 
         @Singleton
         @Provides
-        def providesCrankshaft(appConfig: AppConfig, plugins: Plugins, executionFinder: TriggeredExecutionFinder, targetDispatcher: TargetDispatcher, restApi: RestApi): Crankshaft = {
+        def providesListeners: Seq[AsyncListener] = SimpleScenarioTesting.this.providesListeners
+
+        @Singleton
+        @Provides
+        def providesPermissions: Permissions = SimpleScenarioTesting.this.providesPermissions
+
+        @Singleton
+        @Provides
+        def providesPreConditionEvaluators: Seq[AsyncPreConditionEvaluator] = SimpleScenarioTesting.this.providesPreConditionEvaluators
+
+        @Singleton
+        @Provides
+        def providesCrankshaft(appConfig: AppConfig, listeners: Seq[AsyncListener], executionFinder: TriggeredExecutionFinder, targetDispatcher: TargetDispatcher, restApi: RestApi): Crankshaft = {
           when(executionTrigger.trigger(restApi.executionCallbackUrl(anyLong), anyString, any[Version], any[TargetAtomSet], anyString))
             .thenReturn(Future(triggerMock))
-          new Crankshaft(appConfig, dbBinding, targetDispatcher, plugins.listeners, executionFinder, restApi)
+          new Crankshaft(appConfig, dbBinding, targetDispatcher, listeners, executionFinder, restApi)
         }
 
         @Singleton
         @Provides
-        def providesEngine(appConfig: AppConfig, crankshaft: Crankshaft, resolver: TargetResolver, plugins: Plugins): Engine = {
+        def providesEngine(appConfig: AppConfig, crankshaft: Crankshaft, resolver: TargetResolver, permissions: Permissions, preConditionEvaluators: Seq[AsyncPreConditionEvaluator]): Engine = {
           class NoOpScheduler extends Scheduler {
             override def scheduleTask(f: () => Any, period: Long, timeUnit: TimeUnit, initialDelay: Long): JavaFuture[_] =
               CompletableFuture.completedFuture(())
           }
 
-          new Engine(appConfig, crankshaft, resolver, plugins.permissions, plugins.preConditionEvaluators, new NoOpScheduler()) {
+          new Engine(appConfig, crankshaft, resolver, permissions, preConditionEvaluators, new NoOpScheduler()) {
             override val stateExpirationTime: FiniteDuration = 1000.seconds // the goal is that no test actually depends on it
             override val ticker: Ticker = mockTicker // ... thanks to this mock
           }
