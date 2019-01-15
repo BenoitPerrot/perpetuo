@@ -113,7 +113,14 @@ paper-input-container {
     if (choices && choices.length) {
       if (filter && filter.length) {
         const words = filter.toLowerCase().split(' ');
-        return this.choices.filter(c => words.every(w => c.toLowerCase().includes(w)));
+        const filteredChoices = this.choices.filter(c => words.every(w => c.toLowerCase().includes(w)));
+        if (words.length === 1) {
+          const i = filteredChoices.findIndex(_ => _.toLowerCase() === words[0]);
+          if (0 <= i) {
+            filteredChoices.splice(0, 0, filteredChoices.splice(i, 1)[0]);
+          }
+        }
+        return filteredChoices;
       }
       else {
         return this.choices;
