@@ -139,6 +139,9 @@ trait SimpleScenarioTesting extends TestHelpers with TestDb with MockitoSugar {
 
   protected def triggerMock: Option[String] = None
 
+  val requesterName = "r.equester"
+  val officerName = "o.fficer"
+
   def step(deploymentRequest: DeploymentRequest, operationCount: Option[Int], userName: String): Future[OperationTrace] =
     engine.step(User(userName), deploymentRequest.id, operationCount).map(_.get)
 
@@ -212,7 +215,7 @@ trait SimpleScenarioTesting extends TestHelpers with TestDb with MockitoSugar {
         Version(version.toJson),
         targetExpressions.zipWithIndex.map { case (target, i) => ProtoDeploymentPlanStep((i + 1).toString, target, "") },
         "",
-        "de.ployer"
+        requesterName
       )))
     }
     private val currentState = Iterator.from(0)
@@ -231,7 +234,7 @@ trait SimpleScenarioTesting extends TestHelpers with TestDb with MockitoSugar {
         }
 
     def startStep(): OperationTrace = {
-      await(SimpleScenarioTesting.this.step(getDeploymentRequest, Some(currentState.next()), "s.tarter"))
+      await(SimpleScenarioTesting.this.step(getDeploymentRequest, Some(currentState.next()), officerName))
     }
 
     def step(finalStatus: Status.Code = Status.success): OperationTrace = {
@@ -255,7 +258,7 @@ trait SimpleScenarioTesting extends TestHelpers with TestDb with MockitoSugar {
       val targetStatus = stepsTargets.zipWithIndex.collect { case (target, index) if index < currentStep => target.map(_ -> finalStatus) }.flatten.toMap
       await(
         for {
-          operationTrace <- SimpleScenarioTesting.this.revert(getDeploymentRequest, Some(currentState.next()), "r.everter", defaultVersion.headOption.map(_ => Version(defaultVersion.toJson)))
+          operationTrace <- SimpleScenarioTesting.this.revert(getDeploymentRequest, Some(currentState.next()), officerName, defaultVersion.headOption.map(_ => Version(defaultVersion.toJson)))
           _ <- closeOperation(operationTrace, targetStatus)
         } yield operationTrace
       )
