@@ -7,7 +7,7 @@ import com.google.inject.{Inject, Injector, Singleton}
 import com.typesafe.config.{Config, ConfigException}
 
 @Singleton
-class PluginLoader @Inject()(injector: Injector, appConfig: AppConfig) {
+class PluginLoader @Inject()(injector: Injector) {
 
   import com.criteo.perpetuo.config.ConfigSyntacticSugar._
 
