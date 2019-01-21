@@ -8,6 +8,7 @@ import com.twitter.finagle.http.{Request, RequestBuilder, RequestConfig, Respons
 import com.twitter.finagle.param.HighResTimer
 import com.twitter.finagle.service._
 import com.twitter.finagle.stats.DefaultStatsReceiver
+import com.twitter.finagle.util.DefaultTimer
 import com.twitter.inject.Logging
 import com.twitter.io.{Buf, Reader}
 import com.twitter.util._
@@ -30,6 +31,7 @@ class SingleNodeHttpClient(hostName: String, port: Option[Int], ssl: Option[Bool
     val (protocol, actualPort) = if (https) ("https", port.getOrElse(443)) else ("http", port.getOrElse(80))
     (protocol, s"$hostName:$actualPort")
   }
+  private val totalTimeout = (connectionTimeout + requestTimeout) * (1L + retries) + minimumDelayBetweenRetries * retries.toLong
 
   def url(path: String): URL =
     port.map(new URL(protocol, hostName, _, path)).getOrElse(new URL(protocol, hostName, path))
@@ -94,6 +96,7 @@ class SingleNodeHttpClient(hostName: String, port: Option[Int], ssl: Option[Bool
           ConsumedResponse(resp.status, buf, hostName)
         }
       }
+      .raiseWithin(totalTimeout)(DefaultTimer)
       .onFailure(err =>
         logger.debug(s"Request to $hostName failed after ${System.currentTimeMillis() - start}ms (including possible retries): ${err.getMessage}")
       )
