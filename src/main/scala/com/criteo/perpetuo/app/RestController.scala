@@ -1,7 +1,7 @@
 package com.criteo.perpetuo.app
 
 import com.criteo.perpetuo.auth.UserFilter._
-import com.criteo.perpetuo.auth.{Authenticator, User}
+import com.criteo.perpetuo.auth.{Authenticator, GeneralAction, User}
 import com.criteo.perpetuo.config.AppConfig
 import com.criteo.perpetuo.engine.{DeploymentState, Engine}
 import com.criteo.perpetuo.model._
@@ -161,7 +161,12 @@ class RestController @Inject()(engine: Engine, restApi: RestApi, swag: Swagger)
     )
   }
 
-  get("/api/actions") { r: Request =>
+  getWithDoc("/api/actions") {_
+      .summary("List the authorized admin actions for this user")
+      .description(s"the returned actions can be : ${GeneralAction.values.mkString(", ")}")
+      .tag("Action")
+      .responseWith[GeneralAction.Value](200, "List of allowed actions")
+  } { r: Request =>
     futurePool(
       r.user.map(user => engine.getAllowedActions(user)).getOrElse(Seq())
     )
