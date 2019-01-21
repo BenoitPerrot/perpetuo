@@ -1,9 +1,8 @@
 package com.criteo.perpetuo.engine
 
 import com.criteo.perpetuo.SimpleScenarioTesting
-import com.criteo.perpetuo.auth.{AuthPreCondition, FineGrainedPermissions, Permissions, User}
-import com.criteo.perpetuo.config.AsyncPreConditionWrapper
-import com.criteo.perpetuo.engine.preconditions.TestPreCondition
+import com.criteo.perpetuo.auth.User
+import com.criteo.perpetuo.config.AppConfig
 import com.criteo.perpetuo.model.{ProtoDeploymentPlanStep, ProtoDeploymentRequest, Version}
 import com.typesafe.config.ConfigFactory
 import spray.json.JsString
@@ -12,39 +11,44 @@ import scala.concurrent.ExecutionContext.Implicits.global
 
 class PreConditionSpec extends SimpleScenarioTesting {
 
-  private val permissions =
-    FineGrainedPermissions.fromConfig(
+  override def providesAppConfig: AppConfig =
+    new AppConfig(
       ConfigFactory
         .parseString(
           s"""
-             |perGeneralAction {
-             |  updateProduct = [
-             |    {
-             |      userNames = ["bob.the.producer"]
-             |    }
-             |  ]
-             |}
-             |perProduct = [
-             |  {
-             |    regex = ".*"
-             |    perAction {
-             |      requestOperation = [
+             |permissions {
+             |  type = "fineGrained"
+             |  fineGrained {
+             |    perGeneralAction {
+             |      updateProduct = [
              |        {
-             |          groupNames = ["Users"]
+             |          userNames = ["bob.the.producer"]
              |        }
              |      ]
              |    }
+             |    perProduct = [
+             |      {
+             |        regex = ".*"
+             |        perAction {
+             |          requestOperation = [
+             |            {
+             |              groupNames = ["Users"]
+             |            }
+             |          ]
+             |        }
+             |      }
+             |    ]
              |  }
-             |]""".stripMargin
-        )
-    )
-
-  protected override def providesPermissions: Permissions = permissions
-
-  protected override def providesPreConditionEvaluators: Seq[AsyncPreConditionEvaluator] =
-    Seq(
-      new AsyncPreConditionWrapper(new AuthPreCondition(permissions)), // FIXME: this shouldn't be necessary
-      new AsyncPreConditionWrapper(new TestPreCondition())
+             |}
+             |preConditionEvaluators = [
+             |  {
+             |    type = "class"
+             |    class = "com.criteo.perpetuo.engine.preconditions.TestPreCondition"
+             |  }
+             |]
+             |""".stripMargin)
+        .withFallback(AppConfig.config)
+        .resolve()
     )
 
   val stdUser = new User("s.omeone", Set("Users"))
