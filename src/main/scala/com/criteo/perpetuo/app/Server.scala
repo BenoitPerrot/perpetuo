@@ -5,6 +5,7 @@ import com.criteo.perpetuo.config.AppConfig
 import com.criteo.perpetuo.config.ConfigSyntacticSugar._
 import com.criteo.perpetuo.metrics
 import com.criteo.perpetuo.metrics.HttpMonitoringFilter
+import com.jakehschwartz.finatra.swagger.DocsController
 import com.samstarling.prometheusfinagle.PrometheusStatsReceiver
 import com.samstarling.prometheusfinagle.metrics.Telemetry
 import com.twitter.finagle.http.filter.Cors
@@ -38,7 +39,8 @@ class Server extends HttpServer {
   override def modules = Seq(
     new DbContextModule(appConfig.config.getConfig("db")),
     new PluginsModule(appConfig),
-    new AuthModule(appConfig.config.getConfig("auth"))
+    new AuthModule(appConfig.config.getConfig("auth")),
+    new SwaggerModule()
   )
 
   override def configureHttpServer(server: Http.Server): Http.Server = {
@@ -84,6 +86,7 @@ class Server extends HttpServer {
       .add[LocalUsersRetrievingController]
       .add[RestController]
       .add[metrics.Controller]
+      .add[DocsController]
 
       // Add controller for serving static assets as the last one / fallback one
       .add(new StaticAssetsController(appConfig.config.tryGetStringList("staticAssets.roots").getOrElse(Seq())))
