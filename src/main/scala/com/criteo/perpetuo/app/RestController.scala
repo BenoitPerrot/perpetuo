@@ -5,6 +5,7 @@ import com.criteo.perpetuo.auth.{Authenticator, User}
 import com.criteo.perpetuo.config.AppConfig
 import com.criteo.perpetuo.engine.{DeploymentState, Engine}
 import com.criteo.perpetuo.model._
+import com.jakehschwartz.finatra.swagger.SwaggerController
 import com.twitter.finagle.http.Request
 import com.twitter.finatra.http.exceptions._
 import com.twitter.finatra.http.{Controller => BaseController}
@@ -12,6 +13,7 @@ import com.twitter.finatra.request._
 import com.twitter.finatra.utils.FuturePools
 import com.twitter.finatra.validation._
 import com.twitter.util.{Future => TwitterFuture}
+import io.swagger.models.Swagger
 import javax.inject.{Inject, Singleton}
 import spray.json.JsonParser.ParsingException
 
@@ -68,10 +70,13 @@ private case class RequestWithProductName(@NotEmpty productName: String,
 /**
   * Controller that handles deployment requests as a REST API.
   */
-class RestController @Inject()(engine: Engine, restApi: RestApi)
+class RestController @Inject()(engine: Engine, restApi: RestApi, swag: Swagger)
   extends BaseController
     with Authenticator
-    with ExceptionsToHttpStatusTranslation {
+    with ExceptionsToHttpStatusTranslation
+    with SwaggerController {
+
+  override protected implicit val swagger: Swagger = swag
 
   private val futurePool = FuturePools.unboundedPool("RequestFuturePool")
 
@@ -96,14 +101,24 @@ class RestController @Inject()(engine: Engine, restApi: RestApi)
     }
   }
 
-  get("/api/products") { _: Request =>
+  getWithDoc("/api/products") {_
+      .summary("List all registered products")
+      .tag("Product")
+      .responseWith[Array[Product]](200, "The list of all the products is returned", Some(Array(Product(123, "product name", active = true))))
+  } { _: Request =>
     timeBoxed(
       engine.getProducts,
       5.seconds
     )
   }
 
-  put("/api/products") { r: RequestWithNameAndActive =>
+  putWithDoc("/api/products") {_
+      .summary("Update or insert a product with the given name and activeness")
+      .tag("Product")
+      .bodyParam[String]("name", "name of the product", Some("product1"))
+      .bodyParam[Boolean]("active", "activeness of the product", Some(true))
+      .responseWith(201, "No content is returned")
+  } { r: RequestWithNameAndActive =>
     authenticate(r.request) { case user =>
       timeBoxed(
         engine
@@ -114,7 +129,16 @@ class RestController @Inject()(engine: Engine, restApi: RestApi)
     }
   }
 
-  post("/api/products") { r: RequestWithNames =>
+  postWithDoc("/api/products") {_
+      .summary("Activate products by name")
+      .tag("Product")
+      .description(
+        """- Activate the products whose names are in the given list, inserting new products when name is unknown.
+          |- Deactivate the registered products whose names are not in the given list.
+        """.stripMargin)
+      .bodyParam[Array[String]]("names", "Array of product names", Some(Array("product1", "product2")))
+      .responseWith[Array[Product]](200, "All created products and updated ones are returned (i.e excluding unmodified ones)")
+  } { r: RequestWithNames =>
     authenticate(r.request) { case user =>
       timeBoxed(
         engine
@@ -125,7 +149,12 @@ class RestController @Inject()(engine: Engine, restApi: RestApi)
     }
   }
 
-  post("/api/products/version-per-target") { r: RequestWithProductName =>
+  postWithDoc("/api/products/version-per-target") {_
+      .summary("List the deployed versions of the given product on a per target basis")
+      .tag("Product")
+      .bodyParam[String]("name", "name of a product", Some("product1"))
+      .responseWith[Map[TargetAtom, Version]](200, "Map associating a target to a version is returned")
+  } { r: RequestWithProductName =>
     timeBoxed(
       engine.getCurrentVersionPerTarget(r.productName),
       5.seconds
