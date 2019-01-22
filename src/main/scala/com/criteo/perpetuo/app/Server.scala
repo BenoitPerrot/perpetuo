@@ -30,7 +30,7 @@ class Server extends HttpServer {
   private val registry: CollectorRegistry = CollectorRegistry.defaultRegistry
 
   // Remove unwanted admin routes
-  override protected def routes: Seq[Route] = super.routes.filter(_ != "/admin/registry.json")
+  override protected def routes: Seq[Route] = super.routes.filter(_.path != "/admin/registry.json")
 
   override protected def jacksonModule: FinatraJacksonModule = CustomServerModules.jackson
 
