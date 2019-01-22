@@ -71,7 +71,7 @@ class DbBinding @Inject()(val dbContext: DbContext)
               executionTraceTree
                 .map { case (operationTrace, _, executionTrace) => (operationTrace, executionTrace) }
                 .groupBy { case (operationTrace, _) => operationTrace.id.get }
-                .toStream
+                .toSeq
                 .map { case (_, operationGroup) =>
                   val (operationTrace, _) = operationGroup.head
                   val executionTraces = operationGroup.flatMap { case (_, executionTrace) => executionTrace.map(_.toExecutionTrace) }
