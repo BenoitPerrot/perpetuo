@@ -9,6 +9,7 @@ import scala.language.implicitConversions
 package object dao {
 
   type DBIOrw[T] = DBIOAction[T, NoStream, Effect.Read with Effect.Write]
+  type DBIOrwt[T] = DBIOAction[T, NoStream, Effect.Read with Effect.Write with Effect.Transactional]
 
   implicit class UserName(val input: String) extends AnyVal with StringInput {
     override def maxLength = 64

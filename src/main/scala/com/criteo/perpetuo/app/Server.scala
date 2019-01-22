@@ -21,7 +21,7 @@ import io.prometheus.client.CollectorRegistry
 
 
 object CustomServerModules {
-  val jackson = CustomJacksonModule
+  val jackson: FinatraJacksonModule = CustomJacksonModule
 }
 
 /**
@@ -37,7 +37,7 @@ class Server extends HttpServer {
 
   private val appConfig: AppConfig = AppConfig
 
-  override def modules = Seq(
+  override def modules: Seq[TwitterModule] = Seq(
     new DbContextModule(appConfig.config.getConfig("db")),
     new PluginsModule(appConfig),
     new AuthModule(appConfig.config.getConfig("auth")),

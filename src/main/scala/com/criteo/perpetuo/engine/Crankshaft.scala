@@ -2,7 +2,7 @@ package com.criteo.perpetuo.engine
 
 import com.criteo.perpetuo.app.RestApi
 import com.criteo.perpetuo.config.AppConfig
-import com.criteo.perpetuo.dao.{DBIOrw, DbBinding}
+import com.criteo.perpetuo.dao.{DBIOrw, DBIOrwt, DbBinding}
 import com.criteo.perpetuo.engine.dispatchers.TargetDispatcher
 import com.criteo.perpetuo.engine.executors.TriggeredExecutionFinder
 import com.criteo.perpetuo.model.ExecutionState.ExecutionState
@@ -213,7 +213,7 @@ class Crankshaft @Inject()(val appConfig: AppConfig,
       }
     )
 
-  private def closingOperation(operationTrace: OperationTrace): DBIOAction[(OperationTrace, Boolean), NoStream, Effect.Read with Effect.Write with Effect.Transactional] =
+  private def closingOperation(operationTrace: OperationTrace): DBIOrwt[(OperationTrace, Boolean)] =
     dbBinding.closingOperationTrace(operationTrace)
       .flatMap { case (trace, updated) =>
         if (updated)
@@ -607,7 +607,7 @@ class Crankshaft @Inject()(val appConfig: AppConfig,
     }
   }
 
-  def abandoning(deploymentRequest: DeploymentRequest): DBIOAction[Unit, NoStream, Effect.Read with Effect.Write with Effect.Transactional] =
+  def abandoning(deploymentRequest: DeploymentRequest): DBIOrwt[Unit] =
     if (deploymentRequest.state.contains(DeploymentRequestState.abandoned))
       DBIO.successful(()) // The request is already abandoned, we silently quit the operation
     else
