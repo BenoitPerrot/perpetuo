@@ -13,7 +13,7 @@ import com.twitter.finatra.request._
 import com.twitter.finatra.utils.FuturePools
 import com.twitter.finatra.validation._
 import com.twitter.util.{Future => TwitterFuture}
-import io.swagger.models.Swagger
+import io.swagger.models.{Operation, Swagger}
 import javax.inject.{Inject, Singleton}
 import spray.json.JsonParser.ParsingException
 
@@ -93,8 +93,13 @@ class RestController @Inject()(engine: Engine, restApi: RestApi, swag: Swagger)
       Try(request.id.toLong).toOption.map(view(_, request)).flatMap(await(_, maxDuration))
     )
 
-  private def post[R <: WithId with WithRequest, O: Manifest](route: String, maxDuration: Duration)(callback: (Long, R, User) => Future[Option[O]])(implicit m: Manifest[R]): Unit = {
-    post(route) { r: R =>
+  private def postWithDoc[R <: WithId with WithRequest, O: Manifest]
+    (route: String, maxDuration: Duration)
+    (doc: Operation => Operation)
+    (callback: (Long, R, User) => Future[Option[O]])
+    (implicit m: Manifest[R]): Unit = {
+
+    postWithDoc(route)(doc) { r: R =>
       authenticate(r.request) { case user =>
         withIdAndRequest((id: Long, r: R) => callback(id, r, user), maxDuration)(r)
       }
@@ -172,7 +177,13 @@ class RestController @Inject()(engine: Engine, restApi: RestApi, swag: Swagger)
     )
   }
 
-  post("/api/deployment-requests") { r: Request =>
+  postWithDoc("/api/deployment-requests") {_
+      .summary("Request a deployment")
+      .tag("Deployment request")
+      .bodyParam[String]("deployment request", "A deployment request")
+      .responseWith(200, "The id of the deployment request that was created")
+      .responseWith(400, "When an error occurred, e.g while parsing the input")
+  } { r: Request =>
     authenticate(r) { case user =>
       val protoDeploymentRequest = try {
         DeploymentRequestParser.parse(r.contentString, user.name)
@@ -188,7 +199,23 @@ class RestController @Inject()(engine: Engine, restApi: RestApi, swag: Swagger)
     }
   }
 
-  post("/api/deployment-requests/:id/actions/devise-revert-plan") { r: RequestWithId =>
+  private def deploymentRequestDoc(op: Operation): Operation = {
+    op.tag("Deployment request")
+      .routeParam[Int]("id", "deployment request id")
+  }
+
+  postWithDoc("/api/deployment-requests/:id/actions/devise-revert-plan") {
+    deploymentRequestDoc(_)
+      .summary("Get the revert plan for the given deployment request")
+      .description(
+        """Return the version that would be put back on each target impacted by the deployment request
+          | NOTE: this is purely informative, no operation will be carried out on the targets
+        """.stripMargin)
+      .responseWith(200,
+        """A map that will contain two entries:
+          | - One for the undetermined targets i.e the targets for which it was not possible to determine the previous version
+          | - One for the determined targets that will contain a map associating a version to all its targets""".stripMargin)
+  } { r: RequestWithId =>
     withLongId(
       id => engine
         .deviseRevertPlan(id)
@@ -204,26 +231,52 @@ class RestController @Inject()(engine: Engine, restApi: RestApi, swag: Swagger)
     )(r)
   }
 
-  post("/api/deployment-requests/:id/actions/step", 5.seconds) { (id: Long, r: DeploymentActionRequest, user: User) =>
+  //Operation count start at zero after the deployment request was created
+  postWithDoc("/api/deployment-requests/:id/actions/step", 5.seconds) {
+    deploymentRequestDoc(_)
+      .summary("Step forward the given deployment request")
+      .description(
+        """Deploys the product's version specified in the given deployment request on the targets covered by the next step of its plan. Retries the last attempted step if it failed.
+          | The method is idempotent when an operationCount is specified.
+          | Operation count start at zero after the deployment request was created.
+        """.stripMargin)
+      .bodyParam[Int]("operationCount",
+      "Optional: number of operations performed so far for the given deployment request. If the actual operation count differs from the query, the step won't be carried out")
+      .responseWith(200, "Corresponding operation id")
+  } { (id: Long, r: DeploymentActionRequest, user: User) =>
     engine
       .step(user, id, r.operationCount)
       .map(_.map(_ => Map("id" -> id)))
   }
 
-  post("/api/deployment-requests/:id/actions/revert", 5.seconds) { (id: Long, r: RevertRequest, user: User) =>
+  postWithDoc("/api/deployment-requests/:id/actions/revert", 5.seconds) {
+    deploymentRequestDoc(_)
+      .summary("Revert the given deployment request")
+      .description(
+        """Deploys the product specified in the given deployment request on the targets that were impacted by the previous steps, using the previous latest products' version for each targets.
+          | See also "/devise-revert-plan" to obtain the versions that will be used for each target.
+          | The method is idempotent when an operationCount is specified.
+        """.stripMargin)
+      .queryParam[Int]("operationCount", required = false)
+      .responseWith(200, "Corresponding operation id")
+  } { (id: Long, r: RevertRequest, user: User) =>
     engine
       .revert(user, id, r.operationCount, r.defaultVersion.map(Version.apply))
       .map(_.map(_ => Map("id" -> id)))
   }
   // >>
 
-  /**
-    * Warning: this route may return HTTP 200 OK with a list of error messages in the body!
-    * These errors are about individual executions that could not be stopped, while another
-    * key in the body gives the number of executions that have been successfully stopped.
-    * No information is returned about the executions that were already stopped.
-    */
-  post("/api/deployment-requests/:id/actions/stop", 5.seconds) { (id: Long, r: DeploymentActionRequest, user: User) =>
+  postWithDoc("/api/deployment-requests/:id/actions/stop", 5.seconds) {
+    deploymentRequestDoc(_)
+      .summary("Stop the given deployment request")
+      .description(
+        """Warning: this route may return HTTP 200 OK with a list of error messages in the body!
+          | These errors are about individual executions that could not be stopped, while another
+          | key in the body gives the number of executions that have been successfully stopped.
+          | No information is returned about the executions that were already stopped.
+        """.stripMargin)
+      .responseWith(200, "id of the request with the number of stopped target and error messages")
+  } { (id: Long, r: DeploymentActionRequest, user: User) =>
     engine
       .stop(user, id, r.operationCount)
       .map(_.map { case (nbStopped, errorMessages) =>
@@ -235,7 +288,11 @@ class RestController @Inject()(engine: Engine, restApi: RestApi, swag: Swagger)
       })
   }
 
-  post("/api/deployment-requests/:id/actions/abandon", 5.seconds) { (id: Long, _: RequestWithId, user: User) =>
+  postWithDoc("/api/deployment-requests/:id/actions/abandon", 5.seconds) {
+    deploymentRequestDoc(_)
+      .summary("Abandon the given deployment request")
+      .responseWith(200, "id of the abandoned deployment request")
+  } { (id: Long, _: RequestWithId, user: User) =>
     engine
       .abandon(user, id)
       .map(_.map(_ => Map("id" -> id)))
@@ -340,7 +397,11 @@ class RestController @Inject()(engine: Engine, restApi: RestApi, swag: Swagger)
       5.seconds)
   }
 
-  get("/api/deployment-requests/:id/state") { r: RequestWithId =>
+  getWithDoc("/api/deployment-requests/:id/state") {
+    deploymentRequestDoc(_)
+      .summary("Get the state of the given deployment request")
+      .responseWith(200, "Deployment request state")
+  } { r: RequestWithId =>
     withLongId(
       id => engine.findDeploymentRequestState(id).map(_.map { deploymentRequestState =>
         Some(Map("state" -> deploymentRequestState.toString))
