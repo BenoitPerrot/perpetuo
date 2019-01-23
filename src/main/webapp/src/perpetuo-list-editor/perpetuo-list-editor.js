@@ -8,6 +8,7 @@ import '/node_modules/@polymer/paper-listbox/paper-listbox.js'
 import '/node_modules/@polymer/paper-styles/shadow.js'
 
 import '../perpetuo-chip/perpetuo-chip.js'
+import Perpetuo from '../perpetuo-lib/perpetuo-lib.js'
 
 class PerpetuoListEditor extends PolymerElement {
 
@@ -67,6 +68,7 @@ paper-input-container {
       label: String,
       filter: { type: String, notify: true },
       choices: Array,
+      lruPath: String,
       filteredChoices: { type: Array, value: () => [], observer: 'onFilteredChoicesChanged' },
       selectedItem: { type: Object, notify: true, reflectToAttribute: true }
     };
@@ -110,19 +112,46 @@ paper-input-container {
   }
 
   applyFilter(choices, maxCount, filter) {
-    let result = [];
-    if (choices && choices.length) {
-      result = this.choices;
-      if (filter && filter.length) {
-        const words = filter.toLowerCase().split(' ');
-        result = this.choices.filter(c => words.every(w => c.toLowerCase().includes(w)));
-        if (words.length === 1) {
-          const i = result.findIndex(_ => _.toLowerCase() === words[0]);
-          if (0 <= i) {
-            result.splice(0, 0, result.splice(i, 1)[0]);
+    const preferred = this.lruPath ? Perpetuo.Util.readArrayFromLocalStorage(this.lruPath, maxCount) : choices;
+    let result = preferred;
+    if (filter) {
+      const splitFilter = filter.split(' ');
+      const normalizedFilter = filter.toLowerCase();
+      const splitNormalizedFilter = normalizedFilter.split(' ');
+      const matchFilterIn = _ => _.reduce(
+        (matches, e) => {
+          if (filter === e.original) {
+            matches.full.push(e.original);
           }
-        }
-      }
+          else if (normalizedFilter === e.normalized) {
+            matches.normalizedFull.push(e.original);
+          }
+          else if (splitFilter.every(_ => e.original.includes(_))) {
+            matches.partial.push(e.original);
+          }
+          else if (splitNormalizedFilter.every(_ => e.normalized.includes(_))) {
+            matches.normalizedPartial.push(e.original);
+          }
+          return matches;
+        },
+        { full: [], normalizedFull: [], partial: [], normalizedPartial: [] }
+      );
+
+      const normalize = _ => ({ original: _, normalized: _.toLowerCase() });
+
+      const preferredMatches = matchFilterIn(preferred.map(normalize));
+      const nonPreferredMatches = matchFilterIn(choices.filter(_ => !preferred.includes(_)).map(normalize));
+
+      result = [].concat(
+        preferredMatches.full,
+        nonPreferredMatches.full,
+        preferredMatches.normalizedFull,
+        nonPreferredMatches.normalizedFull,
+        preferredMatches.partial,
+        preferredMatches.normalizedPartial,
+        nonPreferredMatches.partial,
+        nonPreferredMatches.normalizedPartial,
+      );
     }
     this.filteredChoices = result.slice(0, this.maxCount);
   }
@@ -145,6 +174,15 @@ paper-input-container {
     this.$.listbox.select(null);
     this.$.dropdown.close();
     this.filter = '';
+    if (this.lruPath) {
+      Perpetuo.Util.writeArrayToLocalStorage(
+        this.lruPath,
+        new Perpetuo.LeastRecentlyUsedCache(this.maxCount, Perpetuo.Util.readArrayFromLocalStorage(this.lruPath, this.maxCount))
+          .insert(value)
+          .items
+      );
+      this.applyFilter(this.choices, this.maxCount, this.filter);
+    }
   }
 
   removeElement(e) {

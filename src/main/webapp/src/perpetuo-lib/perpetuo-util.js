@@ -28,5 +28,24 @@ export const Util = {
       return e;
     }
     return 'All configured targets';
+  },
+
+  readArrayFromLocalStorage(path, maxCount) {
+    const a = [];
+    for (let i = 0; i < maxCount; ++i) {
+      const e = window.localStorage[`${path}.${i}`];
+      if (e === undefined)
+        break;
+      a.push(e);
+    }
+    return a;
+  },
+
+  writeArrayToLocalStorage(path, a) {
+    a.forEach((e, i) => {
+      if (e !== undefined && e !== null) {
+        window.localStorage[`${path}.${i}`] = e;
+      }
+    });
   }
 };
