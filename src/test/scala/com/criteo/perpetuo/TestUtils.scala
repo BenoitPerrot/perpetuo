@@ -5,7 +5,7 @@ import java.util.concurrent.{CompletableFuture, Future => JavaFuture}
 
 import com.criteo.perpetuo.app.RestApi
 import com.criteo.perpetuo.auth.User
-import com.criteo.perpetuo.config.{AppConfig, Plugins}
+import com.criteo.perpetuo.config.{AppConfig, Plugins, TestConfig}
 import com.criteo.perpetuo.dao.{DbBinding, DbContext, DbContextProvider, TestingDbContextModule}
 import com.criteo.perpetuo.engine._
 import com.criteo.perpetuo.engine.dispatchers.{SingleTargetDispatcher, TargetDispatcher}
@@ -30,7 +30,7 @@ import scala.reflect.ClassTag
 
 
 trait TestDb extends DbContextProvider {
-  lazy val dbTestModule = new TestingDbContextModule(AppConfig.config.getConfig("db"))
+  lazy val dbTestModule = new TestingDbContextModule(TestConfig.config.getConfig("db"))
   lazy val dbContext: DbContext = dbTestModule.providesDbContext
   lazy val dbBinding = new DbBinding(dbContext)
 }
@@ -72,7 +72,7 @@ trait SimpleScenarioTesting extends TestHelpers with TestDb with MockitoSugar {
 
   private val knownProducts = mutable.Set[String]()
 
-  protected def providesAppConfig: AppConfig = AppConfig
+  protected def providesAppConfig: AppConfig = TestConfig
 
   protected def providesTargetDispatcher: TargetDispatcher = new SingleTargetDispatcher(executionTrigger)
 

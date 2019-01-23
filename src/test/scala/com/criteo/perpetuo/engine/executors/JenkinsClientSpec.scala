@@ -1,12 +1,12 @@
 package com.criteo.perpetuo.engine.executors
 
-import com.criteo.perpetuo.config.AppConfig
 import com.criteo.perpetuo.config.ConfigSyntacticSugar._
+import com.criteo.perpetuo.config.TestConfig
 import com.twitter.inject.Test
 
 class JenkinsClientSpec extends Test {
 
-  private val config = AppConfig.executorConfig("jenkins")
+  private val config = TestConfig.executorConfig("jenkins")
 
   val client = new JenkinsClient("localhost", config.tryGetInt("port"), config.tryGetBoolean("ssl"), config.tryGetString("username"), config.tryGetString("password"))
 

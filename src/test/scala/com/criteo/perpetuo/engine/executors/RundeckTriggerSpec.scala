@@ -1,7 +1,7 @@
 package com.criteo.perpetuo.engine.executors
 
-import com.criteo.perpetuo.config.AppConfig
 import com.criteo.perpetuo.config.ConfigSyntacticSugar._
+import com.criteo.perpetuo.config.TestConfig
 import com.criteo.perpetuo.engine.TargetAtomSet
 import com.criteo.perpetuo.model.{TargetAtom, Version}
 import com.criteo.perpetuo.util.{ConsumedResponse, SingleNodeHttpClient}
@@ -18,7 +18,7 @@ import scala.concurrent.duration._
 
 class RundeckTriggerSpec extends Test {
 
-  private val rundeckConfig = AppConfig.executorConfig("rundeck")
+  private val rundeckConfig = TestConfig.executorConfig("rundeck")
 
   private val executionCallbackUrl = "http://somewhere/api/execution-traces/42"
 

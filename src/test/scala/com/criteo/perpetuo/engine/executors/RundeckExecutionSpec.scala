@@ -1,7 +1,7 @@
 package com.criteo.perpetuo.engine.executors
 
-import com.criteo.perpetuo.config.AppConfig
 import com.criteo.perpetuo.config.ConfigSyntacticSugar._
+import com.criteo.perpetuo.config.TestConfig
 import com.criteo.perpetuo.model.ExecutionState
 import com.criteo.perpetuo.util.{ConsumedResponse, SingleNodeHttpClient}
 import com.twitter.conversions.time._
@@ -15,7 +15,7 @@ import spray.json.JsonParser.ParsingException
 
 class RundeckExecutionSpec extends Test with MockitoSugar {
 
-  private val rundeckConfig = AppConfig.executorConfig("rundeck")
+  private val rundeckConfig = TestConfig.executorConfig("rundeck")
 
   private class RundeckClientMock(contentMock: String, statusMock: Int) extends RundeckClient( "localhost", rundeckConfig.tryGetInt("port"), rundeckConfig.tryGetBoolean("ssl"), rundeckConfig.tryGetString("token")) {
     def this(abortStatus: String, executionStatus: String, eventuallyCompleted: Boolean = false) =

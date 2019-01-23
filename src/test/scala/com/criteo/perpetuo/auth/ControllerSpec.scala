@@ -1,7 +1,7 @@
 package com.criteo.perpetuo.auth
 
 import com.criteo.perpetuo.app.AuthModule
-import com.criteo.perpetuo.config.AppConfig
+import com.criteo.perpetuo.config.{AppConfig, TestConfig}
 import com.google.inject.{Provides, Singleton}
 import com.twitter.finagle.http.Status.{Forbidden, Ok, Unauthorized}
 import com.twitter.finagle.http.{Request, Response}
@@ -19,7 +19,7 @@ import com.twitter.inject.{Test, TwitterModule}
   */
 class ControllerSpec extends Test {
 
-  val authModule = new AuthModule(AppConfig.config.getConfig("auth"))
+  val authModule = new AuthModule(TestConfig.config.getConfig("auth"))
 
   val server = new EmbeddedHttpServer(new HttpServer {
 
@@ -36,7 +36,7 @@ class ControllerSpec extends Test {
 
         @Singleton
         @Provides
-        def providesAppConfig: AppConfig = AppConfig
+        def providesAppConfig: AppConfig = TestConfig
       }
     )
 

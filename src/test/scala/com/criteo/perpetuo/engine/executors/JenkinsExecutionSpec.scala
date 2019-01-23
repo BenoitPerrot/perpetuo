@@ -1,12 +1,12 @@
 package com.criteo.perpetuo.engine.executors
 
-import com.criteo.perpetuo.config.AppConfig
+import com.criteo.perpetuo.config.TestConfig
 import com.twitter.inject.Test
 
 
 class JenkinsExecutionSpec extends Test {
 
-  private val jenkinsConfig = AppConfig.executorConfig("jenkins")
+  private val jenkinsConfig = TestConfig.executorConfig("jenkins")
 
   test("Execution's host, job name and build id are correctly parsed") {
     val execution = new JenkinsExecution(jenkinsConfig, "http://build.criteois.lan/job/test/17/")

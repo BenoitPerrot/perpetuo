@@ -2,7 +2,7 @@ package com.criteo.perpetuo.engine
 
 import com.criteo.perpetuo.SimpleScenarioTesting
 import com.criteo.perpetuo.auth.User
-import com.criteo.perpetuo.config.AppConfig
+import com.criteo.perpetuo.config.{AppConfig, TestConfig}
 import com.criteo.perpetuo.model.{ProtoDeploymentPlanStep, ProtoDeploymentRequest, Version}
 import com.typesafe.config.ConfigFactory
 import spray.json.JsString
@@ -47,7 +47,7 @@ class PreConditionSpec extends SimpleScenarioTesting {
              |  }
              |]
              |""".stripMargin)
-        .withFallback(AppConfig.config)
+        .withFallback(TestConfig.config)
         .resolve()
     )
 
