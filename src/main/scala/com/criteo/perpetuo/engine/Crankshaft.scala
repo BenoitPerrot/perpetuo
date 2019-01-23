@@ -52,21 +52,19 @@ case class Veto(msg: String, reason: String) extends RejectingException {
   val detail: Map[String, String] = Map("reason" -> reason)
 }
 
-trait OperationInapplicableForEffects extends RuntimeException {
-  val effects: Seq[OperationEffect]
-}
+trait OperationInapplicableForEffects extends RuntimeException
 
-case class DeploymentRequestOutdated(effects: Seq[OperationEffect]) extends OperationInapplicableForEffects
+class DeploymentRequestOutdated extends OperationInapplicableForEffects
 
-case class DeploymentRequestAbandoned(effects: Seq[OperationEffect]) extends OperationInapplicableForEffects
+class DeploymentRequestAbandoned extends OperationInapplicableForEffects
 
-case class DeploymentTransactionClosed(effects: Seq[OperationEffect]) extends OperationInapplicableForEffects
+class DeploymentTransactionClosed extends OperationInapplicableForEffects
 
-case class OperationRunning(effects: Seq[OperationEffect]) extends OperationInapplicableForEffects
+class OperationRunning extends OperationInapplicableForEffects
 
-case class NothingToRevert(effects: Seq[OperationEffect]) extends OperationInapplicableForEffects
+class NothingToRevert extends OperationInapplicableForEffects
 
-case class UnexpectedOperationCount(effects: Seq[OperationEffect]) extends OperationInapplicableForEffects
+class UnexpectedOperationCount extends OperationInapplicableForEffects
 
 @Singleton
 class Crankshaft @Inject()(val dbBinding: DbBinding,
@@ -400,19 +398,19 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
             dbBinding.findingExecutionSpecificationsForRevert(deploymentRequest)
 
           case s if s.isOutdated =>
-            DBIO.failed(DeploymentRequestOutdated(s.effects))
+            DBIO.failed(new DeploymentRequestOutdated)
 
           case s: Abandoned =>
-            DBIO.failed(DeploymentRequestAbandoned(s.effects))
+            DBIO.failed(new DeploymentRequestAbandoned)
 
           case s: Reverted =>
-            DBIO.failed(DeploymentTransactionClosed(s.effects))
+            DBIO.failed(new DeploymentTransactionClosed)
 
           case s@(_: NotStarted | _: DeployFlopped) =>
-            DBIO.failed(NothingToRevert(s.effects))
+            DBIO.failed(new NothingToRevert)
 
           case s@(_: RevertInProgress | _: DeployInProgress) =>
-            DBIO.failed(OperationRunning(s.effects))
+            DBIO.failed(new OperationRunning)
 
           case _: RevertFailed | _: DeployFailed | _: Paused | _: Deployed =>
             dbBinding.findingExecutionSpecificationsForRevert(deploymentRequest)

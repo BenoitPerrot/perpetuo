@@ -105,7 +105,7 @@ class Engine @Inject()(appConfig: AppConfig,
   private def failOnUnexpectedOperationCount(operationCount: Option[Int], effects: Seq[OperationEffect]) =
     operationCount
       .filter(_ != effects.size)
-      .map(_ => Failure(UnexpectedOperationCount(effects)))
+      .map(_ => Failure(new UnexpectedOperationCount))
       .getOrElse(Success(()))
 
   private def recoverOnSimilarOperation(user: User, deploymentRequest: DeploymentRequest, kind: Operation.Kind, operationCount: Option[Int]): PartialFunction[Throwable, Future[OperationTrace]] = {
@@ -172,16 +172,16 @@ class Engine @Inject()(appConfig: AppConfig,
         crankshaft.assessingDeploymentState(deploymentRequest)
           .flatMap {
             case s if s.isOutdated =>
-              DBIOAction.failed(DeploymentRequestOutdated(s.effects))
+              DBIOAction.failed(new DeploymentRequestOutdated)
 
             case s: Abandoned =>
-              DBIOAction.failed(DeploymentRequestAbandoned(s.effects))
+              DBIOAction.failed(new DeploymentRequestAbandoned)
 
             case s@(_: Reverted | _: Deployed | _: RevertFailed) =>
-              DBIOAction.failed(DeploymentTransactionClosed(s.effects))
+              DBIOAction.failed(new DeploymentTransactionClosed)
 
             case s@(_: RevertInProgress | _: DeployInProgress) =>
-              DBIOAction.failed(OperationRunning(s.effects))
+              DBIOAction.failed(new OperationRunning)
 
             case s: DeployFailed =>
               getRetrySpecifics(s.step, s.effects)
@@ -223,19 +223,19 @@ class Engine @Inject()(appConfig: AppConfig,
               Right(s.asInstanceOf[RevertibleState])
 
             case s if s.isOutdated =>
-              Left(DeploymentRequestOutdated(s.effects))
+              Left(new DeploymentRequestOutdated)
 
-            case s: Abandoned =>
-              Left(DeploymentRequestAbandoned(s.effects))
+            case _: Abandoned =>
+              Left(new DeploymentRequestAbandoned)
 
-            case s: Reverted =>
-              Left(DeploymentTransactionClosed(s.effects))
+            case _: Reverted =>
+              Left(new DeploymentTransactionClosed)
 
-            case s@(_: NotStarted | _: DeployFlopped) =>
-              Left(NothingToRevert(s.effects))
+            case _@(_: NotStarted | _: DeployFlopped) =>
+              Left(new NothingToRevert)
 
-            case s@(_: RevertInProgress | _: DeployInProgress) =>
-              Left(OperationRunning(s.effects))
+            case _@(_: RevertInProgress | _: DeployInProgress) =>
+              Left(new OperationRunning)
 
             case s: RevertibleState =>
               Right(s)
