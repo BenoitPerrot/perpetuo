@@ -3,6 +3,7 @@ package com.criteo.perpetuo.app
 import com.criteo.perpetuo.TestDb
 import com.criteo.perpetuo.auth.{User, UserFilter}
 import com.criteo.perpetuo.config.AppConfig
+import com.criteo.perpetuo.engine.Crankshaft
 import com.criteo.perpetuo.model.{ExecutionState, ProtoDeploymentPlanStep, ProtoDeploymentRequest, Version}
 import com.twitter.finagle.http.Status._
 import com.twitter.finagle.http.{Request, Response, Status}
@@ -78,6 +79,7 @@ class RestControllerSpec extends Test with TestDb {
   private val stdUser = makeUser("stdUser")
   private val stdUserJWT = stdUser.toJWT(authModule.jwtEncoder)
 
+  private var crankshaft: Crankshaft = _
   private var controller: RestController = _
 
   private val server = new EmbeddedHttpServer(new HttpServer {
@@ -90,7 +92,9 @@ class RestControllerSpec extends Test with TestDb {
     )
 
     override def configureHttp(router: HttpRouter): Unit = {
+      crankshaft = injector.instance[Crankshaft]
       controller = injector.instance[RestController]
+
       router
         .filter[LoggingMDCFilter[Request, Response]]
         .filter[TraceIdMDCFilter[Request, Response]]
@@ -419,7 +423,7 @@ class RestControllerSpec extends Test with TestDb {
 
   test("The ExecutionTrace's entry-point doesn't fail when the existing DeploymentRequest doesn't have execution traces yet") {
     val protoDeploymentRequest = ProtoDeploymentRequest("my product", Version(JsString("v")), Seq(ProtoDeploymentPlanStep("", JsString("t"), "")), "c", "c")
-    val plan = Await.result(controller.engine.crankshaft.createDeploymentPlan(protoDeploymentRequest), 1.second)
+    val plan = Await.result(crankshaft.createDeploymentPlan(protoDeploymentRequest), 1.second)
     val traces = getExecutionTracesByDeploymentRequestId(plan.deploymentRequest.id.toString)
     traces shouldBe empty
   }

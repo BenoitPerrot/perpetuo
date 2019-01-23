@@ -69,17 +69,18 @@ case class NothingToRevert(effects: Seq[OperationEffect]) extends OperationInapp
 case class UnexpectedOperationCount(effects: Seq[OperationEffect]) extends OperationInapplicableForEffects
 
 @Singleton
-class Crankshaft @Inject()(val appConfig: AppConfig,
-                           val dbBinding: DbBinding,
-                           val targetDispatcher: TargetDispatcher,
-                           val listeners: Seq[AsyncListener],
-                           val findTriggeredExecution: TriggeredExecutionFinder,
-                           val restApi: RestApi) extends Logging {
+class Crankshaft @Inject()(val dbBinding: DbBinding,
+                           appConfig: AppConfig,
+                           targetDispatcher: TargetDispatcher,
+                           listeners: Seq[AsyncListener],
+                           findTriggeredExecution: TriggeredExecutionFinder,
+                           restApi: RestApi) extends Logging {
 
   import dbBinding.dbContext.profile.api._
 
   val fuelFilter = new FuelFilter(appConfig, dbBinding)
 
+  // the return type below is the reason `dbBinding` is a public attribute
   def assessingDeploymentState(deploymentRequest: DeploymentRequest): DBIOAction[DeploymentState, NoStream, Effect.Read] =
     dbBinding
       .findOutdatingId(deploymentRequest)

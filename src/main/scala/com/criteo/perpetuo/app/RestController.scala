@@ -68,7 +68,7 @@ private case class RequestWithProductName(@NotEmpty productName: String,
 /**
   * Controller that handles deployment requests as a REST API.
   */
-class RestController @Inject()(val engine: Engine, restApi: RestApi)
+class RestController @Inject()(engine: Engine, restApi: RestApi)
   extends BaseController
     with Authenticator
     with ExceptionsToHttpStatusTranslation {

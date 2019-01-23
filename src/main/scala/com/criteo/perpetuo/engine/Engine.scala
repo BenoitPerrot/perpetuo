@@ -26,12 +26,12 @@ case class PermissionDenied() extends RuntimeException("permission denied")
 case class PreConditionFailed(errors: Seq[String]) extends RuntimeException((Seq("Some pre-conditions failed :") ++ errors).mkString("\n"))
 
 @Singleton
-class Engine @Inject()(val appConfig: AppConfig,
-                       val crankshaft: Crankshaft,
-                       val targetResolver: TargetResolver,
-                       val permissions: Permissions,
-                       val preConditionEvaluators: Seq[AsyncPreConditionEvaluator],
-                       val scheduler: Scheduler) extends Logging {
+class Engine @Inject()(appConfig: AppConfig,
+                       crankshaft: Crankshaft,
+                       targetResolver: TargetResolver,
+                       permissions: Permissions,
+                       preConditionEvaluators: Seq[AsyncPreConditionEvaluator],
+                       scheduler: Scheduler) extends Logging {
 
   scheduler.scheduleTask(autoRevertFailingDeploymentRequests _, period = 5, timeUnit = TimeUnit.MINUTES)
 

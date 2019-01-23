@@ -53,8 +53,8 @@ class EngineSpec extends SimpleScenarioTesting {
         depReq <- engine.requestDeployment(someone, ProtoDeploymentRequest(product.name, Version("\"1000\""), Seq(ProtoDeploymentPlanStep("", JsString("atom"), "")), "", someone.name))
         notStarted <- engine.findDeploymentRequestState(depReq.id).map(_.get)
         _ <- engine.abandon(someone, depReq.id)
-        depReq <- engine.crankshaft.findDeploymentRequestById(depReq.id).map(_.get) // Refresh the Deployment request instance
-        abandoned <- engine.crankshaft.assessDeploymentState(depReq)
+        depReq <- crankshaft.findDeploymentRequestById(depReq.id).map(_.get) // Refresh the Deployment request instance
+        abandoned <- crankshaft.assessDeploymentState(depReq)
       } yield {
         notStarted shouldBe a[NotStarted]
         abandoned shouldBe a[Abandoned]
@@ -71,11 +71,11 @@ class EngineSpec extends SimpleScenarioTesting {
         _ <- engine.step(starter, depReq.id, None)
         (state, _) <- engine.queryDeploymentRequestStatus(Some(starter), depReq.id).map(_.get)
         _ <- tryUpdateExecutionTraces(engine, state.effects.head.executionTraces, ExecutionState.aborted)
-        depReq <- engine.crankshaft.findDeploymentRequestById(depReq.id).map(_.get) // Refresh the Deployment request instance
-        flopped <- engine.crankshaft.assessDeploymentState(depReq)
+        depReq <- crankshaft.findDeploymentRequestById(depReq.id).map(_.get) // Refresh the Deployment request instance
+        flopped <- crankshaft.assessDeploymentState(depReq)
         _ <- engine.abandon(someone, depReq.id)
-        depReq <- engine.crankshaft.findDeploymentRequestById(depReq.id).map(_.get)
-        abandoned <- engine.crankshaft.assessDeploymentState(depReq)
+        depReq <- crankshaft.findDeploymentRequestById(depReq.id).map(_.get)
+        abandoned <- crankshaft.assessDeploymentState(depReq)
       } yield {
         notStarted shouldBe a[NotStarted]
         flopped shouldBe a[DeployFlopped]
@@ -91,11 +91,11 @@ class EngineSpec extends SimpleScenarioTesting {
         depReq <- engine.requestDeployment(someone, ProtoDeploymentRequest(product.name, Version("\"1000\""), Seq(ProtoDeploymentPlanStep("", JsString("atom"), "")), "", someone.name))
         notStarted <- engine.findDeploymentRequestState(depReq.id).map(_.get)
         operationTrace <- engine.step(starter, depReq.id, None).map(_.get)
-        depReq <- engine.crankshaft.findDeploymentRequestById(depReq.id).map(_.get)
-        inProgress <- engine.crankshaft.assessDeploymentState(depReq)
+        depReq <- crankshaft.findDeploymentRequestById(depReq.id).map(_.get)
+        inProgress <- crankshaft.assessDeploymentState(depReq)
         err <- engine.abandon(starter, depReq.id).failed
-        depReq <- engine.crankshaft.findDeploymentRequestById(depReq.id).map(_.get)
-        finalState <- engine.crankshaft.assessDeploymentState(depReq)
+        depReq <- crankshaft.findDeploymentRequestById(depReq.id).map(_.get)
+        finalState <- crankshaft.assessDeploymentState(depReq)
         updatedOnClose <- closeOperationTrace(operationTrace)
       } yield {
         notStarted shouldBe a[NotStarted]
@@ -114,17 +114,17 @@ class EngineSpec extends SimpleScenarioTesting {
 
         r0 <- engine.requestDeployment(someone, ProtoDeploymentRequest(product.name, Version("0".toJson), Seq(ProtoDeploymentPlanStep("", JsString("lcy"), "")), "", someone.name))
         _ <- engine.step(releaser, r0.id, None).map(_.get)
-        inProgress0 <- engine.crankshaft.assessDeploymentState(r0)
+        inProgress0 <- crankshaft.assessDeploymentState(r0)
         _ <- tryUpdateExecutionTraces(engine, inProgress0.effects.head.executionTraces, ExecutionState.completed, statusMap = Map(TargetAtom("lcy") -> TargetAtomStatus(Status.success, "")))
 
         states0 <- engine.findDeploymentRequestsStates(Seq(Map("field" -> "productName", "equals" -> "multi-state")), 10, 0)
 
         r1 <- engine.requestDeployment(someone, ProtoDeploymentRequest(product.name, Version("1".toJson), Seq(ProtoDeploymentPlanStep("", JsString("lcy"), "")), "", someone.name))
         _ <- engine.step(releaser, r1.id, None).map(_.get)
-        inProgress1 <- engine.crankshaft.assessDeploymentState(r1)
+        inProgress1 <- crankshaft.assessDeploymentState(r1)
         _ <- tryUpdateExecutionTraces(engine, inProgress1.effects.head.executionTraces, ExecutionState.completed, statusMap = Map(TargetAtom("lcy") -> TargetAtomStatus(Status.productFailure, "")))
         _ <- engine.revert(releaser, r1.id, None, None).map(_.get)
-        revertInProgress <- engine.crankshaft.assessDeploymentState(r1)
+        revertInProgress <- crankshaft.assessDeploymentState(r1)
         _ <- tryUpdateExecutionTraces(engine, revertInProgress.effects.head.executionTraces, ExecutionState.completed, statusMap = Map(TargetAtom("lcy") -> TargetAtomStatus(Status.success, "")))
 
         _ = mockTicker.jump()
@@ -159,7 +159,7 @@ class EngineSpec extends SimpleScenarioTesting {
         depReq <- engine.requestDeployment(someone, ProtoDeploymentRequest(product.name, Version("2".toJson), Seq(ProtoDeploymentPlanStep("", JsString("cdg"), "")), "", someone.name))
 
         operationTrace0 <- engine.step(releaser, depReq.id, Some(0)).map(_.get)
-        inProgress0 <- engine.crankshaft.assessDeploymentState(depReq)
+        inProgress0 <- crankshaft.assessDeploymentState(depReq)
         step0Again <- engine.step(releaser, depReq.id, Some(0)).map(_.get)
 
         step0AgainForAnotherUser <- engine.step(someone, depReq.id, Some(0)).map(_.get).failed
@@ -169,7 +169,7 @@ class EngineSpec extends SimpleScenarioTesting {
         _ <- tryUpdateExecutionTraces(engine, inProgress0.effects.head.executionTraces, ExecutionState.completed, statusMap = Map(TargetAtom("cdg") -> TargetAtomStatus(Status.success, "")))
 
         _ <- engine.revert(releaser, depReq.id, Some(1), Some(Version("1".toJson))).map(_.get)
-        inProgress1 <- engine.crankshaft.assessDeploymentState(depReq)
+        inProgress1 <- crankshaft.assessDeploymentState(depReq)
         nextStep1Locked <- engine.step(releaser, depReq.id, Some(1)).map(_.get).failed
       } yield {
         inProgress0 shouldBe a[DeployInProgress]
@@ -196,11 +196,11 @@ class EngineSpec extends SimpleScenarioTesting {
         depReq <- engine.requestDeployment(someone, ProtoDeploymentRequest(product.name, Version("2".toJson), steps, "", someone.name))
 
         operationTrace0 <- engine.step(releaser, depReq.id, Some(0)).map(_.get)
-        inProgress0 <- engine.crankshaft.assessDeploymentState(depReq)
+        inProgress0 <- crankshaft.assessDeploymentState(depReq)
         _ <- tryUpdateExecutionTraces(engine, inProgress0.effects.head.executionTraces, ExecutionState.completed, statusMap = Map(TargetAtom("nrt") -> TargetAtomStatus(Status.success, "")))
 
         operationTrace1 <- engine.step(releaser, depReq.id, Some(1)).map(_.get)
-        inProgress1 <- engine.crankshaft.assessDeploymentState(depReq)
+        inProgress1 <- crankshaft.assessDeploymentState(depReq)
         _ <- tryUpdateExecutionTraces(engine, inProgress1.effects.head.executionTraces, ExecutionState.completed, statusMap = Map(TargetAtom("hnd") -> TargetAtomStatus(Status.success, "")))
 
         step1Again <- engine.step(releaser, depReq.id, Some(1)).map(_.get)
@@ -208,12 +208,12 @@ class EngineSpec extends SimpleScenarioTesting {
         step0Again <- engine.step(releaser, depReq.id, Some(0)).map(_.get)
 
         operationTrace2 <- engine.revert(releaser, depReq.id, Some(2), Some(Version("1".toJson))).map(_.get)
-        inProgress2 <- engine.crankshaft.assessDeploymentState(depReq)
+        inProgress2 <- crankshaft.assessDeploymentState(depReq)
         _ <- tryUpdateExecutionTraces(engine, inProgress2.effects.head.executionTraces, ExecutionState.completed, statusMap = Map(
           TargetAtom("nrt") -> TargetAtomStatus(Status.success, ""),
           TargetAtom("hnd") -> TargetAtomStatus(Status.success, ""))
         )
-        reverted <- engine.crankshaft.assessDeploymentState(depReq)
+        reverted <- crankshaft.assessDeploymentState(depReq)
 
         step1AgainAgain <- engine.step(releaser, depReq.id, Some(1)).map(_.get)
 
