@@ -17,6 +17,7 @@ import com.twitter.finatra.http.{HttpServer, Controller => BaseController}
 import com.twitter.finatra.json.modules.FinatraJacksonModule
 import com.twitter.inject.TwitterModule
 import com.twitter.server.AdminHttpServer.Route
+import com.typesafe.config.ConfigFactory
 import io.prometheus.client.CollectorRegistry
 
 
@@ -35,7 +36,7 @@ class Server extends HttpServer {
 
   override protected def jacksonModule: FinatraJacksonModule = CustomServerModules.jackson
 
-  private val appConfig: AppConfig = AppConfig
+  private val appConfig: AppConfig = new AppConfig(ConfigFactory.load().resolve())
 
   override def modules: Seq[TwitterModule] = Seq(
     new DbContextModule(appConfig.config.getConfig("db")),
