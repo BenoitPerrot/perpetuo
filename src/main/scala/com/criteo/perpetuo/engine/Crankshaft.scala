@@ -615,7 +615,7 @@ class Crankshaft @Inject()(val appConfig: AppConfig,
         .andThen(
           assessingDeploymentState(deploymentRequest).flatMap {
             case _: NotStarted | _: DeployFlopped =>
-              dbBinding.abandoningDeploymentRequest(deploymentRequest.id)
+              dbBinding.updatingDeploymentRequestState(deploymentRequest.id, DeploymentRequestState.abandoned, incrementStateStamp = false)
                 .flatMap { _ =>
                   listeners.foreach(_.onDeploymentRequestAbandoned(deploymentRequest))
                   fuelFilter.releasingLocks(deploymentRequest, transactionOngoing = false)

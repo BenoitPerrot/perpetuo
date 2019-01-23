@@ -81,9 +81,6 @@ trait DeploymentRequestBinder extends TableBinder {
       }
   }
 
-  def abandoningDeploymentRequest(id: Long): DBIOAction[Int, NoStream, Effect.Write] =
-    deploymentRequestQuery.filter(_.id === id).map(_.state).update(Some(DeploymentRequestState.abandoned))
-
   /**
     * Update the state and possibly increment the state stamp.
     * WARNING: It does not handle concurrent incrementing updates.
