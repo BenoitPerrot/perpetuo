@@ -1,7 +1,7 @@
 package com.criteo.perpetuo.engine
 
 import com.criteo.perpetuo.engine.dispatchers.TargetDispatcher
-import com.criteo.perpetuo.engine.executors.{NoOpTrigger, ExecutionTrigger}
+import com.criteo.perpetuo.engine.executors.{ExecutionTrigger, NoOpTrigger}
 import com.criteo.perpetuo.model._
 import com.criteo.perpetuo.{SimpleScenarioTesting, TestTargetResolver}
 import spray.json.DefaultJsonProtocol._

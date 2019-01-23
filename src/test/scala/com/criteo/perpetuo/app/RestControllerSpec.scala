@@ -10,8 +10,8 @@ import com.twitter.finatra.http.filters.{LoggingMDCFilter, TraceIdMDCFilter}
 import com.twitter.finatra.http.routing.HttpRouter
 import com.twitter.finatra.http.{EmbeddedHttpServer, HttpServer}
 import com.twitter.finatra.json.modules.FinatraJacksonModule
-import com.twitter.inject.Test
-import com.typesafe.config.{Config, ConfigFactory}
+import com.twitter.inject.{Test, TwitterModule}
+import com.typesafe.config.ConfigFactory
 import spray.json.DefaultJsonProtocol._
 import spray.json._
 
@@ -81,10 +81,9 @@ class RestControllerSpec extends Test with TestDb {
   private var controller: RestController = _
 
   private val server = new EmbeddedHttpServer(new HttpServer {
-
     override protected def jacksonModule: FinatraJacksonModule = CustomServerModules.jackson
 
-    override def modules = Seq(
+    override def modules: Seq[TwitterModule] = Seq(
       authModule,
       new PluginsModule(appConfig),
       dbTestModule

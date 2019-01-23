@@ -10,7 +10,7 @@ import javax.inject.Singleton
 @Singleton
 class Controller
   extends BaseController {
-  DefaultExports.initialize
+  DefaultExports.initialize()
   val registry: CollectorRegistry = CollectorRegistry.defaultRegistry
   val metricsService: MetricsService = new MetricsService(registry)
   get("/metrics") { r: Request =>

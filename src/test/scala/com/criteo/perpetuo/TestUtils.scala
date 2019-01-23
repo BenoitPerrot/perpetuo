@@ -131,10 +131,9 @@ trait SimpleScenarioTesting extends TestHelpers with TestDb with MockitoSugar {
   private val executionTrigger: ExecutionTrigger = mock[ExecutionTrigger]
   when(executionTrigger.executorType).thenReturn("testing")
 
-  lazy val crankshaft: Crankshaft = injector.getInstance(classOf[Crankshaft])
-
   protected val mockTicker = new MockTicker(1001.seconds)
 
+  protected lazy val crankshaft: Crankshaft = injector.getInstance(classOf[Crankshaft])
   protected lazy val engine: Engine = injector.getInstance(classOf[Engine])
 
   protected def triggerMock: Option[String] = None
@@ -267,4 +266,5 @@ trait SimpleScenarioTesting extends TestHelpers with TestDb with MockitoSugar {
     def getDeploymentRequest: DeploymentRequest =
       deploymentPlan.deploymentRequest
   }
+
 }

@@ -327,7 +327,7 @@ class RestController @Inject()(val engine: Engine, restApi: RestApi)
 }
 
 @Singleton
-class RestApi @Inject()(appConfig: AppConfig){
+class RestApi @Inject()(appConfig: AppConfig) {
   def executionCallbackPath(execTraceId: String): String = s"/api/execution-traces/$execTraceId"
 
   def executionCallbackUrl(execTraceId: Long): String = appConfig.selfUrl + executionCallbackPath(execTraceId.toString)

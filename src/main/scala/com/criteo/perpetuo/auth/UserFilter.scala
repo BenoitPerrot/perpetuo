@@ -21,7 +21,7 @@ object UserFilter {
 }
 
 @Singleton
-class UserFilter @Inject() (jwtEncoder: JWTEncoder, identityProvider: IdentityProvider) extends SimpleFilter[Request, Response] {
+class UserFilter @Inject()(jwtEncoder: JWTEncoder, identityProvider: IdentityProvider) extends SimpleFilter[Request, Response] {
 
   private val loginHeader = "X-Perpetuo-Login"
 
