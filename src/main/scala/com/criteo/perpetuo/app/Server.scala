@@ -15,6 +15,7 @@ import com.twitter.finatra.http.filters.{LoggingMDCFilter, TraceIdMDCFilter}
 import com.twitter.finatra.http.routing.HttpRouter
 import com.twitter.finatra.http.{HttpServer, Controller => BaseController}
 import com.twitter.finatra.json.modules.FinatraJacksonModule
+import com.twitter.inject.TwitterModule
 import com.twitter.server.AdminHttpServer.Route
 import io.prometheus.client.CollectorRegistry
 
@@ -41,7 +42,8 @@ class Server extends HttpServer {
     new PluginsModule(appConfig),
     new AuthModule(appConfig.config.getConfig("auth")),
     new SwaggerModule()
-  )
+  ) ++ appConfig.config.tryGetStringList("extraModules").getOrElse(Seq())
+      .map(moduleName => injector.instance(Class.forName(moduleName)).asInstanceOf[TwitterModule])
 
   override def configureHttpServer(server: Http.Server): Http.Server = {
     val statsReceiver = new PrometheusStatsReceiver(registry)
