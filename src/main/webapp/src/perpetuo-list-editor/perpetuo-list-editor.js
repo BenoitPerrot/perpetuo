@@ -67,9 +67,15 @@ paper-input-container {
       label: String,
       filter: { type: String, notify: true },
       choices: Array,
-      filteredChoices: { type: Array, computed: 'applyFilter(choices, maxCount, filter)', observer: 'onFilteredChoicesChanged' },
+      filteredChoices: { type: Array, value: () => [], observer: 'onFilteredChoicesChanged' },
       selectedItem: { type: Object, notify: true, reflectToAttribute: true }
     };
+  }
+
+  static get observers() {
+    return [
+      'applyFilter(choices, maxCount, filter)'
+    ];
   }
 
   ready() {
@@ -104,21 +110,21 @@ paper-input-container {
   }
 
   applyFilter(choices, maxCount, filter) {
+    let result = [];
     if (choices && choices.length) {
-      let filteredChoices = this.choices;
+      result = this.choices;
       if (filter && filter.length) {
         const words = filter.toLowerCase().split(' ');
-        filteredChoices = this.choices.filter(c => words.every(w => c.toLowerCase().includes(w)));
+        result = this.choices.filter(c => words.every(w => c.toLowerCase().includes(w)));
         if (words.length === 1) {
-          const i = filteredChoices.findIndex(_ => _.toLowerCase() === words[0]);
+          const i = result.findIndex(_ => _.toLowerCase() === words[0]);
           if (0 <= i) {
-            filteredChoices.splice(0, 0, filteredChoices.splice(i, 1)[0]);
+            result.splice(0, 0, result.splice(i, 1)[0]);
           }
         }
       }
-      return filteredChoices.slice(0, this.maxCount);
     }
-    return [];
+    this.filteredChoices = result.slice(0, this.maxCount);
   }
 
   onSuggestionSelected(e) {
