@@ -250,11 +250,12 @@ class RestController @Inject()(engine: Engine, restApi: RestApi)
       "plan" -> deploymentPlan.steps,
       "productName" -> deploymentPlan.deploymentRequest.product.name,
       "state" -> state.toString
-    ) ++ state.outdatedBy.map(id => Map("outdatedBy" -> id)).getOrElse(Map.empty)
+    )
   }
 
   private def serialize(state: DeploymentState, eligibleActions: Seq[(String, Option[String])]): Map[String, Any] = {
     serialize(state) ++
+      state.outdatedBy.map(id => Map("outdatedBy" -> id)).getOrElse(Map.empty) ++
       Map("operations" ->
         state.effects.map { case effect@OperationEffect(op, planStepIds, executionTraces, targetStatus) =>
           val getTargetDetail = if (effect.state == OperationEffectState.inProgress)
