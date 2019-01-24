@@ -117,7 +117,7 @@ class EngineSpec extends SimpleScenarioTesting {
         inProgress0 <- crankshaft.assessDeploymentState(r0)
         _ <- tryUpdateExecutionTraces(engine, inProgress0.effects.head.executionTraces, ExecutionState.completed, statusMap = Map(TargetAtom("lcy") -> TargetAtomStatus(Status.success, "")))
 
-        states0 <- engine.findDeploymentRequestsStates(Seq(Map("field" -> "productName", "equals" -> "multi-state")), 10, 0)
+        states0 <- engine.findDeploymentRequestsAndPlan(Seq(Map("field" -> "productName", "equals" -> "multi-state")), 10, 0).map(_.map(_.deploymentRequest.state.get))
 
         r1 <- engine.requestDeployment(someone, ProtoDeploymentRequest(product.name, Version("1".toJson), Seq(ProtoDeploymentPlanStep("", JsString("lcy"), "")), "", someone.name))
         _ <- engine.step(releaser, r1.id, None).map(_.get)
@@ -128,26 +128,21 @@ class EngineSpec extends SimpleScenarioTesting {
         _ <- tryUpdateExecutionTraces(engine, revertInProgress.effects.head.executionTraces, ExecutionState.completed, statusMap = Map(TargetAtom("lcy") -> TargetAtomStatus(Status.success, "")))
 
         _ = mockTicker.jump()
-        states10 <- engine.findDeploymentRequestsStates(Seq(Map("field" -> "productName", "equals" -> "multi-state")), 10, 0)
-
+        states10 <- engine.findDeploymentRequestsAndPlan(Seq(Map("field" -> "productName", "equals" -> "multi-state")), 10, 0).map(_.map(_.deploymentRequest.state.get))
         r2 <- engine.requestDeployment(someone, ProtoDeploymentRequest(product.name, Version("2".toJson), Seq(ProtoDeploymentPlanStep("", JsString("lcy"), "")), "", someone.name))
         _ <- engine.step(releaser, r2.id, None).map(_.get)
 
         _ = mockTicker.jump()
-        states21 <- engine.findDeploymentRequestsStates(Seq(Map("field" -> "productName", "equals" -> "multi-state")), 2, 0)
+        states21 <- engine.findDeploymentRequestsAndPlan(Seq(Map("field" -> "productName", "equals" -> "multi-state")), 2, 0).map(_.map(_.deploymentRequest.state.get))
       } yield {
         states0.size shouldBe 1
-        states0.head shouldBe an[Deployed]
+        states0.head shouldEqual DeploymentRequestState.deployed
 
         states10.size shouldBe 2
-        states10(1) shouldBe an[Deployed]
-        states10(1).isOutdated shouldEqual true
-        states10.head shouldBe a[Reverted]
+        states10 shouldBe Seq(DeploymentRequestState.reverted, DeploymentRequestState.deployed)
 
         states21.size shouldBe 2
-        states21(1) shouldBe an[Reverted]
-        states21(1).isOutdated shouldEqual true
-        states21.head shouldBe a[DeployInProgress]
+        states21 shouldBe Seq(DeploymentRequestState.deployInProgress, DeploymentRequestState.reverted)
       }
     )
   }

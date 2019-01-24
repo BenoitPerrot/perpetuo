@@ -458,8 +458,8 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
         )
     )
 
-  def findDeploymentRequests(where: Seq[Map[String, Any]], limit: Int, offset: Int): Future[Seq[DeploymentRequest]] =
-    dbBinding.findDeploymentRequests(where, limit, offset)
+  def findDeploymentRequestsAndPlan(where: Seq[Map[String, Any]], limit: Int, offset: Int): Future[Seq[DeploymentPlan]] =
+    dbBinding.findDeploymentRequestsAndPlan(where, limit, offset)
 
   /**
     * Compute the version that should be used in order to align the given target

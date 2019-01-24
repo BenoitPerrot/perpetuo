@@ -153,14 +153,24 @@ class DbBinding @Inject()(val dbContext: DbContext)
       .take(limit)
   }
 
-  def findDeploymentRequests(where: Seq[Map[String, Any]], limit: Int, offset: Int): Future[Seq[DeploymentRequest]] =
+  def findDeploymentRequestsAndPlan(where: Seq[Map[String, Any]], limit: Int, offset: Int): Future[Seq[DeploymentPlan]] =
     dbContext.db.run(
-      queryDeploymentRequests(where, limit, offset).result
-    ).map(
-      _.map { case (deploymentRequest, product) =>
-        deploymentRequest.toDeploymentRequest(product)
+      queryDeploymentRequests(where, limit, offset)
+        .join(deploymentPlanStepQuery)
+        .filter { case ((depReq, _), steps) => depReq.id === steps.deploymentRequestId }
+        .result
+    ).map { records =>
+      records.map { case ((deploymentRequest, product), steps) =>
+        val depReq = deploymentRequest.toDeploymentRequest(product)
+        (depReq, steps.toDeploymentPlanStep(depReq))
       }
-    )
+        .groupBy { case (depReq, _) => depReq }
+        .map { case (depReq, q) =>
+          DeploymentPlan(depReq, q.map { case (_, plan) => plan })
+        }
+        .toSeq
+        .sortBy(plan => -plan.deploymentRequest.id) // groupBy is not stable so we should sort by id again
+    }
 
   def findingLastOperationTraceAndCurrentCountByDeploymentRequestId(deploymentRequestId: Long): DBIOAction[Option[(OperationTrace, Int)], NoStream, Effect.Read] =
     operationTraceQuery

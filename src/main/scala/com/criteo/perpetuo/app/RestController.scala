@@ -330,7 +330,7 @@ class RestController @Inject()(engine: Engine, restApi: RestApi, swag: Swagger)
     )
   }
 
-  private def serialize(deploymentRequest: DeploymentRequest, deploymentPlanSteps: Seq[DeploymentPlanStep], state: DeploymentState): Map[String, Any] = {
+  private def serialize(deploymentRequest: DeploymentRequest, deploymentPlanSteps: Iterable[DeploymentPlanStep], state: Option[String] = None): Map[String, Any] = {
     val deploymentPlan = DeploymentPlan(deploymentRequest, deploymentPlanSteps)
     Map(
       "id" -> deploymentPlan.deploymentRequest.id,
@@ -340,12 +340,12 @@ class RestController @Inject()(engine: Engine, restApi: RestApi, swag: Swagger)
       "version" -> deploymentPlan.deploymentRequest.version,
       "plan" -> deploymentPlan.steps,
       "productName" -> deploymentPlan.deploymentRequest.product.name,
-      "state" -> state.toString
+      "state" -> deploymentRequest.state.getOrElse(state.get) // TODO: Use the deployment request state directly
     )
   }
 
   private def serialize(state: DeploymentState): Map[String, Any] =
-    serialize(state.deploymentRequest, state.deploymentPlanSteps, state)
+    serialize(state.deploymentRequest, state.deploymentPlanSteps, Some(state.toString))
 
   private def serialize(state: DeploymentState, eligibleActions: Seq[(String, Option[String])]): Map[String, Any] = {
     serialize(state) ++
@@ -391,8 +391,8 @@ class RestController @Inject()(engine: Engine, restApi: RestApi, swag: Swagger)
           throw BadRequestException("`limit` shall be lower than 1000")
         }
         try {
-          engine.findDeploymentRequestsStates(r.where, r.limit, r.offset)
-            .map(_.map(serialize))
+          engine.findDeploymentRequestsAndPlan(r.where, r.limit, r.offset)
+            .map(_.map { case DeploymentPlan(depReq, planSteps) => serialize(depReq, planSteps) })
         } catch {
           case e: IllegalArgumentException => throw BadRequestException(e.getMessage)
         }

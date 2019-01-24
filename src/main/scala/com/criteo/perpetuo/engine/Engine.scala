@@ -279,14 +279,8 @@ class Engine @Inject()(appConfig: AppConfig,
       }
     }
 
-  def findDeploymentRequestsStates(where: Seq[Map[String, Any]], limit: Int, offset: Int): Future[Seq[DeploymentState]] =
-    crankshaft
-      .findDeploymentRequests(where, limit, offset)
-      .flatMap(deploymentRequests =>
-        Future.sequence(
-          deploymentRequests.map(deploymentRequest => findDeploymentRequestState(deploymentRequest.id))
-        ).map(_.flatten)
-      )
+  def findDeploymentRequestsAndPlan(where: Seq[Map[String, Any]], limit: Int, offset: Int): Future[Seq[DeploymentPlan]] =
+    crankshaft.findDeploymentRequestsAndPlan(where, limit, offset)
 
   def findDeploymentRequestState(id: Long): Future[Option[DeploymentState]] =
     stateCache.get(id)
