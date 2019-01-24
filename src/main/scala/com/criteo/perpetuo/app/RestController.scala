@@ -330,8 +330,8 @@ class RestController @Inject()(engine: Engine, restApi: RestApi, swag: Swagger)
     )
   }
 
-  private def serialize(state: DeploymentState): Map[String, Any] = {
-    val deploymentPlan = DeploymentPlan(state.deploymentRequest, state.deploymentPlanSteps)
+  private def serialize(deploymentRequest: DeploymentRequest, deploymentPlanSteps: Seq[DeploymentPlanStep], state: DeploymentState): Map[String, Any] = {
+    val deploymentPlan = DeploymentPlan(deploymentRequest, deploymentPlanSteps)
     Map(
       "id" -> deploymentPlan.deploymentRequest.id,
       "comment" -> deploymentPlan.deploymentRequest.comment,
@@ -343,6 +343,9 @@ class RestController @Inject()(engine: Engine, restApi: RestApi, swag: Swagger)
       "state" -> state.toString
     )
   }
+
+  private def serialize(state: DeploymentState): Map[String, Any] =
+    serialize(state.deploymentRequest, state.deploymentPlanSteps, state)
 
   private def serialize(state: DeploymentState, eligibleActions: Seq[(String, Option[String])]): Map[String, Any] = {
     serialize(state) ++
