@@ -346,8 +346,8 @@ class RestControllerSpec extends Test with TestDb {
     val execTraceId = getExecutionTracesByDeploymentRequestId(id.toString, Ok).get.head.idAsLong
     checkExecutionTraceUpdate(
       id, execTraceId, "completed", None,
-      Some(Map("targetA" -> ("success", ""), "targetB" -> ("productFailure", ""))),
-      Some(Map("targetA" -> ("success", ""), "targetB" -> ("productFailure", ""), "par" -> ("notDone", "")))
+      Some(Map("target_a" -> ("success", ""), "target_b" -> ("productFailure", ""))),
+      Some(Map("target_a" -> ("success", ""), "target_b" -> ("productFailure", ""), "par" -> ("notDone", "")))
     )
     val respJson2 = getRespJson(actOnDeploymentRequest(id, "revert", JsObject(), UnprocessableEntity))
     respJson2("error") should startWith("a default rollback version is required")
@@ -355,7 +355,7 @@ class RestControllerSpec extends Test with TestDb {
 
     val revertPlan = actOnDeploymentRequest(id, "devise-revert-plan", JsObject(), Ok).contentString.parseJson
     revertPlan shouldEqual Map(
-      "undetermined" -> Seq("targetB", "targetA"),
+      "undetermined" -> Seq("target_a", "target_b"),
       "determined" -> Seq()
     ).toJson
 
