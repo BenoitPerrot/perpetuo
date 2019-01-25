@@ -221,7 +221,12 @@ paper-progress {
   --paper-progress-container-color: #fff;
 }
 </style>
-<perpetuo-app-toolbar page-title="Perpetuo / Deployment Request #[[deploymentRequestId]]"></perpetuo-app-toolbar>
+<perpetuo-app-toolbar>
+  <div slot="title" style="display: flex; align-items: center;">
+    <a href="/deployment-requests"><paper-icon-button icon="arrow-back" style="color:#fff"></paper-icon-button></a>
+    <span style="margin-left: 20px;">Deployment Request #[[deploymentRequestId]]</span>
+  </div>
+</perpetuo-app-toolbar>
 <paper-progress indeterminate hidden$="[[!noData]]"></paper-progress>
 
 <div class="body" hidden$="[[noData]]">
