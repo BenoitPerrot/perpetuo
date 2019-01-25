@@ -67,7 +67,7 @@ paper-input-container {
       label: String,
       filter: { type: String, notify: true },
       choices: Array,
-      filteredChoices: { type: Array, computed: 'applyFilter(choices, maxCount, filter)' },
+      filteredChoices: { type: Array, computed: 'applyFilter(choices, maxCount, filter)', observer: 'onFilteredChoicesChanged' },
       selectedItem: { type: Object, notify: true, reflectToAttribute: true }
     };
   }
@@ -97,6 +97,10 @@ paper-input-container {
     } else if (e.key === 'ArrowDown') {
       this.$.listbox.focus();
     }
+  }
+
+  onFilteredChoicesChanged() {
+    this.$.dropdown.notifyResize();
   }
 
   applyFilter(choices, maxCount, filter) {
