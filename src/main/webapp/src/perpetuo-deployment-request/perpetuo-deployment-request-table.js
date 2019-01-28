@@ -106,7 +106,7 @@ div.state {
     <div class="state"></div>
   </div>
 </div>
-<a href="/deployment-requests/new"><paper-fab icon="add" style="position:fixed; left: 20px; top: 105px; background: #ff8f1c;"></paper-fab></a>
+<a href="/deployment-requests/new"><paper-fab id="createButton" icon="add" style="position:fixed; left: 20px; top: 105px; background: #ff8f1c;"></paper-fab></a>
 <perpetuo-paging id="paging"
                  page-sizes="[20,50,100]" page-size="{{pageSize}}"
                  page="{{page}}" is-last-page="[[!hasNextPage]]"
@@ -186,6 +186,7 @@ div.state {
         }).map(_ => _.name);
         this.$.productFilter.select(this.deploymentRequestFilter);
       });
+      this.$.createButton.focus();
     }
     this.refresher.suspended = !active;
   }
