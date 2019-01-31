@@ -4,13 +4,16 @@ import com.criteo.perpetuo.config.AppConfig
 import com.criteo.perpetuo.config.ConfigSyntacticSugar._
 import com.criteo.perpetuo.dao.{DBIOrw, DbBinding, LockName}
 import com.criteo.perpetuo.model.{DeploymentRequest, TargetAtom}
+import com.google.inject.{Inject, Singleton}
 import slick.dbio.{DBIOAction, Effect, NoStream}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 
 case class OperationLockAlreadyTaken() extends RuntimeException
 
-class FuelFilter(appConfig: AppConfig, dbBinding: DbBinding) {
+
+@Singleton
+class FuelFilter @Inject()(appConfig: AppConfig, dbBinding: DbBinding) {
   val withTransactions: Boolean = !appConfig.config.tryGetBoolean("noTransactions").getOrElse(false)
 
   def acquiringOperationLock(deploymentRequest: DeploymentRequest): DBIOrw[Unit] =

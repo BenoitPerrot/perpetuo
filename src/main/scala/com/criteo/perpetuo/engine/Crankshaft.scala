@@ -70,15 +70,13 @@ case class UnexpectedOperationCount(effects: Seq[OperationEffect]) extends Opera
 
 @Singleton
 class Crankshaft @Inject()(val dbBinding: DbBinding,
-                           appConfig: AppConfig,
+                           fuelFilter: FuelFilter,
                            targetDispatcher: TargetDispatcher,
                            listeners: Seq[AsyncListener],
                            findTriggeredExecution: TriggeredExecutionFinder,
                            restApi: RestApi) extends Logging {
 
   import dbBinding.dbContext.profile.api._
-
-  val fuelFilter = new FuelFilter(appConfig, dbBinding)
 
   // the return type below is the reason `dbBinding` is a public attribute
   def assessingDeploymentState(deploymentRequest: DeploymentRequest): DBIOAction[DeploymentState, NoStream, Effect.Read] =

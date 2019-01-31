@@ -105,21 +105,21 @@ trait SimpleScenarioTesting extends TestHelpers with TestDb with MockitoSugar {
 
         @Singleton
         @Provides
-        def providesCrankshaft(appConfig: AppConfig, plugins: Plugins, executionFinder: TriggeredExecutionFinder, targetDispatcher: TargetDispatcher, restApi: RestApi): Crankshaft = {
+        def providesCrankshaft(appConfig: AppConfig, fuelFilter: FuelFilter, plugins: Plugins, executionFinder: TriggeredExecutionFinder, targetDispatcher: TargetDispatcher, restApi: RestApi): Crankshaft = {
           when(executionTrigger.trigger(restApi.executionCallbackUrl(anyLong), anyString, any[Version], any[TargetAtomSet], anyString))
             .thenReturn(Future(triggerMock))
-          new Crankshaft(dbBinding, appConfig, targetDispatcher, plugins.listeners, executionFinder, restApi)
+          new Crankshaft(dbBinding, fuelFilter, targetDispatcher, plugins.listeners, executionFinder, restApi)
         }
 
         @Singleton
         @Provides
-        def providesEngine(appConfig: AppConfig, crankshaft: Crankshaft, resolver: TargetResolver, plugins: Plugins): Engine = {
+        def providesEngine(appConfig: AppConfig, crankshaft: Crankshaft, fuelFilter: FuelFilter, resolver: TargetResolver, plugins: Plugins): Engine = {
           class NoOpScheduler extends Scheduler {
             override def scheduleTask(f: () => Any, period: Long, timeUnit: TimeUnit, initialDelay: Long): JavaFuture[_] =
               CompletableFuture.completedFuture(())
           }
 
-          new Engine(appConfig, crankshaft, resolver, plugins.permissions, plugins.preConditionEvaluators, new NoOpScheduler()) {
+          new Engine(appConfig, crankshaft, fuelFilter, resolver, plugins.permissions, plugins.preConditionEvaluators, new NoOpScheduler()) {
             override val stateExpirationTime: FiniteDuration = 1000.seconds // the goal is that no test actually depends on it
             override val ticker: Ticker = mockTicker // ... thanks to this mock
           }

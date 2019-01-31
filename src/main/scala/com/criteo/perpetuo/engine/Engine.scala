@@ -28,6 +28,7 @@ case class PreConditionFailed(errors: Seq[String]) extends RuntimeException((Seq
 @Singleton
 class Engine @Inject()(appConfig: AppConfig,
                        crankshaft: Crankshaft,
+                       fuelFilter: FuelFilter,
                        targetResolver: TargetResolver,
                        permissions: Permissions,
                        preConditionEvaluators: Seq[AsyncPreConditionEvaluator],
@@ -207,7 +208,7 @@ class Engine @Inject()(appConfig: AppConfig,
       val gettingRevertSpecifics =
         crankshaft.assessingDeploymentState(deploymentRequest)
           .map {
-            case s@(_: DeployFailed | _: Paused) if s.isOutdated && crankshaft.fuelFilter.withTransactions =>
+            case s@(_: DeployFailed | _: Paused) if s.isOutdated && fuelFilter.withTransactions =>
               // fixme: find another way to unblock situations where it's outdated yet holding transaction locks
               Right(s.asInstanceOf[RevertibleState])
 
@@ -301,7 +302,7 @@ class Engine @Inject()(appConfig: AppConfig,
       crankshaft
         .assessDeploymentState(deploymentRequest)
         .map {
-          case s@(_: DeployFailed | _: Paused) if s.isOutdated && crankshaft.fuelFilter.withTransactions =>
+          case s@(_: DeployFailed | _: Paused) if s.isOutdated && fuelFilter.withTransactions =>
             // fixme: find another way to unblock situations where it's outdated yet holding transaction locks
             (s, Seq((Operation.revert.toString, evaluatePreconditions(DeploymentAction.applyOperation, Operation.revert, s.asInstanceOf[RevertibleState].revertScope))))
 

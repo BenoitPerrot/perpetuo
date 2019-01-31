@@ -13,8 +13,8 @@ case class Execution(executionTraceStates: Seq[ExecutionState.Value], targetStat
 
 class DbBindingSpec extends TestHelpers with TestDb {
   private val dbScenarios = new DbScenarios(dbBinding)
-
-  private val crankshaft = new Crankshaft(dbBinding, TestConfig, null, Seq(), null, null)
+  private val fuelFilter = new FuelFilter(TestConfig, dbBinding)
+  private val crankshaft = new Crankshaft(dbBinding, fuelFilter, null, Seq(), null, null)
 
   private def assessEffect(executions: Seq[Execution], planSteps: Seq[String], kind: Operation.Kind) =
     dbScenarios
