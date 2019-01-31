@@ -126,13 +126,23 @@ class Engine @Inject()(appConfig: AppConfig,
             .getOrElse(Future.failed(e))
           )
 
-      case e: OperationInapplicableForEffects =>
+      case e: OperationInapplicableForEffects => {
+        val operationEffects = crankshaft.dbBinding.dbContext.db.run(
+          crankshaft.dbBinding.findingDeploymentRequestAndEffects(deploymentRequest.id)
+        )
+        .map(_.map { case (_, _, effects) => effects } )
         operationCount
-          .flatMap(e.effects.reverse.lift)
-          .map(_.operationTrace)
-          .filter(isSimilar)
-          .map(Future.successful)
+          .map(c =>
+            operationEffects.flatMap(_
+              .flatMap(_.sortBy(-_.operationTrace.id).reverse.lift(c))
+              .map(_.operationTrace)
+              .filter(isSimilar)
+              .map(Future.successful)
+              .getOrElse(Future.failed(e))
+            )
+          )
           .getOrElse(Future.failed(e))
+      }
     }
   }
 
