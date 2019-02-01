@@ -9,6 +9,7 @@ import '/node_modules/@polymer/paper-styles/shadow.js'
 
 import '../perpetuo-chip/perpetuo-chip.js'
 import Perpetuo from '../perpetuo-lib/perpetuo-lib.js'
+import { Suggester } from '../perpetuo-lib/perpetuo-suggester.js';
 
 class PerpetuoListEditor extends PolymerElement {
 
@@ -117,47 +118,8 @@ paper-input-container {
 
   applyFilter(choices, maxCount, filter) {
     const preferred = this.lruPath ? Perpetuo.Util.readArrayFromLocalStorage(this.lruPath, maxCount) : choices;
-    let result = preferred;
-    if (filter) {
-      const splitFilter = filter.split(' ');
-      const normalizedFilter = filter.toLowerCase();
-      const splitNormalizedFilter = normalizedFilter.split(' ');
-      const matchFilterIn = _ => _.reduce(
-        (matches, e) => {
-          if (filter === e.original) {
-            matches.full.push(e.original);
-          }
-          else if (normalizedFilter === e.normalized) {
-            matches.normalizedFull.push(e.original);
-          }
-          else if (splitFilter.every(_ => e.original.includes(_))) {
-            matches.partial.push(e.original);
-          }
-          else if (splitNormalizedFilter.every(_ => e.normalized.includes(_))) {
-            matches.normalizedPartial.push(e.original);
-          }
-          return matches;
-        },
-        { full: [], normalizedFull: [], partial: [], normalizedPartial: [] }
-      );
-
-      const normalize = _ => ({ original: _, normalized: _.toLowerCase() });
-
-      const preferredMatches = matchFilterIn(preferred.map(normalize));
-      const nonPreferredMatches = matchFilterIn(choices.filter(_ => !preferred.includes(_)).map(normalize));
-
-      result = [].concat(
-        preferredMatches.full,
-        nonPreferredMatches.full,
-        preferredMatches.normalizedFull,
-        nonPreferredMatches.normalizedFull,
-        preferredMatches.partial,
-        preferredMatches.normalizedPartial,
-        nonPreferredMatches.partial,
-        nonPreferredMatches.normalizedPartial,
-      );
-    }
-    this.filteredChoices = result.slice(0, this.maxCount);
+    this.filteredChoices =
+      (filter ? Perpetuo.Suggester.suggest(filter, choices, preferred) : preferred).slice(0, this.maxCount);
   }
 
   onSuggestionSelected(e) {
