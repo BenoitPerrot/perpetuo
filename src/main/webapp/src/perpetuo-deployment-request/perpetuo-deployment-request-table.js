@@ -77,7 +77,12 @@ div.state {
 }
 </style>
 <perpetuo-identity id="identity" login="{{login}}"></perpetuo-identity>
-<perpetuo-app-toolbar page-title="Perpetuo / Deployment Requests"></perpetuo-app-toolbar>
+<perpetuo-app-toolbar>
+  <div slot="title" style="display: flex; align-items: center; position: relative">
+    <paper-icon-button icon="search" style="color:#fff; min-width: 40px" on-tap="onSearchIconTap"></paper-icon-button>
+    <span style="margin-left: 20px">Deployment Requests</span>
+  </div>
+</perpetuo-app-toolbar>
 
 <div sticky class="table" style="background: #fff">
   <div class="row heading">
@@ -189,6 +194,10 @@ div.state {
       this.$.createButton.focus();
     }
     this.refresher.suspended = !active;
+  }
+
+  onSearchIconTap() {
+    this.$.productFilter.focus();
   }
 
   refresh(forced) {

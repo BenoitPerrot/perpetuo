@@ -89,6 +89,10 @@ paper-input-container {
     });
   }
 
+  focus() {
+    this.$.filterEditor.focus();
+  }
+
   onFilterEditorFocus() {
     this.$.dropdown.open();
   }
