@@ -216,8 +216,10 @@ class RestControllerSpec extends Test with TestDb {
 
   private val randomProductCounter = Iterator.from(1000)
 
+  private def generateRandomProductName = s"random product ${randomProductCounter.next()}"
+
   private def createProductAndStartDeployment(version: String, target: JsValue) = {
-    val productName = s"random product ${randomProductCounter.next()}"
+    val productName = generateRandomProductName
     createProduct(productName)
     val depReqId = requestAndWaitDeployment(productName, version, target)
     (depReqId, getExecutionTracesByDeploymentRequestId(depReqId.toString).map(_.idAsLong))
@@ -452,7 +454,7 @@ class RestControllerSpec extends Test with TestDb {
   }
 
   test("The ExecutionTrace's entry-point updates one record's execution state and target status on a PUT") {
-    val productName = s"random product ${randomProductCounter.next()}"
+    val productName = generateRandomProductName
     createProduct(productName)
     val depReqId = requestDeployment(productName, "653", Seq("paris", "ams").toJson)
     startDeploymentRequest(depReqId)
@@ -583,7 +585,7 @@ class RestControllerSpec extends Test with TestDb {
   }
 
   test("The stop entry-point tries to stop running executions for a given deployment request") {
-    val productName = s"product-${randomProductCounter.next()}"
+    val productName = generateRandomProductName
     createProduct(productName)
     val depReqId = requestDeployment(productName, "653", Seq("paris", "ams").toJson)
     startDeploymentRequest(depReqId)
