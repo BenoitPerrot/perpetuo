@@ -216,7 +216,7 @@ class RestControllerSpec extends Test with TestDb {
 
   private val randomProductCounter = Iterator.from(1000)
 
-  private def generateRandomProductName = s"random product ${randomProductCounter.next()}"
+  private def generateRandomProductName = s"random_product_${randomProductCounter.next()}"
 
   private def createProductAndStartDeployment(version: String, target: JsValue) = {
     val productName = generateRandomProductName
@@ -285,19 +285,21 @@ class RestControllerSpec extends Test with TestDb {
   }
 
   test("The Product's entry-point creates products and returns the list of all known product names") {
-    createProduct("my product")
-    createProduct("my other product")
+    val product1 = generateRandomProductName
+    val product2 = generateRandomProductName
+    createProduct(product1)
+    createProduct(product2)
     val products = server.httpGet(
       path = "/api/products",
       andExpect = Ok
     ).contentString.parseJson.asInstanceOf[JsArray].elements.map(_.asInstanceOf[JsObject].fields("name")
       .asInstanceOf[JsString].value)
-    products should contain theSameElementsAs Seq("my product", "my other product")
+    products should contain theSameElementsAs Seq(product1, product2)
   }
 
   test("The DeploymentRequest's POST entry-point returns 201 when creating a DeploymentRequest") {
-    requestAndWaitDeployment("my product", "v21", "to everywhere".toJson, Some("my comment"))
-    requestAndWaitDeployment("my other product", "buggy", "nowhere".toJson, None)
+    requestAndWaitDeployment(generateRandomProductName, "v21", "to everywhere".toJson, Some("my comment"))
+    requestAndWaitDeployment(generateRandomProductName, "buggy", "nowhere".toJson, None)
   }
 
   test("The DeploymentRequest's POST entry-point properly rejects bad input") {
@@ -307,21 +309,24 @@ class RestControllerSpec extends Test with TestDb {
     requestDeployment("""{"productName": "abc", "plan": [{"target": "atom"}], "version": "2"}""", Some("Unknown product `abc`"))
 
     // rejected at serialization time:
-    requestDeployment(s"""{"productName": "my product", "plan": [{"target": "atom"}], "version": "${"x" * 2000}"}""", Some("Too long version"))
+    val productName = generateRandomProductName
+    createProduct(productName)
+    requestDeployment(s"""{"productName": "$productName", "plan": [{"target": "atom"}], "version": "${"x" * 2000}"}""", Some("Too long version"))
   }
 
   test("The DeploymentRequest's POST entry-point handles a compound target expression") {
-    requestAndWaitDeployment("my product", "42", Seq("here", "and", "there").toJson, Some(""))
+    requestAndWaitDeployment(generateRandomProductName, "42", Seq("here", "and", "there").toJson, Some(""))
   }
 
   test("The DeploymentRequest's POST entry-point properly rejects bad targets") {
     // just one case of bad target is tested here to check the controller's output, but parsing of targets is exhaustively tested in DeploymentRequestParserSpec
-    requestAndWaitDeployment("my product", "b", JsArray(), None, Some("Unexpected target element: []"))
+    requestAndWaitDeployment(generateRandomProductName, "b", JsArray(), None, Some("Unexpected target element: []"))
   }
 
   test("The DeploymentRequest's creation entry-point doesn't start the deployment") {
-    createProduct("my product B")
-    val id = requestDeployment("my product B", "456", "ams".toJson)
+    val product = generateRandomProductName
+    createProduct(product)
+    val id = requestDeployment(product, "456", "ams".toJson)
     expectState(id, "notStarted")
   }
 
@@ -385,7 +390,8 @@ class RestControllerSpec extends Test with TestDb {
     getExecutionTracesByDeploymentRequestId(deploymentRequestId, Ok).get
 
   test("The DeploymentRequest's GET entry-point returns 200 and a JSON with all necessary info when accessing an existing DeploymentRequest") {
-    val depReqId = requestAndWaitDeployment("my product", "v2097", "to everywhere".toJson, Some("hello world"))
+    val productName = generateRandomProductName
+    val depReqId = requestAndWaitDeployment(productName, "v2097", "to everywhere".toJson, Some("hello world"))
 
     val values1 = deepGetDepReq(depReqId).fields
 
@@ -393,7 +399,7 @@ class RestControllerSpec extends Test with TestDb {
 
     Map(
       "id" -> JsNumber(depReqId),
-      "productName" -> JsString("my product"),
+      "productName" -> JsString(productName),
       "version" -> JsString("v2097"),
       "plan" -> JsArray(
         JsObject("id" -> T, "name" -> JsString(""), "targetExpression" -> JsString("to everywhere"), "comment" -> JsString(""))
@@ -422,7 +428,9 @@ class RestControllerSpec extends Test with TestDb {
   }
 
   test("The ExecutionTrace's entry-point doesn't fail when the existing DeploymentRequest doesn't have execution traces yet") {
-    val protoDeploymentRequest = ProtoDeploymentRequest("my product", Version(JsString("v")), Seq(ProtoDeploymentPlanStep("", JsString("t"), "")), "c", "c")
+    val productName = generateRandomProductName
+    createProduct(productName)
+    val protoDeploymentRequest = ProtoDeploymentRequest(productName, Version(JsString("v")), Seq(ProtoDeploymentPlanStep("", JsString("t"), "")), "c", "c")
     val plan = Await.result(crankshaft.createDeploymentPlan(protoDeploymentRequest), 1.second)
     val traces = getExecutionTracesByDeploymentRequestId(plan.deploymentRequest.id.toString)
     traces shouldBe empty
@@ -465,7 +473,7 @@ class RestControllerSpec extends Test with TestDb {
   }
 
   test("The ExecutionTrace's entry-point updates one record's execution state, href and target status (partially) on a PUT") {
-    val depReqId = requestDeployment("my product", "653", Seq("paris", "amsterdam").toJson, None)
+    val depReqId = requestDeployment(generateRandomProductName, "653", Seq("paris", "amsterdam").toJson, None)
     startDeploymentRequest(depReqId)
     val execTraceId = getExecutionTracesByDeploymentRequestId(depReqId.toString)(0).idAsLong
     checkExecutionTraceUpdate(
@@ -476,7 +484,7 @@ class RestControllerSpec extends Test with TestDb {
   }
 
   test("The ExecutionTrace's entry-point partially updates one record's target status on a PUT") {
-    val depReqId = requestDeployment("my product", "653", Seq("paris", "amsterdam").toJson, None)
+    val depReqId = requestDeployment(generateRandomProductName, "653", Seq("paris", "amsterdam").toJson, None)
     startDeploymentRequest(depReqId)
     val execTraceId = getExecutionTracesByDeploymentRequestId(depReqId.toString)(0).idAsLong
     checkExecutionTraceUpdate(
@@ -636,7 +644,7 @@ class RestControllerSpec extends Test with TestDb {
   }
 
   test("Deep query displays correctly formatted versions") {
-    val depReqId = requestDeployment("my product", "8080", "paris".toJson)
+    val depReqId = requestDeployment(generateRandomProductName, "8080", "paris".toJson)
 
     val depReq = deepGetDepReq(depReqId)
     depReq.fields("version").asInstanceOf[JsString].value shouldEqual "8080"
@@ -681,8 +689,7 @@ class RestControllerSpec extends Test with TestDb {
       )
     ) shouldEqual depReq.fields("operations")
 
-    createProduct("my product D")
-    val delayedDepReqId = requestDeployment("my product D", "5133", "tokyo".toJson)
+    val delayedDepReqId = requestDeployment(generateRandomProductName, "5133", "tokyo".toJson)
     startDeploymentRequest(delayedDepReqId)
     val delayedDepReq = deepGetDepReq(delayedDepReqId)
     JsArray(
@@ -728,15 +735,17 @@ class RestControllerSpec extends Test with TestDb {
   }
 
   test("Deep query filters") {
+    val myProduct = generateRandomProductName
+    requestDeployment(myProduct, "v1", "par".toJson)
     val allDepReqs = deepGetDepReq(limit = Some(100))
     allDepReqs.length should be > 2
 
     val depReqsForUnkownProduct = deepGetDepReq(where = Seq(Map("field" -> "productName".toJson, "equals" -> "unknown product".toJson)))
     depReqsForUnkownProduct.isEmpty shouldBe true
 
-    val depReqsForSingleProduct = deepGetDepReq(where = Seq(Map("field" -> "productName".toJson, "equals" -> "my product".toJson)))
+    val depReqsForSingleProduct = deepGetDepReq(where = Seq(Map("field" -> "productName".toJson, "equals" -> myProduct.toJson)))
     depReqsForSingleProduct.length should (be > 0 and be < allDepReqs.length)
-    depReqsForSingleProduct.map(_ ("productName").asInstanceOf[JsString].value == "my product").reduce(_ && _) shouldBe true
+    depReqsForSingleProduct.map(_ ("productName").asInstanceOf[JsString].value == myProduct).reduce(_ && _) shouldBe true
   }
 
   test("Deep query rejects unknown field names in filters") {
@@ -775,13 +784,14 @@ class RestControllerSpec extends Test with TestDb {
   test("Creating a deployment request with a too long name works but stores an explicitly truncated user name") {
     val longUser = makeUser("too-long-user-name/" * 42)
     val longUserJWT = longUser.toJWT(authModule.jwtEncoder)
-
+    val productName = generateRandomProductName
+    createProduct(productName)
     val id = server.httpPost(
       path = s"/api/deployment-requests",
       headers = Map("Cookie" -> s"jwt=$longUserJWT"),
       andExpect = Created,
       postBody = JsObject(
-        "productName" -> JsString("my product"),
+        "productName" -> JsString(productName),
         "version" -> JsString("v2097"),
         "plan" -> JsArray(JsObject("target" -> JsString("to everywhere")))
       ).compactPrint
@@ -808,7 +818,7 @@ class RestControllerSpec extends Test with TestDb {
       putBody = JsObject("name" -> JsString("this project will never be created")).compactPrint
     )
 
-    val depReqId = requestDeployment("my product", "version", "target".toJson)
+    val depReqId = requestDeployment(generateRandomProductName, "version", "target".toJson)
     server.httpPost(
       path = s"/api/deployment-requests/$depReqId/actions/step",
       headers = Map("Cookie" -> s"jwt=$stdUserJWT"),
