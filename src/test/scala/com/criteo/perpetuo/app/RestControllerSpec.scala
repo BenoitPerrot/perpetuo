@@ -134,6 +134,7 @@ class RestControllerSpec extends Test with TestDb {
   }
 
   private def requestDeployment(productName: String, version: String, target: JsValue, comment: Option[String] = None, expectsMessage: Option[String] = None): Long = {
+    createProduct(productName)
     requestDeployment(
       JsObject(
         Map(
