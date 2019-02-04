@@ -284,12 +284,9 @@ class RestControllerSpec extends Test with TestDb {
     isRunning shouldEqual operation.get("closingDate").isEmpty
   }
 
-  test("The Product's entry-point returns 201 when creating a Product") {
+  test("The Product's entry-point creates products and returns the list of all known product names") {
     createProduct("my product")
     createProduct("my other product")
-  }
-
-  test("The Product's entry-point returns the list of all known product names") {
     val products = server.httpGet(
       path = "/api/products",
       andExpect = Ok
