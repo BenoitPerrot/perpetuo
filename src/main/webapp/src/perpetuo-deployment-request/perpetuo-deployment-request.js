@@ -224,7 +224,7 @@ paper-progress {
 <perpetuo-app-toolbar>
   <div slot="title" style="display: flex; align-items: center;">
     <a href="/deployment-requests"><paper-icon-button icon="arrow-back" style="color:#fff"></paper-icon-button></a>
-    <span style="margin-left: 20px;">Deployment Request #[[deploymentRequestId]]</span>
+    <span style="margin-left: 20px; font-size: var(--paper-font-headline_-_font-size);">Deployment Request #[[deploymentRequestId]]</span>
   </div>
 </perpetuo-app-toolbar>
 <paper-progress indeterminate hidden$="[[!noData]]"></paper-progress>
