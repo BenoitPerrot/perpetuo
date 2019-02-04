@@ -70,10 +70,8 @@ class PerpetuoDeploymentRequestTable extends PolymerElement {
 .creation-date {
   width: 20%;
 }
-div.state {
+.state {
   width: 10%;
-  display: flex;
-  justify-content: flex-end;
 }
 </style>
 <perpetuo-identity id="identity" login="{{login}}"></perpetuo-identity>
@@ -90,9 +88,7 @@ div.state {
     <span class="version">Version</span>
     <span class="target">Target</span>
     <span class="creation-date">Creation Date</span>
-    <div class="state">
-      <span>State</span>
-    </div>
+    <span class="state">State</span>
   </div>
   <div style="display: flex;">
     <div class="product-name">
