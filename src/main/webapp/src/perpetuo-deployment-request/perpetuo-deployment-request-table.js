@@ -116,23 +116,8 @@ perpetuo-app-toolbar #productFilter[focused] ~ div {
     <span class="product-name">Product</span>
     <span class="version">Version</span>
     <span class="target">Target</span>
-    <span class="creation-date">Creation Date</span>
+    <span class="creation-date">Creation Date (UTC+0)</span>
     <span class="state">State</span>
-  </div>
-  <div style="display: flex;">
-    <div class="product-name">
-    </div>
-    <div class="version"></div>
-    <span class="target"></span>
-    <div class="creation-date">
-      <paper-dropdown-menu label="Time Zone" no-animations>
-        <paper-listbox slot="dropdown-content" selected="0" selected-item="{{timeZoneItem}}">
-          <paper-item timestamp-converter="timestampToUTCDate">UTC +0</paper-item>
-          <paper-item timestamp-converter="timestampToLocalDate">Local</paper-item>
-        </paper-listbox>
-      </paper-dropdown-menu>
-    </div>
-    <div class="state"></div>
   </div>
 </div>
 <perpetuo-paging id="paging"
@@ -156,22 +141,16 @@ perpetuo-app-toolbar #productFilter[focused] ~ div {
       login: String,
       queryParams: Object,
       active: { type: Boolean, observer: 'onActiveChanged' },
-      deploymentRequests: { type: Array, observer: 'convertTimestamp' },
+      deploymentRequests: Array,
 
       productNames: { type: Array, value: () => [] },
       selectedProductName: { type: String, observer: 'onSelectedProductNameChanged' },
       filterFocused: { type: Boolean, reflectToAttribute: true },
-      timeZoneItem: Object,
-      timestampConverter: { type: String, computed: 'computeTimestampConverter(timeZoneItem)', observer: 'convertTimestamp' },
 
       page: { type: Number, value: 1, observer: 'onPageChanged', notify: true },
       hasNextPage: Boolean,
       pageSize: { type: Number, observer: 'onPageSizeChanged' }
     };
-  }
-
-  computeTimestampConverter(timeZoneItem) {
-    return timeZoneItem ? timeZoneItem.getAttribute('timestamp-converter') : null;
   }
 
   constructor() {
@@ -244,23 +223,6 @@ perpetuo-app-toolbar #productFilter[focused] ~ div {
       this.deploymentRequests = deploymentRequests;
       this.hasNextPage = this.client.hasMoreDeploymentRequests;
     });
-  }
-
-  convertTimestamp() {
-    if (this.deploymentRequests && this.timestampConverter) {
-      const f = this.get(this.timestampConverter);
-      this.deploymentRequests.forEach(obj => obj.dateString = f(obj.creationDate));
-    }
-  }
-
-  timestampToUTCDate(unixTimestamp) {
-    return new Date(unixTimestamp * 1000).toISOString().replace('T', ' ').replace(/-0/g, '-').split('.')[0];
-  }
-
-  timestampToLocalDate(unixTimestamp) {
-    const date = new Date(unixTimestamp * 1000);
-    const time = date.toTimeString().split(' ')[0];
-    return date.getFullYear() + '-' + (date.getMonth() + 1) + '-' + date.getDate() + ' ' + time;
   }
 
   onSelectedProductNameChanged() {

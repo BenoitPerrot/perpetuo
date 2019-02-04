@@ -91,7 +91,7 @@ a {
       </template>
     </span>
     <span class="target"><span>[[computePlanLabel(data.plan)]]</span></span>
-    <span class="creation-date">[[data.dateString]]</span>
+    <span class="creation-date">[[timestampToUTCDate(data.creationDate)]]</span>
     <perpetuo-deployment-state state="[[data.state]]"></perpetuo-deployment-state>
   </div>
 </a>
@@ -123,6 +123,10 @@ a {
 
   asPercentage(ratio) {
     return ratio * 100;
+  }
+
+  timestampToUTCDate(unixTimestamp) {
+    return new Date(unixTimestamp * 1000).toISOString().replace('T', ' ').replace(/-0/g, '-').split('.')[0];
   }
 }
 
