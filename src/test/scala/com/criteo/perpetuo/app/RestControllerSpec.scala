@@ -122,13 +122,10 @@ class RestControllerSpec extends Test with TestDb {
     expectedError.foreach(err => ans shouldEqual JsObject("errors" -> JsArray(JsString(err._1))).compactPrint)
   }
 
-  private def requestAndWaitDeployment(productName: String, version: String, target: JsValue, comment: Option[String] = None, expectsMessage: Option[String] = None): Long = {
+  private def requestAndStartDeployment(productName: String, version: String, target: JsValue, comment: Option[String] = None, expectsMessage: Option[String] = None): Long = {
     val depReqId = requestDeployment(productName, version, target, comment, expectsMessage)
     expectsMessage.getOrElse {
       startDeploymentRequest(depReqId)
-      getExecutionTracesByDeploymentRequestId(depReqId.toString).map(_.idAsLong).foreach(execTraceId =>
-        checkExecutionTraceUpdate(depReqId, execTraceId, "completed")
-      )
     }
     depReqId
   }
@@ -221,7 +218,7 @@ class RestControllerSpec extends Test with TestDb {
   private def createProductAndStartDeployment(version: String, target: JsValue) = {
     val productName = generateRandomProductName
     createProduct(productName)
-    val depReqId = requestAndWaitDeployment(productName, version, target)
+    val depReqId = requestAndStartDeployment(productName, version, target)
     (depReqId, getExecutionTracesByDeploymentRequestId(depReqId.toString).map(_.idAsLong))
   }
 
@@ -298,8 +295,8 @@ class RestControllerSpec extends Test with TestDb {
   }
 
   test("The DeploymentRequest's POST entry-point returns 201 when creating a DeploymentRequest") {
-    requestAndWaitDeployment(generateRandomProductName, "v21", "to everywhere".toJson, Some("my comment"))
-    requestAndWaitDeployment(generateRandomProductName, "buggy", "nowhere".toJson, None)
+    requestAndStartDeployment(generateRandomProductName, "v21", "to everywhere".toJson, Some("my comment"))
+    requestAndStartDeployment(generateRandomProductName, "buggy", "nowhere".toJson, None)
   }
 
   test("The DeploymentRequest's POST entry-point properly rejects bad input") {
@@ -315,12 +312,12 @@ class RestControllerSpec extends Test with TestDb {
   }
 
   test("The DeploymentRequest's POST entry-point handles a compound target expression") {
-    requestAndWaitDeployment(generateRandomProductName, "42", Seq("here", "and", "there").toJson, Some(""))
+    requestAndStartDeployment(generateRandomProductName, "42", Seq("here", "and", "there").toJson, Some(""))
   }
 
   test("The DeploymentRequest's POST entry-point properly rejects bad targets") {
     // just one case of bad target is tested here to check the controller's output, but parsing of targets is exhaustively tested in DeploymentRequestParserSpec
-    requestAndWaitDeployment(generateRandomProductName, "b", JsArray(), None, Some("Unexpected target element: []"))
+    requestAndStartDeployment(generateRandomProductName, "b", JsArray(), None, Some("Unexpected target element: []"))
   }
 
   test("The DeploymentRequest's creation entry-point doesn't start the deployment") {
@@ -391,7 +388,7 @@ class RestControllerSpec extends Test with TestDb {
 
   test("The DeploymentRequest's GET entry-point returns 200 and a JSON with all necessary info when accessing an existing DeploymentRequest") {
     val productName = generateRandomProductName
-    val depReqId = requestAndWaitDeployment(productName, "v2097", "to everywhere".toJson, Some("hello world"))
+    val depReqId = requestAndStartDeployment(productName, "v2097", "to everywhere".toJson, Some("hello world"))
 
     val values1 = deepGetDepReq(depReqId).fields
 
@@ -436,14 +433,15 @@ class RestControllerSpec extends Test with TestDb {
     traces shouldBe empty
   }
 
-  test("The ExecutionTrace's entry-point returns a list of executions when trying to access a completed DeploymentRequest") {
-    val traces = getExecutionTracesByDeploymentRequestId("1")
+  test("The ExecutionTrace's entry-point returns a list of executions when trying to access a started DeploymentRequest") {
+    val depReqId = requestAndStartDeployment(generateRandomProductName, "v1", "par".toJson)
+    val traces = getExecutionTracesByDeploymentRequestId(s"$depReqId")
     traces.length shouldEqual 1
     Map(
       "id" -> T,
       "executorType" -> T,
       "href" -> JsNull,
-      "state" -> "completed".toJson,
+      "state" -> "pending".toJson,
       "detail" -> "".toJson
     ) shouldEqual traces.head.asJsObject.fields
   }
