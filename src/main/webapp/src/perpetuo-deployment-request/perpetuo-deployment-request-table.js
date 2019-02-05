@@ -128,7 +128,6 @@ class PerpetuoDeploymentRequestTable extends PolymerElement {
       queryParams: Object,
       active: { type: Boolean, observer: 'onActiveChanged' },
       data: { type: Array, observer: 'convertTimestamp' },
-      indices: { type: Object, value: () => new Object() },
 
       productNames: { type: Array, value: () => [] },
       timeZoneItem: Object,
