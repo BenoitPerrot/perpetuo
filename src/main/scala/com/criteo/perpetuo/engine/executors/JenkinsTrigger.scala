@@ -3,7 +3,6 @@ package com.criteo.perpetuo.engine.executors
 import com.criteo.perpetuo.config.ConfigSyntacticSugar._
 import com.criteo.perpetuo.engine.TargetAtomSet
 import com.criteo.perpetuo.model.Version
-import com.twitter.conversions.time._
 import com.twitter.util.Await
 import com.typesafe.config.Config
 
@@ -19,8 +18,6 @@ class JenkinsTrigger(client: JenkinsClient,
     config.getString("jobName")
   )
 
-  private val requestTimeout = 20.seconds
-
   override def toString: String = s"Jenkins (on ${client.host}) (job: $jobName)"
 
   /**
@@ -35,8 +32,8 @@ class JenkinsTrigger(client: JenkinsClient,
       "productName" -> productName
     )
 
-    Future { // fixme: use raiseWithin and a conversion?
-      Await.result(client.startJob(jobName, jobToken, parameters), requestTimeout + 1.second)
+    Future { // fixme: use a conversion
+      Await.result(client.startJob(jobName, jobToken, parameters))
       None
     }
   }

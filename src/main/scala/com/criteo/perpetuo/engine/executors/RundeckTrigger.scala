@@ -3,7 +3,6 @@ package com.criteo.perpetuo.engine.executors
 import com.criteo.perpetuo.config.ConfigSyntacticSugar._
 import com.criteo.perpetuo.engine.TargetAtomSet
 import com.criteo.perpetuo.model._
-import com.twitter.conversions.time._
 import com.twitter.finagle.http.Status
 import com.twitter.util.Await
 import com.typesafe.config.Config
@@ -26,8 +25,6 @@ class RundeckTrigger(val client: RundeckClient,
 
   def extractHref(executorAnswer: String): String =
     executorAnswer.parseJson.asJsObject.fields("permalink").asInstanceOf[JsString].value
-
-  private val requestTimeout = 20.seconds
 
   private val ERROR_IN_HTML = """.+<p>(.+)</p>.+""".r
 
@@ -62,7 +59,7 @@ class RundeckTrigger(val client: RundeckClient,
     // trigger the job and return a future to the execution's href
     Future {
       // convert a twitter Future to a scala one
-      val response = Await.result(client.startJob(jobName, triggerParameters), requestTimeout + 1.second)
+      val response = Await.result(client.startJob(jobName, triggerParameters))
 
       val content = response.contentString
       response.status match {

@@ -23,8 +23,6 @@ class JenkinsClient(val host: String, port: Option[Int], ssl: Option[Boolean], u
   // Timeouts
   private val requestTimeout: Duration = 5.seconds
 
-  def maxAbortDuration: Duration = requestTimeout
-
   private val client = new SingleNodeHttpClient(host, port, ssl, requestTimeout)
 
   private def post(apiSubPath: String): Future[ConsumedResponse] =

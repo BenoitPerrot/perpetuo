@@ -29,7 +29,7 @@ class JenkinsExecution(config: Config, val href: String) extends TriggeredExecut
     }
 
   override val stopper: Option[() => Option[ExecutionState]] = Some(() =>
-    Await.result(abortJob(jobName, buildId), client.maxAbortDuration)
+    Await.result(abortJob(jobName, buildId))
   )
 }
 
