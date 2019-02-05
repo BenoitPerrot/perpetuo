@@ -20,10 +20,7 @@ class JenkinsClient(val host: String, port: Option[Int], ssl: Option[Boolean], u
         ""
     }
 
-  // Timeouts
-  private val requestTimeout: Duration = 5.seconds
-
-  private val client = new SingleNodeHttpClient(host, port, ssl, requestTimeout)
+  private val client = new SingleNodeHttpClient(host, port, ssl, 5.seconds)
 
   private def post(apiSubPath: String): Future[ConsumedResponse] =
     client(client.createRequest(userInfoPrefix + apiSubPath).buildPost(Buf.Empty))
