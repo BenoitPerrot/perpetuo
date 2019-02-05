@@ -111,9 +111,9 @@ class PerpetuoDeploymentRequestTable extends PolymerElement {
 <perpetuo-paging id="paging"
                  page-sizes="[20,50,100]" page-size="{{pageSize}}"
                  page="{{page}}" is-last-page="[[!hasNextPage]]"
-                 count-on-page="[[data.length]]"
+                 count-on-page="[[deploymentRequests.length]]"
                  class="table">
-  <template is="dom-repeat" items="[[data]]">
+  <template is="dom-repeat" items="[[deploymentRequests]]">
     <perpetuo-deployment-request-entry data="[[item]]"></perpetuo-deployment-request-entry>
   </template>
 </perpetuo-paging>
@@ -127,7 +127,7 @@ class PerpetuoDeploymentRequestTable extends PolymerElement {
       login: String,
       queryParams: Object,
       active: { type: Boolean, observer: 'onActiveChanged' },
-      data: { type: Array, observer: 'convertTimestamp' },
+      deploymentRequests: { type: Array, observer: 'convertTimestamp' },
 
       productNames: { type: Array, value: () => [] },
       timeZoneItem: Object,
@@ -204,7 +204,7 @@ class PerpetuoDeploymentRequestTable extends PolymerElement {
       this.deploymentRequestFilter ? { where: [{ 'field': 'productName', 'equals': this.deploymentRequestFilter }] } : {}
     );
     return this.client.fetchDeploymentRequests(query).then(deploymentRequests => {
-      this.data = deploymentRequests;
+      this.deploymentRequests = deploymentRequests;
       this.hasNextPage = this.client.hasMoreDeploymentRequests;
       if (forced) {
         this.page = 1;
@@ -213,9 +213,9 @@ class PerpetuoDeploymentRequestTable extends PolymerElement {
   }
 
   convertTimestamp() {
-    if (this.data && this.timestampConverter) {
+    if (this.deploymentRequests && this.timestampConverter) {
       const f = this.get(this.timestampConverter);
-      this.data.forEach(obj => obj.dateString = f(obj.creationDate));
+      this.deploymentRequests.forEach(obj => obj.dateString = f(obj.creationDate));
     }
   }
 
