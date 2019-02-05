@@ -3,10 +3,9 @@ package com.criteo.perpetuo.engine.executors
 import com.criteo.perpetuo.config.ConfigSyntacticSugar._
 import com.criteo.perpetuo.engine.TargetAtomSet
 import com.criteo.perpetuo.model.Version
-import com.twitter.util.Await
+import com.criteo.perpetuo.util.FutureConversions._
 import com.typesafe.config.Config
 
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
 class JenkinsTrigger(client: JenkinsClient,
@@ -26,16 +25,11 @@ class JenkinsTrigger(client: JenkinsClient,
     * @return None. Jenkins doesn't return any href immediately.
     */
   override def trigger(executionCallbackUrl: String, productName: String, version: Version, target: TargetAtomSet, initiator: String): Future[Option[String]] = {
-
     val parameters = Map(
       "callbackUrl" -> executionCallbackUrl,
       "productName" -> productName
     )
-
-    Future { // fixme: use a conversion
-      Await.result(client.startJob(jobName, jobToken, parameters))
-      None
-    }
+    client.startJob(jobName, jobToken, parameters).map(_ => None)
   }
 
   override val executorType: String = "jenkins"

@@ -3,13 +3,12 @@ package com.criteo.perpetuo.engine.executors
 import com.criteo.perpetuo.config.ConfigSyntacticSugar._
 import com.criteo.perpetuo.engine.TargetAtomSet
 import com.criteo.perpetuo.model._
+import com.criteo.perpetuo.util.FutureConversions._
 import com.twitter.finagle.http.Status
-import com.twitter.util.Await
 import com.typesafe.config.Config
 import spray.json._
 
 import scala.collection.JavaConversions._
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
 
@@ -57,10 +56,7 @@ class RundeckTrigger(val client: RundeckClient,
     }
 
     // trigger the job and return a future to the execution's href
-    Future {
-      // convert a twitter Future to a scala one
-      val response = Await.result(client.startJob(jobName, triggerParameters))
-
+    client.startJob(jobName, triggerParameters).map { response =>
       val content = response.contentString
       response.status match {
         case Status.Successful(_) =>
