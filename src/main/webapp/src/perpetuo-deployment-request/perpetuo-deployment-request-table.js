@@ -107,7 +107,6 @@ class PerpetuoDeploymentRequestTable extends PolymerElement {
     <div class="state"></div>
   </div>
 </div>
-<a href="/deployment-requests/new"><paper-fab id="createButton" icon="add" style="position:fixed; left: 20px; top: 105px; background: #ff8f1c;"></paper-fab></a>
 <perpetuo-paging id="paging"
                  page-sizes="[20,50,100]" page-size="{{pageSize}}"
                  page="{{page}}" is-last-page="[[!hasNextPage]]"
@@ -117,6 +116,8 @@ class PerpetuoDeploymentRequestTable extends PolymerElement {
     <perpetuo-deployment-request-entry data="[[item]]"></perpetuo-deployment-request-entry>
   </template>
 </perpetuo-paging>
+
+<a href="/deployment-requests/new"><paper-fab id="createButton" icon="add" style="position:fixed; left: 20px; top: 105px; background: #ff8f1c;"></paper-fab></a>
 `;
   }
 
