@@ -251,7 +251,7 @@ class PerpetuoDeploymentRequestTable extends PolymerElement {
 
   onPageSizeChanged() {
     if (this.active) {
-      WindowLocationHelper.setQueryParam('page-size', this.pageSize);
+      WindowLocationHelper.setQueryParam(window, 'page-size', this.pageSize);
       this.refresh();
     }
   }
