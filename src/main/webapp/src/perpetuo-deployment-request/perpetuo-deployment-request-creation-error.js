@@ -22,7 +22,7 @@ h2 {
 }
 
 paper-button {
-  background-color: #f44336;
+  background-color: var(--perpetuo-red);
   color: #fff;
 }
 </style>

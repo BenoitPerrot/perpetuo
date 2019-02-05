@@ -99,7 +99,7 @@ perpetuo-deployment-state {
 }
 .operations[data-status=failed],
 .operations[data-status=flopped] {
-  border-color: #f44336;
+  border-color: var(--perpetuo-red);
 }
 .operations[data-status=inProgress] {
   border-color: var(--perpetuo-blue);
@@ -136,7 +136,7 @@ paper-card.actions {
 }
 
 .cancel {
-  background-color: #f44336;
+  background-color: var(--perpetuo-red);
   color: #fff;
 }
 .revert {
@@ -191,7 +191,7 @@ paper-card.actions {
 }
 #plan td .round[data-status=failed],
 #plan td .round[data-status=flopped] {
-  background-color: #f44336;
+  background-color: var(--perpetuo-red);
 }
 #plan td .round[data-status=inProgress] {
   background-color: var(--perpetuo-blue);

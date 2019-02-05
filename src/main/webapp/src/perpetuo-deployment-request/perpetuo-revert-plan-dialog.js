@@ -16,7 +16,7 @@ class PerpetuoRevertPlanDialog extends PolymerElement {
 }
 
 .cancel {
-  background-color: #f44336;
+  background-color: var(--perpetuo-red);
   color: #fff;
 }
 .revert {

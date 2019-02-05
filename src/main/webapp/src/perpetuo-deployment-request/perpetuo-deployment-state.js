@@ -15,7 +15,7 @@ class PerpetuoDeploymentState extends PolymerElement {
 }
 :host([state$=Failed]),
 :host([state$=Flopped]) {
-  color: #f44336;
+  color: var(--perpetuo-red);
 }
 :host([state$=Progress]) {
   color: var(--perpetuo-blue);

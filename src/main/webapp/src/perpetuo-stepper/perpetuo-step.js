@@ -130,7 +130,7 @@ paper-button:not([disabled]).green {
   color: #fff;
 }
 paper-button:not([disabled]).red {
-  background-color: #f44336;
+  background-color: var(--perpetuo-red);
   color: #fff;
 }
 paper-button:not([disabled]).white {
