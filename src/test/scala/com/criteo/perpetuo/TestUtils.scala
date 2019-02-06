@@ -263,6 +263,17 @@ trait SimpleScenarioTesting extends TestHelpers with TestDb with MockitoSugar {
       )
     }
 
+    def stop(): Option[(Int, Seq[String])] =
+      await(engine.stop(User(officerName), getDeploymentRequest.id, Some(currentState.next())))
+
+    def completeExecution(operationTrace: OperationTrace, targetStatuses: Map[String, Status.Code], executor: Option[String] = Some("http://executor")): Unit =
+      await(
+        for {
+          executionTraces <- crankshaft.dbBinding.findExecutionTracesByOperationTrace(operationTrace.id)
+          _ <- tryUpdateExecutionTraces(engine, executionTraces, ExecutionState.completed, "", executor, targetStatuses.map { case (name, code) => (TargetAtom(name), TargetAtomStatus(code, "")) })
+        } yield ()
+      )
+
     def state: DeploymentRequestState.Value =
       await(crankshaft.findDeploymentRequestById(getDeploymentRequest.id)).get.state.get
 

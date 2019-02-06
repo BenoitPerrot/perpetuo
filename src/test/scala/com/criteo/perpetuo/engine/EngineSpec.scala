@@ -2,8 +2,13 @@ package com.criteo.perpetuo.engine
 
 import com.criteo.perpetuo.SimpleScenarioTesting
 import com.criteo.perpetuo.auth.User
+import com.criteo.perpetuo.config.TestConfig
+import com.criteo.perpetuo.engine.executors.{TriggeredExecution, TriggeredExecutionFinder}
 import com.criteo.perpetuo.model.DeploymentRequestState._
 import com.criteo.perpetuo.model._
+import com.google.inject.{Module, Provides, Singleton}
+import com.twitter.inject.TwitterModule
+import org.mockito.Mockito.when
 import spray.json.DefaultJsonProtocol._
 import spray.json._
 
@@ -338,5 +343,128 @@ class EngineAutoRevertSpec extends SimpleScenarioTesting {
     r1.state shouldEqual deployed
     r2.state shouldEqual revertInProgress
     r3.state shouldEqual deployInProgress
+  }
+}
+
+class EngineStateUpdateSpec extends SimpleScenarioTesting {
+
+  private val href = "execution/1"
+
+  override protected def triggerMock = Some(href)
+
+  val executionMock = mock[TriggeredExecution]
+  when(executionMock.href).thenReturn(href)
+
+  override protected def extraModules: Seq[Module] = Seq(
+    new TwitterModule() {
+      @Singleton
+      @Provides
+      def providesExecutionFinder: TriggeredExecutionFinder =
+        new TriggeredExecutionFinder(TestConfig, null) {
+          override def apply[T](executionTrace: ShallowExecutionTrace): TriggeredExecution =
+            executionMock
+        }
+    }
+  )
+
+  val user = User("person")
+
+  test("Stepped deployment request has deployed state") {
+    val r = request("p1", "v1", Seq("earth"))
+    r.state shouldBe notStarted
+    r.step()
+    r.state shouldBe deployed
+  }
+
+  test("Failed deployment request has deployFailed state") {
+    val r = request("p2", "v1", Seq("earth"))
+    r.step(Status.productFailure)
+    r.state shouldBe deployFailed
+  }
+
+  test("Flopped deployment request has deployFlopped state") {
+    val r = request("p3", "v1", Seq("earth"))
+    r.step(Status.notDone)
+    r.state shouldBe deployFlopped
+  }
+
+  test("Retried deployment request has deployFailed state") {
+    val r = request("p4", "v1", Seq("earth"))
+    r.step(Status.notDone)
+    r.step(Status.hostFailure)
+    r.state shouldBe deployFailed
+  }
+
+  test("Multi-step deployment request has paused state") {
+    val r = request("p5", "v1", Seq("earth"), Seq("Mars"))
+    r.step(Status.success)
+    r.state shouldBe paused
+    r.step(Status.notDone)
+    r.state shouldBe deployFailed
+  }
+
+  test("Deployment request with updated trace has deployed state") {
+    val r = request("p6", "v1", Seq("earth"))
+    val op = r.startStep()
+    r.state shouldBe deployInProgress
+    r.completeExecution(op, Map("earth" -> Status.success))
+    r.state shouldBe deployed
+  }
+
+  test("Deployment request with updated trace has deployFlopped state") {
+    val r = request("p7", "v1", Seq("earth"))
+    val op = r.startStep()
+    r.state shouldBe deployInProgress
+    r.completeExecution(op, Map("earth" -> Status.notDone))
+    r.state shouldBe deployFlopped
+  }
+
+  test("Deployment request with updated trace has deployFailed state") {
+    val r = request("p8", "v1", Seq("earth"))
+    val op = r.startStep()
+    r.state shouldBe deployInProgress
+    r.completeExecution(op, Map("earth" -> Status.productFailure))
+    r.state shouldBe deployFailed
+  }
+
+  test("Multi-step deployment request with updated trace has paused and then deployed state") {
+    val r = request("p9", "v1", Seq("earth"), Seq("Mars"))
+    val op = r.startStep()
+    r.state shouldBe deployInProgress
+    r.completeExecution(op, Map("earth" -> Status.success))
+    r.state shouldBe paused
+
+    val op2 = r.startStep()
+    r.state shouldBe deployInProgress
+    r.completeExecution(op2, Map("Mars" -> Status.success))
+    r.state shouldBe deployed
+  }
+
+  test("Stopped deployment request has deployFlopped state") {
+    when(executionMock.stopper).thenReturn(Some(() => None))
+    val r = request("p10", "v1", Seq("earth"))
+    r.startStep()
+    r.state shouldBe deployInProgress
+    r.stop()
+    r.state shouldBe deployFlopped
+  }
+
+  test("Stopped multi-step deployment request has deployFailed state") {
+    when(executionMock.stopper).thenReturn(Some(() => None))
+    val r = request("p12", "v1", Seq("earth"), Seq("Mars"))
+    val op = r.startStep()
+    r.state shouldBe deployInProgress
+    r.completeExecution(op, Map("earth" -> Status.success))
+    r.state shouldBe paused
+    r.startStep()
+    r.stop()
+    r.state shouldBe deployFailed
+  }
+
+  test("Failing multi-target deployment request has deployFailed state") {
+    val r = request("p13", "v1", Seq("earth", "Mars"))
+    val op = r.startStep()
+    r.completeExecution(op, Map("earth" -> Status.success, "Mars" -> Status.hostFailure), None)
+    r.state shouldBe deployFailed
   }
 }
