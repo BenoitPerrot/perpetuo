@@ -16,16 +16,38 @@ class DbBindingSpec extends TestHelpers with TestDb {
   private val fuelFilter = new FuelFilter(TestConfig, dbBinding)
   private val crankshaft = new Crankshaft(dbBinding, fuelFilter, null, Seq(), null, null)
 
+  import slick.dbio.DBIOAction
+
   private def assessEffect(executions: Seq[Execution], planSteps: Seq[String], kind: Operation.Kind) =
     dbScenarios
       .insertEffect(executions, planSteps, kind)
       .flatMap { op =>
+        val inProgressState = kind match {
+          case Operation.deploy => DeploymentRequestState.deployInProgress
+          case Operation.revert => DeploymentRequestState.revertInProgress
+        }
+        dbBinding.dbContext.db.run(dbBinding.updatingDeploymentRequestState(op.deploymentRequest.id, inProgressState, false))
         val depReq = op.deploymentRequest
         crankshaft
           .assessDeploymentState(depReq)
           .flatMap { runningState =>
-            dbBinding.dbContext.db.run(dbBinding.closingOperationTrace(op))
-              .flatMap(_ => crankshaft.assessDeploymentState(depReq))
+            dbBinding.dbContext.db.run(dbBinding.closingOperationTrace(op)
+              .flatMap { case (trace, updated) =>
+                dbBinding
+                  .findingDeploymentRequestAndEffects(trace.deploymentRequest.id)
+                  .map(_.get)
+                  .map { case (deploymentRequest, deploymentPlanSteps, effects) =>
+                    crankshaft.computeDeploymentState(deploymentRequest, deploymentPlanSteps, effects) match {
+                      case s@(_: NotStarted | _: InProgressState | _: Abandoned) => throw new IllegalStateException(s"Unexpected $updated state $s while closing ${trace.kind} operation")
+                      case s => s
+                    }
+                  }
+                  .flatMap { state =>
+                    dbBinding.updatingDeploymentRequestState(trace.deploymentRequest.id, DeploymentRequestState.from(state), incrementStateStamp = updated)
+                      .flatMap(_ => DBIOAction.successful(state))
+                  }
+              }
+            )
               .map { closedState =>
                 runningState shouldBe an[InProgressState]
                 closedState
