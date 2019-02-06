@@ -86,10 +86,31 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
           .map(_.get)
           .map((outdatingId, _))
       )
-      .map { case (outdatingId, (_, deploymentPlanSteps, effects)) =>
+      .map { case (outdatingId, (depReq, deploymentPlanSteps, effects)) =>
         assert(deploymentPlanSteps.nonEmpty)
-        computeDeploymentState(deploymentRequest, deploymentPlanSteps, effects, outdatingId)
+        toDeploymentState(depReq, deploymentPlanSteps, effects, outdatingId)
       }
+
+  private def toDeploymentState(deploymentRequest: DeploymentRequest, deploymentPlanSteps: Seq[DeploymentPlanStep], effects: Seq[OperationEffect], outdatingId: Option[Long] = None): DeploymentState = {
+    val sortedEffects = effects.sortBy(-_.operationTrace.id)
+    val idToDeploymentPlanStep = deploymentPlanSteps.map(planStep => planStep.id -> planStep).toMap
+    val operatedPlanSteps = sortedEffects.flatMap(_.deploymentPlanStepIds).distinct.flatMap(idToDeploymentPlanStep.get)
+    val latestEffect = sortedEffects.headOption
+    val latestOperatedPlanStep = latestEffect.map(effect => idToDeploymentPlanStep(effect.deploymentPlanStepIds.head))
+
+    deploymentRequest.state.get match {
+      case DeploymentRequestState.abandoned => Abandoned(deploymentRequest, deploymentPlanSteps, effects, outdatingId)
+      case DeploymentRequestState.notStarted => NotStarted(deploymentRequest, deploymentPlanSteps, sortedEffects, deploymentPlanSteps.head, outdatingId)
+      case DeploymentRequestState.deployInProgress => DeployInProgress(deploymentRequest, deploymentPlanSteps, sortedEffects, latestEffect.get, outdatingId)
+      case DeploymentRequestState.deployFlopped => DeployFlopped(deploymentRequest, deploymentPlanSteps, sortedEffects, latestOperatedPlanStep.get, outdatingId)
+      case DeploymentRequestState.deployFailed => DeployFailed(deploymentRequest, deploymentPlanSteps, sortedEffects, latestOperatedPlanStep.get, operatedPlanSteps, outdatingId)
+      case DeploymentRequestState.deployed => Deployed(deploymentRequest, deploymentPlanSteps, sortedEffects, operatedPlanSteps, outdatingId)
+      case DeploymentRequestState.revertInProgress => RevertInProgress(deploymentRequest, deploymentPlanSteps, sortedEffects, latestEffect.get, outdatingId)
+      case DeploymentRequestState.revertFailed => RevertFailed(deploymentRequest, deploymentPlanSteps, sortedEffects, latestEffect.get.deploymentPlanStepIds.flatMap(idToDeploymentPlanStep.get), outdatingId)
+      case DeploymentRequestState.reverted => Reverted(deploymentRequest, deploymentPlanSteps, sortedEffects, outdatingId)
+      case DeploymentRequestState.paused => Paused(deploymentRequest, deploymentPlanSteps, sortedEffects, findNextPlanStep(deploymentPlanSteps, latestOperatedPlanStep.get.id).get, latestOperatedPlanStep.get, operatedPlanSteps, outdatingId)
+    }
+  }
 
   def computeDeploymentState(deploymentRequest: DeploymentRequest, deploymentPlanSteps: Seq[DeploymentPlanStep], effects: Seq[OperationEffect], outdatingId: Option[Long] = None): DeploymentState = {
     val sortedEffects = effects.sortBy(-_.operationTrace.id)
