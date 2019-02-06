@@ -411,31 +411,37 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
 
   def deviseRevertPlan(deploymentRequest: DeploymentRequest): Future[(Set[TargetAtom], Iterable[(ExecutionSpecification, Set[TargetAtom])])] = {
     val devisingRevertPlan =
-      assessingDeploymentState(deploymentRequest)
-        .flatMap {
-          case s@(_: DeployFailed | _: Paused) if s.isOutdated && fuelFilter.withTransactions =>
-            // fixme: find another way to unblock situations where it's outdated yet holding transaction locks
-            dbBinding.findingExecutionSpecificationsForRevert(deploymentRequest)
+      assessReversibility(deploymentRequest)
+          .flatMap(_.fold(DBIO.failed, _ => dbBinding.findingExecutionSpecificationsForRevert(deploymentRequest)))
 
-          case s if s.isOutdated =>
-            DBIO.failed(new DeploymentRequestOutdated)
-
-          case s: Abandoned =>
-            DBIO.failed(new DeploymentRequestAbandoned)
-
-          case s: Reverted =>
-            DBIO.failed(new DeploymentTransactionClosed)
-
-          case s@(_: NotStarted | _: DeployFlopped) =>
-            DBIO.failed(new NothingToRevert)
-
-          case s@(_: RevertInProgress | _: DeployInProgress) =>
-            DBIO.failed(new OperationRunning)
-
-          case _: RevertFailed | _: DeployFailed | _: Paused | _: Deployed =>
-            dbBinding.findingExecutionSpecificationsForRevert(deploymentRequest)
-        }
     dbBinding.dbContext.db.run(devisingRevertPlan)
+  }
+
+  def assessReversibility(deploymentRequest: DeploymentRequest): DBIOAction[Either[OperationInapplicableForEffects, RevertibleState], NoStream, Effect.Read] = {
+    assessingDeploymentState(deploymentRequest)
+      .map {
+        case s@(_: DeployFailed | _: Paused) if s.isOutdated && fuelFilter.withTransactions =>
+          // fixme: find another way to unblock situations where it's outdated yet holding transaction locks
+          Right(s.asInstanceOf[RevertibleState])
+
+        case s if s.isOutdated =>
+          Left(new DeploymentRequestOutdated)
+
+        case _: Abandoned =>
+          Left(new DeploymentRequestAbandoned)
+
+        case _: Reverted =>
+          Left(new DeploymentTransactionClosed)
+
+        case _@(_: NotStarted | _: DeployFlopped) =>
+          Left(new NothingToRevert)
+
+        case _@(_: RevertInProgress | _: DeployInProgress) =>
+          Left(new OperationRunning)
+
+        case s: RevertibleState =>
+          Right(s)
+      }
   }
 
   def updateExecutionTrace(id: Long, executionState: ExecutionState, detail: String, href: Option[String], statusMap: Map[TargetAtom, TargetAtomStatus] = Map()): Future[(OperationTrace, Boolean)] =

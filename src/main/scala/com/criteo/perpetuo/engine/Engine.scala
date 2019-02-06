@@ -216,30 +216,7 @@ class Engine @Inject()(appConfig: AppConfig,
         }
 
       val gettingRevertSpecifics =
-        crankshaft.assessingDeploymentState(deploymentRequest)
-          .map {
-            case s@(_: DeployFailed | _: Paused) if s.isOutdated && fuelFilter.withTransactions =>
-              // fixme: find another way to unblock situations where it's outdated yet holding transaction locks
-              Right(s.asInstanceOf[RevertibleState])
-
-            case s if s.isOutdated =>
-              Left(new DeploymentRequestOutdated)
-
-            case _: Abandoned =>
-              Left(new DeploymentRequestAbandoned)
-
-            case _: Reverted =>
-              Left(new DeploymentTransactionClosed)
-
-            case _@(_: NotStarted | _: DeployFlopped) =>
-              Left(new NothingToRevert)
-
-            case _@(_: RevertInProgress | _: DeployInProgress) =>
-              Left(new OperationRunning)
-
-            case s: RevertibleState =>
-              Right(s)
-          }
+        crankshaft.assessReversibility(deploymentRequest)
           .flatMap(_.fold(DBIOAction.failed, s => evaluatePreconditions(s.revertScope, s.effects)))
           .andThen(crankshaft.getRevertSpecifics(deploymentRequest, defaultVersion).map((_, ())))
 
