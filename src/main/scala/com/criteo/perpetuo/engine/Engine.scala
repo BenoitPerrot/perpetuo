@@ -280,13 +280,14 @@ class Engine @Inject()(appConfig: AppConfig,
 
   def abandon(user: User, deploymentRequestId: Long): Future[Option[Unit]] =
     withDeploymentRequest(deploymentRequestId) { deploymentRequest =>
-      crankshaft.assessDeploymentState(deploymentRequest).flatMap { state =>
-        val targetSuperset = getTargetSuperset(deploymentRequest.product.name, deploymentRequest.version, state.deploymentPlanSteps.map(_.parsedTarget))
-        if (permissions.isAuthorized(user, DeploymentAction.abandonOperation, Operation.deploy, deploymentRequest.product.name, targetSuperset))
-          crankshaft.abandon(deploymentRequest)
-        else
-          Future.failed(PermissionDenied())
-      }
+      crankshaft.findDeploymentPlanSteps(deploymentRequest)
+        .flatMap { deploymentPlanSteps =>
+          val targetSuperset = getTargetSuperset(deploymentRequest.product.name, deploymentRequest.version, deploymentPlanSteps.map(_.parsedTarget))
+          if (permissions.isAuthorized(user, DeploymentAction.abandonOperation, Operation.deploy, deploymentRequest.product.name, targetSuperset))
+            crankshaft.abandon(deploymentRequest)
+          else
+            Future.failed(PermissionDenied())
+        }
     }
 
   def findDeploymentRequestsAndPlan(where: Seq[Map[String, Any]], limit: Int, offset: Int): Future[Seq[DeploymentPlan]] =

@@ -634,4 +634,8 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
 
   def findAutoRevertibleDeploymentRequestIdsAndStateStamps: Future[Seq[(Long, Int)]] =
     dbBinding.findAutoRevertibleDeploymentRequestIdsAndStateStamps
+
+  def findDeploymentPlanSteps(deploymentRequest: DeploymentRequest): Future[Seq[DeploymentPlanStep]] = {
+    dbBinding.dbContext.db.run(dbBinding.findingDeploymentPlanSteps(deploymentRequest))
+  }
 }

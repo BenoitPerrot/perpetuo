@@ -52,4 +52,9 @@ trait DeploymentPlanStepBinder extends TableBinder {
   def findingDeploymentPlanStep(deploymentRequest: DeploymentRequest, deploymentPlanStepId: Long): DBIOAction[Option[DeploymentPlanStep], NoStream, Effect.Read] =
     deploymentPlanStepQuery.filter(_.id === deploymentPlanStepId).result
       .map(_.headOption.map(_.toDeploymentPlanStep(deploymentRequest)))
+
+  def findingDeploymentPlanSteps(deploymentRequest: DeploymentRequest): DBIOAction[Seq[DeploymentPlanStep], NoStream, Effect.Read] = {
+    deploymentPlanStepQuery.filter(_.deploymentRequestId === deploymentRequest.id).result
+      .map(_.map(_.toDeploymentPlanStep(deploymentRequest)))
+  }
 }
