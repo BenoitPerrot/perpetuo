@@ -26,4 +26,9 @@ class FutureLoadingCache[A, B](cache: LoadingCache[A, Future[B]]) {
       case e@(_: ExecutionException | _: UncheckedExecutionException) => throw e.getCause
     }
   }
+
+  def invalidate(key: A): FutureLoadingCache[A, B] = {
+    cache.invalidate(key)
+    this
+  }
 }
