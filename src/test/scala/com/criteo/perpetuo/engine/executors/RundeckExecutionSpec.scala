@@ -17,9 +17,9 @@ class RundeckExecutionSpec extends Test with MockitoSugar {
 
   private val rundeckConfig = TestConfig.executorConfig("rundeck")
 
-  private class RundeckClientMock(contentMock: String, statusMock: Int) extends RundeckClient( "localhost", rundeckConfig.tryGetInt("port"), rundeckConfig.tryGetBoolean("ssl"), rundeckConfig.tryGetString("token")) {
+  private class RundeckClientMock(statusMock: Int, contentMock: String) extends RundeckClient( "localhost", rundeckConfig.tryGetInt("port"), rundeckConfig.tryGetBoolean("ssl"), rundeckConfig.tryGetString("token")) {
     def this(abortStatus: String, executionStatus: String, eventuallyCompleted: Boolean = false) =
-      this(s"""{"abort": {"status": "$abortStatus"}, "execution": {"status": "$executionStatus"}, "execCompleted": $eventuallyCompleted}""", 200)
+      this(200, s"""{"abort": {"status": "$abortStatus"}, "execution": {"status": "$executionStatus"}, "execCompleted": $eventuallyCompleted}""")
 
     override protected val baseWaitInterval: Duration = 1.millisecond
     override protected val terminationGlobalTimeout: Duration = 1.second
@@ -71,15 +71,15 @@ class RundeckExecutionSpec extends Test with MockitoSugar {
   }
 
   test("A job unknown from Rundeck is considered as unreachable") {
-    val execution = new RundeckExecutionWithClientMock(new RundeckClientMock("{}", 404))
+    val execution = new RundeckExecutionWithClientMock(new RundeckClientMock(404, "{}"))
     execution.stopper.get() shouldEqual Some(ExecutionState.unreachable)
   }
 
   test("Raising an exception in case Rundeck doesn't answer or with an error different than 404") {
-    val executionNotJson = new RundeckExecutionWithClientMock(new RundeckClientMock("<NOT JSON CODE>", 200))
+    val executionNotJson = new RundeckExecutionWithClientMock(new RundeckClientMock(200, "<NOT JSON CODE>"))
     a[ParsingException] shouldBe thrownBy(executionNotJson.stopper.get())
 
-    val executionForbidden = new RundeckExecutionWithClientMock(new RundeckClientMock("", 403))
+    val executionForbidden = new RundeckExecutionWithClientMock(new RundeckClientMock(403, ""))
     a[RuntimeException] shouldBe thrownBy(executionForbidden.stopper.get())
   }
 }
