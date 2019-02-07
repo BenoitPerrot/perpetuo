@@ -1,25 +1,16 @@
 import { PolymerElement, html } from '/node_modules/@polymer/polymer/polymer-element.js'
 
-import '/node_modules/@polymer/iron-dropdown/iron-dropdown.js'
 import '/node_modules/@polymer/iron-input/iron-input.js'
 import '/node_modules/@polymer/paper-input/paper-input-container.js'
-import '/node_modules/@polymer/paper-item/paper-item.js'
-import '/node_modules/@polymer/paper-listbox/paper-listbox.js'
-import '/node_modules/@polymer/paper-styles/shadow.js'
 
 import '../perpetuo-chip/perpetuo-chip.js'
-import Perpetuo from '../perpetuo-lib/perpetuo-lib.js'
-import { Suggester } from '../perpetuo-lib/perpetuo-suggester.js';
+import '../perpetuo-suggestion-dropdown/perpetuo-suggestion-dropdown.js'
 
 class PerpetuoListEditor extends PolymerElement {
 
   static get template() {
     return html`
 <style>
-paper-listbox {
-  cursor: pointer;
-}
-
 paper-input-container input {
   height: 48px;
   @apply --paper-input-container-shared-input-style;
@@ -38,25 +29,13 @@ paper-input-container {
 :host(:not([selected-item])) perpetuo-chip {
   display: none;
 }
-
-#dropdown {
-  @apply --shadow-elevation-2dp;
-}
 </style>
 <paper-input-container always-float-label="[[selectedItem]]" disabled$="[[disabled]]">
   <label slot="label">[[label]]</label>
   <perpetuo-chip slot="prefix" label="[[selectedItem]]" disabled="[[disabled]]" index="[[index]]" on-delete-tap="removeElement"></perpetuo-chip>
   <iron-input slot="input"><input id="filterEditor" on-focus="onFilterEditorFocus" disabled$="[[computeInputDisabled(disabled, selectedItem)]]" on-keydown="onInputKeyDown" value="{{filter::input}}"></input></iron-input>
 </paper-input-container>
-<div>
-  <iron-dropdown id="dropdown" no-auto-focus no-cancel-on-outside-click>
-    <paper-listbox id="listbox" slot="dropdown-content" on-selected-changed="onSuggestionSelected">
-      <template is="dom-repeat" items="[[filteredChoices]]">
-        <paper-item>[[item]]</paper-item>
-      </template>
-    </paper-listbox>
-  </iron-dropdown>
-</div>
+<perpetuo-suggestion-dropdown id="dropdown" choices="[[choices]]" lru-path="[[lruPath]]" max-count="[[maxCount]]" filter="[[filter]]" on-suggestion-selected="onSuggestionSelected"></perpetuo-suggestion-dropdown>
 `;
   }
 
@@ -70,20 +49,12 @@ paper-input-container {
       filter: { type: String, notify: true },
       choices: Array,
       lruPath: String,
-      filteredChoices: { type: Array, value: () => [], observer: 'onFilteredChoicesChanged' },
       selectedItem: { type: Object, notify: true, reflectToAttribute: true }
     };
   }
 
-  static get observers() {
-    return [
-      'applyFilter(choices, maxCount, filter)'
-    ];
-  }
-
   ready() {
     super.ready();
-    this.$.dropdown.focusTarget = this.$.filterEditor;
 
     this.addEventListener('blur', e => {
       this.$.dropdown.close();
@@ -108,47 +79,26 @@ paper-input-container {
         this.selectedItem = null;
       }
     } else if (e.key === 'ArrowDown') {
-      this.$.listbox.focus();
+      this.$.dropdown.open();
+      this.$.dropdown.focus();
     }
-  }
-
-  onFilteredChoicesChanged() {
-    this.$.dropdown.notifyResize();
-  }
-
-  applyFilter(choices, maxCount, filter) {
-    const preferred = this.lruPath ? Perpetuo.Util.readArrayFromLocalStorage(this.lruPath, maxCount) : choices;
-    this.filteredChoices =
-      (filter ? Perpetuo.Suggester.suggest(filter, choices, preferred) : preferred).slice(0, this.maxCount);
   }
 
   onSuggestionSelected(e) {
     if (e.detail.value !== null) {
-      this.addElement(this.filteredChoices[e.detail.value]);
+      this.addElement(e.detail.value);
     }
   }
 
   select(e) {
-    const i = this.filteredChoices.findIndex(_ => _ == e);
-    if (0 <= i) {
-      this.$.listbox.selected = i;
-    }
+    this.$.dropdown.select(e);
   }
 
   addElement(value) {
     this.selectedItem = value;
-    this.$.listbox.select(null);
+    this.$.dropdown.unselect();
     this.$.dropdown.close();
     this.filter = '';
-    if (this.lruPath) {
-      Perpetuo.Util.writeArrayToLocalStorage(
-        this.lruPath,
-        new Perpetuo.LeastRecentlyUsedCache(this.maxCount, Perpetuo.Util.readArrayFromLocalStorage(this.lruPath, this.maxCount))
-          .insert(value)
-          .items
-      );
-      this.applyFilter(this.choices, this.maxCount, this.filter);
-    }
   }
 
   removeElement(e) {
