@@ -15,15 +15,36 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}
 
-// TODO: extract the most Engine-oriented tests into an EngineSpec
-class CrankshaftSpec extends SimpleScenarioTesting {
-  private def createDeploymentRequest(productName: String,
-                                      version: Version,
-                                      plan: Seq[ProtoDeploymentPlanStep],
-                                      comment: String,
-                                      creator: String): Future[DeploymentRequest] =
+
+trait CrankshaftSimpleScenarioTesting extends SimpleScenarioTesting {
+
+  protected def createDeploymentRequest(productName: String,
+    version: Version,
+    plan: Seq[ProtoDeploymentPlanStep],
+    comment: String,
+    creator: String): Future[DeploymentRequest] =
     crankshaft.createDeploymentPlan(ProtoDeploymentRequest(productName, version, plan, comment, creator))
       .map(_.deploymentRequest)
+
+  def mockDeployExecution(productName: String, v: String, targetAtomToStatus: Map[String, Status.Code]): Future[(DeploymentRequest, Long)] = {
+    for {
+      deploymentRequest <- createDeploymentRequest(productName, Version(JsString(v)), Seq(ProtoDeploymentPlanStep("", targetAtomToStatus.keys.toJson, "")), "", "r.equestor")
+      operationTrace <- step(deploymentRequest, Some(0), "s.tarter")
+      executionSpecIds <- crankshaft.dbBinding.findExecutionSpecIdsByOperationTrace(operationTrace.id)
+      _ <- closeOperation(operationTrace, targetAtomToStatus)
+    } yield (deploymentRequest, executionSpecIds.head)
+  }
+
+  def mockRevertExecution(deploymentRequest: DeploymentRequest, targetAtomToStatus: Map[String, Status.Code], defaultVersion: Option[Version] = None): Future[OperationTrace] = {
+    for {
+      operationTrace <- revert(deploymentRequest, None, "r.everter", defaultVersion)
+      _ <- closeOperation(operationTrace, targetAtomToStatus)
+    } yield operationTrace
+  }
+}
+
+// TODO: extract the most Engine-oriented tests into an EngineSpec
+class CrankshaftSpec extends CrankshaftSimpleScenarioTesting {
 
   private def hasOpenExecutionTracesForOperation(operationTraceId: Long) =
     dbContext.db.run(crankshaft.dbBinding.hasOpenExecutionTracesForOperation(operationTraceId))
@@ -68,21 +89,6 @@ class CrankshaftSpec extends SimpleScenarioTesting {
     )
   }
 
-  def mockDeployExecution(productName: String, v: String, targetAtomToStatus: Map[String, Status.Code]): Future[(DeploymentRequest, Long)] = {
-    for {
-      deploymentRequest <- createDeploymentRequest(productName, Version(JsString(v)), Seq(ProtoDeploymentPlanStep("", targetAtomToStatus.keys.toJson, "")), "", "r.equestor")
-      operationTrace <- step(deploymentRequest, Some(0), "s.tarter")
-      executionSpecIds <- crankshaft.dbBinding.findExecutionSpecIdsByOperationTrace(operationTrace.id)
-      _ <- closeOperation(operationTrace, targetAtomToStatus)
-    } yield (deploymentRequest, executionSpecIds.head)
-  }
-
-  def mockRevertExecution(deploymentRequest: DeploymentRequest, targetAtomToStatus: Map[String, Status.Code], defaultVersion: Option[Version] = None): Future[Long] = {
-    for {
-      operationTrace <- revert(deploymentRequest, None, "r.everter", defaultVersion)
-      _ <- closeOperation(operationTrace, targetAtomToStatus)
-    } yield operationTrace.id
-  }
 
   test("Crankshaft checks that an operation can be started only if previous transactions on the same product have been completed") {
     await(
@@ -273,7 +279,7 @@ class CrankshaftSpec extends SimpleScenarioTesting {
         // Status = tic: pony@22, tac: pony@22
 
         // Revert the last deployment request
-        revertOperationTraceIdA <- mockRevertExecution(secondDeploymentRequest, Map("tic" -> Status.success, "tac" -> Status.hostFailure), None)
+        revertOperationTraceIdA <- mockRevertExecution(secondDeploymentRequest, Map("tic" -> Status.success, "tac" -> Status.hostFailure), None).map(_.id)
         revertExecutionSpecIdsA <- crankshaft.dbBinding.findExecutionSpecIdsByOperationTrace(revertOperationTraceIdA)
         // Status = tic: pony@11, tac: pony@11
 
@@ -284,7 +290,7 @@ class CrankshaftSpec extends SimpleScenarioTesting {
         stateOfSecondA <- crankshaft.assessDeploymentState(secondDeploymentRequest)
 
         // Revert the last deployment request
-        revertOperationTraceIdB <- mockRevertExecution(thirdDeploymentRequest, Map("tic" -> Status.success, "tac" -> Status.success), None)
+        revertOperationTraceIdB <- mockRevertExecution(thirdDeploymentRequest, Map("tic" -> Status.success, "tac" -> Status.success), None).map(_.id)
         revertExecutionSpecIdsB <- crankshaft.dbBinding.findExecutionSpecIdsByOperationTrace(revertOperationTraceIdB)
         // Status = tic: pony@11, tac: pony@11
 
@@ -788,30 +794,7 @@ class CrankshaftWithUnknownHrefSpec extends SimpleScenarioTesting {
   }
 }
 
-class CrankshaftOutdatedRequests extends SimpleScenarioTesting {
-  private def createDeploymentRequest(productName: String,
-                                      version: Version,
-                                      plan: Seq[ProtoDeploymentPlanStep],
-                                      comment: String,
-                                      creator: String): Future[DeploymentRequest] =
-    crankshaft.createDeploymentPlan(ProtoDeploymentRequest(productName, version, plan, comment, creator))
-      .map(_.deploymentRequest)
-
-  def mockDeployExecution(productName: String, v: String, targetAtomToStatus: Map[String, Status.Code]): Future[(DeploymentRequest, Long)] = {
-    for {
-      deploymentRequest <- createDeploymentRequest(productName, Version(JsString(v)), Seq(ProtoDeploymentPlanStep("", targetAtomToStatus.keys.toJson, "")), "", "r.equestor")
-      operationTrace <- step(deploymentRequest, Some(0), "s.tarter")
-      executionSpecIds <- crankshaft.dbBinding.findExecutionSpecIdsByOperationTrace(operationTrace.id)
-      _ <- closeOperation(operationTrace, targetAtomToStatus)
-    } yield (deploymentRequest, executionSpecIds.head)
-  }
-
-  def mockRevertExecution(deploymentRequest: DeploymentRequest, targetAtomToStatus: Map[String, Status.Code], defaultVersion: Option[Version] = None): Future[OperationTrace] = {
-    for {
-      operationTrace <- revert(deploymentRequest, None, "r.everter", defaultVersion)
-      _ <- closeOperation(operationTrace, targetAtomToStatus)
-    } yield operationTrace
-  }
+class CrankshaftOutdatedRequests extends CrankshaftSimpleScenarioTesting {
 
   val productName = "product"
 
