@@ -1,6 +1,6 @@
 package com.criteo.perpetuo.dao
 
-import com.criteo.perpetuo.model.ProtoDeploymentPlanStep
+import com.criteo.perpetuo.model.{ProtoDeploymentPlanStep, ProtoDeploymentRequest, Version}
 import com.criteo.perpetuo.{SimpleScenarioTesting, TestHelpers}
 import spray.json.{JsArray, JsString}
 
@@ -13,24 +13,30 @@ class StepOperationXRefSpec
     with OperationTraceBinder
     with DeploymentPlanStepBinder
     with StepOperationXRefBinder
+    with DeploymentRequestInserter
     with TestHelpers {
 
   test("Deployment plan steps can be inserted and retrieved") {
-    val op1 = request("humanity", "v1", Seq("af")).step()
-    val depReq = op1.deploymentRequest
+    val productName = "humanity"
+    val deploymentSteps = Seq(
+      ProtoDeploymentPlanStep("Eurasia", JsArray(JsString("eu"), JsString("as")), ""),
+      ProtoDeploymentPlanStep("America", JsArray(JsString("am")), "")
+    )
     await(
       for {
-        step2 <- insertDeploymentPlanStep(depReq, ProtoDeploymentPlanStep("Eurasia", JsArray(JsString("eu"), JsString("as")), ""))
-        _ <- insertDeploymentPlanStep(depReq, ProtoDeploymentPlanStep("America", JsArray(JsString("am")), ""))
+        _ <- upsertProduct(productName)
+        plan <- insertDeploymentRequest(ProtoDeploymentRequest(productName, Version("\"v42\""), deploymentSteps, "", "c.reator"))
+        Seq(step1, step2) = plan.steps
+        op1 <- step(plan.deploymentRequest, Some(0), "initiator")
+        _ <- closeOperation(op1)
         xrefsStep2NotStarted <- findStepOperationXRefs(step2)
-        op2 <- step(depReq, Some(1), "initiator")
+        op2 <- step(plan.deploymentRequest, Some(1), "initiator")
         xrefsOp1 <- findStepOperationXRefs(op1)
         xrefsOp2 <- findStepOperationXRefs(op2)
-        // todo: add tests when a specific plan step will be picked by a deploy
       } yield {
         xrefsStep2NotStarted.size shouldBe 0
-        xrefsOp1.map(x => x.deploymentPlanStepId) shouldEqual Seq(step2.id - 1) // op1 has been applied on the first step only
-        xrefsOp2.map(x => x.deploymentPlanStepId) shouldEqual Seq(step2.id) // op2 has been applied on second steps only
+        xrefsOp1.map(x => x.deploymentPlanStepId) shouldEqual Seq(step1.id) // op1 has been applied on the first step only
+        xrefsOp2.map(x => x.deploymentPlanStepId) shouldEqual Seq(step2.id) // op2 has been applied on the second step only
         xrefsOp1.map(x => x.operationTraceId).toSet shouldEqual Set(op1.id)
         xrefsOp2.map(x => x.operationTraceId).toSet shouldEqual Set(op2.id)
       }
