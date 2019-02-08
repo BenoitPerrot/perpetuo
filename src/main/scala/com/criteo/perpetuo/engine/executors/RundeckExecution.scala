@@ -12,13 +12,7 @@ import com.typesafe.config.Config
 
 
 class RundeckExecution(config: Config, val href: String) extends TriggeredExecution {
-  val (host, executionNumber) = {
-    val matcher = RundeckExecution.hrefPattern.matcher(href)
-    if (!matcher.matches())
-      throw new IllegalArgumentException(s"Cannot find a proper Rundeck executor from $href")
-
-    (matcher.group(1), matcher.group(3).toInt)
-  }
+  val (host, executionNumber) = RundeckExecution.parseHref(href)
 
   protected val client: RundeckClient = new RundeckClient(host, config.tryGetInt("port"), config.tryGetBoolean("ssl"), config.tryGetString("token"))
 
@@ -43,4 +37,13 @@ class RundeckExecutionFactory(injector: Injector) extends TriggeredExecutionFact
 
 private object RundeckExecution {
   val hrefPattern: Pattern = Pattern.compile("https?://([^/:]+)(:[0-9]+)?/.+/([0-9]+)")
+
+  /** Return the host name and the execution number out of the href of a Rundeck execution */
+  def parseHref(href: String): (String, Int) = {
+    val matcher = hrefPattern.matcher(href)
+    if (!matcher.matches())
+      throw new IllegalArgumentException(s"Cannot find a proper Rundeck executor from $href")
+
+    (matcher.group(1), matcher.group(3).toInt)
+  }
 }

@@ -31,18 +31,18 @@ class RundeckExecutionSpec extends Test with MockitoSugar {
 
   class RundeckExecutionWithClientMock(override val client: RundeckClient) extends RundeckExecution(rundeckConfig, "https://rundeck.criteo/project/my-project/execute/show/54")
 
-  test("A RundeckExecution is built from a the permalink returned by Rundeck on trigger") {
-    val remote = new RundeckExecution(rundeckConfig, "https://rundeck.criteo/project/my-project/executcriteon/show/42")
-    remote.host shouldEqual "rundeck.criteo"
-    remote.executionNumber shouldEqual 42
+  test("RundeckExecution successfully parses a valid href") {
+    val (host1, execNumber1) = RundeckExecution.parseHref("https://rundeck.criteo/project/my-project/executcriteon/show/42")
+    host1 shouldEqual "rundeck.criteo"
+    execNumber1 shouldEqual 42
 
-    val local = new RundeckExecution(rundeckConfig, "http://localhost:4440/project/my-project/execution/show/51")
-    local.host shouldEqual "localhost"
-    local.executionNumber shouldEqual 51
+    val (host2, execNumber2) = RundeckExecution.parseHref("http://localhost:4440/project/my-project/execution/show/51")
+    host2 shouldEqual "localhost"
+    execNumber2 shouldEqual 51
   }
 
-  test("If a href makes no sense to the assigned execution factory, the instantiation must behave appropriately") {
-    val exc = the[IllegalArgumentException] thrownBy new RundeckExecution(rundeckConfig, "http://rundeck.criteo/menu/home")
+  test("If an href makes no sense to RundeckExecution, it fails accordingly") {
+    val exc = the[IllegalArgumentException] thrownBy RundeckExecution.parseHref("http://rundeck.criteo/menu/home")
     exc.getMessage shouldEqual "Cannot find a proper Rundeck executor from http://rundeck.criteo/menu/home"
   }
 
