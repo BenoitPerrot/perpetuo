@@ -330,7 +330,7 @@ paper-progress {
     super();
 
     this.client = new Perpetuo.Client();
-    this.refresher = new Perpetuo.AsyncRepeater(() => this.refresh(), 1000);
+    this.refresher = new Perpetuo.AsyncRepeater(() => this.refresh(), 5000);
   }
 
   onDeploymentRequestIdChanged() {
