@@ -1,7 +1,6 @@
 package com.criteo.perpetuo.engine
 
 import com.criteo.perpetuo.app.RestApi
-import com.criteo.perpetuo.config.AppConfig
 import com.criteo.perpetuo.dao.{DBIOrw, DBIOrwt, DbBinding}
 import com.criteo.perpetuo.engine.dispatchers.TargetDispatcher
 import com.criteo.perpetuo.engine.executors.TriggeredExecutionFinder
