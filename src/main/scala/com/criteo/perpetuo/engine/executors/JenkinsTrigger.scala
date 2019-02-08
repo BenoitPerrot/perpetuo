@@ -9,7 +9,7 @@ import com.typesafe.config.Config
 import scala.concurrent.Future
 
 class JenkinsTrigger(client: JenkinsClient,
-                     val jobToken: Option[String],
+                     jobToken: Option[String],
                      jobName: String) extends ExecutionTrigger {
   def this(config: Config) = this(
     new JenkinsClient(config.getString("host"), config.tryGetInt("port"), config.tryGetBoolean("ssl"), config.tryGetString("username"), config.tryGetString("password")),
