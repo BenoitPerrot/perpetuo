@@ -5,6 +5,7 @@ import com.criteo.perpetuo.config.AppConfig
 import com.criteo.perpetuo.config.ConfigSyntacticSugar._
 import com.criteo.perpetuo.metrics
 import com.criteo.perpetuo.metrics.HttpMonitoringFilter
+import com.criteo.perpetuo.util.tryInstantiateWithArgs
 import com.jakehschwartz.finatra.swagger.DocsController
 import com.samstarling.prometheusfinagle.PrometheusStatsReceiver
 import com.samstarling.prometheusfinagle.metrics.Telemetry
@@ -44,7 +45,7 @@ class Server extends HttpServer {
     new AuthModule(appConfig.config.getConfig("auth")),
     new SwaggerModule()
   ) ++ appConfig.config.tryGetStringList("extraModules").getOrElse(Seq())
-      .map(moduleName => injector.instance(Class.forName(moduleName)).asInstanceOf[TwitterModule])
+      .map(moduleName => tryInstantiateWithArgs(Class.forName(moduleName).asInstanceOf[Class[TwitterModule]], Seq()).get)
 
   override def configureHttpServer(server: Http.Server): Http.Server = {
     val statsReceiver = new PrometheusStatsReceiver(registry)
