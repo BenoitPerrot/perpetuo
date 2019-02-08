@@ -16,7 +16,7 @@ import spray.json._
 
 
 /** HTTP client for a basic usage of an HTTP API hosted on a single node */
-class SingleNodeHttpClient(hostName: String, port: Option[Int], ssl: Option[Boolean],
+class SingleNodeHttpClient(val hostName: String, port: Option[Int], ssl: Option[Boolean],
                            connectionTimeout: Duration, requestTimeout: Duration, minimumDelayBetweenRetries: Duration,
                            retries: Int) extends Logging {
 

@@ -17,7 +17,7 @@ class JenkinsTrigger(client: JenkinsClient,
     config.getString("jobName")
   )
 
-  override def toString: String = s"Jenkins (on ${client.host}) (job: $jobName)"
+  override def toString: String = s"Jenkins (on ${client.hostName}) (job: $jobName)"
 
   /**
     * Trigger a new execution.

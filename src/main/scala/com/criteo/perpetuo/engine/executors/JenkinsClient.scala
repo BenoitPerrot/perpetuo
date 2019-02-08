@@ -7,10 +7,15 @@ import com.twitter.conversions.time._
 import com.twitter.finagle.http.Status.{Found, NotFound, Ok}
 import com.twitter.inject.Logging
 import com.twitter.io.Buf
-import com.twitter.util.{Duration, Future}
+import com.twitter.util.Future
 
 
-class JenkinsClient(val host: String, port: Option[Int], ssl: Option[Boolean], username: Option[String], password: Option[String]) extends Logging {
+class JenkinsClient(client: SingleNodeHttpClient, username: Option[String], password: Option[String]) extends Logging {
+  def this(host: String, port: Option[Int], ssl: Option[Boolean], username: Option[String], password: Option[String]) =
+    this(new SingleNodeHttpClient(host, port, ssl, 5.seconds), username, password)
+
+  def hostName: String = client.hostName
+
   private val userInfoPrefix: String =
     (username, password) match {
       case (Some(u), Some(p)) => s"$u:$p@"
@@ -19,8 +24,6 @@ class JenkinsClient(val host: String, port: Option[Int], ssl: Option[Boolean], u
         logger.warn(s"Incomplete authentication setup: only one of username and password was provided, while both or none are expected")
         ""
     }
-
-  private val client = new SingleNodeHttpClient(host, port, ssl, 5.seconds)
 
   private def post(apiSubPath: String): Future[ConsumedResponse] =
     client(client.createRequest(userInfoPrefix + apiSubPath).buildPost(Buf.Empty))
