@@ -1,6 +1,5 @@
 package com.criteo.perpetuo.engine.executors
 
-import com.criteo.perpetuo.config.TestConfig
 import com.criteo.perpetuo.model.ExecutionState
 import com.criteo.perpetuo.util.{ConsumedResponse, SingleNodeHttpClient}
 import com.twitter.conversions.time._
@@ -13,14 +12,14 @@ import spray.json.JsonParser.ParsingException
 
 
 class RundeckExecutionSpec extends Test with MockitoSugar {
+  private val href = "https://rundeck.criteo/project/my-project/execute/show/54"
+  private val (rundeckHost, executionNumber) = RundeckExecution.parseHref(href)
 
-  private val rundeckConfig = TestConfig.executorConfig("rundeck")
-
-  private def toExecution(abortStatus: String, executionStatus: String, eventuallyCompleted: Boolean = false): RundeckExecutionWithClientMock =
+  private def toExecution(abortStatus: String, executionStatus: String, eventuallyCompleted: Boolean = false): RundeckExecution =
     toExecution(200, s"""{"abort": {"status": "$abortStatus"}, "execution": {"status": "$executionStatus"}, "execCompleted": $eventuallyCompleted}""")
 
-  private def toExecution(statusMock: Int, contentMock: String): RundeckExecutionWithClientMock = {
-    val clientMock = new SingleNodeHttpClient("rundeck", Duration.Top) {
+  private def toExecution(statusMock: Int, contentMock: String): RundeckExecution = {
+    val clientMock = new SingleNodeHttpClient(rundeckHost, Duration.Top) {
       override def apply(request: Request, isIdempotent: Boolean = false): Future[ConsumedResponse] =
         Future.value(ConsumedResponse(Status(statusMock), Utf8(contentMock), "rundeck"))
     }
@@ -28,10 +27,8 @@ class RundeckExecutionSpec extends Test with MockitoSugar {
       override protected val baseWaitInterval: Duration = 1.millisecond
       override protected val terminationGlobalTimeout: Duration = 1.second
     }
-    new RundeckExecutionWithClientMock(rundeckClient)
+    new RundeckExecution(rundeckClient, executionNumber, href)
   }
-
-  class RundeckExecutionWithClientMock(override val client: RundeckClient) extends RundeckExecution(rundeckConfig, "https://rundeck.criteo/project/my-project/execute/show/54")
 
   test("RundeckExecution successfully parses a valid href") {
     val (host1, execNumber1) = RundeckExecution.parseHref("https://rundeck.criteo/project/my-project/executcriteon/show/42")

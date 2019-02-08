@@ -8,14 +8,9 @@ import com.criteo.perpetuo.model.ExecutionState
 import com.criteo.perpetuo.model.ExecutionState.ExecutionState
 import com.google.inject.Injector
 import com.twitter.util.{Await, Future}
-import com.typesafe.config.Config
 
 
-class RundeckExecution(config: Config, val href: String) extends TriggeredExecution {
-  val (host, executionNumber) = RundeckExecution.parseHref(href)
-
-  protected val client: RundeckClient = new RundeckClient(host, config.tryGetInt("port"), config.tryGetBoolean("ssl"), config.tryGetString("token"))
-
+class RundeckExecution(client: RundeckClient, val executionNumber: Int, val href: String) extends TriggeredExecution {
   private def abortJob(jobId: String): Future[Option[ExecutionState]] =
     client.abortJob(jobId).map {
       case RundeckJobState.notFound => Some(ExecutionState.unreachable) // Rundeck doesn't know the execution, it is lost
@@ -31,8 +26,11 @@ class RundeckExecution(config: Config, val href: String) extends TriggeredExecut
 class RundeckExecutionFactory(injector: Injector) extends TriggeredExecutionFactory {
   private val config = injector.getInstance(classOf[AppConfig]).executorConfig("rundeck")
 
-  def apply(href: String): RundeckExecution =
-    new RundeckExecution(config, href)
+  def apply(href: String): RundeckExecution = {
+    val (host, executionNumber) = RundeckExecution.parseHref(href)
+    val client = new RundeckClient(host, config.tryGetInt("port"), config.tryGetBoolean("ssl"), config.tryGetString("token"))
+    new RundeckExecution(client, executionNumber, href)
+  }
 }
 
 private object RundeckExecution {
