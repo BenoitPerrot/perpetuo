@@ -17,10 +17,13 @@ class RundeckExecutionSpec extends Test with MockitoSugar {
 
   private val rundeckConfig = TestConfig.executorConfig("rundeck")
 
-  private class RundeckClientMock(statusMock: Int, contentMock: String) extends RundeckClient( "localhost", rundeckConfig.tryGetInt("port"), rundeckConfig.tryGetBoolean("ssl"), rundeckConfig.tryGetString("token")) {
-    def this(abortStatus: String, executionStatus: String, eventuallyCompleted: Boolean = false) =
-      this(200, s"""{"abort": {"status": "$abortStatus"}, "execution": {"status": "$executionStatus"}, "execCompleted": $eventuallyCompleted}""")
+  private def toExecution(abortStatus: String, executionStatus: String, eventuallyCompleted: Boolean = false): RundeckExecutionWithClientMock =
+    toExecution(200, s"""{"abort": {"status": "$abortStatus"}, "execution": {"status": "$executionStatus"}, "execCompleted": $eventuallyCompleted}""")
 
+  private def toExecution(statusMock: Int, contentMock: String): RundeckExecutionWithClientMock =
+    new RundeckExecutionWithClientMock(new RundeckClientMock(statusMock, contentMock))
+
+  private class RundeckClientMock(statusMock: Int, contentMock: String) extends RundeckClient("localhost", rundeckConfig.tryGetInt("port"), rundeckConfig.tryGetBoolean("ssl"), rundeckConfig.tryGetString("token")) {
     override protected val baseWaitInterval: Duration = 1.millisecond
     override protected val terminationGlobalTimeout: Duration = 1.second
     override protected val client: SingleNodeHttpClient = new SingleNodeHttpClient("rundeck", Duration.Top) {
@@ -47,39 +50,39 @@ class RundeckExecutionSpec extends Test with MockitoSugar {
   }
 
   test("A running job can be aborted") {
-    val executionAborted = new RundeckExecutionWithClientMock(new RundeckClientMock("aborted", "aborted"))
+    val executionAborted = toExecution("aborted", "aborted")
     executionAborted.stopper.get() shouldEqual None
   }
 
   test("When an abort is pending, wait for its completion") {
-    val executionAborting = new RundeckExecutionWithClientMock(new RundeckClientMock("pending", "running", eventuallyCompleted = true))
+    val executionAborting = toExecution("pending", "running", eventuallyCompleted = true)
     executionAborting.stopper.get() shouldEqual None
   }
 
   test("Aborting a running job is a failure if this one is still running after a timeout") {
-    val execution = new RundeckExecutionWithClientMock(new RundeckClientMock("pending", "running"))
+    val execution = toExecution("pending", "running")
     execution.stopper.get() shouldEqual Some(ExecutionState.running)
   }
 
   test("Aborting a not running job is a success") {
-    val executionFailed = new RundeckExecutionWithClientMock(new RundeckClientMock("failed", "failed"))
+    val executionFailed = toExecution("failed", "failed")
     executionFailed.stopper.get() shouldEqual None
-    val executionCompleted = new RundeckExecutionWithClientMock(new RundeckClientMock("failed", "completed"))
+    val executionCompleted = toExecution("failed", "completed")
     executionCompleted.stopper.get() shouldEqual None
-    val executionAborted = new RundeckExecutionWithClientMock(new RundeckClientMock("failed", "aborted"))
+    val executionAborted = toExecution("failed", "aborted")
     executionAborted.stopper.get() shouldEqual None
   }
 
   test("A job unknown from Rundeck is considered as unreachable") {
-    val execution = new RundeckExecutionWithClientMock(new RundeckClientMock(404, "{}"))
+    val execution = toExecution(404, "{}")
     execution.stopper.get() shouldEqual Some(ExecutionState.unreachable)
   }
 
   test("Raising an exception in case Rundeck doesn't answer or with an error different than 404") {
-    val executionNotJson = new RundeckExecutionWithClientMock(new RundeckClientMock(200, "<NOT JSON CODE>"))
+    val executionNotJson = toExecution(200, "<NOT JSON CODE>")
     a[ParsingException] shouldBe thrownBy(executionNotJson.stopper.get())
 
-    val executionForbidden = new RundeckExecutionWithClientMock(new RundeckClientMock(403, ""))
+    val executionForbidden = toExecution(403, "")
     a[RuntimeException] shouldBe thrownBy(executionForbidden.stopper.get())
   }
 }
