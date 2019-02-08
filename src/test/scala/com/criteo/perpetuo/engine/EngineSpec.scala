@@ -286,8 +286,7 @@ class EngineAutoRevertSpec extends SimpleScenarioTesting {
     r.step(Status.hostFailure)
 
     await(engine.autoRevertFailingDeploymentRequests)
-    await(crankshaft.findDeploymentRequestById(r.getDeploymentRequest.id)).get.state
-      .get shouldEqual revertInProgress
+    r.state shouldEqual revertInProgress
   }
 
   test("Auto-revert is not applied for a request that is not auto-revertible") {
@@ -300,8 +299,7 @@ class EngineAutoRevertSpec extends SimpleScenarioTesting {
     r.step(Status.hostFailure)
 
     await(engine.autoRevertFailingDeploymentRequests)
-    await(crankshaft.findDeploymentRequestById(r.getDeploymentRequest.id)).get.state
-      .get shouldEqual deployFailed
+    r.state shouldEqual deployFailed
   }
 
   test("Auto-revert fails for a request that has no previous deployed versions") {
@@ -311,8 +309,7 @@ class EngineAutoRevertSpec extends SimpleScenarioTesting {
     r.step(Status.hostFailure)
 
     await(engine.autoRevertFailingDeploymentRequests)
-    await(crankshaft.findDeploymentRequestById(r.getDeploymentRequest.id)).get.state
-      .get shouldEqual deployFailed
+    r.state shouldEqual deployFailed
 
     r.step(Status.success) // Cleanup
   }
@@ -338,8 +335,8 @@ class EngineAutoRevertSpec extends SimpleScenarioTesting {
     await(crankshaft.findAutoRevertibleDeploymentRequestIdsAndStateStamps).map(_._1) shouldEqual Vector(r2.getDeploymentRequest.id)
     await(engine.autoRevertFailingDeploymentRequests)
 
-    await(crankshaft.findDeploymentRequestById(r1.getDeploymentRequest.id)).get.state.get shouldEqual deployed
-    await(crankshaft.findDeploymentRequestById(r2.getDeploymentRequest.id)).get.state.get shouldEqual revertInProgress
-    await(crankshaft.findDeploymentRequestById(r3.getDeploymentRequest.id)).get.state.get shouldEqual deployInProgress
+    r1.state shouldEqual deployed
+    r2.state shouldEqual revertInProgress
+    r3.state shouldEqual deployInProgress
   }
 }

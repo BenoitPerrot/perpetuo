@@ -263,6 +263,9 @@ trait SimpleScenarioTesting extends TestHelpers with TestDb with MockitoSugar {
       )
     }
 
+    def state: DeploymentRequestState.Value =
+      await(crankshaft.findDeploymentRequestById(getDeploymentRequest.id)).get.state.get
+
     def getDeploymentRequest: DeploymentRequest =
       deploymentPlan.deploymentRequest
   }
