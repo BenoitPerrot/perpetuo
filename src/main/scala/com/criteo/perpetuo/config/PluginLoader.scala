@@ -1,8 +1,8 @@
 package com.criteo.perpetuo.config
 
 import java.io.File
-import java.lang.reflect.InvocationTargetException
 
+import com.criteo.perpetuo.util.tryInstantiateWithArgs
 import com.google.inject.{Inject, Injector, Singleton}
 import com.typesafe.config.{Config, ConfigException}
 
@@ -29,22 +29,6 @@ class PluginLoader @Inject()(injector: Injector) {
       .getOrElse {
         throw new NoSuchMethodException(s"As a plugin, ${cls.getName} must have at least a constructor taking either its Config (if one is provided), or its Config and an Injector, or an Injector, or nothing")
         // note: don't use .getSimpleName on an unknown class, because of https://github.com/scala/bug/issues/2034
-      }
-  }
-
-  private def tryInstantiateWithArgs[T <: AnyRef](cls: Class[T], args: Seq[AnyRef]): Option[T] = {
-    cls.getConstructors
-      .find { c =>
-        val types = c.getParameterTypes
-        types.length == args.length &&
-          types.zip(args).forall { case (t, o) => t.isInstance(o) }
-      }
-      .map { constructor =>
-        try {
-          constructor.newInstance(args: _*).asInstanceOf[T]
-        } catch {
-          case e: InvocationTargetException => throw e.getCause
-        }
       }
   }
 
