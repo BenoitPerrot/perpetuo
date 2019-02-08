@@ -8,8 +8,8 @@ import '/node_modules/@polymer/paper-listbox/paper-listbox.js'
 import '../perpetuo-app/perpetuo-app-toolbar.js'
 import Perpetuo from '../perpetuo-lib/perpetuo-lib.js'
 import '../perpetuo-deployment-request/perpetuo-deployment-request-entry.js'
+import '../perpetuo-deployment-request/perpetuo-deployment-request-filter-editor.js'
 import '../perpetuo-identity/perpetuo-identity.js'
-import '../perpetuo-list-editor/perpetuo-list-editor.js'
 import '../perpetuo-paging/perpetuo-paging.js'
 
 class WindowLocationHelper {
@@ -84,12 +84,20 @@ perpetuo-app-toolbar span {
   font-weight: var(--paper-font-common-base_-_font-weight);
   font-size: var(--paper-font-headline_-_font-size);
 }
+perpetuo-app-toolbar #productFilter:not([focused]) {
+  display: none;
+}
+perpetuo-app-toolbar #productFilter[focused] ~ span {
+  display: none;
+}
+
 </style>
 <perpetuo-identity id="identity" login="{{login}}"></perpetuo-identity>
 <perpetuo-app-toolbar>
   <div slot="title" style="display: flex; align-items: center; position: relative">
     <paper-icon-button icon="search" hidden$="[[selectedProductName]]" on-tap="onSearchIconTap"></paper-icon-button>
     <paper-icon-button icon="arrow-back" hidden$="[[!selectedProductName]]" on-tap="onBackIconTap"></paper-icon-button>
+    <perpetuo-deployment-request-filter-editor id="productFilter" product-names="[[productNames]]" on-product-name-selected="onProductNameSelected"></perpetuo-deployment-request-filter-editor>
     <span>Deployment Requests</span>
     <span hidden$="[[!selectedProductName]]">&nbsp;/ [[selectedProductName]]</span>
   </div>
@@ -105,7 +113,6 @@ perpetuo-app-toolbar span {
   </div>
   <div style="display: flex;">
     <div class="product-name">
-      <perpetuo-list-editor id="productFilter" key="productName" label="Filter" choices="[[productNames]]" lru-path="productSelector.lru" max-count="10" on-selected-item-changed="updateFilter"></perpetuo-list-editor>
     </div>
     <div class="version"></div>
     <span class="target"></span>
@@ -144,7 +151,7 @@ perpetuo-app-toolbar span {
       deploymentRequests: { type: Array, observer: 'convertTimestamp' },
 
       productNames: { type: Array, value: () => [] },
-      selectedProductName: String,
+      selectedProductName: { type: String, observer: 'onSelectedProductNameChanged' },
       timeZoneItem: Object,
       timestampConverter: { type: String, computed: 'computeTimestampConverter(timeZoneItem)', observer: 'convertTimestamp' },
 
@@ -177,12 +184,8 @@ perpetuo-app-toolbar span {
     const queryParams = WindowLocationHelper.getQueryParams(window);
 
     const q = decodeURIComponent(queryParams.get('q') || '');
-    if (q) {
-      this.selectedProductName = this.$.productFilter.select(q) ? q : null;
-    } else {
-      this.$.productFilter.clear();
-      this.selectedProductName = null;
-    }
+    this.$.productFilter.filter = q;
+    this.selectedProductName = this.$.productFilter.select(q) ? q : null;
     const page = parseInt(queryParams.get('page'));
     if (0 < page)
       this.page = page;
@@ -213,8 +216,11 @@ perpetuo-app-toolbar span {
   }
 
   onBackIconTap() {
-    this.$.productFilter.clear();
     this.selectedProductName = null;
+  }
+
+  onProductNameSelected(e) {
+    this.selectedProductName = e.detail.value;
   }
 
   refresh() {
@@ -248,17 +254,12 @@ perpetuo-app-toolbar span {
     return date.getFullYear() + '-' + (date.getMonth() + 1) + '-' + date.getDate() + ' ' + time;
   }
 
-  updateFilter(e) {
-    if (this.active) {
-      if (this.selectedProductName != e.target.selectedItem) {
-        this.selectedProductName = e.target.selectedItem;
-        const q = this.selectedProductName ? encodeURIComponent(this.selectedProductName) : undefined;
-        WindowLocationHelper.setQueryParam(window, 'q', q);
-        this.refresh().then(() => {
-          this.page = 1;
-        });
-      }
-    }
+  onSelectedProductNameChanged() {
+    const q = this.selectedProductName ? encodeURIComponent(this.selectedProductName) : undefined;
+    WindowLocationHelper.setQueryParam(window, 'q', q);
+    this.refresh().then(() => {
+      this.page = 1;
+    });
   }
 
   onPageChanged() {
