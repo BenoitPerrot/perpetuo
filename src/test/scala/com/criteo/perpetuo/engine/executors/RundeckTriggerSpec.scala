@@ -1,7 +1,5 @@
 package com.criteo.perpetuo.engine.executors
 
-import com.criteo.perpetuo.config.ConfigSyntacticSugar._
-import com.criteo.perpetuo.config.TestConfig
 import com.criteo.perpetuo.engine.TargetAtomSet
 import com.criteo.perpetuo.model.{TargetAtom, Version}
 import com.criteo.perpetuo.util.{ConsumedResponse, SingleNodeHttpClient}
@@ -17,33 +15,21 @@ import scala.concurrent.duration._
 
 
 class RundeckTriggerSpec extends Test {
-
-  private val rundeckConfig = TestConfig.executorConfig("rundeck")
-
   private val executionCallbackUrl = "http://somewhere/api/execution-traces/42"
 
-  private def testTrigger(statusMock: Int, contentMock: String) =
-    new TriggerMock(statusMock, contentMock).testTrigger
-
-  private class RundeckClientMock(statusMock: Int, contentMock: String) extends RundeckClient("localhost", rundeckConfig.tryGetInt("port"), rundeckConfig.tryGetBoolean("ssl"), rundeckConfig.tryGetString("token")) {
-    override val authToken: Option[String] = Some("my-super-secret-token")
-
-    override protected val client: SingleNodeHttpClient = new SingleNodeHttpClient(host, Duration.Top) {
+  private def testTrigger(statusMock: Int, contentMock: String) = {
+    val clientMock = new SingleNodeHttpClient("localhost", Duration.Top) {
       override def apply(request: Request, isIdempotent: Boolean = false): Future[ConsumedResponse] = {
         request.uri shouldEqual s"/api/16/job/perpetuo-deployment/executions?authtoken=my-super-secret-token"
         request.contentString shouldEqual s"""{"argString":"-callback-url '$executionCallbackUrl' -product-name 'My\\"Beautiful\\"Project' -target 'a,b' -product-version \\"the 042nd version\\""}"""
         Future.value(ConsumedResponse(Status(statusMock), Utf8(contentMock), "rundeck"))
       }
     }
-  }
-
-  private class TriggerMock(statusMock: Int, contentMock: String) extends RundeckTrigger(new RundeckClientMock(statusMock, contentMock), "perpetuo-deployment") {
-    def testTrigger: Option[String] = {
-      val productName = "My\"Beautiful\"Project"
-      val version = Version(JsString("the 042nd version"))
-      val target = TargetAtomSet(Set.empty, Set("a", "b").map(TargetAtom))
-      Await.result(trigger(executionCallbackUrl, productName, version, target, "guy next door"), 1.second)
-    }
+    val rundeckTrigger = new RundeckTrigger(new RundeckClient(clientMock, Some("my-super-secret-token")), "perpetuo-deployment")
+    val productName = "My\"Beautiful\"Project"
+    val version = Version(JsString("the 042nd version"))
+    val target = TargetAtomSet(Set.empty, Set("a", "b").map(TargetAtom))
+    Await.result(rundeckTrigger.trigger(executionCallbackUrl, productName, version, target, "guy next door"), 1.second)
   }
 
   test("Rundeck's API is followed when everything goes well") {

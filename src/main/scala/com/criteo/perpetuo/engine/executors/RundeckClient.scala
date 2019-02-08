@@ -9,18 +9,19 @@ import com.twitter.io.Buf
 import com.twitter.util.{Duration, Future}
 import spray.json._
 
-class RundeckClient(val host: String, val port: Option[Int], val ssl: Option[Boolean], val authToken: Option[String]) {
+class RundeckClient(client: SingleNodeHttpClient, authToken: Option[String]) {
+  def this(host: String, port: Option[Int], ssl: Option[Boolean], authToken: Option[String]) =
+    this(new SingleNodeHttpClient(host, port, ssl, 5.seconds), authToken)
+
+  def hostName: String = client.hostName
   val apiVersion = 16
 
-  private val requestTimeout: Duration = 5.seconds
   protected val baseWaitInterval: Duration = 100.milliseconds
   protected val terminationGlobalTimeout: Duration = 1.minute
 
   private val jsonRequestBuilder = RequestBuilder()
     .setHeader(HttpHeaders.ContentType, Message.ContentTypeJson)
     .setHeader(HttpHeaders.Accept, Message.ContentTypeJson)
-
-  protected val client: SingleNodeHttpClient = new SingleNodeHttpClient(host, port, ssl, requestTimeout)
 
   private def post(apiSubPath: String, body: Option[JsValue] = None, isIdempotent: Boolean = false): Future[ConsumedResponse] = {
     val req = client

@@ -12,7 +12,7 @@ import scala.collection.JavaConversions._
 import scala.concurrent.Future
 
 
-class RundeckTrigger(val client: RundeckClient,
+class RundeckTrigger(client: RundeckClient,
                      jobName: String,
                      specificParameters: Iterable[(String, String)] = Map()) extends ExecutionTrigger {
   def this(config: Config) = this(
@@ -20,7 +20,7 @@ class RundeckTrigger(val client: RundeckClient,
     config.getString("jobName")
   )
 
-  override def toString: String = s"Rundeck (on ${client.host}) (job: $jobName)"
+  override def toString: String = s"Rundeck (on ${client.hostName}) (job: $jobName)"
 
   def extractHref(executorAnswer: String): String =
     executorAnswer.parseJson.asJsObject.fields("permalink").asInstanceOf[JsString].value

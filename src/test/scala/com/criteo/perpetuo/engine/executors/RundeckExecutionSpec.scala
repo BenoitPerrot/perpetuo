@@ -1,6 +1,5 @@
 package com.criteo.perpetuo.engine.executors
 
-import com.criteo.perpetuo.config.ConfigSyntacticSugar._
 import com.criteo.perpetuo.config.TestConfig
 import com.criteo.perpetuo.model.ExecutionState
 import com.criteo.perpetuo.util.{ConsumedResponse, SingleNodeHttpClient}
@@ -20,16 +19,16 @@ class RundeckExecutionSpec extends Test with MockitoSugar {
   private def toExecution(abortStatus: String, executionStatus: String, eventuallyCompleted: Boolean = false): RundeckExecutionWithClientMock =
     toExecution(200, s"""{"abort": {"status": "$abortStatus"}, "execution": {"status": "$executionStatus"}, "execCompleted": $eventuallyCompleted}""")
 
-  private def toExecution(statusMock: Int, contentMock: String): RundeckExecutionWithClientMock =
-    new RundeckExecutionWithClientMock(new RundeckClientMock(statusMock, contentMock))
-
-  private class RundeckClientMock(statusMock: Int, contentMock: String) extends RundeckClient("localhost", rundeckConfig.tryGetInt("port"), rundeckConfig.tryGetBoolean("ssl"), rundeckConfig.tryGetString("token")) {
-    override protected val baseWaitInterval: Duration = 1.millisecond
-    override protected val terminationGlobalTimeout: Duration = 1.second
-    override protected val client: SingleNodeHttpClient = new SingleNodeHttpClient("rundeck", Duration.Top) {
+  private def toExecution(statusMock: Int, contentMock: String): RundeckExecutionWithClientMock = {
+    val clientMock = new SingleNodeHttpClient("rundeck", Duration.Top) {
       override def apply(request: Request, isIdempotent: Boolean = false): Future[ConsumedResponse] =
         Future.value(ConsumedResponse(Status(statusMock), Utf8(contentMock), "rundeck"))
     }
+    val rundeckClient = new RundeckClient(clientMock, None) {
+      override protected val baseWaitInterval: Duration = 1.millisecond
+      override protected val terminationGlobalTimeout: Duration = 1.second
+    }
+    new RundeckExecutionWithClientMock(rundeckClient)
   }
 
   class RundeckExecutionWithClientMock(override val client: RundeckClient) extends RundeckExecution(rundeckConfig, "https://rundeck.criteo/project/my-project/execute/show/54")
