@@ -15,6 +15,7 @@ object DeploymentRequestState extends Enumeration {
   val deployed = Value(7, "deployed")
   val reverted = Value(8, "reverted")
   val paused = Value(9, "paused")
+  val superseded = Value(10, "superseded")
 
   def from(state: DeploymentState): DeploymentRequestState.Code =
     state match {
@@ -28,5 +29,6 @@ object DeploymentRequestState extends Enumeration {
       case _: RevertFailed => revertFailed
       case _: NotStarted => notStarted
       case _: Paused => paused
+      case _: Superseded => superseded
     }
 }

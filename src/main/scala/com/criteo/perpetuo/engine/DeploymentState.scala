@@ -95,3 +95,9 @@ case class Abandoned(deploymentRequest: DeploymentRequest,
                      effects: Seq[OperationEffect],
                      outdatedBy: Option[Long])
   extends DeploymentState
+
+case class Superseded(deploymentRequest: DeploymentRequest,
+                     deploymentPlanSteps: Seq[DeploymentPlanStep],
+                     effects: Seq[OperationEffect],
+                     outdatedBy: Option[Long])
+  extends DeploymentState

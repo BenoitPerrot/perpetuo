@@ -250,8 +250,9 @@ class DbBinding @Inject()(val dbContext: DbContext)
       .filter { case (((targetStatus, execution), operationTrace), oldDeploymentRequest) =>
         targetStatus.code =!= Status.notDone && targetStatus.executionId === execution.id &&
           execution.operationTraceId === operationTrace.id && operationTrace.deploymentRequestId === oldDeploymentRequest.id &&
-          oldDeploymentRequest.productId === deploymentRequest.productId && oldDeploymentRequest.id < deploymentRequest.id
+          oldDeploymentRequest.productId === deploymentRequest.productId && oldDeploymentRequest.id < deploymentRequest.id &&
         // because it's impossible to apply deployment requests in another order than creation one
+          oldDeploymentRequest.state =!= DeploymentRequestState.superseded
       }
       .map { case (((targetStatus, _), _), _) => targetStatus }
 

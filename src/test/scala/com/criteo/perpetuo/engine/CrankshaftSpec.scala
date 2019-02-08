@@ -866,3 +866,59 @@ class CrankshaftOutdatedRequests extends CrankshaftSimpleScenarioTesting {
     )
   }
 }
+
+class CrankshaftSupersededRequest extends CrankshaftSimpleScenarioTesting {
+
+  private def setSupersededState(secondDeploymentRequest: DeploymentRequest) = {
+    dbContext.db.run(crankshaft.dbBinding
+      .updatingDeploymentRequestState(secondDeploymentRequest.id, DeploymentRequestState.superseded,
+        incrementStateStamp = false))
+  }
+
+  test("Finding execution spec for revert skip the superseded request") {
+    await(
+      for {
+        product <- crankshaft.upsertProduct("supersede_product")
+
+        (_, firstExecSpecId) <- mockDeployExecution(product.name, "27", Map("moon" -> Status.success, "mars" -> Status.success))
+        (secondDeploymentRequest, _) <- mockDeployExecution(product.name, "54", Map("moon" -> Status.success, "mars" -> Status.success))
+        (thirdDeploymentRequest, _) <- mockDeployExecution(product.name, "69", Map("moon" -> Status.success, "mars" -> Status.success))
+
+        _ <- setSupersededState(secondDeploymentRequest)
+
+        (undeterminedSpecsThird, determinedSpecsThird) <- dbContext.db.run(crankshaft.dbBinding.findingExecutionSpecificationsForRevert(thirdDeploymentRequest))
+
+      } yield {
+        val specsThird = determinedSpecsThird.map { case (spec, targets) => spec.id -> (spec.version.serialized, targets) }.toMap
+        undeterminedSpecsThird shouldBe empty
+        specsThird.size shouldEqual 1
+        specsThird(firstExecSpecId) shouldEqual(JsString("27").toString, Set(TargetAtom("mars"), TargetAtom("moon")))
+      }
+    )
+  }
+
+  test("Finding execution spec for revert skip both superseded requests") {
+    await(
+      for {
+        product <- crankshaft.upsertProduct("supersede_product")
+
+        (_, firstExecSpecId) <- mockDeployExecution(product.name, "27", Map("moon" -> Status.success, "mars" -> Status.success))
+        (secondDeploymentRequest, _) <- mockDeployExecution(product.name, "54", Map("moon" -> Status.success, "mars" -> Status.success))
+        (thirdDeploymentRequest, _) <- mockDeployExecution(product.name, "69", Map("moon" -> Status.success, "mars" -> Status.success))
+        (fourthDeploymentRequest, _) <- mockDeployExecution(product.name, "81", Map("moon" -> Status.success, "mars" -> Status.success))
+
+        _ <- setSupersededState(secondDeploymentRequest)
+        _ <- setSupersededState(thirdDeploymentRequest)
+
+        (undeterminedSpecsFourth, determinedSpecsFourth) <- dbContext.db.run(crankshaft.dbBinding.findingExecutionSpecificationsForRevert(fourthDeploymentRequest))
+
+      } yield {
+        val specsFourth = determinedSpecsFourth.map { case (spec, targets) => spec.id -> (spec.version.serialized, targets) }.toMap
+        undeterminedSpecsFourth shouldBe empty
+        specsFourth.size shouldEqual 1
+        specsFourth(firstExecSpecId) shouldEqual(JsString("27").toString, Set(TargetAtom("mars"), TargetAtom("moon")))
+      }
+    )
+  }
+
+}

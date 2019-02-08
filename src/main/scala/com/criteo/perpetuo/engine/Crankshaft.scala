@@ -115,6 +115,8 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
     val sortedEffects = effects.sortBy(-_.operationTrace.id)
     if (deploymentRequest.state.contains(DeploymentRequestState.abandoned)) {
       Abandoned(deploymentRequest, deploymentPlanSteps, effects, outdatingId)
+    } else if (deploymentRequest.state.contains(DeploymentRequestState.superseded)) {
+      Superseded(deploymentRequest, deploymentPlanSteps, effects, outdatingId)
     } else {
       val idToDeploymentPlanStep = deploymentPlanSteps.map(planStep => planStep.id -> planStep).toMap
 
@@ -430,7 +432,7 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
         case _: Abandoned =>
           Left(new DeploymentRequestAbandoned)
 
-        case _: Reverted =>
+        case _@(_: Reverted | _: Superseded) =>
           Left(new DeploymentTransactionClosed)
 
         case _@(_: NotStarted | _: DeployFlopped) =>
