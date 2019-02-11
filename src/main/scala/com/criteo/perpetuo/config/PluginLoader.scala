@@ -3,6 +3,8 @@ package com.criteo.perpetuo.config
 import java.io.File
 
 import com.criteo.perpetuo.engine.Provider
+import com.criteo.perpetuo.engine.dispatchers.{SingleTargetDispatcher, TargetDispatcher}
+import com.criteo.perpetuo.engine.executors.ExecutionTrigger
 import com.criteo.perpetuo.engine.resolvers.TargetResolver
 import com.criteo.perpetuo.util.tryInstantiateWithArgs
 import com.google.inject.{Inject, Injector, Singleton}
@@ -66,5 +68,18 @@ class PluginLoader @Inject()(injector: Injector) {
         load[Provider[TargetResolver]](desc, "target resolver")()
       )
       .getOrElse(new TargetResolver {})
+      .get
+
+  def loadTargetDispatcher(config: Option[Config]): TargetDispatcher =
+    config
+      .map { desc =>
+        load[Provider[TargetDispatcher]](desc, "target dispatcher") {
+          case t@"singleExecutor" =>
+            val executorConfig = desc.getConfig(t)
+            val executionTrigger = load[ExecutionTrigger](executorConfig, "executor")()
+            new SingleTargetDispatcher(executionTrigger)
+        }
+      }
+      .getOrElse(throw new Exception(s"No target dispatcher is configured, while one is required"))
       .get
 }

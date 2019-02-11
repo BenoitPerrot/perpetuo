@@ -3,10 +3,9 @@ package com.criteo.perpetuo.config
 import java.util.logging.Logger
 
 import com.criteo.perpetuo.auth._
-import com.criteo.perpetuo.engine.dispatchers.{SingleTargetDispatcher, TargetDispatcher}
-import com.criteo.perpetuo.engine.executors.ExecutionTrigger
+import com.criteo.perpetuo.engine.dispatchers.TargetDispatcher
 import com.criteo.perpetuo.engine.resolvers.TargetResolver
-import com.criteo.perpetuo.engine.{AsyncListener, AsyncPreConditionEvaluator, Provider}
+import com.criteo.perpetuo.engine.{AsyncListener, AsyncPreConditionEvaluator}
 import com.google.inject.{Inject, Singleton}
 
 import scala.collection.JavaConversions._
@@ -25,18 +24,7 @@ class Plugins @Inject()(loader: PluginLoader, appConfig: AppConfig) {
 
   val resolver: TargetResolver = loader.loadTargetResolver(config.tryGetConfig("targetResolver"))
 
-  val dispatcher: TargetDispatcher = config
-    .tryGetConfig("targetDispatcher")
-    .map { desc =>
-      loader.load[Provider[TargetDispatcher]](desc, "target dispatcher") {
-        case t@"singleExecutor" =>
-          val executorConfig = desc.getConfig(t)
-          val executionTrigger = loader.load[ExecutionTrigger](executorConfig, "executor")()
-          new SingleTargetDispatcher(executionTrigger)
-      }
-    }
-    .getOrElse(throw new Exception(s"No target dispatcher is configured, while one is required"))
-    .get
+  val dispatcher: TargetDispatcher = loader.loadTargetDispatcher(config.tryGetConfig("targetDispatcher"))
 
   val identityProvider: IdentityProvider =
     config.tryGetConfig("auth.identityProvider").map { desc =>
