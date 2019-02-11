@@ -1,55 +1,67 @@
 package com.criteo.perpetuo.engine
 
 import com.criteo.perpetuo.SimpleScenarioTesting
-import com.criteo.perpetuo.auth.User
-import com.criteo.perpetuo.config.{AppConfig, TestConfig}
+import com.criteo.perpetuo.auth.{Permissions, User}
+import com.criteo.perpetuo.config.{PluginLoader, TestConfig}
 import com.criteo.perpetuo.model.{ProtoDeploymentPlanStep, ProtoDeploymentRequest, Version}
 import com.typesafe.config.ConfigFactory
 import spray.json.JsString
 
+import scala.collection.JavaConversions._
 import scala.concurrent.ExecutionContext.Implicits.global
 
 class PreConditionSpec extends SimpleScenarioTesting {
 
-  override def providesAppConfig: AppConfig =
-    new AppConfig(
-      ConfigFactory
-        .parseString(
-          s"""
-             |permissions {
-             |  type = "fineGrained"
-             |  fineGrained {
-             |    perGeneralAction {
-             |      updateProduct = [
-             |        {
-             |          userNames = ["bob.the.producer"]
-             |        }
-             |      ]
-             |    }
-             |    perProduct = [
-             |      {
-             |        regex = ".*"
-             |        perAction {
-             |          requestOperation = [
-             |            {
-             |              groupNames = ["Users"]
-             |            }
-             |          ]
-             |        }
-             |      }
-             |    ]
-             |  }
-             |}
-             |preConditionEvaluators = [
-             |  {
-             |    type = "class"
-             |    class = "com.criteo.perpetuo.engine.preconditions.TestPreCondition"
-             |  }
-             |]
-             |""".stripMargin)
-        .withFallback(TestConfig.config)
-        .resolve()
-    )
+  override def providesPermissions: Permissions =
+    injector
+      .getInstance(classOf[PluginLoader])
+      .loadPermissions(
+        Some(
+          ConfigFactory
+            .parseString(
+              s"""
+                 |permissions {
+                 |  type = "fineGrained"
+                 |  fineGrained {
+                 |    perGeneralAction {
+                 |      updateProduct = [
+                 |        {
+                 |          userNames = ["bob.the.producer"]
+                 |        }
+                 |      ]
+                 |    }
+                 |    perProduct = [
+                 |      {
+                 |        regex = ".*"
+                 |        perAction {
+                 |          requestOperation = [
+                 |            {
+                 |              groupNames = ["Users"]
+                 |            }
+                 |          ]
+                 |        }
+                 |      }
+                 |    ]
+                 |  }
+                 |}""".stripMargin
+            )
+            .resolve()
+            .getConfig("permissions")
+        )
+      )
+
+  override def providesPreConditionEvaluators: Seq[AsyncPreConditionEvaluator] =
+    injector
+      .getInstance(classOf[PluginLoader])
+      .loadPreConditionEvaluators(
+        Seq(ConfigFactory.parseString(
+            s"""
+               |{
+               |  type = "class"
+               |  class = "com.criteo.perpetuo.engine.preconditions.TestPreCondition"
+               |}
+               |""".stripMargin))
+      )
 
   val stdUser = new User("s.omeone", Set("Users"))
   val lonelyUser = new User("f.alone", Set())

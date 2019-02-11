@@ -2,40 +2,10 @@ package com.criteo.perpetuo.config
 
 import java.util.logging.Logger
 
-import com.criteo.perpetuo.auth._
-import com.criteo.perpetuo.engine.dispatchers.TargetDispatcher
-import com.criteo.perpetuo.engine.resolvers.TargetResolver
-import com.criteo.perpetuo.engine.{AsyncListener, AsyncPreConditionEvaluator}
-import com.google.inject.{Inject, Singleton}
-
-import scala.collection.JavaConversions._
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionException, Future, blocking}
 import scala.util.{Success, Try}
-
-
-@Singleton
-class Plugins @Inject()(loader: PluginLoader, appConfig: AppConfig) {
-
-  private val config = appConfig.config
-
-  import com.criteo.perpetuo.config.ConfigSyntacticSugar._
-
-  val resolver: TargetResolver = loader.loadTargetResolver(config.tryGetConfig("targetResolver"))
-
-  val dispatcher: TargetDispatcher = loader.loadTargetDispatcher(config.tryGetConfig("targetDispatcher"))
-
-  val identityProvider: IdentityProvider = loader.loadIdentityProvider(config.tryGetConfig("auth.identityProvider"))
-
-  val permissions: Permissions = loader.loadPermissions(config.tryGetConfig("permissions"))
-
-  val listeners: Seq[AsyncListener] =
-    loader.loadListeners(if (config.hasPath("engineListeners")) config.getConfigList("engineListeners") else Seq())
-
-  val preConditionEvaluators: Seq[AsyncPreConditionEvaluator] =
-    loader.loadPreConditionEvaluators(if (config.hasPath("preConditionEvaluators")) config.getConfigList("preConditionEvaluators") else Seq())
-}
 
 
 trait Plugin {
