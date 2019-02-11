@@ -22,6 +22,9 @@ class RundeckTriggerSpec extends Test {
 
   private val executionCallbackUrl = "http://somewhere/api/execution-traces/42"
 
+  private def testTrigger(statusMock: Int, contentMock: String) =
+    new TriggerMock(statusMock, contentMock).testTrigger
+
   private class RundeckClientMock(statusMock: Int, contentMock: String) extends RundeckClient("localhost", rundeckConfig.tryGetInt("port"), rundeckConfig.tryGetBoolean("ssl"), rundeckConfig.tryGetString("token")) {
     override val authToken: Option[String] = Some("my-super-secret-token")
 
@@ -44,21 +47,21 @@ class RundeckTriggerSpec extends Test {
   }
 
   test("Rundeck's API is followed when everything goes well") {
-    new TriggerMock(200, """{"id": 123, "permalink": "http://rundeck/job/123/show"}""").testTrigger shouldEqual Some("http://rundeck/job/123/show")
+    testTrigger(200, """{"id": 123, "permalink": "http://rundeck/job/123/show"}""") shouldEqual Some("http://rundeck/job/123/show")
   }
 
   test("Rundeck's API is followed when a connection problem occurs") {
-    val exc = the[Exception] thrownBy new TriggerMock(403, "<html>gibberish</html>").testTrigger
+    val exc = the[Exception] thrownBy testTrigger(403, "<html>gibberish</html>")
     exc.getMessage shouldEqual "Bad response from Rundeck (on localhost) (job: perpetuo-deployment): Forbidden"
   }
 
   test("Rundeck's API is followed when an internal server error occurs") {
-    val exc = the[Exception] thrownBy new TriggerMock(500, "<html><p>Intelligible error</p></html>").testTrigger
+    val exc = the[Exception] thrownBy testTrigger(500, "<html><p>Intelligible error</p></html>")
     exc.getMessage should endWith("Internal Server Error: Intelligible error")
   }
 
   test("Rundeck's API is followed when the request cannot be satisfied") {
-    val exc = the[Exception] thrownBy new TriggerMock(400, """{"error": true, "message": "Intelligible error"}""").testTrigger
+    val exc = the[Exception] thrownBy testTrigger(400, """{"error": true, "message": "Intelligible error"}""")
     exc.getMessage should endWith("""Bad Request: Intelligible error""")
   }
 
