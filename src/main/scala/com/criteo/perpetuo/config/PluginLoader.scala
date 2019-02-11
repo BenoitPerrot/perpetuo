@@ -3,7 +3,7 @@ package com.criteo.perpetuo.config
 import java.io.File
 
 import com.criteo.perpetuo.auth._
-import com.criteo.perpetuo.engine.{AsyncListener, Provider}
+import com.criteo.perpetuo.engine.{AsyncListener, AsyncPreConditionEvaluator, Provider}
 import com.criteo.perpetuo.engine.dispatchers.{SingleTargetDispatcher, TargetDispatcher}
 import com.criteo.perpetuo.engine.executors.ExecutionTrigger
 import com.criteo.perpetuo.engine.resolvers.TargetResolver
@@ -107,4 +107,9 @@ class PluginLoader @Inject()(injector: Injector) {
         new ListenerPluginWrapper(load[DefaultListenerPlugin](desc, "engine listener")())
       )
 
+  def loadPreConditionEvaluators(configs: Seq[Config]): Seq[AsyncPreConditionEvaluator] =
+    configs
+      .map(desc =>
+        new AsyncPreConditionWrapper(load[DefaultPreConditionPlugin](desc, "pre-condition evaluator")())
+      )
 }

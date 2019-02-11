@@ -34,12 +34,7 @@ class Plugins @Inject()(loader: PluginLoader, appConfig: AppConfig) {
     loader.loadListeners(if (config.hasPath("engineListeners")) config.getConfigList("engineListeners") else Seq())
 
   val preConditionEvaluators: Seq[AsyncPreConditionEvaluator] =
-      if (config.hasPath("preConditionEvaluators"))
-        config.getConfigList("preConditionEvaluators").map(desc =>
-          new AsyncPreConditionWrapper(loader.load[DefaultPreConditionPlugin](desc, "pre-condition evaluator")())
-        )
-      else
-        Seq()
+    loader.loadPreConditionEvaluators(if (config.hasPath("preConditionEvaluators")) config.getConfigList("preConditionEvaluators") else Seq())
 }
 
 
