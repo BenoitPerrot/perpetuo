@@ -2,7 +2,7 @@ package com.criteo.perpetuo.config
 
 import java.io.File
 
-import com.criteo.perpetuo.auth.{AnonymousIdentityProvider, IdentityProvider}
+import com.criteo.perpetuo.auth._
 import com.criteo.perpetuo.engine.Provider
 import com.criteo.perpetuo.engine.dispatchers.{SingleTargetDispatcher, TargetDispatcher}
 import com.criteo.perpetuo.engine.executors.ExecutionTrigger
@@ -90,5 +90,15 @@ class PluginLoader @Inject()(injector: Injector) {
         load[IdentityProvider](desc, "type of identity provider")()
       )
       .getOrElse(AnonymousIdentityProvider)
+
+  def loadPermissions(config: Option[Config]): Permissions =
+    config
+      .map(desc =>
+        load[Permissions](desc, "type of permissions") {
+          case t@"fineGrained" =>
+            FineGrainedPermissions.fromConfig(desc.getConfig(t))
+        }
+      )
+      .getOrElse(Unrestricted)
 
 }

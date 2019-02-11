@@ -28,13 +28,7 @@ class Plugins @Inject()(loader: PluginLoader, appConfig: AppConfig) {
 
   val identityProvider: IdentityProvider = loader.loadIdentityProvider(config.tryGetConfig("auth.identityProvider"))
 
-  val permissions: Permissions =
-    config.tryGetConfig("permissions").map { desc =>
-      loader.load[Permissions](desc, "type of permissions") {
-        case t@"fineGrained" =>
-          FineGrainedPermissions.fromConfig(desc.getConfig(t))
-      }
-    }.getOrElse(Unrestricted)
+  val permissions: Permissions = loader.loadPermissions(config.tryGetConfig("permissions"))
 
   val listeners: Seq[AsyncListener] =
     if (config.hasPath("engineListeners"))
