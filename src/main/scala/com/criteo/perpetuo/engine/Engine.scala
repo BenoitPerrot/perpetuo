@@ -3,7 +3,7 @@ package com.criteo.perpetuo.engine
 import java.util.concurrent.TimeUnit
 
 import com.criteo.perpetuo.auth._
-import com.criteo.perpetuo.config.AppConfig
+import com.criteo.perpetuo.config.{AppConfig, AsyncPreConditionWrapper}
 import com.criteo.perpetuo.engine.resolvers.TargetResolver
 import com.criteo.perpetuo.model.ExecutionState.ExecutionState
 import com.criteo.perpetuo.model._
@@ -34,6 +34,8 @@ class Engine @Inject()(appConfig: AppConfig,
                        preConditionEvaluators: Seq[AsyncPreConditionEvaluator],
                        scheduler: Scheduler) extends Logging {
 
+  private val authPreCondition = new AsyncPreConditionWrapper(new AuthPreCondition(permissions))
+
   scheduler.scheduleTask(autoRevertFailingDeploymentRequests _, period = 5, timeUnit = TimeUnit.MINUTES)
 
   private def getTargetSuperset(productName: String, version: Version, target: Iterable[TargetExpr]): Set[TargetAtom] =
@@ -43,7 +45,7 @@ class Engine @Inject()(appConfig: AppConfig,
       .getOrElse(Set.empty)
 
   private def evaluatePreconditions(canDo: AsyncPreConditionEvaluator => Future[Try[Unit]]): Future[Unit] = {
-    val preConditions = preConditionEvaluators.map(canDo)
+    val preConditions = preConditionEvaluators.:+(authPreCondition).map(canDo)
     Future.sequence(preConditions)
       .map(_.collect { case Failure(f) => f })
       .flatMap(failures =>
