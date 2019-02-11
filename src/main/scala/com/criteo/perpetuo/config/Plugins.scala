@@ -26,10 +26,7 @@ class Plugins @Inject()(loader: PluginLoader, appConfig: AppConfig) {
 
   val dispatcher: TargetDispatcher = loader.loadTargetDispatcher(config.tryGetConfig("targetDispatcher"))
 
-  val identityProvider: IdentityProvider =
-    config.tryGetConfig("auth.identityProvider").map { desc =>
-      loader.load[IdentityProvider](desc, "type of identity provider")()
-    }.getOrElse(AnonymousIdentityProvider)
+  val identityProvider: IdentityProvider = loader.loadIdentityProvider(config.tryGetConfig("auth.identityProvider"))
 
   val permissions: Permissions =
     config.tryGetConfig("permissions").map { desc =>

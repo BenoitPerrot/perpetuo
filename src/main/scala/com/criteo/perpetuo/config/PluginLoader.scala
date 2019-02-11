@@ -2,6 +2,7 @@ package com.criteo.perpetuo.config
 
 import java.io.File
 
+import com.criteo.perpetuo.auth.{AnonymousIdentityProvider, IdentityProvider}
 import com.criteo.perpetuo.engine.Provider
 import com.criteo.perpetuo.engine.dispatchers.{SingleTargetDispatcher, TargetDispatcher}
 import com.criteo.perpetuo.engine.executors.ExecutionTrigger
@@ -82,4 +83,12 @@ class PluginLoader @Inject()(injector: Injector) {
       }
       .getOrElse(throw new Exception(s"No target dispatcher is configured, while one is required"))
       .get
+
+  def loadIdentityProvider(config: Option[Config]): IdentityProvider =
+    config
+      .map(desc =>
+        load[IdentityProvider](desc, "type of identity provider")()
+      )
+      .getOrElse(AnonymousIdentityProvider)
+
 }
