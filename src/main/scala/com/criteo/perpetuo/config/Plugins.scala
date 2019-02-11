@@ -23,13 +23,7 @@ class Plugins @Inject()(loader: PluginLoader, appConfig: AppConfig) {
 
   import com.criteo.perpetuo.config.ConfigSyntacticSugar._
 
-  val resolver: TargetResolver = config
-    .tryGetConfig("targetResolver")
-    .map { desc =>
-      loader.load[Provider[TargetResolver]](desc, "target resolver")()
-    }
-    .getOrElse(new TargetResolver {})
-    .get
+  val resolver: TargetResolver = loader.loadTargetResolver(config.tryGetConfig("targetResolver"))
 
   val dispatcher: TargetDispatcher = config
     .tryGetConfig("targetDispatcher")

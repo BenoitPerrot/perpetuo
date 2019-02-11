@@ -2,6 +2,8 @@ package com.criteo.perpetuo.config
 
 import java.io.File
 
+import com.criteo.perpetuo.engine.Provider
+import com.criteo.perpetuo.engine.resolvers.TargetResolver
 import com.criteo.perpetuo.util.tryInstantiateWithArgs
 import com.google.inject.{Inject, Injector, Singleton}
 import com.typesafe.config.{Config, ConfigException}
@@ -57,4 +59,12 @@ class PluginLoader @Inject()(injector: Injector) {
     } catch {
       case e: ConfigException => throw new RuntimeException(s"Error in the configuration of the $reason (see the cause below)", e)
     }
+
+  def loadTargetResolver(config: Option[Config]): TargetResolver =
+    config
+      .map(desc =>
+        load[Provider[TargetResolver]](desc, "target resolver")()
+      )
+      .getOrElse(new TargetResolver {})
+      .get
 }
