@@ -3,7 +3,7 @@ package com.criteo.perpetuo.config
 import java.io.File
 
 import com.criteo.perpetuo.auth._
-import com.criteo.perpetuo.engine.Provider
+import com.criteo.perpetuo.engine.{AsyncListener, Provider}
 import com.criteo.perpetuo.engine.dispatchers.{SingleTargetDispatcher, TargetDispatcher}
 import com.criteo.perpetuo.engine.executors.ExecutionTrigger
 import com.criteo.perpetuo.engine.resolvers.TargetResolver
@@ -100,5 +100,11 @@ class PluginLoader @Inject()(injector: Injector) {
         }
       )
       .getOrElse(Unrestricted)
+
+  def loadListeners(configs: Seq[Config]): Seq[AsyncListener] =
+    configs
+      .map(desc =>
+        new ListenerPluginWrapper(load[DefaultListenerPlugin](desc, "engine listener")())
+      )
 
 }

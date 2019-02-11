@@ -31,12 +31,7 @@ class Plugins @Inject()(loader: PluginLoader, appConfig: AppConfig) {
   val permissions: Permissions = loader.loadPermissions(config.tryGetConfig("permissions"))
 
   val listeners: Seq[AsyncListener] =
-    if (config.hasPath("engineListeners"))
-      config.getConfigList("engineListeners").map(desc =>
-        new ListenerPluginWrapper(loader.load[DefaultListenerPlugin](desc, "engine listener")())
-      )
-    else
-      Seq()
+    loader.loadListeners(if (config.hasPath("engineListeners")) config.getConfigList("engineListeners") else Seq())
 
   val preConditionEvaluators: Seq[AsyncPreConditionEvaluator] =
       if (config.hasPath("preConditionEvaluators"))
