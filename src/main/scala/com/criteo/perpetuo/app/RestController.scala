@@ -242,7 +242,7 @@ class RestController @Inject()(engine: Engine, restApi: RestApi, swag: Swagger)
         """.stripMargin)
       .bodyParam[Int]("operationCount",
       "Optional: number of operations performed so far for the given deployment request. If the actual operation count differs from the query, the step won't be carried out")
-      .responseWith(200, "Corresponding operation id")
+      .responseWith(200, "The deployment request id")
   } { (id: Long, r: DeploymentActionRequest, user: User) =>
     engine
       .step(user, id, r.operationCount)
@@ -258,7 +258,7 @@ class RestController @Inject()(engine: Engine, restApi: RestApi, swag: Swagger)
           | The method is idempotent when an operationCount is specified.
         """.stripMargin)
       .queryParam[Int]("operationCount", required = false)
-      .responseWith(200, "Corresponding operation id")
+      .responseWith(200, "The deployment request id")
   } { (id: Long, r: RevertRequest, user: User) =>
     engine
       .revert(user, id, r.operationCount, r.defaultVersion.map(Version.apply))
