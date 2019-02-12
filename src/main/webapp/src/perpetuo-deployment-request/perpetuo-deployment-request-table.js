@@ -74,6 +74,11 @@ class PerpetuoDeploymentRequestTable extends PolymerElement {
   width: 10%;
 }
 
+:host([filter-focused]) perpetuo-app-toolbar ~ * {
+  opacity: 0.2;
+  transition: opacity;
+}
+
 perpetuo-app-toolbar paper-icon-button {
   color: #fff;
   min-width: 40px;
@@ -97,7 +102,8 @@ perpetuo-app-toolbar #productFilter[focused] ~ span {
   <div slot="title" style="display: flex; align-items: center; position: relative">
     <paper-icon-button icon="search" hidden$="[[selectedProductName]]" on-tap="onSearchIconTap"></paper-icon-button>
     <paper-icon-button icon="arrow-back" hidden$="[[!selectedProductName]]" on-tap="onBackIconTap"></paper-icon-button>
-    <perpetuo-deployment-request-filter-editor id="productFilter" product-names="[[productNames]]" on-product-name-selected="onProductNameSelected"></perpetuo-deployment-request-filter-editor>
+    <perpetuo-deployment-request-filter-editor id="productFilter" product-names="[[productNames]]" on-product-name-selected="onProductNameSelected"
+                                               focused="{{filterFocused}}"></perpetuo-deployment-request-filter-editor>
     <span>Deployment Requests</span>
     <span hidden$="[[!selectedProductName]]">&nbsp;/ [[selectedProductName]]</span>
   </div>
@@ -152,6 +158,7 @@ perpetuo-app-toolbar #productFilter[focused] ~ span {
 
       productNames: { type: Array, value: () => [] },
       selectedProductName: { type: String, observer: 'onSelectedProductNameChanged' },
+      filterFocused: { type: Boolean, reflectToAttribute: true },
       timeZoneItem: Object,
       timestampConverter: { type: String, computed: 'computeTimestampConverter(timeZoneItem)', observer: 'convertTimestamp' },
 

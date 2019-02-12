@@ -44,7 +44,7 @@ input:focus::placeholder {
   static get properties() {
     return {
       productNames: Array,
-      focused: { type: Boolean, reflectToAttribute: true },
+      focused: { type: Boolean, reflectToAttribute: true, notify: true },
       filter: { type: String, notify: true }
     }
   }
