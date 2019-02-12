@@ -79,6 +79,7 @@ class PerpetuoDeploymentRequestTable extends PolymerElement {
   <div slot="title" style="display: flex; align-items: center; position: relative">
     <paper-icon-button icon="search" style="color:#fff; min-width: 40px" on-tap="onSearchIconTap"></paper-icon-button>
     <span style="margin-left: 20px">Deployment Requests</span>
+    <span hidden$="[[!selectedProductName]]">&nbsp;/ [[selectedProductName]]</span>
   </div>
 </perpetuo-app-toolbar>
 
@@ -131,6 +132,7 @@ class PerpetuoDeploymentRequestTable extends PolymerElement {
       deploymentRequests: { type: Array, observer: 'convertTimestamp' },
 
       productNames: { type: Array, value: () => [] },
+      selectedProductName: String,
       timeZoneItem: Object,
       timestampConverter: { type: String, computed: 'computeTimestampConverter(timeZoneItem)', observer: 'convertTimestamp' },
 
