@@ -162,11 +162,12 @@ class PerpetuoDeploymentRequestTable extends PolymerElement {
   applyQueryParams() {
     const queryParams = WindowLocationHelper.getQueryParams(window);
 
-    this.selectedProductName = decodeURIComponent(queryParams.get('q') || '');
-    if (this.selectedProductName) {
-      this.$.productFilter.select(this.selectedProductName);
+    const q = decodeURIComponent(queryParams.get('q') || '');
+    if (q) {
+      this.selectedProductName = this.$.productFilter.select(q) ? q : null;
     } else {
       this.$.productFilter.clear();
+      this.selectedProductName = null;
     }
     const page = parseInt(queryParams.get('page'));
     if (0 < page)

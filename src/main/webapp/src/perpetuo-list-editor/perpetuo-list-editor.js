@@ -91,7 +91,7 @@ paper-input-container {
   }
 
   select(e) {
-    this.$.dropdown.select(e);
+    return this.$.dropdown.select(e);
   }
 
   addElement(value) {
