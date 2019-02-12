@@ -196,7 +196,7 @@ class PerpetuoDeploymentRequestTable extends PolymerElement {
     this.$.productFilter.focus();
   }
 
-  refresh(forced) {
+  refresh() {
     const query = Object.assign(
       {
         offset: this.$.paging.offset,
@@ -207,9 +207,6 @@ class PerpetuoDeploymentRequestTable extends PolymerElement {
     return this.client.fetchDeploymentRequests(query).then(deploymentRequests => {
       this.deploymentRequests = deploymentRequests;
       this.hasNextPage = this.client.hasMoreDeploymentRequests;
-      if (forced) {
-        this.page = 1;
-      }
     });
   }
 
@@ -236,7 +233,9 @@ class PerpetuoDeploymentRequestTable extends PolymerElement {
         this.deploymentRequestFilter = e.target.selectedItem;
         const q = this.deploymentRequestFilter ? encodeURIComponent(this.deploymentRequestFilter) : undefined;
         WindowLocationHelper.setQueryParam(window, 'q', q);
-        this.refresh(true);
+        this.refresh().then(() => {
+          this.page = 1;
+        });
       }
     }
   }
