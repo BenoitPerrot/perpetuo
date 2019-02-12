@@ -29,6 +29,12 @@ class PerpetuoDeploymentRequestCreationPage extends PolymerElement {
   width: 50%;
   margin-left: 64px;
 }
+
+perpetuo-app-toolbar span {
+  font-family: var(--paper-font-headline_-_font-family);
+  font-weight: var(--paper-font-common-base_-_font-weight);
+  font-size: var(--paper-font-headline_-_font-size);
+}
 </style>
 
 <perpetuo-app-toolbar>
