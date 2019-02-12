@@ -73,12 +73,19 @@ class PerpetuoDeploymentRequestTable extends PolymerElement {
 .state {
   width: 10%;
 }
+
+perpetuo-app-toolbar paper-icon-button {
+  color: #fff;
+  min-width: 40px;
+  margin-right: 20px;
+}
 </style>
 <perpetuo-identity id="identity" login="{{login}}"></perpetuo-identity>
 <perpetuo-app-toolbar>
   <div slot="title" style="display: flex; align-items: center; position: relative">
-    <paper-icon-button icon="search" style="color:#fff; min-width: 40px" on-tap="onSearchIconTap"></paper-icon-button>
-    <span style="margin-left: 20px">Deployment Requests</span>
+    <paper-icon-button icon="search" hidden$="[[selectedProductName]]" on-tap="onSearchIconTap"></paper-icon-button>
+    <paper-icon-button icon="arrow-back" hidden$="[[!selectedProductName]]" on-tap="onBackIconTap"></paper-icon-button>
+    <span>Deployment Requests</span>
     <span hidden$="[[!selectedProductName]]">&nbsp;/ [[selectedProductName]]</span>
   </div>
 </perpetuo-app-toolbar>
@@ -198,6 +205,11 @@ class PerpetuoDeploymentRequestTable extends PolymerElement {
 
   onSearchIconTap() {
     this.$.productFilter.focus();
+  }
+
+  onBackIconTap() {
+    this.$.productFilter.clear();
+    this.selectedProductName = null;
   }
 
   refresh() {
