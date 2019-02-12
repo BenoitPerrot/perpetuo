@@ -79,6 +79,11 @@ perpetuo-app-toolbar paper-icon-button {
   min-width: 40px;
   margin-right: 20px;
 }
+perpetuo-app-toolbar span {
+  font-family: var(--paper-font-headline_-_font-family);
+  font-weight: var(--paper-font-common-base_-_font-weight);
+  font-size: var(--paper-font-headline_-_font-size);
+}
 </style>
 <perpetuo-identity id="identity" login="{{login}}"></perpetuo-identity>
 <perpetuo-app-toolbar>
