@@ -178,18 +178,19 @@ class PerpetuoDeploymentRequestTable extends PolymerElement {
 
   onActiveChanged(active) {
     if (active) {
-      this.applyQueryParams();
       this.client.fetchProducts().then(products => {
         this.productNames = products.sort((a, b) => {
           if (a.active === b.active) { return a.name.localeCompare(b.name); }
           if (a.active) { return -1; }
           return 1;
         }).map(_ => _.name);
-        this.$.productFilter.select(this.selectedProductName);
+        this.applyQueryParams();
+        this.refresher.suspended = false;
       });
       this.$.createButton.focus();
     }
-    this.refresher.suspended = !active;
+    else
+      this.refresher.suspended = true;
   }
 
   onSearchIconTap() {
