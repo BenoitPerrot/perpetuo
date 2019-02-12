@@ -92,7 +92,7 @@ perpetuo-app-toolbar span {
 perpetuo-app-toolbar #productFilter:not([focused]) {
   display: none;
 }
-perpetuo-app-toolbar #productFilter[focused] ~ span {
+perpetuo-app-toolbar #productFilter[focused] ~ div {
   display: none;
 }
 
@@ -104,8 +104,10 @@ perpetuo-app-toolbar #productFilter[focused] ~ span {
     <paper-icon-button icon="arrow-back" hidden$="[[!selectedProductName]]" on-tap="onBackIconTap"></paper-icon-button>
     <perpetuo-deployment-request-filter-editor id="productFilter" product-names="[[productNames]]" on-product-name-selected="onProductNameSelected"
                                                focused="{{filterFocused}}"></perpetuo-deployment-request-filter-editor>
-    <span>Deployment Requests</span>
-    <span hidden$="[[!selectedProductName]]">&nbsp;/ [[selectedProductName]]</span>
+    <div on-tap="onSearchIconTap" style="cursor: pointer;">
+      <span>Deployment Requests</span>
+      <span hidden$="[[!selectedProductName]]">&nbsp;/ [[selectedProductName]]</span>
+    </div>
   </div>
 </perpetuo-app-toolbar>
 
