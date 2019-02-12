@@ -162,9 +162,9 @@ class PerpetuoDeploymentRequestTable extends PolymerElement {
   applyQueryParams() {
     const queryParams = WindowLocationHelper.getQueryParams(window);
 
-    this.deploymentRequestFilter = decodeURIComponent(queryParams.get('q') || '');
-    if (this.deploymentRequestFilter) {
-      this.$.productFilter.select(this.deploymentRequestFilter);
+    this.selectedProductName = decodeURIComponent(queryParams.get('q') || '');
+    if (this.selectedProductName) {
+      this.$.productFilter.select(this.selectedProductName);
     } else {
       this.$.productFilter.clear();
     }
@@ -185,7 +185,7 @@ class PerpetuoDeploymentRequestTable extends PolymerElement {
           if (a.active) { return -1; }
           return 1;
         }).map(_ => _.name);
-        this.$.productFilter.select(this.deploymentRequestFilter);
+        this.$.productFilter.select(this.selectedProductName);
       });
       this.$.createButton.focus();
     }
@@ -202,7 +202,7 @@ class PerpetuoDeploymentRequestTable extends PolymerElement {
         offset: this.$.paging.offset,
         limit: this.pageSize
       },
-      this.deploymentRequestFilter ? { where: [{ 'field': 'productName', 'equals': this.deploymentRequestFilter }] } : {}
+      this.selectedProductName ? { where: [{ 'field': 'productName', 'equals': this.selectedProductName }] } : {}
     );
     return this.client.fetchDeploymentRequests(query).then(deploymentRequests => {
       this.deploymentRequests = deploymentRequests;
@@ -229,9 +229,9 @@ class PerpetuoDeploymentRequestTable extends PolymerElement {
 
   updateFilter(e) {
     if (this.active) {
-      if (this.deploymentRequestFilter != e.target.selectedItem) {
-        this.deploymentRequestFilter = e.target.selectedItem;
-        const q = this.deploymentRequestFilter ? encodeURIComponent(this.deploymentRequestFilter) : undefined;
+      if (this.selectedProductName != e.target.selectedItem) {
+        this.selectedProductName = e.target.selectedItem;
+        const q = this.selectedProductName ? encodeURIComponent(this.selectedProductName) : undefined;
         WindowLocationHelper.setQueryParam(window, 'q', q);
         this.refresh().then(() => {
           this.page = 1;
