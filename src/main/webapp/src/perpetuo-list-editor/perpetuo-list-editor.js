@@ -96,7 +96,7 @@ paper-input-container {
 
   addElement(value) {
     this.selectedItem = value;
-    this.$.dropdown.unselect();
+    this.$.dropdown.select(null);
     this.$.dropdown.close();
     this.filter = '';
   }
