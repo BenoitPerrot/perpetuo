@@ -2,7 +2,7 @@ package com.criteo.perpetuo.engine
 
 import com.criteo.perpetuo.model._
 
-trait DeploymentState {
+sealed trait DeploymentState {
   val deploymentRequest: DeploymentRequest
   val deploymentPlanSteps: Seq[DeploymentPlanStep]
   val effects: Seq[OperationEffect]
@@ -17,87 +17,87 @@ trait DeploymentState {
   }
 }
 
-trait InProgressState extends DeploymentState {
+sealed trait InProgressState extends DeploymentState {
   val scope: OperationEffect
 }
 
-trait RevertibleState extends DeploymentState {
+sealed trait RevertibleState extends DeploymentState {
   val revertScope: Seq[DeploymentPlanStep]
 }
 
-case class NotStarted(deploymentRequest: DeploymentRequest,
-                      deploymentPlanSteps: Seq[DeploymentPlanStep],
-                      effects: Seq[OperationEffect],
-                      toDo: DeploymentPlanStep,
-                      outdatedBy: Option[Long])
-  extends DeploymentState
-
-case class RevertInProgress(deploymentRequest: DeploymentRequest,
+final case class NotStarted(deploymentRequest: DeploymentRequest,
                             deploymentPlanSteps: Seq[DeploymentPlanStep],
                             effects: Seq[OperationEffect],
-                            scope: OperationEffect,
+                            toDo: DeploymentPlanStep,
                             outdatedBy: Option[Long])
+  extends DeploymentState
+
+final case class RevertInProgress(deploymentRequest: DeploymentRequest,
+                                  deploymentPlanSteps: Seq[DeploymentPlanStep],
+                                  effects: Seq[OperationEffect],
+                                  scope: OperationEffect,
+                                  outdatedBy: Option[Long])
   extends InProgressState
 
-case class RevertFailed(deploymentRequest: DeploymentRequest,
+final case class RevertFailed(deploymentRequest: DeploymentRequest,
+                              deploymentPlanSteps: Seq[DeploymentPlanStep],
+                              effects: Seq[OperationEffect],
+                              revertScope: Seq[DeploymentPlanStep],
+                              outdatedBy: Option[Long])
+  extends RevertibleState
+
+final case class Reverted(deploymentRequest: DeploymentRequest,
+                          deploymentPlanSteps: Seq[DeploymentPlanStep],
+                          effects: Seq[OperationEffect],
+                          outdatedBy: Option[Long])
+  extends DeploymentState
+
+final case class DeployFlopped(deploymentRequest: DeploymentRequest,
+                               deploymentPlanSteps: Seq[DeploymentPlanStep],
+                               effects: Seq[OperationEffect],
+                               step: DeploymentPlanStep,
+                               outdatedBy: Option[Long])
+  extends DeploymentState
+
+final case class DeployInProgress(deploymentRequest: DeploymentRequest,
+                                  deploymentPlanSteps: Seq[DeploymentPlanStep],
+                                  effects: Seq[OperationEffect],
+                                  scope: OperationEffect,
+                                  outdatedBy: Option[Long])
+  extends InProgressState
+
+final case class DeployFailed(deploymentRequest: DeploymentRequest,
+                              deploymentPlanSteps: Seq[DeploymentPlanStep],
+                              effects: Seq[OperationEffect],
+                              step: DeploymentPlanStep,
+                              revertScope: Seq[DeploymentPlanStep],
+                              outdatedBy: Option[Long])
+  extends RevertibleState
+
+final case class Paused(deploymentRequest: DeploymentRequest,
                         deploymentPlanSteps: Seq[DeploymentPlanStep],
                         effects: Seq[OperationEffect],
+                        toDo: DeploymentPlanStep,
+                        lastDone: DeploymentPlanStep,
                         revertScope: Seq[DeploymentPlanStep],
                         outdatedBy: Option[Long])
   extends RevertibleState
 
-case class Reverted(deploymentRequest: DeploymentRequest,
-                    deploymentPlanSteps: Seq[DeploymentPlanStep],
-                    effects: Seq[OperationEffect],
-                    outdatedBy: Option[Long])
+final case class Deployed(deploymentRequest: DeploymentRequest,
+                          deploymentPlanSteps: Seq[DeploymentPlanStep],
+                          effects: Seq[OperationEffect],
+                          revertScope: Seq[DeploymentPlanStep],
+                          outdatedBy: Option[Long])
+  extends RevertibleState
+
+final case class Abandoned(deploymentRequest: DeploymentRequest,
+                           deploymentPlanSteps: Seq[DeploymentPlanStep],
+                           effects: Seq[OperationEffect],
+                           outdatedBy: Option[Long])
   extends DeploymentState
 
-case class DeployFlopped(deploymentRequest: DeploymentRequest,
-                         deploymentPlanSteps: Seq[DeploymentPlanStep],
-                         effects: Seq[OperationEffect],
-                         step: DeploymentPlanStep,
-                         outdatedBy: Option[Long])
-  extends DeploymentState
-
-case class DeployInProgress(deploymentRequest: DeploymentRequest,
+final case class Superseded(deploymentRequest: DeploymentRequest,
                             deploymentPlanSteps: Seq[DeploymentPlanStep],
                             effects: Seq[OperationEffect],
-                            scope: OperationEffect,
                             outdatedBy: Option[Long])
-  extends InProgressState
-
-case class DeployFailed(deploymentRequest: DeploymentRequest,
-                        deploymentPlanSteps: Seq[DeploymentPlanStep],
-                        effects: Seq[OperationEffect],
-                        step: DeploymentPlanStep,
-                        revertScope: Seq[DeploymentPlanStep],
-                        outdatedBy: Option[Long])
-  extends RevertibleState
-
-case class Paused(deploymentRequest: DeploymentRequest,
-                  deploymentPlanSteps: Seq[DeploymentPlanStep],
-                  effects: Seq[OperationEffect],
-                  toDo: DeploymentPlanStep,
-                  lastDone: DeploymentPlanStep,
-                  revertScope: Seq[DeploymentPlanStep],
-                  outdatedBy: Option[Long])
-  extends RevertibleState
-
-case class Deployed(deploymentRequest: DeploymentRequest,
-                    deploymentPlanSteps: Seq[DeploymentPlanStep],
-                    effects: Seq[OperationEffect],
-                    revertScope: Seq[DeploymentPlanStep],
-                    outdatedBy: Option[Long])
-  extends RevertibleState
-
-case class Abandoned(deploymentRequest: DeploymentRequest,
-                     deploymentPlanSteps: Seq[DeploymentPlanStep],
-                     effects: Seq[OperationEffect],
-                     outdatedBy: Option[Long])
-  extends DeploymentState
-
-case class Superseded(deploymentRequest: DeploymentRequest,
-                     deploymentPlanSteps: Seq[DeploymentPlanStep],
-                     effects: Seq[OperationEffect],
-                     outdatedBy: Option[Long])
   extends DeploymentState
