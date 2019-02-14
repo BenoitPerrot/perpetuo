@@ -89,8 +89,8 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
     val latestOperatedPlanStep = latestEffect.map(effect => idToDeploymentPlanStep(effect.deploymentPlanStepIds.head))
 
     deploymentRequest.state.get match {
-      case DeploymentRequestState.abandoned => Abandoned(deploymentRequest, deploymentPlanSteps, effects, outdatingId)
-      case DeploymentRequestState.superseded => Superseded(deploymentRequest, deploymentPlanSteps, effects, outdatingId)
+      case DeploymentRequestState.abandoned => Abandoned(deploymentRequest, deploymentPlanSteps, sortedEffects, outdatingId)
+      case DeploymentRequestState.superseded => Superseded(deploymentRequest, deploymentPlanSteps, sortedEffects, outdatingId)
       case DeploymentRequestState.notStarted => NotStarted(deploymentRequest, deploymentPlanSteps, sortedEffects, deploymentPlanSteps.head, outdatingId)
       case DeploymentRequestState.deployInProgress => DeployInProgress(deploymentRequest, deploymentPlanSteps, sortedEffects, latestEffect.get, outdatingId)
       case DeploymentRequestState.deployFlopped => DeployFlopped(deploymentRequest, deploymentPlanSteps, sortedEffects, latestOperatedPlanStep.get, outdatingId)
@@ -106,9 +106,9 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
   def computeDeploymentState(deploymentRequest: DeploymentRequest, deploymentPlanSteps: Seq[DeploymentPlanStep], effects: Seq[OperationEffect], outdatingId: Option[Long] = None): DeploymentState = {
     val sortedEffects = effects.sortBy(-_.operationTrace.id)
     if (deploymentRequest.state.contains(DeploymentRequestState.abandoned)) {
-      Abandoned(deploymentRequest, deploymentPlanSteps, effects, outdatingId)
+      Abandoned(deploymentRequest, deploymentPlanSteps, sortedEffects, outdatingId)
     } else if (deploymentRequest.state.contains(DeploymentRequestState.superseded)) {
-      Superseded(deploymentRequest, deploymentPlanSteps, effects, outdatingId)
+      Superseded(deploymentRequest, deploymentPlanSteps, sortedEffects, outdatingId)
     } else {
       val idToDeploymentPlanStep = deploymentPlanSteps.map(planStep => planStep.id -> planStep).toMap
 
