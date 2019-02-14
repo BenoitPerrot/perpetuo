@@ -19,6 +19,13 @@ export function AsyncRepeater(f, delayInMs) {
     invokeThenRepeat();
     return this;
   };
+  this.fastForward = () => {
+    if (!suspended) {
+      clearTimeout(timeoutId);
+      invokeThenRepeat();
+    }
+    return this;
+  };
   Object.defineProperty(this, 'suspended', {
     set: (value) => value ? this.suspend() : this.resume(),
     get: () => suspended

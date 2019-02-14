@@ -266,23 +266,22 @@ perpetuo-app-toolbar #productFilter[focused] ~ div {
   onSelectedProductNameChanged() {
     const q = this.selectedProductName ? encodeURIComponent(this.selectedProductName) : undefined;
     WindowLocationHelper.setQueryParam(window, 'q', q);
-    this.refresh().then(() => {
-      this.page = 1;
-    });
+    this.page = 1;
+    this.refresher.fastForward();
   }
 
   onPageChanged() {
     if (this.active) {
       this.hasNextPage = false; // Assume no more page
       WindowLocationHelper.setQueryParam(window, 'page', this.page);
-      this.refresh();
+      this.refresher.fastForward();
     }
   }
 
   onPageSizeChanged() {
     if (this.active) {
       WindowLocationHelper.setQueryParam(window, 'page-size', this.pageSize);
-      this.refresh();
+      this.refresher.fastForward();
     }
   }
 }
