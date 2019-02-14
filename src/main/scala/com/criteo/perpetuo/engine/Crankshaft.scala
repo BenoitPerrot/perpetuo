@@ -99,6 +99,7 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
 
     deploymentRequest.state.get match {
       case DeploymentRequestState.abandoned => Abandoned(deploymentRequest, deploymentPlanSteps, effects, outdatingId)
+      case DeploymentRequestState.superseded => Superseded(deploymentRequest, deploymentPlanSteps, effects, outdatingId)
       case DeploymentRequestState.notStarted => NotStarted(deploymentRequest, deploymentPlanSteps, sortedEffects, deploymentPlanSteps.head, outdatingId)
       case DeploymentRequestState.deployInProgress => DeployInProgress(deploymentRequest, deploymentPlanSteps, sortedEffects, latestEffect.get, outdatingId)
       case DeploymentRequestState.deployFlopped => DeployFlopped(deploymentRequest, deploymentPlanSteps, sortedEffects, latestOperatedPlanStep.get, outdatingId)
