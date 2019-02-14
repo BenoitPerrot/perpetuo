@@ -14,15 +14,6 @@ import slick.jdbc.TransactionIsolation.ReadCommitted
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
-object DeploymentStatus extends Enumeration {
-  val notStarted: Value = Value("notStarted")
-  val inProgress: Value = Value("inProgress")
-  val flopped: Value = Value("flopped")
-  val failed: Value = Value("failed")
-  val succeeded: Value = Value("succeeded")
-  val paused: Value = Value("paused")
-}
-
 abstract class RejectingException extends RuntimeException {
   val msg: String
   val detail: Map[String, _]
