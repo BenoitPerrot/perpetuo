@@ -179,7 +179,7 @@ class Engine @Inject()(appConfig: AppConfig,
             case s: Abandoned =>
               DBIOAction.failed(new DeploymentRequestAbandoned)
 
-            case s@(_: Reverted | _: Deployed | _: RevertFailed) =>
+            case s@(_: Reverted | _: Deployed | _: RevertFailed | _: Superseded) =>
               DBIOAction.failed(new DeploymentTransactionClosed)
 
             case s@(_: RevertInProgress | _: DeployInProgress) =>
@@ -298,7 +298,7 @@ class Engine @Inject()(appConfig: AppConfig,
           case s if s.isOutdated =>
             (s, Seq())
 
-          case s@(_: Abandoned | _: Reverted) =>
+          case s@(_: Abandoned | _: Reverted | _: Superseded) =>
             (s, Seq())
 
           case s: Deployed =>
