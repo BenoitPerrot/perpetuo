@@ -83,6 +83,7 @@ class PerpetuoSuggestionDropdown extends PolymerElement {
   select(e) {
     const i = this.suggestions.findIndex(_ => _ === e);
     this.$.listbox.selected = i < 0 ? null : i;
+    return 0 <= i;
   }
 }
 
