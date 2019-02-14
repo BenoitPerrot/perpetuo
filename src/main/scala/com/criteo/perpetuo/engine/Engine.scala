@@ -128,11 +128,10 @@ class Engine @Inject()(appConfig: AppConfig,
             .getOrElse(Future.failed(e))
           )
 
-      case e: OperationInapplicableForEffects => {
-        val operationEffects = crankshaft.dbBinding.dbContext.db.run(
-          crankshaft.dbBinding.findingDeploymentRequestAndEffects(deploymentRequest.id)
-        )
-        .map(_.map { case (_, _, effects) => effects } )
+      case e: OperationInapplicableForEffects =>
+        val operationEffects = crankshaft.dbBinding.dbContext.db
+          .run(crankshaft.dbBinding.findingDeploymentRequestAndEffects(deploymentRequest.id))
+          .map(_.map { case (_, _, effects) => effects })
         operationCount
           .map(c =>
             operationEffects.flatMap(_
@@ -144,7 +143,6 @@ class Engine @Inject()(appConfig: AppConfig,
             )
           )
           .getOrElse(Future.failed(e))
-      }
     }
   }
 
@@ -176,13 +174,13 @@ class Engine @Inject()(appConfig: AppConfig,
             case s if s.isOutdated =>
               DBIOAction.failed(new DeploymentRequestOutdated)
 
-            case s: Abandoned =>
+            case _: Abandoned =>
               DBIOAction.failed(new DeploymentRequestAbandoned)
 
-            case s@(_: Reverted | _: Deployed | _: RevertFailed | _: Superseded) =>
+            case _: Reverted | _: Deployed | _: RevertFailed | _: Superseded =>
               DBIOAction.failed(new DeploymentTransactionClosed)
 
-            case s@(_: RevertInProgress | _: DeployInProgress) =>
+            case _: RevertInProgress | _: DeployInProgress =>
               DBIOAction.failed(new OperationRunning)
 
             case s: DeployFailed =>
