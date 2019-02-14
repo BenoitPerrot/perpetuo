@@ -11,6 +11,10 @@ class PerpetuoSuggestionDropdown extends PolymerElement {
   static get template() {
     return html`
 <style>
+:host {
+  display: block;
+}
+
 #dropdown {
   @apply --shadow-elevation-2dp;
   cursor: pointer;
