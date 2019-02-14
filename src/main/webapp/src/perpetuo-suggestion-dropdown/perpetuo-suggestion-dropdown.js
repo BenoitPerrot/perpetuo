@@ -49,7 +49,7 @@ class PerpetuoSuggestionDropdown extends PolymerElement {
   }
 
   computeSuggestions(choices, maxCount, filter) {
-    const preferred = this.lruPath ? Perpetuo.Util.readArrayFromLocalStorage(this.lruPath, maxCount) : choices;
+    const preferred = this.lruPath ? Perpetuo.Util.readArrayFromLocalStorage(this.lruPath, maxCount).filter(_ => choices.includes(_)) : choices;
     this.suggestions =
       (filter ? Perpetuo.Suggester.suggest(filter, choices, preferred) : preferred).slice(0, this.maxCount);
   }
