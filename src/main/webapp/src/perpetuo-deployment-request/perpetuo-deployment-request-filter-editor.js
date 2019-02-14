@@ -81,6 +81,7 @@ input:focus::placeholder {
       this.dispatchEvent(new CustomEvent('product-name-selected', {detail: {value: e.detail.value}}));
       this.$.suggestionDropdown.select(null); // TODO: drop the "selection" concept from the suggestion dropdown
       this.$.suggestionDropdown.close();
+      this.focused = false;
     }
   }
 
