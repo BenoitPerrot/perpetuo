@@ -19,10 +19,10 @@ import scala.concurrent.{Await, Future}
 trait CrankshaftSimpleScenarioTesting extends SimpleScenarioTesting {
 
   protected def createDeploymentRequest(productName: String,
-    version: Version,
-    plan: Seq[ProtoDeploymentPlanStep],
-    comment: String,
-    creator: String): Future[DeploymentRequest] =
+                                        version: Version,
+                                        plan: Seq[ProtoDeploymentPlanStep],
+                                        comment: String,
+                                        creator: String): Future[DeploymentRequest] =
     crankshaft.createDeploymentPlan(ProtoDeploymentRequest(productName, version, plan, comment, creator))
       .map(_.deploymentRequest)
 

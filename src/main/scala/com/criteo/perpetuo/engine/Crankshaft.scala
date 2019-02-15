@@ -406,7 +406,7 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
   def deviseRevertPlan(deploymentRequest: DeploymentRequest): Future[(Set[TargetAtom], Iterable[(ExecutionSpecification, Set[TargetAtom])])] = {
     val devisingRevertPlan =
       assessReversibility(deploymentRequest)
-          .flatMap(_.fold(DBIO.failed, _ => dbBinding.findingExecutionSpecificationsForRevert(deploymentRequest)))
+        .flatMap(_.fold(DBIO.failed, _ => dbBinding.findingExecutionSpecificationsForRevert(deploymentRequest)))
 
     dbBinding.dbContext.db.run(devisingRevertPlan)
   }
@@ -475,9 +475,6 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
           .getOrElse(DBIO.successful(None))
         )
     )
-
-  def findDeploymentRequestsAndPlan(where: Seq[Map[String, Any]], limit: Int, offset: Int): Future[Seq[DeploymentPlan]] =
-    dbBinding.findDeploymentRequestsAndPlan(where, limit, offset)
 
   /**
     * Compute the version that should be used in order to align the given target
@@ -655,7 +652,9 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
   def findAutoRevertibleDeploymentRequestIdsAndStateStamps: Future[Seq[(Long, Int)]] =
     dbBinding.findAutoRevertibleDeploymentRequestIdsAndStateStamps
 
-  def findDeploymentPlanSteps(deploymentRequest: DeploymentRequest): Future[Seq[DeploymentPlanStep]] = {
+  def findDeploymentRequestsAndPlan(where: Seq[Map[String, Any]], limit: Int, offset: Int): Future[Seq[DeploymentPlan]] =
+    dbBinding.findDeploymentRequestsAndPlan(where, limit, offset)
+
+  def findDeploymentPlanSteps(deploymentRequest: DeploymentRequest): Future[Seq[DeploymentPlanStep]] =
     dbBinding.dbContext.db.run(dbBinding.findingDeploymentPlanSteps(deploymentRequest))
-  }
 }
