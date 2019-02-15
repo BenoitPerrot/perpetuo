@@ -129,10 +129,9 @@ class Engine @Inject()(appConfig: AppConfig,
           )
 
       case e: OperationInapplicableForEffects =>
-        val operationEffects = crankshaft.findDeploymentEffects(deploymentRequest.id)
         operationCount
           .map(c =>
-            operationEffects.flatMap(_
+            crankshaft.findDeploymentEffects(deploymentRequest.id).flatMap(_
               .flatMap(_.sortBy(-_.operationTrace.id).reverse.lift(c))
               .map(_.operationTrace)
               .filter(isSimilar)
