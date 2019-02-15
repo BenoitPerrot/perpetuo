@@ -129,9 +129,7 @@ class Engine @Inject()(appConfig: AppConfig,
           )
 
       case e: OperationInapplicableForEffects =>
-        val operationEffects = crankshaft.dbBinding.dbContext.db
-          .run(crankshaft.dbBinding.findingDeploymentRequestAndEffects(deploymentRequest.id))
-          .map(_.map { case (_, _, effects) => effects })
+        val operationEffects = crankshaft.findDeploymentEffects(deploymentRequest.id)
         operationCount
           .map(c =>
             operationEffects.flatMap(_

@@ -657,4 +657,9 @@ class Crankshaft @Inject()(val dbBinding: DbBinding,
 
   def findDeploymentPlanSteps(deploymentRequest: DeploymentRequest): Future[Seq[DeploymentPlanStep]] =
     dbBinding.dbContext.db.run(dbBinding.findingDeploymentPlanSteps(deploymentRequest))
+
+  def findDeploymentEffects(deploymentRequestId: Long): Future[Option[Seq[OperationEffect]]] =
+    dbBinding.dbContext.db
+      .run(dbBinding.findingDeploymentRequestAndEffects(deploymentRequestId))
+      .map(_.map { case (_, _, effects) => effects })
 }
