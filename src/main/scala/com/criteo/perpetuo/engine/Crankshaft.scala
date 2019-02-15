@@ -32,10 +32,10 @@ case class MissingInfo(msg: String, required: String) extends RejectingException
   val detail: Map[String, String] = Map("required" -> required)
 }
 
-case class Conflict(msg: String, deploymentRequestId: Long, conflicts: Iterable[_] = Seq()) extends RejectingException {
+case class Conflict(msg: String, deploymentRequestId: Long, conflictingIds: Iterable[Long] = Seq()) extends RejectingException {
   val detail: Map[String, _] =
     Map("deploymentRequestId" -> deploymentRequestId) ++
-      (if (conflicts.nonEmpty) Map("conflicts" -> conflicts) else Map())
+      (if (conflictingIds.nonEmpty) Map("conflicts" -> conflictingIds) else Map())
 }
 
 case class Veto(msg: String, reason: String) extends RejectingException {
