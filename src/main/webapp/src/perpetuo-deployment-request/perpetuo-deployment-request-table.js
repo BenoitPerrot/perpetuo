@@ -159,7 +159,7 @@ perpetuo-app-toolbar #productFilter[focused] ~ div {
       deploymentRequests: { type: Array, observer: 'convertTimestamp' },
 
       productNames: { type: Array, value: () => [] },
-      selectedProductName: { type: String, value: null, observer: 'onSelectedProductNameChanged' },
+      selectedProductName: { type: String, observer: 'onSelectedProductNameChanged' },
       filterFocused: { type: Boolean, reflectToAttribute: true },
       timeZoneItem: Object,
       timestampConverter: { type: String, computed: 'computeTimestampConverter(timeZoneItem)', observer: 'convertTimestamp' },
